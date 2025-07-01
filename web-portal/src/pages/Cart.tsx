@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, getUserAssociatedCompanies } from '../api';
 
-const CACHE_KEY = 'cart_cache';
+const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 const Cart: React.FC = () => {
@@ -18,19 +18,22 @@ const Cart: React.FC = () => {
   const [associatedCompanies, setAssociatedCompanies] = useState<string[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
-  const invalidateCache = () => {
-    localStorage.removeItem(CACHE_KEY);
+  const invalidateCache = (companyId: string) => {
+    localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
   };
 
   const fetchCart = useCallback(async (companyId: string) => {
     setLoading(true);
+    const loadingToastId = toast.loading(`Loading cart for company ${companyId}...`);
     try {
       const fetchedCart = await getCart(companyId);
       setCart(fetchedCart);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fetchedCart, timestamp: Date.now() }));
+      localStorage.setItem(`${CACHE_KEY_PREFIX}${companyId}`, JSON.stringify({ data: fetchedCart, timestamp: Date.now() }));
+      toast.success(`Cart for company ${companyId} loaded successfully!`, { id: loadingToastId });
     } catch (err: any) {
       setCart(null); // Ensure cart is null on error
-      invalidateCache(); // Invalidate cache on error
+      invalidateCache(companyId); // Invalidate cache on error
+      toast.error(err.response?.data?.message || `Failed to load cart for company ${companyId}.`, { id: loadingToastId });
     } finally {
       setLoading(false);
     }
@@ -63,7 +66,7 @@ const Cart: React.FC = () => {
         if (companies.length > 0) {
           const initialCompanyId = companies[0]; // Select the first company by default
           setSelectedCompanyId(initialCompanyId);
-          const cached = localStorage.getItem(CACHE_KEY);
+          const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${initialCompanyId}`);
           if (cached) {
             const { data, timestamp } = JSON.parse(cached);
             if (Date.now() - timestamp < CACHE_DURATION && data.companyId === initialCompanyId) {
@@ -97,7 +100,7 @@ const Cart: React.FC = () => {
         }
       });
     };
-  }, [isAuthenticated, navigate, decodeJWT, fetchCart, selectedCompanyId]);
+  }, [isAuthenticated, navigate, decodeJWT, fetchCart]);
 
   const handleCompanyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const companyId = event.target.value;
@@ -112,7 +115,7 @@ const Cart: React.FC = () => {
       const updatedCart = await updateCartItem(itemId, { entity: { quantity } }, selectedCompanyId);
       setCart(updatedCart);
       toast.success('Item quantity updated!');
-      invalidateCache(); // Invalidate cache after successful update
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful update
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update item quantity');
@@ -128,7 +131,7 @@ const Cart: React.FC = () => {
       const updatedCart = await removeItemFromCart(itemId, selectedCompanyId);
       setCart(updatedCart);
       toast.success('Item removed from cart!');
-      invalidateCache(); // Invalidate cache after successful removal
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful removal
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to remove item');
@@ -144,7 +147,7 @@ const Cart: React.FC = () => {
       const clearedCart = await clearCart(selectedCompanyId);
       setCart(clearedCart);
       toast.success('Cart cleared!');
-      invalidateCache(); // Invalidate cache after successful clear
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful clear
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to clear cart');
@@ -182,6 +185,9 @@ const Cart: React.FC = () => {
                 <option key={companyId} value={companyId}>{companyId}</option>
               ))}
             </select>
+            {selectedCompanyId && (
+              <p className="mt-2 text-sm text-gray-600">Showing cart for company: <span className="font-medium">{selectedCompanyId}</span></p>
+            )}
           </div>
         )}
 
