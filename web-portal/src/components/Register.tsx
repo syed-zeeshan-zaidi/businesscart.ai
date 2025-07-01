@@ -35,7 +35,7 @@ const Register = () => {
       localStorage.setItem('accessToken', accessToken);
       setErrors([]);
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       setErrors([err.response?.data?.message || 'Registration failed']);
     }
   };

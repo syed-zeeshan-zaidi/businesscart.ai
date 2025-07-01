@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart } from '../api';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, getUserAssociatedCompanies } from '../api';
 
 const CACHE_KEY = 'cart_cache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -15,19 +15,20 @@ const Cart: React.FC = () => {
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [associatedCompanies, setAssociatedCompanies] = useState<string[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   const invalidateCache = () => {
     localStorage.removeItem(CACHE_KEY);
   };
 
-  const fetchCart = useCallback(async () => {
+  const fetchCart = useCallback(async (companyId: string) => {
     setLoading(true);
     try {
-      const fetchedCart = await getCart();
+      const fetchedCart = await getCart(companyId);
       setCart(fetchedCart);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fetchedCart, timestamp: Date.now() }));
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to load cart');
+    } catch (err: AxiosError) {
       setCart(null); // Ensure cart is null on error
       invalidateCache(); // Invalidate cache on error
     } finally {
@@ -55,37 +56,65 @@ const Cart: React.FC = () => {
     }
     setUserRole(role);
 
-    const loadCart = async () => {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setCart(data);
+    const loadCompaniesAndCart = async () => {
+      try {
+        const companies = await getUserAssociatedCompanies(); // Assuming decodeJWT returns user object with id
+        setAssociatedCompanies(companies);
+        if (companies.length > 0) {
+          const initialCompanyId = companies[0]; // Select the first company by default
+          setSelectedCompanyId(initialCompanyId);
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_DURATION && data.companyId === initialCompanyId) {
+              setCart(data);
+              setLoading(false);
+              return;
+            }
+          }
+          await fetchCart(initialCompanyId);
+        } else {
           setLoading(false);
-          return;
         }
+      } catch (err: AxiosError) {
+        toast.error(err.message || 'Failed to load associated companies');
+        setLoading(false);
       }
-      await fetchCart();
     };
 
-    loadCart();
+    loadCompaniesAndCart();
 
-    window.addEventListener('cartUpdated', fetchCart);
+    window.addEventListener('cartUpdated', () => {
+      if (selectedCompanyId) {
+        fetchCart(selectedCompanyId);
+      }
+    });
 
     return () => {
-      window.removeEventListener('cartUpdated', fetchCart);
+      window.removeEventListener('cartUpdated', () => {
+        if (selectedCompanyId) {
+          fetchCart(selectedCompanyId);
+        }
+      });
     };
-  }, [isAuthenticated, navigate, decodeJWT, fetchCart]);
+  }, [isAuthenticated, navigate, decodeJWT, fetchCart, selectedCompanyId]);
+
+  const handleCompanyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const companyId = event.target.value;
+    setSelectedCompanyId(companyId);
+    fetchCart(companyId);
+  };
 
   const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+    if (!selectedCompanyId) return;
     setLoading(true);
     try {
-      const updatedCart = await updateCartItem(itemId, { entity: { quantity } });
+      const updatedCart = await updateCartItem(itemId, { entity: { quantity } }, selectedCompanyId);
       setCart(updatedCart);
       toast.success('Item quantity updated!');
       invalidateCache(); // Invalidate cache after successful update
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to update item quantity');
     } finally {
       setLoading(false);
@@ -93,14 +122,15 @@ const Cart: React.FC = () => {
   };
 
   const handleRemoveItem = async (itemId: string) => {
+    if (!selectedCompanyId) return;
     setLoading(true);
     try {
-      const updatedCart = await removeItemFromCart(itemId);
+      const updatedCart = await removeItemFromCart(itemId, selectedCompanyId);
       setCart(updatedCart);
       toast.success('Item removed from cart!');
       invalidateCache(); // Invalidate cache after successful removal
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to remove item');
     } finally {
       setLoading(false);
@@ -108,21 +138,22 @@ const Cart: React.FC = () => {
   };
 
   const handleClearCart = async () => {
+    if (!selectedCompanyId) return;
     setLoading(true);
     try {
-      const clearedCart = await clearCart();
+      const clearedCart = await clearCart(selectedCompanyId);
       setCart(clearedCart);
       toast.success('Cart cleared!');
       invalidateCache(); // Invalidate cache after successful clear
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to clear cart');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!userRole || loading) {
+  if (!userRole || loading || associatedCompanies.length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
@@ -137,8 +168,25 @@ const Cart: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Your Shopping Cart</h1>
 
+        {associatedCompanies.length > 0 && (
+          <div className="mb-6">
+            <label htmlFor="company-select" className="block text-sm font-medium text-gray-700">Select Company Cart:</label>
+            <select
+              id="company-select"
+              name="company-select"
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              value={selectedCompanyId || ''}
+              onChange={handleCompanyChange}
+            >
+              {associatedCompanies.map(companyId => (
+                <option key={companyId} value={companyId}>{companyId}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {!cart || cart.items.length === 0 ? (
-          <p className="text-gray-600">Your cart is empty.</p>
+          <p className="text-gray-600">Your cart is empty for {selectedCompanyId || 'the selected company'}.</p>
         ) : (
           <div className="bg-white shadow-lg rounded-lg p-6">
             <div className="divide-y divide-gray-200">

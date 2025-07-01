@@ -72,7 +72,7 @@ const CompanyForm = () => {
       setCompanies(data);
       setFilteredCompanies(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Error fetching companies');
     } finally {
       setIsLoading(false);
@@ -139,7 +139,7 @@ const CompanyForm = () => {
       invalidateCache();
       await fetchCompanies();
       setErrors([]);
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to save company');
     } finally {
       setIsLoading(false);
@@ -216,7 +216,7 @@ const CompanyForm = () => {
       toast.success('Company deleted successfully');
       invalidateCache();
       await fetchCompanies();
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to delete company');
     } finally {
       setIsDeleteConfirmOpen(false);

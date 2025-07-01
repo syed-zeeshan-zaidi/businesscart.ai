@@ -22,7 +22,7 @@ api.interceptors.request.use((config) => {
       }
       config.headers.Authorization = `Bearer ${token}`;
     } catch (e) {
-      console.error('Error decoding JWT:', e);
+      
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -64,7 +64,7 @@ export const logout = async (): Promise<void> => {
       await api.post(`${USER_API_URL}/users/logout`, {});
     }
   } catch (error) {
-    console.error('Logout API error:', error);
+    
   } finally {
     localStorage.removeItem('accessToken');
   }
@@ -161,27 +161,36 @@ export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${ORDER_API_URL}/orders/${id}`);
 };
 
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number } }): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string } }): Promise<Cart> => {
   const response = await api.post(`${CART_API_URL}/cart`, data);
   return response.data;
 };
 
-export const getCart = async (): Promise<Cart> => {
-  const response = await api.get(`${CART_API_URL}/cart`);
+export const getCart = async (companyId: string): Promise<Cart> => {
+  const response = await api.get(`${CART_API_URL}/cart?companyId=${companyId}`);
   return response.data;
 };
 
-export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }): Promise<Cart> => {
-  const response = await api.put(`${CART_API_URL}/cart/${itemId}`, data);
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, companyId: string): Promise<Cart> => {
+  const response = await api.put(`${CART_API_URL}/cart/${itemId}?companyId=${companyId}`, data);
   return response.data;
 };
 
-export const removeItemFromCart = async (itemId: string): Promise<Cart> => {
-  const response = await api.delete(`${CART_API_URL}/cart/${itemId}`);
+export const removeItemFromCart = async (itemId: string, companyId: string): Promise<Cart> => {
+  const response = await api.delete(`${CART_API_URL}/cart/${itemId}?companyId=${companyId}`);
   return response.data;
 };
 
-export const clearCart = async (): Promise<Cart> => {
-  const response = await api.delete(`${CART_API_URL}/cart`);
+export const clearCart = async (companyId: string): Promise<Cart> => {
+  const response = await api.delete(`${CART_API_URL}/cart?companyId=${companyId}`);
   return response.data;
+};
+
+export const getUserAssociatedCompanies = async (): Promise<string[]> => {
+  const jwt = localStorage.getItem('accessToken');
+  if (!jwt) {
+    throw new Error('No JWT found');
+  }
+  const payload = JSON.parse(atob(jwt.split('.')[1]));
+  return payload.user?.associate_company_ids || [];
 };

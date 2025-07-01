@@ -21,6 +21,9 @@ process.env.NODE_ENV = 'test';
 const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
+// Mock console.log and console.error to suppress logs
+
+
 // Generate JWT
 const generateToken = (
   userId: string,
@@ -81,7 +84,7 @@ beforeAll(async () => {
           authorizer: {},
         } as any,
         pathParameters,
-        queryStringParameters: null,
+        queryStringParameters: req.query as any, // Pass query parameters
         multiValueHeaders: {},
         multiValueQueryStringParameters: null,
         stageVariables: null,
@@ -133,7 +136,8 @@ afterEach(async () => {
 
 describe('Cart Service API', () => {
   const customerUserId = new mongoose.Types.ObjectId().toString();
-  const customerToken = generateToken(customerUserId, 'customer');
+  const customerCompanyId = new mongoose.Types.ObjectId().toString();
+  const customerToken = generateToken(customerUserId, 'customer', customerCompanyId);
   const adminUserId = new mongoose.Types.ObjectId().toString();
   const adminToken = generateToken(adminUserId, 'admin');
   const companyUserId = new mongoose.Types.ObjectId().toString();
@@ -151,73 +155,74 @@ describe('Cart Service API', () => {
 
   // POST /cart
   test('should add a new item to an empty cart', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
-      .send({ entity: { productId: product.productId, quantity: 1 } });
+      .send({ entity: { productId: product.productId, quantity: 1, companyId: product.companyId } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({
       productId: product.productId,
       quantity: 1,
+      companyId: product.companyId,
     });
   });
 
   test('should increase quantity of an existing item in the cart', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
     });
 
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
-      .send({ entity: { productId: product.productId, quantity: 2 } });
+      .send({ entity: { productId: product.productId, quantity: 2, companyId: product.companyId } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({
       productId: product.productId,
       quantity: 3, // 1 (initial) + 2 (added)
+      companyId: product.companyId,
     });
   });
 
   test('should add a new item to an existing cart with other items', async () => {
-    const product1 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
-    const product2 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product1 = createTestProduct(customerUserId, customerCompanyId);
+    const product2 = createTestProduct(customerUserId, customerCompanyId);
     product2.productId = new mongoose.Types.ObjectId().toString(); // Ensure unique product ID
 
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product1, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product1.productId, quantity: 1, companyId: product1.companyId }],
     });
 
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
-      .send({ entity: { productId: product2.productId, quantity: 1 } });
+      .send({ entity: { productId: product2.productId, quantity: 1, companyId: product2.companyId } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(2);
     expect(body.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ productId: product1.productId, quantity: 1 }),
-        expect.objectContaining({ productId: product2.productId, quantity: 1 }),
+        expect.objectContaining({ productId: product1.productId, quantity: 1, companyId: product1.companyId }),
+        expect.objectContaining({ productId: product2.productId, quantity: 1, companyId: product2.companyId }),
       ])
     );
   });
@@ -226,9 +231,7 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
-      .send({ entity: { productId: '', quantity: 0 } });
+      .send({ entity: { productId: '', quantity: 0, companyId: '' } });
 
     expect(response.status).toBe(400);
     const body = JSON.parse(response.text);
@@ -236,15 +239,16 @@ describe('Cart Service API', () => {
       errors: expect.arrayContaining([
         expect.objectContaining({ message: 'Product ID is required', path: ['entity', 'productId'] }),
         expect.objectContaining({ message: 'Quantity must be at least 1', path: ['entity', 'quantity'] }),
+        expect.objectContaining({ message: 'Company ID is required', path: ['entity', 'companyId'] }),
       ]),
     });
   });
 
   test('should return 401 if no token is provided', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     const response = await request
       .post('/cart')
-      .send({ entity: { productId: product.productId, quantity: 1 } });
+      .send({ entity: { productId: product.productId, quantity: 1, companyId: product.companyId } });
 
     expect(response.status).toBe(401);
     const body = JSON.parse(response.text);
@@ -256,7 +260,7 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${companyToken}`)
-      .send({ entity: { productId: product.productId, quantity: 1 } });
+      .send({ entity: { productId: product.productId, quantity: 1, companyId: product.companyId } });
 
     expect(response.status).toBe(403);
     const body = JSON.parse(response.text);
@@ -265,84 +269,92 @@ describe('Cart Service API', () => {
 
   // GET /cart
   test('should retrieve an existing cart', async () => {
-    const product1 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
-    const product2 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product1 = createTestProduct(customerUserId, customerCompanyId);
+    const product2 = createTestProduct(customerUserId, customerCompanyId);
     product2.productId = new mongoose.Types.ObjectId().toString();
 
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product1, quantity: 1 }, { ...product2, quantity: 2 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product1.productId, quantity: 1, companyId: product1.companyId }, { productId: product2.productId, quantity: 2, companyId: product2.companyId }],
     });
 
     const response = await request
-      .get('/cart')
+      .get(`/cart?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(2);
     expect(body.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ productId: product1.productId, quantity: 1 }),
-        expect.objectContaining({ productId: product2.productId, quantity: 2 }),
+        expect.objectContaining({ productId: product1.productId, quantity: 1, companyId: product1.companyId }),
+        expect.objectContaining({ productId: product2.productId, quantity: 2, companyId: product2.companyId }),
       ])
     );
   });
 
-  test('should return an empty cart if no cart exists for the user', async () => {
+  test('should return an empty cart if no cart exists for the user and company', async () => {
     const response = await request
-      .get('/cart')
+      .get(`/cart?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
-    expect(body).toMatchObject({ userId: customerUserId, items: [] });
+    expect(body).toMatchObject({ userId: customerUserId, companyId: customerCompanyId, items: [] });
+  });
+
+  test('should return 400 if companyId is missing for GET /cart', async () => {
+    const response = await request
+      .get('/cart')
+      .set('Authorization', `Bearer ${customerToken}`)
+
+    expect(response.status).toBe(400);
+    const body = JSON.parse(response.text);
+    expect(body).toEqual({ message: 'Company ID is required for getting a cart' });
   });
 
   // PUT /cart/{itemId}
   test('should update quantity of an item in the cart', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     const cart = await Cart.create({
       userId: customerUserId,
-      items: [{ ...product, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
     });
     const itemId = (cart.items[0] as any)._id.toString();
 
     const response = await request
-      .put(`/cart/${itemId}`)
+      .put(`/cart/${itemId}?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
       .send({ entity: { quantity: 5 } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({
       productId: product.productId,
       quantity: 5,
+      companyId: product.companyId,
     });
   });
 
   test('should return 404 if product to update does not exist in cart', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
     });
 
     const nonExistentItemId = new mongoose.Types.ObjectId().toString();
     const response = await request
-      .put(`/cart/${nonExistentItemId}`)
+      .put(`/cart/${nonExistentItemId}?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
       .send({ entity: { quantity: 5 } });
 
     expect(response.status).toBe(404);
@@ -351,18 +363,17 @@ describe('Cart Service API', () => {
   });
 
   test('should return 400 for invalid quantity when updating cart item', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     const cart = await Cart.create({
       userId: customerUserId,
-      items: [{ ...product, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
     });
     const itemId = (cart.items[0] as any)._id.toString();
 
     const response = await request
-      .put(`/cart/${itemId}`)
+      .put(`/cart/${itemId}?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
       .send({ entity: { quantity: 0 } });
 
     expect(response.status).toBe(400);
@@ -374,86 +385,130 @@ describe('Cart Service API', () => {
     });
   });
 
+  test('should return 400 if companyId is missing for PUT /cart/{itemId}', async () => {
+    const product = createTestProduct(customerUserId, customerCompanyId);
+    const cart = await Cart.create({
+      userId: customerUserId,
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
+    });
+    const itemId = (cart.items[0] as any)._id.toString();
+
+    const response = await request
+      .put(`/cart/${itemId}`)
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ entity: { quantity: 5 } });
+
+    expect(response.status).toBe(400);
+    const body = JSON.parse(response.text);
+    expect(body).toEqual({ message: 'Company ID is required for updating a cart item' });
+  });
+
   // DELETE /cart/{itemId}
   test('should remove an item from the cart', async () => {
-    const product1 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
-    const product2 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product1 = createTestProduct(customerUserId, customerCompanyId);
+    const product2 = createTestProduct(customerUserId, customerCompanyId);
     product2.productId = new mongoose.Types.ObjectId().toString();
 
     const cart = await Cart.create({
       userId: customerUserId,
-      items: [{ ...product1, quantity: 1 }, { ...product2, quantity: 2 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product1.productId, quantity: 1, companyId: product1.companyId }, { productId: product2.productId, quantity: 2, companyId: product2.companyId }],
     });
     const itemIdToRemove = (cart.items[0] as any)._id.toString();
 
     const response = await request
-      .delete(`/cart/${itemIdToRemove}`)
+      .delete(`/cart/${itemIdToRemove}?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({ productId: product2.productId });
   });
 
   test('should return 404 if product to remove does not exist in cart', async () => {
-    const product = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product = createTestProduct(customerUserId, customerCompanyId);
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product, quantity: 1 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
     });
 
     const nonExistentItemId = new mongoose.Types.ObjectId().toString();
     const response = await request
-      .delete(`/cart/${nonExistentItemId}`)
+      .delete(`/cart/${nonExistentItemId}?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(404);
     const body = JSON.parse(response.text);
     expect(body).toEqual({ message: 'Cart item not found' });
   });
 
+  test('should return 400 if companyId is missing for DELETE /cart/{itemId}', async () => {
+    const product = createTestProduct(customerUserId, customerCompanyId);
+    const cart = await Cart.create({
+      userId: customerUserId,
+      companyId: customerCompanyId,
+      items: [{ productId: product.productId, quantity: 1, companyId: product.companyId }],
+    });
+    const itemIdToRemove = (cart.items[0] as any)._id.toString();
+
+    const response = await request
+      .delete(`/cart/${itemIdToRemove}`)
+      .set('Authorization', `Bearer ${customerToken}`)
+
+    expect(response.status).toBe(400);
+    const body = JSON.parse(response.text);
+    expect(body).toEqual({ message: 'Company ID is required for removing a cart item' });
+  });
+
   // DELETE /cart
   test('should clear all items from a cart', async () => {
-    const product1 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
-    const product2 = createTestProduct(customerUserId, new mongoose.Types.ObjectId().toString());
+    const product1 = createTestProduct(customerUserId, customerCompanyId);
+    const product2 = createTestProduct(customerUserId, customerCompanyId);
     product2.productId = new mongoose.Types.ObjectId().toString();
 
     await Cart.create({
       userId: customerUserId,
-      items: [{ ...product1, quantity: 1 }, { ...product2, quantity: 2 }],
+      companyId: customerCompanyId,
+      items: [{ productId: product1.productId, quantity: 1, companyId: product1.companyId }, { productId: product2.productId, quantity: 2, companyId: product2.companyId }],
     });
 
     const response = await request
-      .delete('/cart')
+      .delete(`/cart?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
     expect(body.userId).toBe(customerUserId);
+    expect(body.companyId).toBe(customerCompanyId);
     expect(body.items).toHaveLength(0);
 
-    const cartInDb = await Cart.findOne({ userId: customerUserId });
+    const cartInDb = await Cart.findOne({ userId: customerUserId, companyId: customerCompanyId });
     expect(cartInDb?.items).toHaveLength(0);
   });
 
   test('should return 200 when clearing an already empty cart', async () => {
     const response = await request
-      .delete('/cart')
+      .delete(`/cart?companyId=${customerCompanyId}`)
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
-    expect(body).toMatchObject({ userId: customerUserId, items: [] });
+    expect(body).toMatchObject({ userId: customerUserId, companyId: customerCompanyId, items: [] });
+  });
+
+  test('should return 400 if companyId is missing for DELETE /cart', async () => {
+    const response = await request
+      .delete('/cart')
+      .set('Authorization', `Bearer ${customerToken}`)
+
+    expect(response.status).toBe(400);
+    const body = JSON.parse(response.text);
+    expect(body).toEqual({ message: 'Company ID is required for clearing a cart' });
   });
 
   // General Tests
@@ -461,8 +516,6 @@ describe('Cart Service API', () => {
     const response = await request
       .get('/unknown')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer');
 
     expect(response.status).toBe(405);
     const body = JSON.parse(response.text);
@@ -473,8 +526,6 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .set('x-user-id', customerUserId)
-      .set('x-user-role', 'customer')
       .set('Content-Type', 'application/json')
       .send('{ "invalid": '); // Explicitly malformed JSON
 

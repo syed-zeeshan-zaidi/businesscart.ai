@@ -8,7 +8,7 @@ import { getCart } from '../api'; // Import getCart
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, decodeJWT } = useAuth();
   const [userInitials, setUserInitials] = useState('');
   const [companyName, setCompanyName] = useState('BusinessCart');
   const [notificationCount] = useState(3); // Placeholder
@@ -16,25 +16,43 @@ const Navbar: React.FC = () => {
   const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
 
   const fetchCartCount = useCallback(async () => {
-    const cached = localStorage.getItem('cart_cache');
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-      if (Date.now() - timestamp < CACHE_DURATION) {
-        setCartItemCount(data.items.length);
-        return;
-      }
-    }
-    try {
-      const cart = await getCart();
-      setCartItemCount(cart.items.length);
-      localStorage.setItem('cart_cache', JSON.stringify({ data: cart, timestamp: Date.now() }));
-    } catch (error) {
-      console.error('Failed to fetch cart count:', error);
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
       setCartItemCount(0);
-      localStorage.removeItem('cart_cache'); // Invalidate cache on error
+      return;
     }
-  }, []);
+
+    try {
+      const decodedToken = decodeJWT(token);
+      const associatedCompanyIds = decodedToken.associate_company_ids || [];
+
+      let totalItems = 0;
+      for (const companyId of associatedCompanyIds) {
+        const cached = localStorage.getItem(`cart_cache_${companyId}`);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            totalItems += data.items.length;
+            continue; // Skip API call if cached and valid
+          }
+        }
+        // If not cached or expired, fetch from API
+        try {
+          const cart = await getCart(companyId);
+          totalItems += cart.items.length;
+          localStorage.setItem(`cart_cache_${companyId}`, JSON.stringify({ data: cart, timestamp: Date.now() }));
+        } catch (error: AxiosError) {
+          
+          localStorage.removeItem(`cart_cache_${companyId}`); // Invalidate specific company cart cache on error
+        }
+      }
+      setCartItemCount(totalItems);
+    } catch (error: AxiosError) {
+      
+      setCartItemCount(0);
+    }
+  }, [decodeJWT]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -61,12 +79,12 @@ const Navbar: React.FC = () => {
         setUserRole(payload.user?.role || null);
         fetchCartCount(); // Fetch cart count when authenticated
       } catch (e) {
-        console.error('Invalid token', e);
+        
         toast.error('Failed to load user data');
         logout();
       }
     }
-  }, [isAuthenticated, logout]);
+  }, [isAuthenticated, logout, fetchCartCount]);
 
   useEffect(() => {
     window.addEventListener('cartUpdated', fetchCartCount);

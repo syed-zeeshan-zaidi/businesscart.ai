@@ -4,30 +4,33 @@ import { Types } from 'mongoose';
 
 export class CartService {
   async createCartItem(data: CreateCartItemInput['entity'], userId: string, userRole: string): Promise<ICart> {
+    
     if (userRole !== 'customer') {
       throw new Error('Unauthorized: Only customers can add items to the cart');
     }
-    let cart = await Cart.findOne({ userId });
+    let cart = await Cart.findOne({ userId, companyId: data.companyId });
+    
     if (!cart) {
-      cart = new Cart({ userId, items: [] });
-    }
-    if (cart.userId !== userId) {
-      throw new Error('Unauthorized: User ID mismatch');
+      
+      cart = new Cart({ userId, companyId: data.companyId, items: [] });
     }
 
     const existingItem = cart.items.find((item) => item.productId === data.productId);
     if (existingItem) {
+      
       existingItem.quantity += data.quantity;
     } else {
-      cart.items.push({ productId: data.productId, quantity: data.quantity });
+      
+      cart.items.push({ productId: data.productId, quantity: data.quantity, companyId: data.companyId });
     }
 
     await cart.save();
+    
     return cart;
   }
 
-  async getCart(userId: string, userRole: string): Promise<ICart> {
-    const cart = await Cart.findOne({ userId });
+  async getCart(userId: string, userRole: string, companyId: string): Promise<ICart> {
+    const cart = await Cart.findOne({ userId, companyId });
     if (!cart) {
       throw new Error('Cart not found');
     }
@@ -37,12 +40,12 @@ export class CartService {
     return cart;
   }
 
-  async updateCartItem(itemId: string, data: UpdateCartItemInput['entity'], userId: string): Promise<ICart> {
+  async updateCartItem(itemId: string, data: UpdateCartItemInput['entity'], userId: string, companyId: string): Promise<ICart> {
     if (!Types.ObjectId.isValid(itemId)) {
       throw new Error('Invalid item ID');
     }
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId, companyId });
     if (!cart) {
       throw new Error('Cart not found');
     }
@@ -60,12 +63,12 @@ export class CartService {
     return cart;
   }
 
-  async deleteCartItem(itemId: string, userId: string): Promise<ICart> {
+  async deleteCartItem(itemId: string, userId: string, companyId: string): Promise<ICart> {
     if (!Types.ObjectId.isValid(itemId)) {
       throw new Error('Invalid item ID');
     }
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId, companyId });
     if (!cart) {
       throw new Error('Cart not found');
     }
@@ -83,10 +86,10 @@ export class CartService {
     return cart;
   }
 
-  async clearCart(userId: string): Promise<ICart> {
-    let cart = await Cart.findOne({ userId });
+  async clearCart(userId: string, companyId: string): Promise<ICart> {
+    let cart = await Cart.findOne({ userId, companyId });
     if (!cart) {
-      cart = new Cart({ userId, items: [] }); // Create an empty cart if not found
+      cart = new Cart({ userId, companyId, items: [] }); // Create an empty cart if not found
     }
     cart.items = [];
     await cart.save();

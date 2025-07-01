@@ -27,7 +27,7 @@ const Catalog: React.FC = () => {
       const fetchedProducts = await getProducts();
       setProducts(fetchedProducts);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fetchedProducts, timestamp: Date.now() }));
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.message || 'Failed to load products');
     } finally {
       setLoading(false);

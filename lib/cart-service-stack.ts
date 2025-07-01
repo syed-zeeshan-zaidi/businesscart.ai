@@ -64,6 +64,10 @@ export class CartServiceStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.CUSTOM,
     });
+    cart.addMethod('DELETE', cartIntegration, {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
     cartItem.addMethod('PUT', cartIntegration, {
       authorizer,
       authorizationType: apigateway.AuthorizationType.CUSTOM,

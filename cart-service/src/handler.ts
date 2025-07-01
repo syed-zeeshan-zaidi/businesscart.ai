@@ -4,7 +4,7 @@ import { CartService } from './services/cart-service';
 import { createCartItemSchema, updateCartItemSchema } from './validation';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Received event:', JSON.stringify(event, null, 2));
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
@@ -12,7 +12,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   };
 
   if (event.httpMethod === 'OPTIONS') {
-    console.log('Handling OPTIONS request');
+    
     return {
       statusCode: 200,
       headers,
@@ -42,6 +42,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         return {
           statusCode: 400,
           body: JSON.stringify({ message: 'Invalid JSON body' }),
+          headers,
         };
       }
       const parsed = createCartItemSchema.safeParse(input);
@@ -49,28 +50,40 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         return {
           statusCode: 400,
           body: JSON.stringify({ errors: parsed.error.errors.map((e) => ({ message: e.message, path: e.path })) }),
+          headers,
         };
       }
       const cart = await cartService.createCartItem(parsed.data.entity, userId, userRole);
       return {
         statusCode: 200,
         body: JSON.stringify(cart),
+        headers,
       };
     }
 
     if (httpMethod === 'GET' && event.path === '/cart') {
       // Get cart
+      const companyId = event.queryStringParameters?.companyId;
+      if (!companyId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ message: 'Company ID is required for getting a cart' }),
+          headers,
+        };
+      }
       try {
-        const cart = await cartService.getCart(userId, userRole);
+        const cart = await cartService.getCart(userId, userRole, companyId);
         return {
           statusCode: 200,
           body: JSON.stringify(cart),
+          headers,
         };
       } catch (error: any) {
         if (error.message === 'Cart not found') {
           return {
             statusCode: 200,
-            body: JSON.stringify({ userId: userId, items: [] }),
+            body: JSON.stringify({ userId: userId, companyId: companyId, items: [] }),
+            headers,
           };
         }
         throw error; // Re-throw other errors
@@ -79,36 +92,64 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     if (httpMethod === 'PUT' && pathParameters?.itemId) {
       // Update item quantity
+      const companyId = event.queryStringParameters?.companyId;
+      if (!companyId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ message: 'Company ID is required for updating a cart item' }),
+          headers,
+        };
+      }
       const input = JSON.parse(body || '{}');
       const parsed = updateCartItemSchema.safeParse(input);
       if (!parsed.success) {
         return {
           statusCode: 400,
           body: JSON.stringify({ errors: parsed.error.errors.map((e) => ({ message: e.message, path: e.path })) }),
+          headers,
         };
       }
-      const cart = await cartService.updateCartItem(pathParameters.itemId, parsed.data.entity, userId);
+      const cart = await cartService.updateCartItem(pathParameters.itemId, parsed.data.entity, userId, companyId);
       return {
         statusCode: 200,
         body: JSON.stringify(cart),
+        headers,
       };
     }
 
     if (httpMethod === 'DELETE' && pathParameters?.itemId) {
       // Remove item from cart
-      const cart = await cartService.deleteCartItem(pathParameters.itemId, userId);
+      const companyId = event.queryStringParameters?.companyId;
+      if (!companyId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ message: 'Company ID is required for removing a cart item' }),
+          headers,
+        };
+      }
+      const cart = await cartService.deleteCartItem(pathParameters.itemId, userId, companyId);
       return {
         statusCode: 200,
         body: JSON.stringify(cart),
+        headers,
       };
     }
 
-    if (httpMethod === 'DELETE' && !pathParameters) {
+    if (httpMethod === 'DELETE' && event.path === '/cart') {
       // Clear cart
-      const cart = await cartService.clearCart(userId);
+      const companyId = event.queryStringParameters?.companyId;
+      if (!companyId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ message: 'Company ID is required for clearing a cart' }),
+          headers,
+        };
+      }
+      const cart = await cartService.clearCart(userId, companyId);
       return {
         statusCode: 200,
         body: JSON.stringify(cart),
+        headers,
       };
     }
 
@@ -118,7 +159,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       headers,
     };
   } catch (error: any) {
-    console.error(error);
+    
     let statusCode = 500;
     let message = error.message || 'Internal server error';
 

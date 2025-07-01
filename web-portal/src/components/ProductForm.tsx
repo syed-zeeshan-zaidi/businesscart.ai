@@ -61,7 +61,7 @@ const ProductForm = () => {
           userId: user, // Set userId in formData
         }));
       } catch (e) {
-        console.error('Failed to decode token:', e);
+        
         toast.error('Unable to fetch company data. Please enter Company ID manually.');
       }
     } else {
@@ -86,7 +86,7 @@ const ProductForm = () => {
       setProducts(data);
       setFilteredProducts(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Error fetching products');
     } finally {
       setIsLoading(false);
@@ -127,7 +127,7 @@ const ProductForm = () => {
       invalidateCache();
       await fetchProducts();
       setErrors([]);
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to save product');
     } finally {
       setIsLoading(false);
@@ -162,7 +162,7 @@ const ProductForm = () => {
       toast.success('Product deleted successfully');
       invalidateCache();
       await fetchProducts();
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to delete product');
     } finally {
       setIsDeleteConfirmOpen(false);

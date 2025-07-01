@@ -35,8 +35,8 @@ const Dashboard: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data.user);
-      } catch (err: any) {
-        console.error('Failed to fetch user:', err);
+      } catch (err: AxiosError) {
+        
         toast.error(err.response?.data?.message || 'Failed to load user data');
         logout();
       } finally {
@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
         const data = response.data.products;
         setProductCount(data.length);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-      } catch (err: any) {
+      } catch (err: AxiosError) {
         toast.error(err.response?.data?.message || 'Error fetching products');
       } finally {
         setIsLoading(false);

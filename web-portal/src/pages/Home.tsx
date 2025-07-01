@@ -33,8 +33,8 @@ const Home: React.FC = () => {
         const userId: string = payload.user?.id || payload.sub || '';
         if (!userId) throw new Error('User ID not found in JWT');
         setUser({ _id: userId, role, name: payload.user?.name || '' });
-      } catch (err: any) {
-        console.error('Failed to decode user:', err);
+      } catch (err: AxiosError) {
+        
         toast.error(err.message || 'Failed to load user data');
         logout();
       } finally {
@@ -57,8 +57,8 @@ const Home: React.FC = () => {
           image: product.image || 'https://via.placeholder.com/300x200',
         }));
         setProducts(productsWithImages);
-      } catch (err: any) {
-        console.error('Failed to fetch products:', err);
+      } catch (err: AxiosError) {
+        
         toast.error(err.message || 'Failed to load products');
       } finally {
         setLoading(false);

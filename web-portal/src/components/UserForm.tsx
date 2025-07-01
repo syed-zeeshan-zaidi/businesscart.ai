@@ -84,7 +84,7 @@ const UserForm = () => {
     try {
       const data = await getUsers();
       filterUsersByRole(data);
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Error fetching users');
     } finally {
       setIsLoading(false);
@@ -136,7 +136,7 @@ const UserForm = () => {
       invalidateCache();
       await fetchUsers();
       setErrors([]);
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to save user');
     } finally {
       setIsLoading(false);
@@ -169,7 +169,7 @@ const UserForm = () => {
       toast.success('User deleted successfully');
       invalidateCache();
       await fetchUsers();
-    } catch (err: any) {
+    } catch (err: AxiosError) {
       toast.error(err.response?.data?.message || 'Failed to delete user');
     } finally {
       setIsDeleteConfirmOpen(false);
