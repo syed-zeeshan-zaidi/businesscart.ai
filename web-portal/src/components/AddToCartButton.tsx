@@ -17,7 +17,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product }) => {
       toast.success(`${product.name} added to cart!`);
       localStorage.removeItem('cart_cache'); // Invalidate cart cache
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (error: AxiosError) {
+    } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to add item to cart');
     } finally {
       setLoading(false);

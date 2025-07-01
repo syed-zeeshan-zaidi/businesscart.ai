@@ -38,7 +38,7 @@ const Login: React.FC = () => {
 
       toast.success('Login successful');
       navigate(role === 'customer' ? '/home' : '/dashboard', { replace: true });
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed');
       localStorage.removeItem('accessToken');
     } finally {

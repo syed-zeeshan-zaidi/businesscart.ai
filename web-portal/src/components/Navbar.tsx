@@ -42,13 +42,13 @@ const Navbar: React.FC = () => {
           const cart = await getCart(companyId);
           totalItems += cart.items.length;
           localStorage.setItem(`cart_cache_${companyId}`, JSON.stringify({ data: cart, timestamp: Date.now() }));
-        } catch (error: AxiosError) {
+        } catch (_error: any) {
           
           localStorage.removeItem(`cart_cache_${companyId}`); // Invalidate specific company cart cache on error
         }
       }
       setCartItemCount(totalItems);
-    } catch (error: AxiosError) {
+    } catch (_error: any) {
       
       setCartItemCount(0);
     }
@@ -78,7 +78,7 @@ const Navbar: React.FC = () => {
         setCompanyName(payload.user?.company_id ? `Company ${payload.user.company_id}` : 'BusinessCart');
         setUserRole(payload.user?.role || null);
         fetchCartCount(); // Fetch cart count when authenticated
-      } catch (e) {
+      } catch (_e) {
         
         toast.error('Failed to load user data');
         logout();

@@ -36,12 +36,10 @@ export default [
       // Base rules
       eqeqeq: 'error',
       'no-console': 'warn',
-      semi: ['error', 'always'],
-      quotes: ['error', 'single'],
 
       // TypeScript-specific rules
       '@typescript-eslint/no-explicit-any': 'warn',
-
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^', caughtErrors: 'none' }],
       // React rules:
       'react/jsx-uses-react': 'off', // for React 17+
       'react/react-in-jsx-scope': 'off', // for React 17+

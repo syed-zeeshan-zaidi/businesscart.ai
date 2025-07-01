@@ -21,8 +21,8 @@ api.interceptors.request.use((config) => {
         throw new Error('Token expired');
       }
       config.headers.Authorization = `Bearer ${token}`;
-    } catch (e) {
-      
+    } catch (_) {
+      // Intentionally left empty
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -63,8 +63,8 @@ export const logout = async (): Promise<void> => {
     if (token) {
       await api.post(`${USER_API_URL}/users/logout`, {});
     }
-  } catch (error) {
-    
+  } catch (_) {
+    // Intentionally left empty
   } finally {
     localStorage.removeItem('accessToken');
   }

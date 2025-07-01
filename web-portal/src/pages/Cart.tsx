@@ -28,7 +28,7 @@ const Cart: React.FC = () => {
       const fetchedCart = await getCart(companyId);
       setCart(fetchedCart);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fetchedCart, timestamp: Date.now() }));
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       setCart(null); // Ensure cart is null on error
       invalidateCache(); // Invalidate cache on error
     } finally {
@@ -76,7 +76,7 @@ const Cart: React.FC = () => {
         } else {
           setLoading(false);
         }
-      } catch (err: AxiosError) {
+      } catch (err: any) {
         toast.error(err.message || 'Failed to load associated companies');
         setLoading(false);
       }
@@ -114,7 +114,7 @@ const Cart: React.FC = () => {
       toast.success('Item quantity updated!');
       invalidateCache(); // Invalidate cache after successful update
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update item quantity');
     } finally {
       setLoading(false);
@@ -130,7 +130,7 @@ const Cart: React.FC = () => {
       toast.success('Item removed from cart!');
       invalidateCache(); // Invalidate cache after successful removal
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to remove item');
     } finally {
       setLoading(false);
@@ -146,7 +146,7 @@ const Cart: React.FC = () => {
       toast.success('Cart cleared!');
       invalidateCache(); // Invalidate cache after successful clear
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to clear cart');
     } finally {
       setLoading(false);

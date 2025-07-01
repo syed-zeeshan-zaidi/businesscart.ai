@@ -71,7 +71,7 @@ const OrderForm = () => {
           user_id: id,
           company_id: company,
         }));
-      } catch (e) {
+      } catch (_e) {
         
         toast.error('Unable to fetch user data. Please enter User ID and Company ID manually.');
       }
@@ -109,7 +109,7 @@ const OrderForm = () => {
       setOrders(data);
       setFilteredOrders(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error fetching orders');
     } finally {
       setIsLoading(false);
@@ -196,7 +196,7 @@ const OrderForm = () => {
       invalidateCache();
       await fetchOrders();
       setErrors([]);
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to save order');
     } finally {
       setIsLoading(false);
@@ -297,7 +297,7 @@ const OrderForm = () => {
       toast.success('Order deleted successfully');
       invalidateCache();
       await fetchOrders();
-    } catch (err: AxiosError) {
+    } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete order');
     } finally {
       setIsDeleteConfirmOpen(false);
