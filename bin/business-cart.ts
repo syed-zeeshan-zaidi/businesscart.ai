@@ -8,6 +8,7 @@ import { CartServiceStack } from '../lib/cart-service-stack';
 import { WebPortalStack } from '../lib/web-portal-stack';
 import { CheckoutServiceStack } from '../lib/checkout-service-stack';
 import { PaymentServiceStack } from '../lib/payment-service-stack';
+import { ShippingServiceStack } from '../lib/shipping-service-stack';
 
 const app = new cdk.App();
 
@@ -43,6 +44,11 @@ new CheckoutServiceStack(app, 'CheckoutServiceStack', {
 
 // Payment Service Stack
 new PaymentServiceStack(app, 'PaymentServiceStack', {
+  env: { region: 'us-east-1' },
+});
+
+// Shipping Service Stack
+new ShippingServiceStack(app, 'ShippingServiceStack', {
   env: { region: 'us-east-1' },
 });
 
