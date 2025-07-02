@@ -159,7 +159,7 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .send({ entity: { productId: product.productId, quantity: 1, companyId: product.companyId } });
+      .send({ entity: { productId: product.productId, quantity: 1, companyId: product.companyId, name: product.name, price: product.price } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
@@ -184,7 +184,7 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .send({ entity: { productId: product.productId, quantity: 2, companyId: product.companyId } });
+      .send({ entity: { productId: product.productId, quantity: 2, companyId: product.companyId, name: product.name, price: product.price } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);
@@ -212,7 +212,7 @@ describe('Cart Service API', () => {
     const response = await request
       .post('/cart')
       .set('Authorization', `Bearer ${customerToken}`)
-      .send({ entity: { productId: product2.productId, quantity: 1, companyId: product2.companyId } });
+      .send({ entity: { productId: product2.productId, quantity: 1, companyId: product2.companyId, name: product2.name, price: product2.price } });
 
     expect(response.status).toBe(200);
     const body = JSON.parse(response.text);

@@ -5,6 +5,8 @@ export const createCartItemSchema = z.object({
     productId: z.string().min(1, 'Product ID is required'),
     quantity: z.number().int().min(1, 'Quantity must be at least 1'),
     companyId: z.string().min(1, 'Company ID is required'),
+    name: z.string().min(1, 'Product name is required'),
+    price: z.number().min(0, 'Price must be non-negative'),
   }),
 });
 

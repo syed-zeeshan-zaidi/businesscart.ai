@@ -35,6 +35,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     if (httpMethod === 'POST' && !pathParameters) {
       // Add item to cart
+      if (userRole !== 'customer') {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ message: 'Unauthorized: Only customers can add items to the cart' }),
+          headers,
+        };
+      }
       let input;
       try {
         input = JSON.parse(body || '{}');
@@ -53,7 +60,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           headers,
         };
       }
-      const cart = await cartService.createCartItem(parsed.data.entity, userId, userRole);
+      const cart = await cartService.createCartItem(parsed.data.entity, userId);
       return {
         statusCode: 200,
         body: JSON.stringify(cart),
@@ -72,7 +79,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         };
       }
       try {
-        const cart = await cartService.getCart(userId, userRole, companyId);
+        const cart = await cartService.getCart(userId, companyId);
         return {
           statusCode: 200,
           body: JSON.stringify(cart),
@@ -82,7 +89,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         if (error.message === 'Cart not found') {
           return {
             statusCode: 200,
-            body: JSON.stringify({ userId: userId, companyId: companyId, items: [] }),
+            body: JSON.stringify({ userId: userId, companyId: companyId, items: [], totalPrice: 0 }),
             headers,
           };
         }

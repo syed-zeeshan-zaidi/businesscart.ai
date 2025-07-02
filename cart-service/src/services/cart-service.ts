@@ -3,11 +3,9 @@ import { CreateCartItemInput, UpdateCartItemInput } from '../validation';
 import { Types } from 'mongoose';
 
 export class CartService {
-  async createCartItem(data: CreateCartItemInput['entity'], userId: string, userRole: string): Promise<ICart> {
+  async createCartItem(data: CreateCartItemInput['entity'], userId: string): Promise<ICart> {
     
-    if (userRole !== 'customer') {
-      throw new Error('Unauthorized: Only customers can add items to the cart');
-    }
+    
     let cart = await Cart.findOne({ userId, companyId: data.companyId });
     
     if (!cart) {
@@ -21,22 +19,24 @@ export class CartService {
       existingItem.quantity += data.quantity;
     } else {
       
-      cart.items.push({ productId: data.productId, quantity: data.quantity, companyId: data.companyId });
+      cart.items.push({ productId: data.productId, quantity: data.quantity, companyId: data.companyId, name: data.name, price: data.price });
     }
 
     await cart.save();
-    
+    cart.totalPrice = this.calculateTotalPrice(cart);
     return cart;
   }
 
-  async getCart(userId: string, userRole: string, companyId: string): Promise<ICart> {
+  private calculateTotalPrice(cart: ICart): number {
+    return cart.items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+  }
+
+  async getCart(userId: string, companyId: string): Promise<ICart> {
     const cart = await Cart.findOne({ userId, companyId });
     if (!cart) {
       throw new Error('Cart not found');
     }
-    if (userRole === 'customer' && cart.userId !== userId) {
-      throw new Error('Unauthorized access to cart');
-    }
+    cart.totalPrice = this.calculateTotalPrice(cart);
     return cart;
   }
 
@@ -60,6 +60,7 @@ export class CartService {
 
     item.quantity = data.quantity;
     await cart.save();
+    cart.totalPrice = this.calculateTotalPrice(cart);
     return cart;
   }
 
@@ -83,6 +84,7 @@ export class CartService {
 
     cart.items.splice(itemIndex, 1);
     await cart.save();
+    cart.totalPrice = this.calculateTotalPrice(cart);
     return cart;
   }
 
@@ -93,6 +95,7 @@ export class CartService {
     }
     cart.items = [];
     await cart.save();
+    cart.totalPrice = this.calculateTotalPrice(cart);
     return cart;
   }
 }

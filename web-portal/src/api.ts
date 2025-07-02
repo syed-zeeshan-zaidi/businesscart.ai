@@ -161,7 +161,7 @@ export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${ORDER_API_URL}/orders/${id}`);
 };
 
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string } }): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string; name: string; price: number } }): Promise<Cart> => {
   const response = await api.post(`${CART_API_URL}/cart`, data);
   return response.data;
 };

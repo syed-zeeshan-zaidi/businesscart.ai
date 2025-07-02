@@ -13,7 +13,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product }) => {
   const handleAddToCart = async () => {
     setLoading(true);
     try {
-      await addItemToCart({ entity: { productId: product._id, quantity: 1, companyId: product.companyId } });
+      await addItemToCart({ entity: { productId: product._id, quantity: 1, companyId: product.companyId, name: product.name, price: product.price } });
       toast.success(`${product.name} added to cart!`);
       localStorage.removeItem('cart_cache'); // Invalidate cart cache
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event

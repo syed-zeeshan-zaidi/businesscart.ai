@@ -199,7 +199,8 @@ const Cart: React.FC = () => {
               {cart.items.map((item) => (
                 <div key={item.productId} className="flex items-center justify-between py-4">
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-800">Product ID: {item.productId}</h2>
+                      <h2 className="text-lg font-semibold text-gray-800">{item.name || 'N/A'}</h2>
+                      <p className="text-gray-600">Price: ${item.price !== undefined ? item.price.toFixed(2) : 'N/A'}</p>
                       <p className="text-gray-600">Quantity: {item.quantity}</p>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -231,6 +232,7 @@ const Cart: React.FC = () => {
               ))}
             </div>
             <div className="mt-6 flex justify-end space-x-4">
+              <p className="text-lg font-semibold text-gray-800">Total: ${cart.totalPrice !== undefined ? cart.totalPrice.toFixed(2) : 'N/A'}</p>
               <button
                 onClick={handleClearCart}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"

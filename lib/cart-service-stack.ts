@@ -31,6 +31,7 @@ export class CartServiceStack extends cdk.Stack {
         JWT_SECRET: process.env.JWT_SECRET || '',
         JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || '',
         NODE_ENV: 'development',
+        PRODUCT_API: process.env.PRODUCT_API || 'http://127.0.0.1:3002',
       },
       timeout: cdk.Duration.seconds(30),
     });

@@ -112,6 +112,26 @@ login_or_register() {
   echo "$role User ID: ${USER_IDS[$role]}"
 }
 
+# Function to update user's associated company IDs
+update_user_associated_companies() {
+  local user_id="$1"
+  local company_ids_json="$2"
+  local admin_jwt="$3"
+
+  echo "Updating user $user_id with associated companies: $company_ids_json..."
+  UPDATE_USER_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "$USER_API/users/$user_id" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $admin_jwt" \
+    -d "{\"associate_company_ids\": $company_ids_json}")
+  UPDATE_USER_STATUS=$(echo "$UPDATE_USER_RESPONSE" | tail -n1)
+  UPDATE_USER_BODY=$(echo "$UPDATE_USER_RESPONSE" | sed -e '$d')
+  echo "$UPDATE_USER_BODY" | jq .
+  handle_error "$UPDATE_USER_BODY" "Update User Associated Companies" "$UPDATE_USER_STATUS"
+  echo -e "${GREEN}User $user_id updated with associated companies.${NC}"
+}
+
+
+
 # Function to create a company
 create_company() {
   local company_name="$1"
@@ -266,6 +286,7 @@ echo "Starting API test chain for customer user..."
 echo "=== Setting up Company Users for initial data ==="
 login_or_register "company1"
 login_or_register "company2"
+login_or_register "admin"
 
 # Create two companies
 get_or_create_company "Test Company 1" "CODE1" "1" "company1"
@@ -283,8 +304,26 @@ login_or_register "customer"
 
 # Associate customer with both companies
 echo "=== Associating Customer with Companies ==="
-associate_customer "${COMPANY_IDS_MAP[1]}" "company1"
-associate_customer "${COMPANY_IDS_MAP[2]}" "company2"
+
+# Associate customer with Company 1
+ASSOCIATE_RESPONSE_1=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JWTS[customer]}" \
+  -d "{\"companyId\":\"${COMPANY_IDS_MAP[1]}\"}")
+ASSOCIATE_STATUS_1=$(echo "$ASSOCIATE_RESPONSE_1" | tail -n1)
+ASSOCIATE_BODY_1=$(echo "$ASSOCIATE_RESPONSE_1" | sed -e '$d')
+echo "$ASSOCIATE_BODY_1" | jq .
+handle_error "$ASSOCIATE_BODY_1" "Associate Customer with Company 1" "$ASSOCIATE_STATUS_1"
+
+# Associate customer with Company 2
+ASSOCIATE_RESPONSE_2=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JWTS[customer]}" \
+  -d "{\"companyId\":\"${COMPANY_IDS_MAP[2]}\"}")
+ASSOCIATE_STATUS_2=$(echo "$ASSOCIATE_RESPONSE_2" | tail -n1)
+ASSOCIATE_BODY_2=$(echo "$ASSOCIATE_RESPONSE_2" | sed -e '$d')
+echo "$ASSOCIATE_BODY_2" | jq .
+handle_error "$ASSOCIATE_BODY_2" "Associate Customer with Company 2" "$ASSOCIATE_STATUS_2"
 
 # Step 1: Add item to cart for Company 1
 echo "1. Adding item (${PRODUCT_IDS_MAP[A1]}) to cart for Company 1 (${COMPANY_IDS_MAP[1]})..."

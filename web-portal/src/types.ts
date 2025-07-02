@@ -70,12 +70,19 @@ export interface Order {
   user_id: string;
 }
 
+export interface CartItem {
+  productId: string;
+  quantity: number;
+  name: string; // Added product name
+  price: number; // Added product price
+  companyId: string;
+  _id?: string;
+}
+
 export interface Cart {
   _id: string;
   userId: string;
-  items: {
-    productId: string;
-    quantity: number;
-    _id?: string;
-  }[];
+  companyId: string;
+  items: CartItem[];
+  totalPrice: number; // Added total price
 }
