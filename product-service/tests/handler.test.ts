@@ -6,7 +6,6 @@ import express from 'express';
 import { handler } from '../src/handler';
 import { Product } from '../src/models/product';
 import { connectDB } from '../src/services/db-service';
-import { json } from 'stream/consumers';
 
 let mongoServer: MongoMemoryServer;
 let app: express.Application;
@@ -29,7 +28,7 @@ beforeAll(async () => {
   // Setup Express app to wrap Lambda handler
   app = express();
 
-  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((req: express.Request, res: express.Response) => {
     // Capture raw body
     let rawBody = '';
     req.setEncoding('utf8');
@@ -48,14 +47,14 @@ beforeAll(async () => {
         httpMethod: req.method,
         path: req.path,
         body: rawBody || null,
-        headers: req.headers as any,
+        headers: req.headers as unknown as APIGatewayProxyEvent['headers'],
         requestContext: {
           authorizer: {
             userId: req.headers['x-user-id'],
             userRole: req.headers['x-user-role'],
             associateCompanyIds: req.headers['x-associate-company-ids'] || '[]',
           },
-        } as any,
+        } as unknown as APIGatewayEventRequestContext,
         pathParameters: productId ? { productId } : null,
         queryStringParameters: null,
         multiValueHeaders: {},
@@ -203,7 +202,7 @@ describe('Product Service API', () => {
     expect(response.status).toBe(200);
     expect(response.body).toBeInstanceOf(Array);
     expect(response.body).toHaveLength(3);
-    expect(response.body.map((p: any) => p.name)).toEqual(['Product 1', 'Product 2', 'Product 3']);
+    expect(response.body.map((p: unknown) => p.name)).toEqual(['Product 1', 'Product 2', 'Product 3']);
   }, 10000);
 
   test('should get all products for company user', async () => {
@@ -221,7 +220,7 @@ describe('Product Service API', () => {
     expect(response.status).toBe(200);
     expect(response.body).toBeInstanceOf(Array);
     expect(response.body).toHaveLength(2);
-    expect(response.body.map((p: any) => p.name).sort()).toEqual(['Product 1', 'Product 2'].sort());
+    expect(response.body.map((p: unknown) => p.name).sort()).toEqual(['Product 1', 'Product 2'].sort());
   }, 10000);
 
   test('should get products for customer with associated companies', async () => {
@@ -240,7 +239,7 @@ describe('Product Service API', () => {
     expect(response.status).toBe(200);
     expect(response.body).toBeInstanceOf(Array);
     expect(response.body).toHaveLength(2);
-    expect(response.body.map((p: any) => p.name).sort()).toEqual(['Product 1', 'Product 2'].sort());
+    expect(response.body.map((p: unknown) => p.name).sort()).toEqual(['Product 1', 'Product 2'].sort());
   }, 10000);
 
   test('should return empty array for customer with no associated companies', async () => {

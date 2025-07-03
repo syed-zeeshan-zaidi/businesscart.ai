@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { User, IUser } from '../models/user';
-import { RefreshToken, IRefreshToken } from '../models/refresh-token';
+import { User } from '../models/user';
+import { RefreshToken } from '../models/refresh-token';
 import { BlacklistedToken } from '../models/blacklisted-token';
 import { RegisterInput, LoginInput } from '../validation';
 import bcrypt from 'bcryptjs';

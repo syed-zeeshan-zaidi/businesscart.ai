@@ -5,7 +5,7 @@ import { Construct } from 'constructs';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
 
-dotenv.config({ path: join(__dirname, '..", 'payment-service', '.env') });
+dotenv.config({ path: join(__dirname, '..', 'payment-service', '.env') });
 
 export class PaymentServiceStack extends cdk.Stack {
   public readonly handler: lambda.Function;
@@ -17,7 +17,7 @@ export class PaymentServiceStack extends cdk.Stack {
     this.handler = new lambda.Function(this, 'PaymentHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'handler.handler',
-      code: lambda.Code.fromAsset(join(__dirname, '..", 'payment-service', 'dist')),
+      code: lambda.Code.fromAsset(join(__dirname, '..', 'payment-service', 'dist')),
       environment: {
         MONGO_URI: process.env.MONGO_URI || '',
         JWT_SECRET: process.env.JWT_SECRET || '',

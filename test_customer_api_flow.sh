@@ -194,7 +194,7 @@ get_or_create_company() {
     COMPANY_ID=$(echo "$GET_COMPANY_BODY" | jq -r --arg user_id "${USER_IDS[$company_user_role]}" '.[] | select(.userId == $user_id) | ._id // .id // empty')
     if [ -n "$COMPANY_ID" ]; then
       COMPANY_IDS_MAP[$company_idx]=$COMPANY_ID
-      echo -e "${GREEN}Reused company for $company_user_role. Company ID: ${COMPANY_IDS_MAP[$company_idx]}${NC}"
+      echo -e "${GREEN}Reused company for $company_user_role (code: $company_code). Company ID: ${COMPANY_IDS_MAP[$company_idx]}${NC}"
     else
       echo "Company not found for user $company_user_role. Creating..."
       create_company "$company_name" "$company_code" "$company_idx" "$company_user_role"

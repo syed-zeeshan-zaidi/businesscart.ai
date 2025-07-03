@@ -15,7 +15,7 @@ interface OrderResponse {
   customer_id?: string;
   user_id: string;
   company_id: string;
-  [key: string]: any; // For additional fields
+  [key: string]: unknown; // For additional fields
 }
 
 let mongoServer: MongoMemoryServer;
@@ -43,7 +43,7 @@ beforeAll(async () => {
   // Setup Express app to wrap Lambda handler
   app = express();
 
-  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((req: express.Request, res: express.Response) => {
     // Capture raw body
     let rawBody = '';
     req.setEncoding('utf8');
@@ -62,7 +62,7 @@ beforeAll(async () => {
         httpMethod: req.method,
         path: req.path,
         body: rawBody || null,
-        headers: req.headers as any,
+        headers: req.headers as unknown as APIGatewayProxyEvent['headers'],
         requestContext: {
           authorizer: {
             userId: req.headers['x-user-id'],
@@ -70,7 +70,7 @@ beforeAll(async () => {
             companyId: req.headers['x-company-id'],
             associateCompanyIds: req.headers['x-associate-company-ids'],
           },
-        } as any,
+        } as unknown as APIGatewayEventRequestContext,
         pathParameters: orderId ? { orderId } : null,
         queryStringParameters: null,
         multiValueHeaders: {},
