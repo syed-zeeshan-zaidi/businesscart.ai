@@ -10,3 +10,4 @@ node_modules
 cdk.out
 coverage/
 web-portal/dist/
+.gemini/

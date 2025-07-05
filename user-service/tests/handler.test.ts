@@ -13,7 +13,7 @@ import bcrypt from 'bcryptjs';
 
 let mongoServer: MongoMemoryServer;
 let app: express.Application;
-let request: supertest.SuperTest<supertest.Test>;
+let request: any;
 
 let consoleLogSpy: jest.SpyInstance;
 let consoleErrorSpy: jest.SpyInstance;
@@ -36,7 +36,7 @@ const generateAccessToken = (
     { user: { id: userId, role, company_id, associate_company_ids } },
     process.env.JWT_SECRET as string,
     options
-  ) as string;
+  );
 
 const generateRefreshToken = (userId: string, role: string) =>
   jwt.sign({ user: { id: userId, role } }, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
@@ -57,13 +57,13 @@ beforeAll(async () => {
 
   app = express();
   // Custom middleware to capture raw body
-  app.use((req: express.Request) => {
+  app.use((req, res, next) => {
     let body = '';
     req.on('data', (chunk) => {
       body += chunk.toString();
     });
     req.on('end', () => {
-      (req as { rawBody?: string }).rawBody = body; // Type assertion to avoid TS error
+      (req as any).rawBody = body; // Type assertion to avoid TS error
       if (body) {
         try {
           JSON.parse(body); // Validate JSON
@@ -74,19 +74,19 @@ beforeAll(async () => {
       } else {
         req.body = {};
       }
-      // next(); // Removed next() as it's not needed for this middleware
+      next();
     });
   });
-  app.use((req: express.Request) => {
+  app.use((req, res, next) => {
     const event: APIGatewayProxyEvent = {
       httpMethod: req.method,
       path: req.path,
-      body: (req as { rawBody?: string }).rawBody && req.body === null ? (req as { rawBody?: string }).rawBody : JSON.stringify(req.body || {}),
+      body: (req as any).rawBody && req.body === null ? (req as any).rawBody : JSON.stringify(req.body || {}),
       headers: {
         ...req.headers,
         Cookie: req.headers.cookie || (req.headers.authorization ? `token=${req.headers.authorization.replace('Bearer ', '')}` : undefined),
-      } as unknown as APIGatewayProxyEvent['headers'],
-      requestContext: {} as unknown as APIGatewayEventRequestContext,
+      } as any,
+      requestContext: {} as any,
       pathParameters: null,
       queryStringParameters: null,
       multiValueHeaders: {},
@@ -580,7 +580,7 @@ describe('User Service API', () => {
     const updatedUser = await User.findById(user._id);
     expect(updatedUser?.associate_company_ids).toContain('68508d3792d2eaab46947af4');
 
-    const decoded = jwt.verify(response.body.accessToken, process.env.JWT_SECRET!) as { user: { id: string; role: string; company_id?: string; associate_company_ids?: string[] } };
+    const decoded = jwt.verify(response.body.accessToken, process.env.JWT_SECRET!) as any;
     expect(decoded.user.associate_company_ids).toContain('68508d3792d2eaab46947af4');
   });
 

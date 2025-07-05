@@ -42,7 +42,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const { httpMethod, path, body, headers } = event;
 
     // Sanitize body input
-    let parsedBody: unknown = {};
+    let parsedBody: any = {};
     if (body) {
       try {
         parsedBody = JSON.parse(body);
