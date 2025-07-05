@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc && cp -r node_modules dist/node_modules && cp .env dist/.env",
     "test": "jest --detectOpenHandles --forceExit",
-    "watch": "tsc --watch",
-    "lint": "eslint . --ext .ts"
+    "watch": "tsc --watch"
   },
   "dependencies": {
     "aws-lambda": "^1.0.7",
@@ -27,10 +26,7 @@
     "mongodb-memory-server": "^10.1.4",
     "supertest": "^6.3.4",
     "ts-jest": "^29.3.4",
-    "typescript": "^4.9.5",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0"
+    "typescript": "^4.9.5"
   },
   "directories": {
     "test": "tests"
