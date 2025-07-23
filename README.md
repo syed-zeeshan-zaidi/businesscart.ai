@@ -6,11 +6,12 @@ BusinessCart is a serverless e-commerce platform built with AWS CDK, enabling co
 - **User Management**: Register, login, refresh tokens, and logout.
 - **Company Management**: Create, retrieve, update, and delete company profiles.
 - **Product Management**: Add, retrieve, update, and delete products for companies.
+- **Checkout Flow**: A two-step process to first create a quote and then place an order.
 - **Secure Authorization**: Custom Lambda authorizer with JWT-based authentication.
-- **Internal API Calls**: Bypasses user tokens using `X-Internal-Request` header.
 
 ## Prerequisites
 - **Node.js**: v18.x or later
+- **Go**: v1.20.x or later
 - **AWS CLI**: v2.x, configured with credentials
 - **AWS SAM CLI**: v1.123.0 or later
 - **Docker**: v28.1.1 or later, running
@@ -25,195 +26,94 @@ BusinessCart is a serverless e-commerce platform built with AWS CDK, enabling co
    ```
 
 2. **Install Dependencies**:
+   Install dependencies for all services:
    ```bash
-   cd cdk
    npm install
-   cd ../authorizer-lambda
-   npm install
-   cd ../company-service-lambda
-   npm install
-   cd ../product-service-lambda
-   npm install
-   cd ../user-service-lambda
-   npm install
+   cd company-service && npm install && cd ..
+   cd product-service && npm install && cd ..
+   cd user-service && npm install && cd ..
+   cd payment-service && npm install && cd ..
+   cd web-portal && npm install && cd ..
    ```
 
 3. **Configure Environment Variables**:
-   Create `.env` files in each Lambda directory (`authorizer-lambda`, `company-service-lambda`, `product-service-lambda`, `user-service-lambda`) with:
+   Create `.env` files in each service directory (`checkout-service`, `company-service`, `product-service`, `user-service`, `payment-service`) with:
    ```plaintext
    MONGO_URI=<your-mongodb-atlas-uri>
    JWT_SECRET=<your-jwt-secret>
    NODE_ENV=development
    ```
-   For `authorizer-lambda`, add:
-   ```plaintext
-   COMPANY_SERVICE_URL=http://192.168.12.151:3000
-   ```
 
-4. **Synthesize CDK Template**:
+4. **Build Services**:
+   Build all TypeScript services:
    ```bash
-   cd ~/BusinessCart/cdk
    npm run build
-   cdk synth
    ```
+   Build the Go-based checkout-service:
+    ```bash
+    ./manage_services.sh build checkout-service
+    ```
 
 ## API Testing Instructions
-BusinessCart uses AWS SAM CLI for local API testing, simulating API Gateway and Lambda functions. Follow these steps to test the `users`, `companies`, and `products` endpoints.
+BusinessCart uses AWS SAM CLI for local API testing.
 
 ### Start Local API
-Run SAM with host networking to avoid `ECONNREFUSED`:
-
-```bash
-cd ~/BusinessCart
-sam local start-api -t cdk.out/UserServiceStack.template.json --docker-network host --debug --port 3000
-```
-Run each of following command in seperate terminal tabs.
+Run each of the following commands in a separate terminal tab to start the services:
 
 ```bash
 sam local start-api -t cdk.out/UserServiceStack.template.json --docker-network host --debug --port 3000
 sam local start-api -t cdk.out/CompanyServiceStack.template.json --docker-network host --debug --port 3001
 sam local start-api -t cdk.out/ProductServiceStack.template.json --docker-network host --debug --port 3002
-sam local start-api -t cdk.out/OrderServiceStack.template.json --docker-network host --debug --port 3003
+sam local start-api -t cdk.out/CheckoutServiceStack.template.json --docker-network host --debug --port 3003
 ```
 
-**Verify**: API runs at `http://127.0.0.1:3000`.
+### Test Endpoints
+Use a tool like `curl` or Postman to test the API endpoints.
 
-### Check SAM Containers
-Ensure SAM containers are running:
-
-```bash
-docker ps
-```
-
-**Expected**: Containers like `public.ecr.aws/lambda/nodejs:18-rapid-x86_64` (Lambda) and API Gateway container. If empty, debug:
-
-```bash
-docker ps -a | grep -E 'amazon/aws-sam|public.ecr.aws/lambda'
-docker logs <container_id>
-sam local start-api -t cdk.out/CdkBackendStack.template.json --log-file sam.log --host 0.0.0.0 --docker-network host --env-vars <(echo "{\"AuthorizerLambda\": {\"COMPANY_SERVICE_URL\": \"$COMPANY_SERVICE_URL\"}}") --debug
-```
-
-### Generate JWT
-Obtain an access token:
-
+#### User Login
 ```bash
 curl -X POST http://127.0.0.1:3000/users/login \
 -H "Content-Type: application/json" \
 -d '{"username":"testuser","password":"test123"}'
 ```
 
-**Response**:
-```json
-{
-  "accessToken": "<jwt-token>",
-  "refreshToken": "<refresh-token>"
-}
-```
-
-### Test Endpoints
-Use the `accessToken` for authenticated requests. Internal calls use `X-Internal-Request` to bypass user token dependency.
-
-#### GET /companies
-Retrieve companies:
-
+#### Create a Quote
 ```bash
-curl -X GET http://127.0.0.1:3000/companies \
--H "Authorization: Bearer <accessToken>"
-```
-
-**Expected**:
-```json
-[
-  {
-    "_id": "68313d273cca3b4842508d95",
-    "name": "Test Company",
-    "userId": "68313d273cca3b4842508d94",
-    "companyCode": "987654322",
-    ...
-  }
-]
-```
-
-#### POST /companies
-Create a company:
-
-```bash
-curl -X POST http://127.0.0.1:3000/companies \
+curl -X POST http://127.0.0.1:3003/checkout \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer <accessToken>" \
--d '{"name":"Test Company","userId":"68313d273cca3b4842508d94","companyCode":"987654322","paymentMethods":["cash","credit_card"],"address":{"street":"123 Main St","city":"Anytown","state":"CA","zip":"12345","coordinates":{"lat":37.7749,"lng":-122.4194}},"sellingArea":{"radius":10,"center":{"lat":37.7749,"lng":-122.4194}}}'
+-d '{
+    "items": [
+        {
+            "productId": "product_id_1",
+            "quantity": 1,
+            "companyId": "company_id_1"
+        }
+    ]
+}'
 ```
 
-**Expected**:
-```json
-{
-  "_id": "68313d273cca3b4842508d95",
-  "name": "Test Company",
-  ...
-}
-```
-
-#### POST /products
-Create a product:
-
+#### Place an Order
 ```bash
-curl -X POST http://127.0.0.1:3000/products \
+curl -X POST http://127.0.0.1:3003/checkout \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer <accessToken>" \
--d '{"name":"Product 1","price":10,"category":"electronics","stock":100}'
+-d '{
+    "quoteId": "your_quote_id"
+}'
 ```
-
-**Expected**:
-```json
-{
-  "_id": "68313d273cca3b4842508d96",
-  "name": "Product 1",
-  ...
-}
-```
-
-### Troubleshoot Common Issues
-- **No Containers in `docker ps`**:
-  - Check stopped containers:
-    ```bash
-    docker ps -a | grep -E 'amazon/aws-sam|public.ecr.aws/lambda'
-    ```
-  - Restart Docker:
-    ```bash
-    sudo systemctl restart docker
-    ```
-  - Verify port 3000:
-    ```bash
-    netstat -tuln | grep 3000
-    ```
-
-- **ECONNREFUSED**:
-  - Test from `authorizer-lambda` container:
-    ```bash
-    docker exec -it <authorizer_lambda_container_id> sh
-    apk add curl
-    curl http://192.168.12.151:3000/companies
-    ```
-  - Use bridge network:
-    ```bash
-    docker network create sam-network
-    export COMPANY_SERVICE_URL=http://host-gateway:3000
-    sam local start-api -t cdk.out/CdkBackendStack.template.json --log-file sam.log --host 0.0.0.0 --docker-network sam-network --extra-hosts '{"host-gateway":"192.168.12.151"}' --env-vars <(echo "{\"AuthorizerLambda\": {\"COMPANY_SERVICE_URL\": \"$COMPANY_SERVICE_URL\"}}")
-    ```
-
-- **403 Forbidden**:
-  - Ensure `X-Internal-Request` is configured in `cdk-backend/cdk/lib/cdk-backend-stack.ts` and `authorizer-lambda/src/handler/handler.ts`.
-  - Check SAM logs:
-    ```bash
-    tail -f ~/BusinessCart/sam.log
-    ```
 
 ## Project Structure
-- **cdk/**: AWS CDK infrastructure code
-- **authorizer-lambda/**: Custom authorizer Lambda
-- **company-service-lambda/**: Company management Lambda
-- **product-service-lambda/**: Product management Lambda
-- **user-service-lambda/**: User management Lambda
+- **bin/**: CDK application entry point.
+- **lib/**: CDK stack definitions.
+- **checkout-service/**: Handles the checkout process (Go).
+- **company-service/**: Company management service (TypeScript).
+- **product-service/**: Product management service (TypeScript).
+- **user-service/**: User management service (TypeScript).
+- **payment-service/**: Payment processing service (TypeScript).
+- **web-portal/**: Frontend application (React).
+
+
 
 ## Contributing
 1. Fork the repository.

@@ -75,5 +75,6 @@ export class CheckoutServiceStack extends cdk.Stack {
     // Add /orders resource and methods
     const ordersResource = this.api.root.addResource('orders');
     ordersResource.addMethod('POST', new apigw.LambdaIntegration(this.handler)); // Place an order from a quote
+    ordersResource.addMethod('GET', new apigw.LambdaIntegration(this.handler)); // Get all orders
   }
 }

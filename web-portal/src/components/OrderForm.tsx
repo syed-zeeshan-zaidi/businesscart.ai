@@ -49,8 +49,9 @@ const OrderForm = () => {
       setOrders(data);
       setFilteredOrders(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error fetching orders');
+    } catch (err) {
+      const error = err as any;
+      toast.error(error.response?.data?.message || 'Error fetching orders');
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +69,9 @@ const OrderForm = () => {
       toast.success('Order deleted successfully');
       invalidateCache();
       await fetchOrders();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete order');
+    } catch (err) {
+      const error = err as any;
+      toast.error(error.response?.data?.message || 'Failed to delete order');
     } finally {
       setIsDeleteConfirmOpen(false);
       setOrderToDelete(null);
@@ -187,6 +189,30 @@ const OrderForm = () => {
           </div>
         )}
       </div>
+      {isDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-medium">Confirm Deletion</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to delete this order? This action cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="px-4 py-2 border rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 border rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

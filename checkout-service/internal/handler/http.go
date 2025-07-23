@@ -91,6 +91,15 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User ID missing"), nil
 	}
 
+	role, ok := userClaim["role"].(string)
+	if !ok {
+		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Role missing"), nil
+	}
+
+	companyId, _ := userClaim["company_id"].(string)
+
+	log.Printf("JWT Claims - UserID: %s, Role: %s, CompanyID: %s", userId, role, companyId)
+
 	// Handle Cart API routes
 	if strings.HasPrefix(request.Path, "/cart") {
 		return h.handleCartRequest(request, userId)
@@ -98,6 +107,8 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.handleQuoteRequest(request, userId)
 	} else if request.Path == "/orders" && request.HTTPMethod == "POST" {
 		return h.handlePlaceOrderRequest(request, userId)
+	} else if request.Path == "/orders" && request.HTTPMethod == "GET" {
+		return h.handleGetOrdersRequest(request, userId, role, companyId)
 	} else if request.Path == "/checkout" && request.HTTPMethod == "POST" {
 		// This endpoint is now deprecated in favor of /quotes and /orders
 		return h.errorResponse(http.StatusGone, "This endpoint is deprecated. Please use /quotes and /orders."), nil
@@ -193,6 +204,25 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	_ = h.quoteService.DeleteQuote(req.QuoteID)
 
 	respBody, _ := json.Marshal(createdOrder)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}, nil
+}
+
+func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, userId string, role string, companyId string) (events.APIGatewayProxyResponse, error) {
+	orders, err := h.orderService.GetOrders(userId, role, companyId)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to get orders"), nil
+	}
+
+	respBody, _ := json.Marshal(orders)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{

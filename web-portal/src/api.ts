@@ -4,7 +4,6 @@ import { User, Company, Product, Order, Cart, Quote } from './types';
 const USER_API_URL = import.meta.env.VITE_USER_API_URL || 'http://127.0.0.1:3000';
 const COMPANY_API_URL = import.meta.env.VITE_COMPANY_API_URL || 'http://127.0.0.1:3001';
 const PRODUCT_API_URL = import.meta.env.VITE_PRODUCT_API_URL || 'http://127.0.0.1:3002';
-const ORDER_API_URL = import.meta.env.VITE_ORDER_API_URL || 'http://127.0.0.1:3003';
 
 
 const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3009';
