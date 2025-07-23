@@ -3,14 +3,9 @@ import * as cdk from 'aws-cdk-lib';
 import { UserServiceStack } from '../lib/user-service-stack';
 import { CompanyServiceStack } from '../lib/company-service-stack';
 import { ProductServiceStack } from '../lib/product-service-stack';
-import { OrderServiceStack } from '../lib/order-service-stack';
-import { CartServiceStack } from '../lib/cart-service-stack';
 import { WebPortalStack } from '../lib/web-portal-stack';
 import { CheckoutServiceStack } from '../lib/checkout-service-stack';
 import { PaymentServiceStack } from '../lib/payment-service-stack';
-import { ShippingServiceStack } from '../lib/shipping-service-stack';
-import { PromotionServiceStack } from '../lib/promotion-service-stack';
-import { TaxServiceStack } from '../lib/tax-service-stack';
 
 const app = new cdk.App();
 
@@ -29,16 +24,6 @@ new ProductServiceStack(app, 'ProductServiceStack', {
   env: { region: 'us-east-1' },
 });
 
-// Order Service Stack
-new OrderServiceStack(app, 'OrderServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
-// Cart Service Stack
-new CartServiceStack(app, 'CartServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
 // Checkout Service Stack
 new CheckoutServiceStack(app, 'CheckoutServiceStack', {
   env: { region: 'us-east-1' },
@@ -46,21 +31,6 @@ new CheckoutServiceStack(app, 'CheckoutServiceStack', {
 
 // Payment Service Stack
 new PaymentServiceStack(app, 'PaymentServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
-// Shipping Service Stack
-new ShippingServiceStack(app, 'ShippingServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
-// Promotion Service Stack
-new PromotionServiceStack(app, 'PromotionServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
-// Tax Service Stack
-new TaxServiceStack(app, 'TaxServiceStack', {
   env: { region: 'us-east-1' },
 });
 

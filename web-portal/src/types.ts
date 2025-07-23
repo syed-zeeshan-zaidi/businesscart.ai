@@ -38,51 +38,48 @@ export interface Product {
 }
 
 export interface Order {
-  _id: string;
-  base_grand_total: number;
-  grand_total: number;
-  customer_email: string;
-  billing_address: {
-    address_type: string;
-    city: string;
-    country_id: string;
-    firstname: string;
-    lastname: string;
-    postcode: string;
-    telephone: string;
-    street: string[];
-  };
-  payment: {
-    account_status: string;
-    additional_information: string[];
-    cc_last4: string;
-    method: string;
-  };
-  items: {
-    sku: string;
-    name: string;
-    qty_ordered: number;
-    price: number;
-    row_total: number;
-    product_id: string;
-  }[];
-  company_id: string;
-  user_id: string;
-}
-
-export interface CartItem {
-  productId: string;
-  quantity: number;
-  name: string; // Added product name
-  price: number; // Added product price
-  companyId: string;
-  _id?: string;
-}
-
-export interface Cart {
-  _id: string;
+  id: string;
+  quoteId: string;
   userId: string;
   companyId: string;
   items: CartItem[];
-  totalPrice: number; // Added total price
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  grandTotal: number;
+  payment: {
+    transactionId: string;
+  };
+  createdAt: string;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  companyId: string;
+  name: string;
+  price: number;
+}
+
+export interface Cart {
+  id: string;
+  userId: string;
+  companyId: string;
+  items: CartItem[];
+  totalPrice: number;
+}
+
+export interface Quote {
+  id: string;
+  cartId: string;
+  userId: string;
+  companyId: string;
+  items: CartItem[];
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  grandTotal: number;
+  createdAt: string;
+  expiresAt: string;
 }

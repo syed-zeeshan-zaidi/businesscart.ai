@@ -4,8 +4,7 @@
 USER_API="http://127.0.0.1:3000"
 COMPANY_API="http://127.0.0.1:3001"
 PRODUCT_API="http://127.0.0.1:3002"
-ORDER_API="http://127.0.0.1:3003"
-CART_API="http://127.0.0.1:3004"
+CHECKOUT_API="http://127.0.0.1:3009"
 PASSWORD="securepassword"
 PHONE_NUMBER="1234567890"
 
@@ -111,26 +110,6 @@ login_or_register() {
   fi
   echo "$role User ID: ${USER_IDS[$role]}"
 }
-
-# Function to update user's associated company IDs
-update_user_associated_companies() {
-  local user_id="$1"
-  local company_ids_json="$2"
-  local admin_jwt="$3"
-
-  echo "Updating user $user_id with associated companies: $company_ids_json..."
-  UPDATE_USER_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "$USER_API/users/$user_id" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $admin_jwt" \
-    -d "{\"associate_company_ids\": $company_ids_json}")
-  UPDATE_USER_STATUS=$(echo "$UPDATE_USER_RESPONSE" | tail -n1)
-  UPDATE_USER_BODY=$(echo "$UPDATE_USER_RESPONSE" | sed -e '$d')
-  echo "$UPDATE_USER_BODY" | jq .
-  handle_error "$UPDATE_USER_BODY" "Update User Associated Companies" "$UPDATE_USER_STATUS"
-  echo -e "${GREEN}User $user_id updated with associated companies.${NC}"
-}
-
-
 
 # Function to create a company
 create_company() {
@@ -257,28 +236,8 @@ get_or_create_product() {
   fi
 }
 
-# Function to associate a customer with a company
-
-
-associate_customer() {
-  local company_id="$1"
-  local company_user_role="$2"
-
-  echo "Associating customer ${USER_IDS[customer]} with company $company_id..."
-  ASSOCIATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$COMPANY_API/companies/$company_id/customers" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${JWTS[$company_user_role]}" \
-    -d "{\"customerId\":\"${USER_IDS[customer]}\"}")
-  ASSOCIATE_STATUS=$(echo "$ASSOCIATE_RESPONSE" | tail -n1)
-  ASSOCIATE_BODY=$(echo "$ASSOCIATE_RESPONSE" | sed -e '$d')
-  echo "$ASSOCIATE_BODY" | jq .
-  handle_error "$ASSOCIATE_BODY" "Associate Customer with Company $company_id" "$ASSOCIATE_STATUS"
-  echo -e "${GREEN}Customer associated successfully with company $company_id${NC}"
-}
-
 # Check for jq
 check_jq
-
 
 echo "Starting API test chain for customer user..."
 
@@ -297,15 +256,12 @@ get_or_create_product "Product A1" "${COMPANY_IDS_MAP[1]}" "A1" "company1"
 get_or_create_product "Product A2" "${COMPANY_IDS_MAP[1]}" "A2" "company1"
 get_or_create_product "Product B1" "${COMPANY_IDS_MAP[2]}" "B1" "company2"
 
-
 # Process Customer User
 echo "=== Testing Customer User ==="
 login_or_register "customer"
 
 # Associate customer with both companies
 echo "=== Associating Customer with Companies ==="
-
-# Associate customer with Company 1
 ASSOCIATE_RESPONSE_1=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
@@ -315,7 +271,6 @@ ASSOCIATE_BODY_1=$(echo "$ASSOCIATE_RESPONSE_1" | sed -e '$d')
 echo "$ASSOCIATE_BODY_1" | jq .
 handle_error "$ASSOCIATE_BODY_1" "Associate Customer with Company 1" "$ASSOCIATE_STATUS_1"
 
-# Associate customer with Company 2
 ASSOCIATE_RESPONSE_2=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
@@ -327,7 +282,7 @@ handle_error "$ASSOCIATE_BODY_2" "Associate Customer with Company 2" "$ASSOCIATE
 
 # Step 1: Add item to cart for Company 1
 echo "1. Adding item (${PRODUCT_IDS_MAP[A1]}) to cart for Company 1 (${COMPANY_IDS_MAP[1]})..."
-ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CART_API/cart" \
+ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/cart" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
   -d "{\"entity\":{\"productId\":\"${PRODUCT_IDS_MAP[A1]}\",\"quantity\":1,\"companyId\":\"${COMPANY_IDS_MAP[1]}\",\"name\":\"Product A1\",\"price\":49.99}}")
@@ -335,12 +290,12 @@ ADD_CART_ITEM_STATUS=$(echo "$ADD_CART_ITEM_RESPONSE" | tail -n1)
 ADD_CART_ITEM_BODY=$(echo "$ADD_CART_ITEM_RESPONSE" | sed -e '$d')
 echo "$ADD_CART_ITEM_BODY" | jq .
 handle_error "$ADD_CART_ITEM_BODY" "Add Cart Item for Company 1" "$ADD_CART_ITEM_STATUS"
-CART_ITEM_ID_A1=$(echo "$ADD_CART_ITEM_BODY" | jq -r '.items[0]._id // empty')
+CART_ITEM_ID_A1=$(echo "$ADD_CART_ITEM_BODY" | jq -r '.items[0].id // empty')
 echo -e "${GREEN}Item added to cart for Company 1. Cart Item ID: $CART_ITEM_ID_A1${NC}"
 
 # Step 2: Add another item to the same cart (Company 1)
 echo "2. Adding another item (${PRODUCT_IDS_MAP[A2]}) to cart for Company 1 (${COMPANY_IDS_MAP[1]})..."
-ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CART_API/cart" \
+ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/cart" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
   -d "{\"entity\":{\"productId\":\"${PRODUCT_IDS_MAP[A2]}\",\"quantity\":2,\"companyId\":\"${COMPANY_IDS_MAP[1]}\",\"name\":\"Product A2\",\"price\":49.99}}")
@@ -351,7 +306,7 @@ handle_error "$ADD_CART_ITEM_BODY" "Add Another Cart Item for Company 1" "$ADD_C
 
 # Step 3: Add item to cart for Company 2
 echo "3. Adding item (${PRODUCT_IDS_MAP[B1]}) to cart for Company 2 (${COMPANY_IDS_MAP[2]})..."
-ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CART_API/cart" \
+ADD_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/cart" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
   -d "{\"entity\":{\"productId\":\"${PRODUCT_IDS_MAP[B1]}\",\"quantity\":1,\"companyId\":\"${COMPANY_IDS_MAP[2]}\",\"name\":\"Product B1\",\"price\":49.99}}")
@@ -359,54 +314,30 @@ ADD_CART_ITEM_STATUS=$(echo "$ADD_CART_ITEM_RESPONSE" | tail -n1)
 ADD_CART_ITEM_BODY=$(echo "$ADD_CART_ITEM_RESPONSE" | sed -e '$d')
 echo "$ADD_CART_ITEM_BODY" | jq .
 handle_error "$ADD_CART_ITEM_BODY" "Add Cart Item for Company 2" "$ADD_CART_ITEM_STATUS"
-CART_ITEM_ID_B1=$(echo "$ADD_CART_ITEM_BODY" | jq -r '.items[0]._id // empty')
-echo -e "${GREEN}Item added to cart for Company 2. Cart Item ID: $CART_ITEM_ID_B1${NC}"
 
-# Step 4: Get Cart for Company 1
-echo "4. Getting cart for Company 1 (${COMPANY_IDS_MAP[1]})..."
-GET_CART_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$CART_API/cart?companyId=${COMPANY_IDS_MAP[1]}" \
-  -H "Authorization: Bearer ${JWTS[customer]}")
-GET_CART_STATUS=$(echo "$GET_CART_RESPONSE" | tail -n1)
-GET_CART_BODY=$(echo "$GET_CART_RESPONSE" | sed -e '$d')
-echo "$GET_CART_BODY" | jq .
-handle_error "$GET_CART_BODY" "Get Cart for Company 1" "$GET_CART_STATUS"
-
-# Step 5: Get Cart for Company 2
-echo "5. Getting cart for Company 2 (${COMPANY_IDS_MAP[2]})..."
-GET_CART_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$CART_API/cart?companyId=${COMPANY_IDS_MAP[2]}" \
-  -H "Authorization: Bearer ${JWTS[customer]}")
-GET_CART_STATUS=$(echo "$GET_CART_RESPONSE" | tail -n1)
-GET_CART_BODY=$(echo "$GET_CART_RESPONSE" | sed -e '$d')
-echo "$GET_CART_BODY" | jq .
-handle_error "$GET_CART_BODY" "Get Cart for Company 2" "$GET_CART_STATUS"
-
-# Step 6: Update Quantity of an Item in Company 1's Cart
-echo "6. Updating quantity of item ($CART_ITEM_ID_A1) in Company 1's cart..."
-UPDATE_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$CART_API/cart/$CART_ITEM_ID_A1?companyId=${COMPANY_IDS_MAP[1]}" \
+# Step 4: Create Quote for Company 1
+echo "4. Creating quote for Company 1 (${COMPANY_IDS_MAP[1]})..."
+CREATE_QUOTE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/quotes" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${JWTS[customer]}" \
-  -d "{\"entity\":{\"quantity\":5}}")
-UPDATE_CART_ITEM_STATUS=$(echo "$UPDATE_CART_ITEM_RESPONSE" | tail -n1)
-UPDATE_CART_ITEM_BODY=$(echo "$UPDATE_CART_ITEM_RESPONSE" | sed -e '$d')
-echo "$UPDATE_CART_ITEM_BODY" | jq .
-handle_error "$UPDATE_CART_ITEM_BODY" "Update Cart Item for Company 1" "$UPDATE_CART_ITEM_STATUS"
+  -d "{\"companyId\":\"${COMPANY_IDS_MAP[1]}\"}")
+CREATE_QUOTE_STATUS=$(echo "$CREATE_QUOTE_RESPONSE" | tail -n1)
+CREATE_QUOTE_BODY=$(echo "$CREATE_QUOTE_RESPONSE" | sed -e '$d')
+echo "$CREATE_QUOTE_BODY" | jq .
+handle_error "$CREATE_QUOTE_BODY" "Create Quote for Company 1" "$CREATE_QUOTE_STATUS"
+QUOTE_ID_1=$(echo "$CREATE_QUOTE_BODY" | jq -r '.id // empty')
+echo -e "${GREEN}Quote created for Company 1. Quote ID: $QUOTE_ID_1${NC}"
 
-# Step 7: Remove an Item from Company 1's Cart
-echo "7. Removing item ($CART_ITEM_ID_A1) from Company 1's cart..."
-REMOVE_CART_ITEM_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$CART_API/cart/$CART_ITEM_ID_A1?companyId=${COMPANY_IDS_MAP[1]}" \
-  -H "Authorization: Bearer ${JWTS[customer]}")
-REMOVE_CART_ITEM_STATUS=$(echo "$REMOVE_CART_ITEM_RESPONSE" | tail -n1)
-REMOVE_CART_ITEM_BODY=$(echo "$REMOVE_CART_ITEM_RESPONSE" | sed -e '$d')
-echo "$REMOVE_CART_ITEM_BODY" | jq .
-handle_error "$REMOVE_CART_ITEM_BODY" "Remove Cart Item for Company 1" "$REMOVE_CART_ITEM_STATUS"
-
-# Step 8: Clear Company 2's Cart
-echo "8. Clearing cart for Company 2 (${COMPANY_IDS_MAP[2]})..."
-CLEAR_CART_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$CART_API/cart?companyId=${COMPANY_IDS_MAP[2]}" \
-  -H "Authorization: Bearer ${JWTS[customer]}")
-CLEAR_CART_STATUS=$(echo "$CLEAR_CART_RESPONSE" | tail -n1)
-CLEAR_CART_BODY=$(echo "$CLEAR_CART_RESPONSE" | sed -e '$d')
-echo "$CLEAR_CART_BODY" | jq .
-handle_error "$CLEAR_CART_BODY" "Clear Cart for Company 2" "$CLEAR_CART_STATUS"
+# Step 5: Place Order for Company 1
+echo "5. Placing order for Company 1 (Quote ID: $QUOTE_ID_1)..."
+PLACE_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/orders" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JWTS[customer]}" \
+  -d "{\"quoteId\":\"$QUOTE_ID_1\",\"paymentToken\":\"dummyPaymentToken123\"}")
+PLACE_ORDER_STATUS=$(echo "$PLACE_ORDER_RESPONSE" | tail -n1)
+PLACE_ORDER_BODY=$(echo "$PLACE_ORDER_RESPONSE" | sed -e '$d')
+echo "$PLACE_ORDER_BODY" | jq .
+handle_error "$PLACE_ORDER_BODY" "Place Order for Company 1" "$PLACE_ORDER_STATUS"
+echo -e "${GREEN}Order placed successfully for Company 1.${NC}"
 
 echo -e "${GREEN}All API tests for customer user completed successfully!${NC}"

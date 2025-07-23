@@ -5,8 +5,8 @@ declare -A services
 services["UserService"]="3000"
 services["CompanyService"]="3001"
 services["ProductService"]="3002"
-srvices["OrderService"]="3003"
-services["CartService"]="3004"
+services["PaymentService"]="3005"
+services["CheckoutService"]="3009"
 
 PID_FILE="sam_pids.txt"
 
@@ -36,7 +36,8 @@ start_services() {
 
     echo "Preparing to start $service_name on port $port..."
     # Construct the SAM command
-    sam_cmd="sam local start-api -t \"$template_path\" --docker-network host --debug --port \"$port\""
+    mkdir -p logs
+    sam_cmd="sam local start-api -t "$template_path" --docker-network businesscart-network --debug -l logs/$service_name.log --port "$port""
 
     # Run SAM in a new tab and store its PID (from the gnome-terminal process)
     # Note: Getting the PID of the actual 'sam local' process inside the new tab is complex.
@@ -68,6 +69,8 @@ stop_services() {
   if [ -f "$PID_FILE" ]; then
     rm "$PID_FILE"
   fi
+
+  
 
   echo "Services stopped and containers cleaned up."
 }

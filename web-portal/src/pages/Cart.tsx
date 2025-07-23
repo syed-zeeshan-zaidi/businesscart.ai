@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, getUserAssociatedCompanies } from '../api';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, getUserAssociatedCompanies, createQuote } from '../api';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -156,6 +156,24 @@ const Cart: React.FC = () => {
     }
   };
 
+  const handleCheckout = async () => {
+    if (!selectedCompanyId) {
+      toast.error('Please select a company to checkout.');
+      return;
+    }
+    setLoading(true);
+    const toastId = toast.loading('Proceeding to checkout...');
+    try {
+      const quote = await createQuote(selectedCompanyId);
+      toast.success('Quote created successfully!', { id: toastId });
+      navigate(`/checkout/${quote.id}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to create quote.', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!userRole || loading || associatedCompanies.length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -191,13 +209,13 @@ const Cart: React.FC = () => {
           </div>
         )}
 
-        {!cart || cart.items.length === 0 ? (
+        {!cart || !cart.items || cart.items.length === 0 ? (
           <p className="text-gray-600">Your cart is empty for {selectedCompanyId || 'the selected company'}.</p>
         ) : (
           <div className="bg-white shadow-lg rounded-lg p-6">
             <div className="divide-y divide-gray-200">
               {cart.items.map((item) => (
-                <div key={item.productId} className="flex items-center justify-between py-4">
+                <div key={item.id} className="flex items-center justify-between py-4">
                     <div>
                       <h2 className="text-lg font-semibold text-gray-800">{item.name || 'N/A'}</h2>
                       <p className="text-gray-600">Price: ${item.price !== undefined ? item.price.toFixed(2) : 'N/A'}</p>
@@ -209,17 +227,17 @@ const Cart: React.FC = () => {
                         min="1"
                         value={item.quantity}
                         onChange={(e) => {
-                        if (item._id) {
-                          handleUpdateQuantity(item._id, parseInt(e.target.value));
+                        if (item.id) {
+                          handleUpdateQuantity(item.id, parseInt(e.target.value));
                         }
                       }}
                         className="w-20 p-2 border border-gray-300 rounded-md"
                       />
-                      {item._id && (
+                      {item.id && (
                         <button
                           onClick={() => {
-                            if (item._id) {
-                              handleRemoveItem(item._id);
+                            if (item.id) {
+                              handleRemoveItem(item.id);
                             }
                           }}
                           className="text-red-600 hover:text-red-800"
@@ -240,6 +258,7 @@ const Cart: React.FC = () => {
                 Clear Cart
               </button>
               <button
+                onClick={handleCheckout}
                 className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition"
               >
                 Proceed to Checkout
