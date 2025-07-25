@@ -10,6 +10,7 @@ import (
 	"github.com/syed/businesscart/checkout-service/internal/config"
 	"github.com/syed/businesscart/checkout-service/internal/handler"
 	"github.com/syed/businesscart/checkout-service/internal/order"
+	"github.com/syed/businesscart/checkout-service/internal/payment"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -29,7 +30,9 @@ func main() {
 	cartService := cart.NewService(db)
 	quoteService := quote.NewService(db)
 	orderService := order.NewService(db)
-	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, cfg.JWTSecret)
+	paymentService := payment.NewPaymentService()
+
+	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, paymentService, cfg.JWTSecret)
 
 	log.Println("Starting Lambda handler...")
 	lambda.Start(func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

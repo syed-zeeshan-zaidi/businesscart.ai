@@ -75,3 +75,19 @@ The script will be updated to reflect the new two-step process:
 2.  Call the `POST /quotes` endpoint to generate a quote.
 3.  Use the returned `quoteId` to call the `POST /orders` endpoint to finalize the transaction.
 4.  Verify the responses at each stage.
+
+## 7. Payment Service Migration
+The `payment-service` has been consolidated into the `checkout-service`. The `checkout-service` now directly handles payment processing.
+**Note**: The current implementation for Stripe and Amazon Pay is mocked for testing purposes and does not connect to live payment gateways.
+
+## 8. Leftover Work
+- **Real Payment Gateway Integration**: Replace the mocked payment logic with actual SDKs for Stripe and Amazon Pay.
+- **Implement Promotion Service**: The promotion logic is currently a placeholder. A dedicated promotion service or module should be created to handle promo codes and discounts.
+- **Implement Shipping Service**: The shipping calculation is currently a flat rate. A more sophisticated shipping service should be integrated to calculate shipping costs based on weight, dimensions, and destination.
+- **Implement Tax Service**: The tax calculation is a simple percentage. A dedicated tax service should be integrated to handle different tax rates based on location.
+- **Security Hardening**: Implement rate limiting, more robust input validation, and a general security review of all services.
+- **Logging and Monitoring**: Implement structured logging (e.g., JSON) and integrate with a monitoring service like AWS CloudWatch for better observability.
+- **Configuration Management**: Move secrets and other configuration into a secure and manageable service like AWS Secrets Manager or Parameter Store.
+- **Improve Error Handling**: The error handling in the `checkout-service` can be improved to provide more specific error messages to the frontend.
+- **Add Unit and E2E Tests**: The `checkout-service` currently lacks unit tests. Unit tests should be added to ensure the correctness of the business logic. Add end-to-end tests for the entire application flow.
+- **Frontend Polish**: Improve the UI/UX of the web portal, implement better state management, and add more comprehensive tests.

@@ -10,15 +10,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/syed/businesscart/checkout-service/internal/cart"
 	"github.com/syed/businesscart/checkout-service/internal/order"
+	"github.com/syed/businesscart/checkout-service/internal/payment"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // CheckoutRequest represents the request body for a checkout.
 type CheckoutRequest struct {
-	CompanyId    string          `json:"companyId"`
-	PromoCode    string          `json:"promoCode,omitempty"`
-	PaymentToken string          `json:"paymentToken"`
+	CompanyID    string        `json:"companyId"`
+	PromoCode    string        `json:"promoCode,omitempty"`
+	PaymentToken string        `json:"paymentToken"`
 	Items        []cart.CartItem `json:"items"`
 }
 
@@ -27,21 +28,23 @@ type CartItemRequest struct {
 	Entity cart.CartItem `json:"entity"`
 }
 
-// LambdaHandler handles AWS Lambda proxy requests.
+// LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
-	cartService     *cart.Service
-	quoteService    *quote.Service
-	orderService    *order.Service
-	jwtSecret       string
+	cartService    *cart.Service
+	quoteService   *quote.Service
+	orderService   *order.Service
+	paymentService *payment.PaymentService
+	jwtSecret      string
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, jwtSecret string) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, paymentService *payment.PaymentService, jwtSecret string) *LambdaHandler {
 	return &LambdaHandler{
-		cartService:     cartService,
-		quoteService:    quoteService,
-		orderService:    orderService,
-		jwtSecret:       jwtSecret,
+		cartService:    cartService,
+		quoteService:   quoteService,
+		orderService:   orderService,
+		paymentService: paymentService,
+		jwtSecret:      jwtSecret,
 	}
 }
 
@@ -52,6 +55,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusOK,
 			Headers: map[string]string{
+				"Content-Type":                 "application/json",
 				"Access-Control-Allow-Origin":  "*",
 				"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 				"Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -63,7 +67,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	// Validate JWT token
 	authHeader, ok := request.Headers["Authorization"]
-	if !ok || authHeader == "" {
+	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Missing token"), nil
 	}
 
@@ -83,7 +87,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	userClaim, ok := claims["user"].(map[string]interface{})
 	if !ok {
-		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim missing"), nil
+		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim is not a map"), nil
 	}
 
 	userId, ok := userClaim["id"].(string)
@@ -98,22 +102,26 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	companyId, _ := userClaim["company_id"].(string)
 
-	log.Printf("JWT Claims - UserID: %s, Role: %s, CompanyID: %s", userId, role, companyId)
+	log.Printf("User ID: %s, Role: %s, Company ID: %s", userId, role, companyId)
 
-	// Handle Cart API routes
 	if strings.HasPrefix(request.Path, "/cart") {
 		return h.handleCartRequest(request, userId)
 	} else if strings.HasPrefix(request.Path, "/quotes") {
 		return h.handleQuoteRequest(request, userId)
-	} else if request.Path == "/orders" && request.HTTPMethod == "POST" {
-		return h.handlePlaceOrderRequest(request, userId)
-	} else if request.Path == "/orders" && request.HTTPMethod == "GET" {
-		return h.handleGetOrdersRequest(request, userId, role, companyId)
-	} else if request.Path == "/checkout" && request.HTTPMethod == "POST" {
-		// This endpoint is now deprecated in favor of /quotes and /orders
-		return h.errorResponse(http.StatusGone, "This endpoint is deprecated. Please use /quotes and /orders."), nil
+	} else if strings.HasPrefix(request.Path, "/orders") {
+		return h.handleOrderRequest(request, userId, role, companyId)
 	}
 
+	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
+}
+
+func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, userId string, role string, companyId string) (events.APIGatewayProxyResponse, error) {
+	if request.HTTPMethod == "POST" {
+		return h.handlePlaceOrderRequest(request, userId)
+	}
+	if request.HTTPMethod == "GET" {
+		return h.handleGetOrdersRequest(request, userId, role, companyId)
+	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
@@ -161,8 +169,9 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 
 func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, userId string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		QuoteID      string `json:"quoteId"`
-		PaymentToken string `json:"paymentToken"`
+		QuoteID       string `json:"quoteId"`
+		PaymentMethod string `json:"paymentMethod"`
+		PaymentToken  string `json:"paymentToken"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -178,21 +187,25 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-	// Mock payment processing
-	transactionId := "mock-transaction-123"
+	// Process payment
+	transactionID, ok := h.paymentService.ProcessPayment(quote.GrandTotal, req.PaymentMethod, req.PaymentToken)
+	if !ok {
+		return h.errorResponse(http.StatusPaymentRequired, "Payment failed"), nil
+	}
 
 	newOrder := &order.Order{
-		ID:           primitive.NewObjectID(),
-		QuoteID:      quote.ID,
-		UserID:       userId,
-		CompanyID:    quote.CompanyID,
-		Items:        quote.Items,
-		Subtotal:     quote.Subtotal,
-		ShippingCost: quote.ShippingCost,
-		TaxAmount:    quote.TaxAmount,
-		GrandTotal:   quote.GrandTotal,
+		ID:            primitive.NewObjectID(),
+		QuoteID:       quote.ID,
+		UserID:        userId,
+		CompanyID:     quote.CompanyID,
+		Items:         quote.Items,
+		Subtotal:      quote.Subtotal,
+		ShippingCost:  quote.ShippingCost,
+		TaxAmount:     quote.TaxAmount,
+		GrandTotal:    quote.GrandTotal,
+		PaymentMethod: req.PaymentMethod,
+		TransactionID: transactionID,
 	}
-	newOrder.Payment.TransactionID = transactionId
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
 	if err != nil {
@@ -417,7 +430,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 
 			currentCart, err := h.cartService.GetCart(userId, companyId)
-			if err != nil {
+		if err != nil {
 				return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 			}
 

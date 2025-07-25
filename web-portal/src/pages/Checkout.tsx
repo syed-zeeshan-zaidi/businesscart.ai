@@ -12,6 +12,8 @@ const Checkout: React.FC = () => {
   const { quoteId } = useParams<{ quoteId: string }>();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('stripe');
+  
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -44,10 +46,13 @@ const Checkout: React.FC = () => {
       toast.error('No quote available to place an order.');
       return;
     }
+    
+    const token = paymentMethod === 'stripe' ? 'tok_stripe_valid' : 'amz_pay_valid';
+
     setLoading(true);
     const toastId = toast.loading('Placing your order...');
     try {
-      await createOrder({ quoteId: quote.id, paymentToken: 'mock-payment-token' });
+      await createOrder({ quoteId: quote.id, paymentMethod, paymentToken: token });
       toast.success('Order placed successfully!', { id: toastId });
       navigate('/order-success');
     } catch (err: any) {
@@ -114,6 +119,41 @@ const Checkout: React.FC = () => {
               <p>Grand Total:</p>
               <p>${quote.grandTotal.toFixed(2)}</p>
             </div>
+          </div>
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Payment Details</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+              <div className="mt-2 flex items-center">
+                <input
+                  id="stripe"
+                  name="payment-method"
+                  type="radio"
+                  value="stripe"
+                  checked={paymentMethod === 'stripe'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                />
+                <label htmlFor="stripe" className="ml-3 block text-sm font-medium text-gray-700">
+                  Stripe
+                </label>
+              </div>
+              <div className="mt-2 flex items-center">
+                <input
+                  id="amazon_pay"
+                  name="payment-method"
+                  type="radio"
+                  value="amazon_pay"
+                  checked={paymentMethod === 'amazon_pay'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                />
+                <label htmlFor="amazon_pay" className="ml-3 block text-sm font-medium text-gray-700">
+                  Amazon Pay
+                </label>
+              </div>
+            </div>
+            
           </div>
           <div className="mt-8 flex justify-end">
             <button

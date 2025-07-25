@@ -5,7 +5,6 @@ declare -A services
 services["UserService"]="3000"
 services["CompanyService"]="3001"
 services["ProductService"]="3002"
-services["PaymentService"]="3005"
 services["CheckoutService"]="3009"
 
 PID_FILE="sam_pids.txt"

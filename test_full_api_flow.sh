@@ -254,13 +254,13 @@ create_quote() {
 }
 
 place_order() {
-  local role="$1" qid="$2"
-  print_step "Place order for quote $qid"
+  local role="$1" qid="$2" method="$3" token="$4"
+  print_step "Place order for quote $qid with $method"
 
   resp=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/orders" \
          -H "Content-Type: application/json" \
          -H "Authorization: Bearer ${JWTS[$role]}" \
-         -d "{\"quoteId\":\"$qid\",\"paymentToken\":\"dummyPaymentToken123\"}")
+         -d "{\"quoteId\":\"$qid\",\"paymentMethod\":\"$method\",\"paymentToken\":\"$token\"}")
   body=$(sed '$d' <<<"$resp")
   status=$(tail -n1 <<<"$resp")
   handle_error "$body" "Place order" "$status"
@@ -319,13 +319,13 @@ echo "$QUOTE2_JSON" | jq .
 
 
 # Place orders for each quote
-ORDER1_JSON=$(place_order "customer" "$QUOTE1_ID")
-ORDER2_JSON=$(place_order "customer" "$QUOTE2_ID")
+ORDER1_JSON=$(place_order "customer" "$QUOTE1_ID" "stripe" "tok_stripe_valid")
+ORDER2_JSON=$(place_order "customer" "$QUOTE2_ID" "amazon_pay" "amz_pay_valid")
 
 print_step "Final Results"
-echo -e "${GREEN}Company 1 Order:${NC}"
+echo -e "${GREEN}Company 1 Order (Stripe):${NC}"
 echo "$ORDER1_JSON" | jq .
-echo -e "${GREEN}Company 2 Order:${NC}"
+echo -e "${GREEN}Company 2 Order (Amazon Pay):${NC}"
 echo "$ORDER2_JSON" | jq .
 
 print_step "Full API flow test completed successfully!"

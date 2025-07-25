@@ -143,7 +143,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
   await api.delete(`${PRODUCT_API_URL}/products/${id}`);
 };
 
-export const createOrder = async (data: { quoteId: string; paymentToken: string }): Promise<Order> => {
+export const createOrder = async (data: { quoteId: string; paymentMethod: string; paymentToken: string }): Promise<Order> => {
   const response = await api.post(`${CHECKOUT_API_URL}/orders`, data);
   return response.data;
 };
