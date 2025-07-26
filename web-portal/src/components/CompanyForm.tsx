@@ -104,11 +104,30 @@ const CompanyForm = () => {
 
     setIsLoading(true);
     try {
+      const companyData: Partial<Omit<Company, '_id'>> = {
+        name: formData.name,
+        companyCode: formData.companyCode,
+        paymentMethods: formData.paymentMethods.length > 0 ? formData.paymentMethods : ['cash'],
+      };
+
+      if (
+        formData.address.street &&
+        formData.address.city &&
+        formData.address.state &&
+        formData.address.zip
+      ) {
+        companyData.address = formData.address;
+      }
+
+      if (formData.sellingArea.radius > 0) {
+        companyData.sellingArea = formData.sellingArea;
+      }
+      console.log('Submitting company data:', companyData);
       if (editingId) {
-        await updateCompany(editingId, formData);
+        await updateCompany(editingId, companyData as Omit<Company, '_id'>);
         toast.success('Company updated successfully');
       } else {
-        const response = await createCompany(formData);
+        const response = await createCompany(companyData as Omit<Company, '_id'>);
         toast.success('Company created successfully');
         try {
           await updateUserWithCompany(response._id);

@@ -11,63 +11,54 @@ interface AuthorizerContext {
   associateCompanyIds?: string;
 }
 
+const createResponse = (statusCode: number, body: object): APIGatewayProxyResult => ({
+  statusCode,
+  headers: {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  },
+  body: JSON.stringify(body),
+});
+
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  // Handle preflight OPTIONS requests
+  if (event.httpMethod === 'OPTIONS') {
+    return createResponse(200, {});
+  }
+
   try {
     await connectDB();
     const { httpMethod, path, body, pathParameters, requestContext } = event;
 
-    // JSON parsing wrapper
     let parsedBody;
     try {
       parsedBody = body ? JSON.parse(body) : {};
     } catch (err) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Invalid JSON body' }),
-      };
+      return createResponse(400, { message: 'Invalid JSON body' });
     }
 
-    // Extract authorizer context
     const authorizer: AuthorizerContext = requestContext.authorizer || {};
     const userId = authorizer.userId;
     const userRole = authorizer.userRole;
 
     if (!userId) {
-      return {
-        statusCode: 403,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Unauthorized: User ID required' }),
-      };
+      return createResponse(403, { message: 'Unauthorized: User ID required' });
     }
 
     // POST /companies
     if (path === '/companies' && httpMethod === 'POST') {
       if (userRole !== 'company') {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized: Company role required' }),
-        };
+        return createResponse(403, { message: 'Unauthorized: Company role required' });
       }
       const existingCompany = await Company.findOne({ userId });
       if (existingCompany) {
-        return {
-          statusCode: 400,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'User can only create one company' }),
-        };
+        return createResponse(400, { message: 'User can only create one company' });
       }
       const data = createCompanySchema.parse(parsedBody);
-      const company = await Company.create({
-        ...data,
-        userId,
-      });
-      return {
-        statusCode: 201,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      const company = await Company.create({ ...data, userId });
+      return createResponse(201, company);
     }
 
     // GET /companies
@@ -82,25 +73,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         try {
           associateCompanyIds = JSON.parse(authorizer.associateCompanyIds || '[]');
         } catch (err) {
-          return {
-            statusCode: 400,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: 'Invalid associate company IDs' }),
-          };
+          return createResponse(400, { message: 'Invalid associate company IDs' });
         }
         companies = await Company.find({ _id: { $in: associateCompanyIds } });
       } else {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized: Invalid role' }),
-        };
+        return createResponse(403, { message: 'Unauthorized: Invalid role' });
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(companies),
-      };
+      return createResponse(200, companies);
     }
 
     // GET /companies/{companyId}
@@ -108,118 +87,62 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const id = pathParameters.companyId;
       const company = await Company.findById(id);
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Company not found' }),
-        };
+        return createResponse(404, { message: 'Company not found' });
       }
       if (userRole === 'company' && company.userId !== userId) {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized access to company' }),
-        };
+        return createResponse(403, { message: 'Unauthorized access to company' });
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
     // PUT /companies/{companyId}
     if (path.startsWith('/companies/') && httpMethod === 'PUT' && pathParameters?.companyId) {
       if (userRole !== 'company') {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized: Company role required' }),
-        };
+        return createResponse(403, { message: 'Unauthorized: Company role required' });
       }
       const id = pathParameters.companyId;
       const company = await Company.findById(id);
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Company not found' }),
-        };
+        return createResponse(404, { message: 'Company not found' });
       }
       if (company.userId !== userId) {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized access to company' }),
-        };
+        return createResponse(403, { message: 'Unauthorized access to company' });
       }
       const data = updateCompanySchema.parse(parsedBody);
       Object.assign(company, data);
       await company.save();
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
     // DELETE /companies/{companyId}
     if (path.startsWith('/companies/') && httpMethod === 'DELETE' && pathParameters?.companyId) {
       if (userRole !== 'company') {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized: Company role required' }),
-        };
+        return createResponse(403, { message: 'Unauthorized: Company role required' });
       }
       const id = pathParameters.companyId;
       const company = await Company.findById(id);
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Company not found' }),
-        };
+        return createResponse(404, { message: 'Company not found' });
       }
       if (company.userId !== userId) {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized access to company' }),
-        };
+        return createResponse(403, { message: 'Unauthorized access to company' });
       }
       await Company.deleteOne({ _id: id });
-      return {
-        statusCode: 204,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      };
+      return createResponse(204, {});
     }
 
     // POST /companies/{companyId}/customers
     if (pathParameters?.companyId && httpMethod === 'POST' && path.endsWith('/customers')) {
       if (userRole !== 'company') {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized: Company role required' }),
-        };
+        return createResponse(403, { message: 'Unauthorized: Company role required' });
       }
       const companyId = pathParameters.companyId;
       const company = await Company.findById(companyId);
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Company not found' }),
-        };
+        return createResponse(404, { message: 'Company not found' });
       }
       if (company.userId !== userId) {
-        return {
-          statusCode: 403,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Unauthorized access to company' }),
-        };
+        return createResponse(403, { message: 'Unauthorized access to company' });
       }
       const customerData = addCustomerSchema.parse(parsedBody);
       company.customers = company.customers || [];
@@ -227,22 +150,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         company.customers.push(customerData.customerId);
         await company.save();
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
     // GET /companies/customers/{customerId}
     if (path.includes('/companies/customers/') && httpMethod === 'GET' && pathParameters?.customerId) {
       const customerId = pathParameters.customerId;
       const companies = await Company.find({ customers: customerId });
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(companies),
-      };
+      return createResponse(200, companies);
     }
 
     // POST /companies/code
@@ -250,17 +165,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const data = z.object({ code: z.string().min(1, 'Code is required') }).parse(parsedBody);
       const company = await Company.findOne({ companyCode: data.code });
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Invalid company code' }),
-        };
+        return createResponse(404, { message: 'Invalid company code' });
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
     // GET /companies/code/{code}
@@ -268,17 +175,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const code = pathParameters.code;
       const company = await Company.findOne({ companyCode: code });
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Invalid company code' }),
-        };
+        return createResponse(404, { message: 'Invalid company code' });
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
     // POST /companies/code/{code}/customers
@@ -286,48 +185,25 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const code = pathParameters.code;
       const company = await Company.findOne({ companyCode: code });
       if (!company) {
-        return {
-          statusCode: 404,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: 'Invalid company code' }),
-        };
+        return createResponse(404, { message: 'Invalid company code' });
       }
       if (!company.customers.includes(userId)) {
         company.customers.push(userId);
         await company.save();
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
-      };
+      return createResponse(200, company);
     }
 
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Route not found' }),
-    };
+    return createResponse(404, { message: 'Route not found' });
   } catch (err) {
     console.error('Handler error:', err);
     if (err instanceof z.ZodError) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ errors: err.errors }),
-      };
+      return createResponse(400, { errors: err.errors });
     }
     if (err instanceof Error) {
-      return {
-        statusCode: err.message.includes('not found') || err.message.includes('Invalid company code') ? 404 : err.message.includes('Unauthorized') ? 403 : 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: err.message }),
-      };
+      const statusCode = err.message.includes('not found') || err.message.includes('Invalid company code') ? 404 : err.message.includes('Unauthorized') ? 403 : 400;
+      return createResponse(statusCode, { message: err.message });
     }
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Internal server error' }),
-    };
+    return createResponse(500, { message: 'Internal server error' });
   }
 };

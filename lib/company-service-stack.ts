@@ -65,7 +65,7 @@ export class CompanyServiceStack extends cdk.Stack {
     codeCustomers.addMethod('POST', companyIntegration, { authorizer, authorizationType: apigateway.AuthorizationType.CUSTOM });
 
     // CORS
-    companies.addCorsPreflight({ allowOrigins: ['*'], allowMethods: ['GET', 'POST', 'OPTIONS'] });
+    companies.addCorsPreflight({ allowOrigins: ['*'], allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] });
     companyId.addCorsPreflight({ allowOrigins: ['*'], allowMethods: ['GET', 'PUT', 'DELETE', 'OPTIONS'] });
     customers.addCorsPreflight({ allowOrigins: ['*'], allowMethods: ['POST', 'OPTIONS'] });
     customer.addCorsPreflight({ allowOrigins: ['*'], allowMethods: ['POST', 'OPTIONS'] });

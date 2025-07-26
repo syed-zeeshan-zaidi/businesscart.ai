@@ -56,10 +56,12 @@ export const updateCompanySchema = z.object({
   sellingArea: z
     .object({
       radius: z.number().min(0, 'Radius must be non-negative'),
-      center: z.object({
-        lat: z.number({ required_error: 'Center latitude is required' }),
-        lng: z.number({ required_error: 'Center longitude is required' }),
-      }),
+      center: z
+        .object({
+          lat: z.number({ required_error: 'Center latitude is required' }),
+          lng: z.number({ required_error: 'Center longitude is required' }),
+        })
+        .optional(),
     })
     .optional(),
   paymentMethods: z
