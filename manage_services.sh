@@ -15,14 +15,33 @@ run_in_new_tab() {
   gnome-terminal --tab --command="bash -c \"$cmd; exec bash\"" &
 }
 
+build_go_service() {
+  local service_dir="$1"
+  local output_name="$2"
+  local main_path="$3"
+
+  echo "Building $service_dir..."
+  if (cd "$service_dir" && go build -o "$output_name" "$main_path"); then
+    echo "$service_dir build finished."
+  else
+    echo "Error: Failed to build $service_dir. Exiting."
+    exit 1
+  fi
+}
+
 start_services() {
   echo "Synthesizing CDK templates..."
   npm run cdk synth || { echo "CDK synth failed. Exiting."; exit 1; }
   echo "CDK templates synthesized successfully."
 
+  # Build Go services before starting
+  build_go_service "user-service" "bootstrap" "./cmd/server/main.go"
+  build_go_service "checkout-service" "server" "./cmd/server"
+
   echo "Starting microservices in new terminal tabs..."
   # Ensure the PID file is empty before starting
   > "$PID_FILE"
+
 
   for service_name in "${!services[@]}"; do
     port="${services[$service_name]}"

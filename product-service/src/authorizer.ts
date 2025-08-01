@@ -15,7 +15,7 @@ export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<AP
     const token = event.authorizationToken.replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
 
-    if (!['company', 'customer', 'admin'].includes(decoded.user.role)) {
+    if (!decoded.user || !['company', 'customer', 'admin'].includes(decoded.user.role)) {
       throw new Error('Invalid role');
     }
 

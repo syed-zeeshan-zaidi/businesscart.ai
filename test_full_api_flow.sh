@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Full API flow test 
+# Full API flow test
 # =============================================================================
 
 # ----------------------------------------------------------
@@ -11,6 +11,15 @@ COMPANY_API="http://127.0.0.1:3001"
 PRODUCT_API="http://127.0.0.1:3002"
 CHECKOUT_API="http://127.0.0.1:3009"
 PASSWORD="securepassword"
+
+# Static ObjectIDs for predictability
+COMPANY_ONE_ID="66a9f3a0f1a4f3e1e1a3b5c7"
+COMPANY_TWO_ID="66a9f3a0f1a4f3e1e1a3b5c8"
+
+COMPANY_ONE_BIZ_CODE="BIZ-ONE"
+COMPANY_ONE_ACCESS_CODE="ACCESS-ONE"
+COMPANY_TWO_BIZ_CODE="BIZ-TWO"
+COMPANY_TWO_ACCESS_CODE="ACCESS-TWO"
 
 declare -A USERS=(
   [admin]="admin@example.com"
@@ -32,7 +41,10 @@ declare -A ROLES=(
 )
 declare -A JWTS
 declare -A USER_IDS
-declare -A COMPANY_IDS
+declare -A COMPANY_IDS=(
+  [company1]=$COMPANY_ONE_ID
+  [company2]=$COMPANY_TWO_ID
+)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,13 +93,34 @@ login_or_register() {
   if [ "$status" -eq 200 ]; then
     echo "$body"
   else
-    echo "Login failed (HTTP $status). Trying register…"
+    echo "Login failed (HTTP $status). Trying register…" >&2
+    
+    local payload
+    payload="{\"name\":\"$name\",\"email\":\"$email\",\"password\":\"$PASSWORD\",\"role\":\"$user_role\",\"phoneNumber\":\"1234567890\""
+
+    if [ "$user_role" == "company" ]; then
+      local biz_code
+      [ "$role" == "company1" ] && biz_code=$COMPANY_ONE_BIZ_CODE || biz_code=$COMPANY_TWO_BIZ_CODE
+      payload+=", \"business_code\":\"$biz_code\""
+    elif [ "$user_role" == "customer" ]; then
+      payload+=", \"company_access_code\":\"$COMPANY_ONE_ACCESS_CODE\""
+    fi
+    
+    payload+="}"
+
     resp=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/register" \
       -H "Content-Type: application/json" \
-      -d "{\"name\":\"$name\",\"email\":\"$email\",\"password\":\"$PASSWORD\",\"role\":\"$user_role\",\"phoneNumber\":\"1234567890\"}")
+      -d "$payload")
     status=$(tail -n1 <<<"$resp")
     body=$(sed '$d' <<<"$resp")
     handle_error "$body" "Register $role" "$status"
+    
+    resp=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/login" \
+      -H "Content-Type: application/json" \
+      -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\"}")
+    status=$(tail -n1 <<<"$resp")
+    body=$(sed '$d' <<<"$resp")
+    handle_error "$body" "Post-Register Login $role" "$status"
     echo "$body"
   fi
 
@@ -102,28 +135,55 @@ login_or_register() {
 # ----------------------------------------------------------
 get_or_create_company() {
   local role="$1" name="$2"
-  print_step "Company for $role"
+  local cid=${COMPANY_IDS[$role]} # Get the static ID
+  print_step "Company for $role (ID: $cid)"
 
-  resp=$(curl -s -w "\n%{http_code}" -X GET "$COMPANY_API/companies" \
+  # Check if company with static ID already exists
+  resp=$(curl -s -w "\n%{http_code}" -X GET "$COMPANY_API/companies/$cid" \
     -H "Authorization: Bearer ${JWTS[$role]}")
   status=$(tail -n1 <<<"$resp")
   body=$(sed '$d' <<<"$resp")
-  handle_error "$body" "Get company" "$status"
 
-  id=$(echo "$body" | jq -r '.[0]._id // empty')
-  if [ -n "$id" ]; then
-    COMPANY_IDS[$role]=$id
-  else
+  if [ "$status" -eq 200 ]; then
+    echo "Company $cid already exists."
+  elif [ "$status" -eq 404 ]; then
+    echo "Company $cid not found. Creating..."
+    local biz_code
+    [ "$role" == "company1" ] && biz_code=$COMPANY_ONE_BIZ_CODE || biz_code=$COMPANY_TWO_BIZ_CODE
+    
+    payload=$(cat <<EOF
+{
+  "_id": "$cid",
+  "name": "$name",
+  "companyCode": "$biz_code",
+  "paymentMethods": ["cash", "credit_card"],
+  "address": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "state": "CA",
+    "zip": "12345"
+  },
+  "sellingArea": {
+    "radius": 1000,
+    "center": {
+      "lat": 0,
+      "lng": 0
+    }
+  }
+}
+EOF
+)
     resp=$(curl -s -w "\n%{http_code}" -X POST "$COMPANY_API/companies" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer ${JWTS[$role]}" \
-      -d "{\"name\":\"$name\"}")
+      -d "$payload")
     status=$(tail -n1 <<<"$resp")
     body=$(sed '$d' <<<"$resp")
     handle_error "$body" "Create company" "$status"
-    COMPANY_IDS[$role]=$(echo "$body" | jq -r '._id')
+  else
+    handle_error "$body" "Get company by ID" "$status"
   fi
-  echo -e "${GREEN}Company ${COMPANY_IDS[$role]}${NC}"
+  echo -e "${GREEN}Company ${COMPANY_IDS[$role]} is ready${NC}"
 }
 
 # ----------------------------------------------------------
@@ -158,17 +218,24 @@ associate_customer_with_company() {
   local role="$1" cid="$2"
   print_step "Associate customer $role with company $cid"
 
+  local jwt_payload
+  jwt_payload=$(echo "${JWTS[$role]}" | awk -F. '{print $2}' | base64 -d 2>/dev/null)
+  if echo "$jwt_payload" | jq -e ".user.associate_company_ids | index(\"$cid\")" >/dev/null; then
+    echo -e "${GREEN}Customer already associated with company $cid${NC}" >&2
+    return
+  fi
+
   resp=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[$role]}" \
-    -d "{\"companyId\":\"$cid\"}")
+    -d "{\"companyId\":\"$cid\"}" -v 2>curl_debug.log)
   status=$(tail -n1 <<<"$resp")
   body=$(sed '$d' <<<"$resp")
   handle_error "$body" "Associate customer" "$status"
 
   newtok=$(echo "$body" | jq -r '.accessToken // empty')
   [ -n "$newtok" ] && JWTS[$role]=$newtok
-  echo -e "${GREEN}Associated & JWT refreshed${NC}"
+  echo -e "${GREEN}Associated & JWT refreshed${NC}" >&2
 }
 
 # ----------------------------------------------------------
@@ -316,7 +383,6 @@ fi
 echo -e "${GREEN}Successfully created Quote 2 with ID: $QUOTE2_ID${NC}"
 echo "Quote 2 JSON:"
 echo "$QUOTE2_JSON" | jq .
-
 
 # Place orders for each quote
 ORDER1_JSON=$(place_order "customer" "$QUOTE1_ID" "stripe" "tok_stripe_valid")

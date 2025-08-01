@@ -102,10 +102,20 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	companyId, _ := userClaim["company_id"].(string)
 
-	log.Printf("User ID: %s, Role: %s, Company ID: %s", userId, role, companyId)
+	// Add this block to safely extract associate_company_ids
+	var associateCompanyIDs []string
+	if ids, ok := userClaim["associate_company_ids"].([]interface{}); ok {
+		for _, id := range ids {
+			if idStr, ok := id.(string); ok {
+				associateCompanyIDs = append(associateCompanyIDs, idStr)
+			}
+		}
+	}
+
+	log.Printf("User ID: %s, Role: %s, Company ID: %s, Associate Company IDs: %v", userId, role, companyId, associateCompanyIDs)
 
 	if strings.HasPrefix(request.Path, "/cart") {
-		return h.handleCartRequest(request, userId)
+		return h.handleCartRequest(request, userId, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/quotes") {
 		return h.handleQuoteRequest(request, userId)
 	} else if strings.HasPrefix(request.Path, "/orders") {
@@ -298,7 +308,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}, nil
 }
 
-func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest, userId string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest, userId string, role string, associateCompanyIDs []string) (events.APIGatewayProxyResponse, error) {
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
@@ -351,6 +361,21 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		if companyId == "" {
 			return h.errorResponse(http.StatusBadRequest, "Company ID is required"), nil
 		}
+
+		// Authorization check for customer role
+		if role == "customer" {
+			can_access := false
+			for _, id := range associateCompanyIDs {
+				if id == companyId {
+					can_access = true
+					break
+				}
+			}
+			if !can_access {
+				return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+			}
+		}
+
 		fetchedCart, err := h.cartService.GetCart(userId, companyId)
 		if err != nil {
 			if err.Error() == "cart not found" {
@@ -430,7 +455,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 
 			currentCart, err := h.cartService.GetCart(userId, companyId)
-		if err != nil {
+			if err != nil {
 				return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 			}
 

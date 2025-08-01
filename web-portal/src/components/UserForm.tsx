@@ -10,6 +10,16 @@ import toast, { Toaster } from 'react-hot-toast';
 const CACHE_KEY = 'users_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
+const normalizeUser = (apiUser: any): User => ({
+  _id: apiUser.ID || apiUser._id,
+  name: apiUser.Name || apiUser.name,
+  email: apiUser.Email || apiUser.email,
+  role: apiUser.Role || apiUser.role,
+  phoneNumber: apiUser.PhoneNumber || apiUser.phoneNumber,
+  company_id: apiUser.CompanyID || apiUser.company_id,
+  associate_company_ids: apiUser.AssociateCompanyIDs || apiUser.associate_company_ids,
+});
+
 const UserForm = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -42,7 +52,8 @@ const UserForm = () => {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          filterUsersByRole(data);
+          const normalizedData = data.map(normalizeUser);
+          filterUsersByRole(normalizedData);
           return;
         }
       }
@@ -54,8 +65,8 @@ const UserForm = () => {
   useEffect(() => {
     const filtered = users.filter(
       (user) =>
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (user.name && user.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
     );
     setFilteredUsers(filtered);
     setCurrentPage(1);
@@ -76,6 +87,8 @@ const UserForm = () => {
     }
     setUsers(filtered);
     setFilteredUsers(filtered);
+    // Note: Caching the original, non-normalized data might be better if other parts of the app use it.
+    // For now, this caches the filtered, normalized data.
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data: filtered, timestamp: Date.now() }));
     };
 
@@ -83,7 +96,8 @@ const UserForm = () => {
     setIsLoading(true);
     try {
       const data = await getUsers();
-      filterUsersByRole(data);
+      const normalizedData = data.map(normalizeUser);
+      filterUsersByRole(normalizedData);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error fetching users');
     } finally {
@@ -213,7 +227,7 @@ const UserForm = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">Users</h2>
-          {currentRole === 'admin' && (
+          { (currentRole === 'admin' || currentRole === 'company') && (
             <button
               onClick={openModal}
               className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
@@ -309,7 +323,7 @@ const UserForm = () => {
             </button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button
-                key={i + 1}
+                key={`page-${i + 1}`}
                 onClick={() => paginate(i + 1)}
                 className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
               >
@@ -359,7 +373,7 @@ const UserForm = () => {
                     {errors.length > 0 && (
                       <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md">
                         {errors.map((error, idx) => (
-                          <p key={idx}>{error}</p>
+                          <p key={`error-${idx}`}>{error}</p>
                         ))}
                       </div>
                     )}

@@ -148,8 +148,9 @@ export const createOrder = async (data: { quoteId: string; paymentMethod: string
   return response.data;
 };
 
-export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get(`${CHECKOUT_API_URL}/orders`);
+export const getOrders = async (companyId?: string): Promise<Order[]> => {
+  const url = companyId ? `${CHECKOUT_API_URL}/orders?companyId=${companyId}` : `${CHECKOUT_API_URL}/orders`;
+  const response = await api.get(url);
   return response.data;
 };
 

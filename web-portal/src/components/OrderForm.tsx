@@ -18,6 +18,10 @@ const OrderForm = () => {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const currentUser = JSON.parse(atob(localStorage.getItem('accessToken')?.split('.')[1] || ''))?.user || {};
+  const currentRole = currentUser.role || '';
+  const currentCompanyId = currentUser.company_id || '';
+
   useEffect(() => {
     const loadOrders = async () => {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -45,7 +49,7 @@ const OrderForm = () => {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const data = await getOrders();
+      const data = await getOrders(currentRole === 'company' ? currentCompanyId : undefined);
       setOrders(data);
       setFilteredOrders(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));

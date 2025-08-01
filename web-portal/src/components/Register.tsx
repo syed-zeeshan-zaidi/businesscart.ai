@@ -11,6 +11,8 @@ const Register = () => {
     password: '',
     role: 'company',
     phoneNumber: '',
+    business_code: '',
+    company_access_code: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -20,6 +22,8 @@ const Register = () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Valid email is required');
     if (!formData.password || formData.password.length < 8) errors.push('Password must be at least 8 characters');
     if (!formData.role) errors.push('Role is required');
+    if (formData.role === 'company' && !formData.business_code) errors.push('Business code is required');
+    if (formData.role === 'customer' && !formData.company_access_code) errors.push('Company access code is required');
     if (!formData.phoneNumber || !/^\d{10}$/.test(formData.phoneNumber)) errors.push('Valid 10-digit phone number is required');
     return errors;
   };
@@ -100,8 +104,33 @@ const Register = () => {
                 className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="company">Company</option>
+                <option value="customer">Customer</option>
               </select>
             </div>
+            {formData.role === 'company' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Business Code</label>
+                <input
+                  name="business_code"
+                  value={formData.business_code}
+                  onChange={handleChange}
+                  placeholder="Enter your business code"
+                  className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            )}
+            {formData.role === 'customer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company Access Code</label>
+                <input
+                  name="company_access_code"
+                  value={formData.company_access_code}
+                  onChange={handleChange}
+                  placeholder="Enter company access code"
+                  className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700">Phone Number</label>
               <input

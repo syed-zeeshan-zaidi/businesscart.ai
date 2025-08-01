@@ -3,10 +3,10 @@ export interface User {
   name: string;
   email: string;
   password?: string;
-  role: 'admin' | 'company' | 'customer';
+  role: string;
+  phoneNumber: string;
   company_id?: string;
   associate_company_ids?: string[];
-  phoneNumber: string;
 }
 
 export interface Company {
