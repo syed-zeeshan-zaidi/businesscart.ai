@@ -4,6 +4,12 @@
 !jest.config.js
 *.d.ts
 node_modules
+.env
+dist
+.DS_Store
+*.log
+.crush/
+CRUSH.md
 
 # CDK asset staging directory
 .cdk.staging

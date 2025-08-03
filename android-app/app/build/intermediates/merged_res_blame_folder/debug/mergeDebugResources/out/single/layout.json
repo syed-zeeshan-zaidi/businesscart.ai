@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.businesscart.android.app-mergeDebugResources-28:/layout/activity_login.xml",
+        "source": "com.businesscart.android.app-main-31:/layout/activity_login.xml"
+    },
+    {
+        "merged": "com.businesscart.android.app-mergeDebugResources-28:/layout/activity_registration.xml",
+        "source": "com.businesscart.android.app-main-31:/layout/activity_registration.xml"
+    }
+]

@@ -1,0 +1,19 @@
+<lint-module
+    format="1"
+    dir="/home/syed/Documents/BusinessCart/android-app/app"
+    name=":app"
+    type="APP"
+    maven="BusinessCart:app:"
+    agpVersion="8.1.0"
+    buildFolder="build"
+    bootClassPath="/home/syed/Android/Sdk/platforms/android-33/android.jar:/home/syed/Android/Sdk/build-tools/33.0.1/core-lambda-stubs.jar"
+    javaSourceLevel="1.8"
+    compileTarget="android-33"
+    neverShrinking="true">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="release"/>
+</lint-module>
