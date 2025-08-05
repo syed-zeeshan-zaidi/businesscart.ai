@@ -31,7 +31,7 @@ The Android app will be built using Kotlin, the officially recommended language 
     *   **API Integration:** Implement the `login` and `register` API calls.
         *   **Status:** Implemented.
     *   **Session Management:** Store the JWT securely on the device (e.g., using Android's EncryptedSharedPreferences).
-        *   **Status:** Not Implemented.
+        *   **Status:** Implemented.
 
 **Phase 2: Customer User Features (2-3 weeks)**
 
@@ -44,9 +44,9 @@ The Android app will be built using Kotlin, the officially recommended language 
         *   **Status:** Implemented.
 *   **Cart:**
     *   **Cart Screen:** A screen that displays the items in the user's cart for the currently selected company. Users should be able to update the quantity of items or remove them from the cart.
-        *   **Status:** Partially Implemented. Viewing the cart is done. Updating and removing items is not yet implemented.
+        *   **Status:** Not Implemented.
     *   **API Integration:** Implement `getCart`, `updateCartItem`, and `removeItemFromCart` API calls.
-        *   **Status:** `getCart` is implemented. `updateCartItem` and `removeItemFromCart` are not yet implemented.
+        *   **Status:** Not Implemented.
 *   **Checkout:**
     *   **Checkout Screen:** A screen that displays the order summary (subtotal, shipping, tax, grand total) and allows the user to select a payment method.
         *   **Status:** Implemented.

@@ -7,16 +7,20 @@ import androidx.lifecycle.lifecycleScope
 import com.businesscart.android.api.RetrofitClient
 import com.businesscart.android.databinding.ActivityRegistrationBinding
 import com.businesscart.android.model.RegistrationRequest
+import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.launch
 
 class RegistrationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegistrationBinding
+    private lateinit var sessionManager: SessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegistrationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        sessionManager = SessionManager(this)
 
         binding.register.setOnClickListener {
             val name = binding.name.text.toString().trim()
@@ -36,7 +40,9 @@ class RegistrationActivity : AppCompatActivity() {
                     val response = RetrofitClient.apiService.register(request)
                     if (response.isSuccessful) {
                         Toast.makeText(this@RegistrationActivity, "Registration successful", Toast.LENGTH_SHORT).show()
-                        // TODO: Handle successful registration (e.g., save token, navigate to main screen)
+                        response.body()?.accessToken?.let { token ->
+                            sessionManager.saveAuthToken(token)
+                        }
                         finish()
                     } else {
                         Toast.makeText(this@RegistrationActivity, "Registration failed: ${response.errorBody()?.string()}", Toast.LENGTH_LONG).show()
