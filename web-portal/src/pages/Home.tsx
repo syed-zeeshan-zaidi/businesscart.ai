@@ -34,7 +34,7 @@ const Home: React.FC = () => {
         if (!userId) throw new Error('User ID not found in JWT');
         setUser({ _id: userId, role, name: payload.user?.name || '' });
       } catch (err: any) {
-        console.error('Failed to decode user:', err);
+        
         toast.error(err.message || 'Failed to load user data');
         logout();
       } finally {
@@ -58,7 +58,7 @@ const Home: React.FC = () => {
         }));
         setProducts(productsWithImages);
       } catch (err: any) {
-        console.error('Failed to fetch products:', err);
+        
         toast.error(err.message || 'Failed to load products');
       } finally {
         setLoading(false);

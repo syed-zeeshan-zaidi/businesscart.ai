@@ -1,25 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BellIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect, Fragment, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { getCart } from '../api'; // Import getCart
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, decodeJWT } = useAuth();
   const [userInitials, setUserInitials] = useState('');
   const [companyName, setCompanyName] = useState('BusinessCart');
   const [notificationCount] = useState(3); // Placeholder
-  const [cartCount] = useState(2); // Placeholder
+  const [cartItemCount, setCartItemCount] = useState(0); // Initialize cartItemCount to 0
   const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
+
+  const fetchCartCount = useCallback(async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setCartItemCount(0);
+      return;
+    }
+
+    try {
+      const decodedToken = decodeJWT(token);
+      const associatedCompanyIds = decodedToken.associate_company_ids || [];
+
+      let totalItems = 0;
+      for (const companyId of associatedCompanyIds) {
+        const cached = localStorage.getItem(`cart_cache_${companyId}`);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            totalItems += data.items.length;
+            continue; // Skip API call if cached and valid
+          }
+        }
+        // If not cached or expired, fetch from API
+        try {
+          const cart = await getCart(companyId);
+          totalItems += cart.items.length;
+          localStorage.setItem(`cart_cache_${companyId}`, JSON.stringify({ data: cart, timestamp: Date.now() }));
+        } catch (_error: any) {
+          
+          localStorage.removeItem(`cart_cache_${companyId}`); // Invalidate specific company cart cache on error
+        }
+      }
+      setCartItemCount(totalItems);
+    } catch (_error: any) {
+      
+      setCartItemCount(0);
+    }
+  }, [decodeJWT]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setUserInitials('');
       setCompanyName('BusinessCart');
       setUserRole(null);
+      setCartItemCount(0); // Clear cart count on logout
       return;
     }
 
@@ -37,17 +77,26 @@ const Navbar: React.FC = () => {
         setUserInitials(initials);
         setCompanyName(payload.user?.company_id ? `Company ${payload.user.company_id}` : 'BusinessCart');
         setUserRole(payload.user?.role || null);
-      } catch (e) {
-        console.error('Invalid token');
+        fetchCartCount(); // Fetch cart count when authenticated
+      } catch (_e) {
+        
         toast.error('Failed to load user data');
         logout();
       }
     }
-  }, [isAuthenticated, logout]);
+  }, [isAuthenticated, logout, fetchCartCount]);
+
+  useEffect(() => {
+    window.addEventListener('cartUpdated', fetchCartCount);
+
+    return () => {
+      window.removeEventListener('cartUpdated', fetchCartCount);
+    };
+  }, [fetchCartCount]);
 
   return (
     <Disclosure as="nav" className="bg-white shadow">
-      {({ open }) => (
+      {() => (
         <>
           <Toaster position="top-right" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,12 +116,14 @@ const Navbar: React.FC = () => {
                       )}
                     </div>
                     <div className="relative">
-                      <ShoppingCartIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
-                      {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-teal-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                          {cartCount}
-                        </span>
-                      )}
+                      <Link to="/cart">
+                        <ShoppingCartIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
+                        {cartItemCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-teal-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                            {cartItemCount}
+                          </span>
+                        )}
+                      </Link>
                     </div>
                   </>
                 )}
@@ -105,6 +156,18 @@ const Navbar: React.FC = () => {
                             )}
                           </Menu.Item>
                         )}
+                        {userRole === 'customer' && (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                to="/catalog"
+                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                              >
+                                Product Catalog
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        )}
                         {userRole === 'admin' && (
                           <Menu.Item>
                             {({ active }) => (
@@ -123,7 +186,7 @@ const Navbar: React.FC = () => {
                               onClick={logout}
                               className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                             >
-                              <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                              <ArrowRightStartOnRectangleIcon className="h-5 w-5 mr-2" />
                               Sign out
                             </button>
                           )}

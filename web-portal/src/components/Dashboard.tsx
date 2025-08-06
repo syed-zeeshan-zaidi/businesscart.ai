@@ -4,13 +4,6 @@ import axios from 'axios';
 import Navbar from './Navbar';
 import { useAuth } from '../hooks/useAuth';
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-}
-
 interface User {
   id: string;
   name?: string;
@@ -43,7 +36,7 @@ const Dashboard: React.FC = () => {
         });
         setUser(response.data.user);
       } catch (err: any) {
-        console.error('Failed to fetch user:', err);
+        
         toast.error(err.response?.data?.message || 'Failed to load user data');
         logout();
       } finally {

@@ -1,5 +1,5 @@
 import { Company, ICompany } from '../models/company';
-import { CreateCompanyInput, UpdateCompanyInput, AddCustomerInput } from '../validation';
+import { CreateCompanyInput, UpdateCompanyInput } from '../validation';
 
 export class CompanyService {
   async createCompany(data: CreateCompanyInput, userId: string): Promise<ICompany> {

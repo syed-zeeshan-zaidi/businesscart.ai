@@ -4,11 +4,12 @@
 USER_API="http://127.0.0.1:3000"
 COMPANY_API="http://127.0.0.1:3001"
 PRODUCT_API="http://127.0.0.1:3002"
-ORDER_API="http://127.0.0.1:3003"
+CHECKOUT_SERVICE_URL="http://127.0.0.1:3009"
 PASSWORD="securepassword"
 PHONE_NUMBER="1234567890"
 COMPANY_CODE="CODE12345"
 COMPANY_ID=""
+PRODUCT_NAME="Test Product"
 
 # User configurations
 declare -A USERS=(
@@ -192,7 +193,7 @@ fi
 
 # Step 3: Find or Create Product and List All Products
 echo "3. Finding product for company ($COMPANY_ID)..."
-PRODUCT_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$PRODUCT_API/products" \
+PRODUCT_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$PRODUCT_API/products?companyId=$COMPANY_ID&name=$PRODUCT_NAME" \
   -H "Authorization: Bearer ${JWTS[company]}")
 PRODUCT_STATUS=$(echo "$PRODUCT_RESPONSE" | tail -n1)
 PRODUCT_BODY=$(echo "$PRODUCT_RESPONSE" | sed -e '$d')
@@ -210,7 +211,7 @@ else
   CREATE_PRODUCT_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$PRODUCT_API/products" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[company]}" \
-    -d "{\"name\":\"Widget\",\"price\":49.99,\"companyId\":\"$COMPANY_ID\",\"description\":\"A cool widget\"}")
+    -d "{\"name\":\"$PRODUCT_NAME\",\"price\":49.99,\"companyId\":\"$COMPANY_ID\",\"description\":\"A test product\"}")
   CREATE_PRODUCT_STATUS=$(echo "$CREATE_PRODUCT_RESPONSE" | tail -n1)
   CREATE_PRODUCT_BODY=$(echo "$CREATE_PRODUCT_RESPONSE" | sed -e '$d')
   echo "$CREATE_PRODUCT_BODY" | jq .
@@ -237,9 +238,39 @@ else
   exit 1
 fi
 
+# Add item to cart
+echo "Adding item to cart..."
+ADD_TO_CART_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/cart" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JWTS[company]}" \
+  -d "{\"entity\":{\"productId\":\"$PRODUCT_ID\",\"quantity\":1,\"companyId\":\"$COMPANY_ID\",\"name\":\"$PRODUCT_NAME\",\"price\":49.99}}")
+ADD_TO_CART_STATUS=$(echo "$ADD_TO_CART_RESPONSE" | tail -n1)
+ADD_TO_CART_BODY=$(echo "$ADD_TO_CART_RESPONSE" | sed -e '$d')
+echo "$ADD_TO_CART_BODY" | jq .
+handle_error "$ADD_TO_CART_BODY" "Add to Cart" "$ADD_TO_CART_STATUS"
+echo -e "${GREEN}Item added to cart successfully.${NC}"
+
+# List cart items for company user
+echo "Listing cart items for company user (${USER_IDS[company]})..."
+echo "DEBUG: CHECKOUT_SERVICE_URL=$CHECKOUT_SERVICE_URL"
+echo "DEBUG: COMPANY_ID=$COMPANY_ID"
+echo "DEBUG: COMPANY_JWT=${JWTS[company]}"
+CART_ITEMS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_SERVICE_URL/cart?companyId=$COMPANY_ID" \
+  -H "Authorization: Bearer ${JWTS[company]}")
+CART_ITEMS_STATUS=$(echo "$CART_ITEMS_RESPONSE" | tail -n1)
+CART_ITEMS_BODY=$(echo "$CART_ITEMS_RESPONSE" | sed -e '$d')
+if [ "$CART_ITEMS_STATUS" -eq 200 ]; then
+  echo "Cart items for company user (${USER_IDS[company]}):"
+  echo "$CART_ITEMS_BODY" | jq .
+else
+  echo -e "${RED}Error fetching cart items for company user: HTTP $CART_ITEMS_STATUS${NC}"
+  exit 1
+fi
+
+
 # Step 4: Find or Create Order and List All Orders
 echo "4. Finding order for company ($COMPANY_ID)..."
-ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$ORDER_API/orders" \
+ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_SERVICE_URL/orders" \
   -H "Authorization: Bearer ${JWTS[company]}")
 ORDER_STATUS=$(echo "$ORDER_RESPONSE" | tail -n1)
 ORDER_BODY=$(echo "$ORDER_RESPONSE" | sed -e '$d')
@@ -254,171 +285,40 @@ if [ "$ORDER_STATUS" -eq 200 ] && [ "$(echo "$ORDER_BODY" | jq '. | length')" -g
   echo -e "${GREEN}Order found. Order ID: $ORDER_ID${NC}"
 else
   echo -e "${RED}No order found. Creating new order...${NC}"
-  CREATE_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ORDER_API/orders" \
+  
+  # Create a quote first
+  echo "Creating quote for company ($COMPANY_ID)..."
+  CREATE_QUOTE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/quotes" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[company]}" \
-    -d "{
-      \"entity\": {
-        \"base_grand_total\": 49.99,
-        \"grand_total\": 49.99,
-        \"customer_email\": \"${USERS[customer]}\",
-        \"billing_address\": {
-          \"address_type\": \"billing\",
-          \"city\": \"Anytown\",
-          \"country_id\": \"US\",
-          \"firstname\": \"John\",
-          \"lastname\": \"Doe\",
-          \"postcode\": \"12345\",
-          \"telephone\": \"9876543210\",
-          \"street\": [\"456 Elm St\"]
-        },
-        \"payment\": {
-          \"account_status\": \"active\",
-          \"additional_information\": [\"Payment processed\"],
-          \"cc_last4\": \"1234\",
-          \"method\": \"credit_card\"
-        },
-        \"items\": [
-          {
-            \"sku\": \"WIDGET-001\",
-            \"name\": \"Widget\",
-            \"qty_ordered\": 1,
-            \"price\": 49.99,
-            \"row_total\": 49.99,
-            \"product_id\": \"$PRODUCT_ID\"
-          }
-        ],
-        \"company_id\": \"$COMPANY_ID\",
-        \"user_id\": \"${USER_IDS[company]}\"
-      }
-    }")
+    -d "{\"companyId\":\"$COMPANY_ID\"}")
+  CREATE_QUOTE_STATUS=$(echo "$CREATE_QUOTE_RESPONSE" | tail -n1)
+  CREATE_QUOTE_BODY=$(echo "$CREATE_QUOTE_RESPONSE" | sed -e '$d')
+  echo "$CREATE_QUOTE_BODY" | jq .
+  handle_error "$CREATE_QUOTE_BODY" "Create Quote" "$CREATE_QUOTE_STATUS"
+  QUOTE_ID=$(echo "$CREATE_QUOTE_BODY" | jq -r '.id // empty')
+  if [ -z "$QUOTE_ID" ]; then
+    echo -e "${RED}Error: Failed to extract quote ID from response${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}Quote created successfully. Quote ID: $QUOTE_ID${NC}"
+
+  # Place order with the new quote
+  echo "Placing order with quote ID ($QUOTE_ID)..."
+  CREATE_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/orders" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JWTS[company]}" \
+    -d "{\"quoteId\":\"$QUOTE_ID\",\"paymentToken\":\"dummyPaymentToken123\"}")
   CREATE_ORDER_STATUS=$(echo "$CREATE_ORDER_RESPONSE" | tail -n1)
   CREATE_ORDER_BODY=$(echo "$CREATE_ORDER_RESPONSE" | sed -e '$d')
   echo "$CREATE_ORDER_BODY" | jq .
-  handle_error "$CREATE_ORDER_BODY" "Create Order for Company" "$CREATE_ORDER_STATUS"
+  handle_error "$CREATE_ORDER_BODY" "Create Order" "$CREATE_ORDER_STATUS"
   ORDER_ID=$(echo "$CREATE_ORDER_BODY" | jq -r '._id // .id // empty')
   if [ -z "$ORDER_ID" ]; then
     echo -e "${RED}Error: Failed to extract order ID from response${NC}"
     exit 1
   fi
   echo -e "${GREEN}Order created successfully. Order ID: $ORDER_ID${NC}"
-fi
-
-# List all orders for company
-echo "Listing all orders for company ($COMPANY_ID)..."
-ALL_ORDERS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$ORDER_API/orders" \
-  -H "Authorization: Bearer ${JWTS[company]}")
-ALL_ORDERS_STATUS=$(echo "$ALL_ORDERS_RESPONSE" | tail -n1)
-ALL_ORDERS_BODY=$(echo "$ALL_ORDERS_RESPONSE" | sed -e '$d')
-if [ "$ALL_ORDERS_STATUS" -eq 200 ]; then
-  echo "All orders for company:"
-  echo "$ALL_ORDERS_BODY" | jq .
-else
-  echo -e "${RED}Error fetching all orders for company: HTTP $ALL_ORDERS_STATUS${NC}"
-  exit 1
-fi
-
-# Process Customer User
-echo "=== Testing Customer User ==="
-login_or_register "customer"
-
-# Step 2: Update Existing Customer
-echo "2. Updating existing customer user (${USER_IDS[customer]})..."
-UPDATE_CUSTOMER_RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$USER_API/users/${USER_IDS[customer]}" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JWTS[customer]}" \
-  -d "{\"name\":\"Updated Customer User\",\"phoneNumber\":\"9876543210\"}")
-UPDATE_CUSTOMER_STATUS=$(echo "$UPDATE_CUSTOMER_RESPONSE" | tail -n1)
-UPDATE_CUSTOMER_BODY=$(echo "$UPDATE_CUSTOMER_RESPONSE" | sed -e '$d')
-echo "$UPDATE_CUSTOMER_BODY" | jq .
-handle_error "$UPDATE_CUSTOMER_BODY" "Update Existing Customer" "$UPDATE_CUSTOMER_STATUS"
-JWTS[customer]=$(echo "$UPDATE_CUSTOMER_BODY" | jq -r '.accessToken // empty')
-if [ -z "${JWTS[customer]}" ]; then
-  echo -e "${RED}Error: Failed to extract new JWT from update customer response${NC}"
-  exit 1
-fi
-echo -e "${GREEN}Existing customer updated successfully. New JWT: ${JWTS[customer]}${NC}"
-
-# Step 3: Associate Customer with Company
-echo "3. Associating customer user (${USER_IDS[customer]}) with company ($COMPANY_ID)..."
-ASSOCIATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$USER_API/users/associate-company" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JWTS[customer]}" \
-  -d "{\"companyId\":\"$COMPANY_ID\"}")
-ASSOCIATE_STATUS=$(echo "$ASSOCIATE_RESPONSE" | tail -n1)
-ASSOCIATE_BODY=$(echo "$ASSOCIATE_RESPONSE" | sed -e '$d')
-echo "$ASSOCIATE_BODY" | jq .
-handle_error "$ASSOCIATE_BODY" "Associate Customer with Company" "$ASSOCIATE_STATUS"
-JWTS[customer]=$(echo "$ASSOCIATE_BODY" | jq -r '.accessToken // empty')
-if [ -z "${JWTS[customer]}" ]; then
-  echo -e "${RED}Error: Failed to extract new JWT from associate company response${NC}"
-  exit 1
-fi
-echo -e "${GREEN}Customer associated with company successfully. New JWT: ${JWTS[customer]}${NC}"
-
-# Step 4: Create and List Orders for Customer
-echo "4. Creating order for customer (${USER_IDS[customer]})..."
-CREATE_CUSTOMER_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ORDER_API/orders" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JWTS[customer]}" \
-  -d "{
-    \"entity\": {
-      \"base_grand_total\": 49.99,
-      \"grand_total\": 49.99,
-      \"customer_email\": \"${USERS[customer]}\",
-      \"billing_address\": {
-        \"address_type\": \"billing\",
-        \"city\": \"Anytown\",
-        \"country_id\": \"US\",
-        \"firstname\": \"Jane\",
-        \"lastname\": \"Doe\",
-        \"postcode\": \"12345\",
-        \"telephone\": \"9876543210\",
-        \"street\": [\"456 Elm St\"]
-      },
-      \"payment\": {
-        \"account_status\": \"active\",
-        \"additional_information\": [\"Payment processed\"],
-        \"cc_last4\": \"1234\",
-        \"method\": \"credit_card\"
-      },
-      \"items\": [
-        {
-          \"sku\": \"WIDGET-001\",
-          \"name\": \"Widget\",
-          \"qty_ordered\": 1,
-          \"price\": 49.99,
-          \"row_total\": 49.99,
-          \"product_id\": \"$PRODUCT_ID\"
-        }
-      ],
-      \"company_id\": \"$COMPANY_ID\",
-      \"user_id\": \"${USER_IDS[customer]}\"
-    }
-  }")
-CREATE_CUSTOMER_ORDER_STATUS=$(echo "$CREATE_CUSTOMER_ORDER_RESPONSE" | tail -n1)
-CREATE_CUSTOMER_ORDER_BODY=$(echo "$CREATE_CUSTOMER_ORDER_RESPONSE" | sed -e '$d')
-echo "$CREATE_CUSTOMER_ORDER_BODY" | jq .
-handle_error "$CREATE_CUSTOMER_ORDER_BODY" "Create Order for Customer" "$CREATE_CUSTOMER_ORDER_STATUS"
-CUSTOMER_ORDER_ID=$(echo "$CREATE_CUSTOMER_ORDER_BODY" | jq -r '._id // .id // empty')
-if [ -z "$CUSTOMER_ORDER_ID" ]; then
-  echo -e "${RED}Error: Failed to extract order ID from response${NC}"
-  exit 1
-fi
-echo -e "${GREEN}Order created successfully for customer. Order ID: $CUSTOMER_ORDER_ID${NC}"
-
-# List all orders for customer
-echo "Listing all orders for customer (${USER_IDS[customer]})..."
-ALL_CUSTOMER_ORDERS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$ORDER_API/orders" \
-  -H "Authorization: Bearer ${JWTS[customer]}")
-ALL_CUSTOMER_ORDERS_STATUS=$(echo "$ALL_CUSTOMER_ORDERS_RESPONSE" | tail -n1)
-ALL_CUSTOMER_ORDERS_BODY=$(echo "$ALL_CUSTOMER_ORDERS_RESPONSE" | sed -e '$d')
-if [ "$ALL_CUSTOMER_ORDERS_STATUS" -eq 200 ]; then
-  echo "All orders for customer:"
-  echo "$ALL_CUSTOMER_ORDERS_BODY" | jq .
-else
-  echo -e "${RED}Error fetching all orders for customer: HTTP $ALL_CUSTOMER_ORDERS_STATUS${NC}"
-  exit 1
 fi
 
 # Step 5: Create and Process 20 New Customer Users
@@ -466,46 +366,41 @@ for ((i=1; i<=CUSTOMER_COUNT; i++)); do
   fi
   echo -e "${GREEN}New customer $i associated with company successfully. New JWT: ${NEW_CUSTOMER_JWTS[$i]}${NC}"
 
-  # Create order for new customer
-  echo "5.$i.3 Creating order for new customer (${NEW_CUSTOMER_IDS[$i]})..."
-  CREATE_NEW_CUSTOMER_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ORDER_API/orders" \
+  # Add item to cart for new customer
+  echo "5.$i.3 Adding item to cart for new customer (${NEW_CUSTOMER_IDS[$i]})..."
+  ADD_TO_CART_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/cart" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${NEW_CUSTOMER_JWTS[$i]}" \
-    -d "{
-      \"entity\": {
-        \"base_grand_total\": 49.99,
-        \"grand_total\": 49.99,
-        \"customer_email\": \"${NEW_CUSTOMER_EMAILS[$i]}\",
-        \"billing_address\": {
-          \"address_type\": \"billing\",
-          \"city\": \"Anytown\",
-          \"country_id\": \"US\",
-          \"firstname\": \"Customer\",
-          \"lastname\": \"$i\",
-          \"postcode\": \"12345\",
-          \"telephone\": \"9876543210\",
-          \"street\": [\"456 Elm St\"]
-        },
-        \"payment\": {
-          \"account_status\": \"active\",
-          \"additional_information\": [\"Payment processed\"],
-          \"cc_last4\": \"1234\",
-          \"method\": \"credit_card\"
-        },
-        \"items\": [
-          {
-            \"sku\": \"WIDGET-001\",
-            \"name\": \"Widget\",
-            \"qty_ordered\": 1,
-            \"price\": 49.99,
-            \"row_total\": 49.99,
-            \"product_id\": \"$PRODUCT_ID\"
-          }
-        ],
-        \"company_id\": \"$COMPANY_ID\",
-        \"user_id\": \"${NEW_CUSTOMER_IDS[$i]}\"
-      }
-    }")
+    -d "{\"entity\":{\"productId\":\"$PRODUCT_ID\",\"quantity\":1,\"companyId\":\"$COMPANY_ID\",\"name\":\"$PRODUCT_NAME\",\"price\":49.99}}")
+  ADD_TO_CART_STATUS=$(echo "$ADD_TO_CART_RESPONSE" | tail -n1)
+  ADD_TO_CART_BODY=$(echo "$ADD_TO_CART_RESPONSE" | sed -e '$d')
+  echo "$ADD_TO_CART_BODY" | jq .
+  handle_error "$ADD_TO_CART_BODY" "Add to Cart for New Customer $i" "$ADD_TO_CART_STATUS"
+  echo -e "${GREEN}Item added to cart successfully for new customer $i.${NC}"
+
+  # Create quote for new customer
+  echo "5.$i.4 Creating quote for new customer (${NEW_CUSTOMER_IDS[$i]})..."
+  CREATE_QUOTE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/quotes" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${NEW_CUSTOMER_JWTS[$i]}" \
+    -d "{\"companyId\":\"$COMPANY_ID\"}")
+  CREATE_QUOTE_STATUS=$(echo "$CREATE_QUOTE_RESPONSE" | tail -n1)
+  CREATE_QUOTE_BODY=$(echo "$CREATE_QUOTE_RESPONSE" | sed -e '$d')
+  echo "$CREATE_QUOTE_BODY" | jq .
+  handle_error "$CREATE_QUOTE_BODY" "Create Quote for New Customer $i" "$CREATE_QUOTE_STATUS"
+  NEW_CUSTOMER_QUOTE_ID=$(echo "$CREATE_QUOTE_BODY" | jq -r '.id // empty')
+  if [ -z "$NEW_CUSTOMER_QUOTE_ID" ]; then
+    echo -e "${RED}Error: Failed to extract quote ID from response for customer $i${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}Quote created successfully for new customer $i. Quote ID: $NEW_CUSTOMER_QUOTE_ID${NC}"
+
+  # Create order for new customer
+  echo "5.$i.5 Creating order for new customer (${NEW_CUSTOMER_IDS[$i]})..."
+  CREATE_NEW_CUSTOMER_ORDER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_SERVICE_URL/orders" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${NEW_CUSTOMER_JWTS[$i]}" \
+    -d "{\"quoteId\":\"$NEW_CUSTOMER_QUOTE_ID\",\"paymentToken\":\"dummyPaymentToken123\"}")
   CREATE_NEW_CUSTOMER_ORDER_STATUS=$(echo "$CREATE_NEW_CUSTOMER_ORDER_RESPONSE" | tail -n1)
   CREATE_NEW_CUSTOMER_ORDER_BODY=$(echo "$CREATE_NEW_CUSTOMER_ORDER_RESPONSE" | sed -e '$d')
   echo "$CREATE_NEW_CUSTOMER_ORDER_BODY" | jq .
@@ -538,7 +433,7 @@ fi
 
 # Step 3: List Orders for Admin
 echo "3. Listing orders for admin (${USER_IDS[admin]})..."
-ADMIN_ORDERS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$ORDER_API/orders" \
+ADMIN_ORDERS_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_SERVICE_URL/orders" \
   -H "Authorization: Bearer ${JWTS[admin]}")
 ADMIN_ORDERS_STATUS=$(echo "$ADMIN_ORDERS_RESPONSE" | tail -n1)
 ADMIN_ORDERS_BODY=$(echo "$ADMIN_ORDERS_RESPONSE" | sed -e '$d')

@@ -17,7 +17,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // Extract userId, userRole, and additional context from authorizer
     const userId = event.requestContext.authorizer?.userId;
     const userRole = event.requestContext.authorizer?.userRole;
-    const company_id = event.requestContext.authorizer?.company_id; // Align with JWT's company_id
     const associateCompanyIds = event.requestContext.authorizer?.associateCompanyIds;
 
     if (!userId || !userRole) {

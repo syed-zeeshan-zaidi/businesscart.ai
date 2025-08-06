@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult, APIGatewayEventRequestContext } from 'aws-lambda';
 import supertest from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
@@ -42,7 +42,7 @@ beforeAll(async () => {
 
   // Setup Express app to wrap Lambda handler
   app = express();
-  app.use((req, res, next) => {
+  app.use((req, res) => {
     // Extract path parameters
     let pathParameters: { [key: string]: string } | null = null;
     const pathParts = req.path.split('/').filter(Boolean);
@@ -70,7 +70,7 @@ beforeAll(async () => {
         httpMethod: req.method,
         path: req.path,
         body: body || null,
-        headers: req.headers as any,
+        headers: req.headers as unknown as APIGatewayProxyEvent['headers'],
         requestContext: {
           authorizer: {
             userId: req.headers['x-user-id'] || undefined,
@@ -78,7 +78,7 @@ beforeAll(async () => {
             company_id: req.headers['x-company-id'] || null,
             associateCompanyIds: req.headers['x-associate-company-ids'] || '[]',
           },
-        } as any,
+        } as unknown as APIGatewayEventRequestContext,
         pathParameters,
         queryStringParameters: null,
         multiValueHeaders: {},

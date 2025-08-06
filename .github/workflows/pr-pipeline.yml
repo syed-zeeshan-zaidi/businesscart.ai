@@ -47,7 +47,7 @@ jobs:
 
       - name: Install & Build Microservices
         run: |
-          for service in company-service order-service product-service user-service web-portal; do
+          for service in company-service product-service user-service web-portal; do
             echo "Building $service"
             cd $service
             rm -rf node_modules dist
@@ -59,7 +59,7 @@ jobs:
 
       - name: Run Tests (Microservices except web-portal)
         run: |
-          for service in company-service order-service product-service user-service; do
+          for service in company-service product-service user-service; do
             echo "Running tests for $service"
             cd $service
             npm run test || exit 1

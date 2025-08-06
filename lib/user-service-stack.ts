@@ -3,7 +3,9 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import { config } from 'dotenv';
-config({ path: './user-service/dist/.env' });
+import { join } from 'path';
+
+config({ path: './user-service/.env' });
 
 
 export class UserServiceStack extends cdk.Stack {
@@ -12,9 +14,18 @@ export class UserServiceStack extends cdk.Stack {
 
     // UserService Lambda
     const userServiceFn = new lambda.Function(this, 'UserService', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handler.handler',
-      code: lambda.Code.fromAsset('user-service/dist'),
+      runtime: lambda.Runtime.GO_1_X,
+      handler: 'bootstrap',
+      code: lambda.Code.fromAsset(join(__dirname, '..', 'user-service'), {
+        bundling: {
+          image: lambda.Runtime.GO_1_X.bundlingImage,
+          command: [
+            'bash', '-c',
+            'go build -o /asset-output/bootstrap ./cmd/server/main.go',
+          ],
+          user: 'root',
+        },
+      }),
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
