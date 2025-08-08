@@ -3,6 +3,7 @@ package com.businesscart.android.ui.login
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.businesscart.android.api.RetrofitClient
@@ -54,9 +55,12 @@ class LoginActivity : AppCompatActivity() {
                             navigateToMain()
                         }
                     } else {
-                        Toast.makeText(this@LoginActivity, "Login failed: ${response.errorBody()?.string()}", Toast.LENGTH_LONG).show()
+                        val errorBody = response.errorBody()?.string()
+                        Log.e("LoginActivity", "Login failed: $errorBody")
+                        Toast.makeText(this@LoginActivity, "Login failed: $errorBody", Toast.LENGTH_LONG).show()
                     }
                 } catch (e: Exception) {
+                    Log.e("LoginActivity", "Login failed", e)
                     Toast.makeText(this@LoginActivity, "Login failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
