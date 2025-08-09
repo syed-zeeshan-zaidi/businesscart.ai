@@ -49,9 +49,17 @@ The Android app will be built using Kotlin, the officially recommended language 
         *   **Status:** `getCart` and `addItemToCart` are implemented.
 *   **Checkout:**
     *   **Checkout Screen:** A screen that displays the order summary (subtotal, shipping, tax, grand total) and allows the user to select a payment method.
-        *   **Status:** Implemented.
-    *   **API Integration:** Implement `createQuote` and `createOrder` API calls.
-        *   **Status:** Implemented.
+        *   **Status:** Not Implemented.
+    *   **API Integration:** Implement `createQuote`, `getQuote`, and `createOrder` API calls.
+        *   **Status:** Not Implemented.
+    *   **Implementation Plan:**
+        *   Update `CheckoutApiService.kt` to include `createQuote`, `getQuote`, and `createOrder` endpoints.
+        *   Add a `Quote` data class to `DataModels.kt`.
+        *   In `CartActivity.kt`, when the "Checkout" button is clicked, call the `createQuote` API and launch a new `CheckoutActivity`, passing the `quoteId`.
+        *   Create a new `CheckoutActivity` that fetches and displays the quote details.
+        *   The `CheckoutActivity` will handle payment method selection and call `createOrder` when the "Place Order" button is clicked.
+        *   Create a new `OrderSuccessActivity` to be displayed after a successful order.
+        *   Add the new activities to `AndroidManifest.xml`.
 *   **Order History:**
     *   **Order List Screen:** A screen displaying a list of the customer's past orders.
         *   **Status:** Not Implemented.

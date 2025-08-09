@@ -38,7 +38,37 @@ class CartActivity : AppCompatActivity() {
         loadData()
 
         binding.checkoutButton.setOnClickListener {
-            Toast.makeText(this, "Checkout not implemented yet.", Toast.LENGTH_SHORT).show()
+            val selectedCompanyId = binding.companySpinner.selectedItem as? String
+            if (selectedCompanyId == null) {
+                Toast.makeText(this, "Please select a company.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            createQuote(selectedCompanyId)
+        }
+    }
+
+    private fun createQuote(companyId: String) {
+        lifecycleScope.launch {
+            try {
+                val token = "Bearer ${sessionManager.getAuthToken()}"
+                val request = com.businesscart.android.api.CreateQuoteRequest(companyId = companyId)
+                val response = withContext(Dispatchers.IO) {
+                    CheckoutApiClient.apiService.createQuote(token, request)
+                }
+
+                if (response.isSuccessful && response.body() != null) {
+                    val quote = response.body()!!
+                    val intent = android.content.Intent(this@CartActivity, com.businesscart.android.ui.checkout.CheckoutActivity::class.java)
+                    intent.putExtra("quoteId", quote.id)
+                    startActivity(intent)
+                } else {
+                    Log.e(TAG, "Failed to create quote. Code: ${response.code()}, Message: ${response.message()}")
+                    Toast.makeText(this@CartActivity, "Failed to create quote", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in createQuote: ${e.message}", e)
+                Toast.makeText(this@CartActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -100,6 +130,7 @@ class CartActivity : AppCompatActivity() {
     }
 
     private fun fetchCart(companyId: String) {
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val token = "Bearer ${sessionManager.getAuthToken()}"
@@ -110,7 +141,7 @@ class CartActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val cart = response.body()!!
                     cartAdapter.updateItems(cart.items)
-                    binding.totalPriceTextView.text = "Total: $${cart.totalPrice}"
+                    binding.totalPriceTextView.text = "Total: ${cart.totalPrice}"
                 } else {
                     Log.e(TAG, "Failed to fetch cart. Code: ${response.code()}, Message: ${response.message()}")
                     Toast.makeText(this@CartActivity, "Failed to fetch cart", Toast.LENGTH_SHORT).show()
@@ -120,6 +151,8 @@ class CartActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Exception in fetchCart: ${e.message}", e)
                 Toast.makeText(this@CartActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
