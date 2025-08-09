@@ -1,11 +1,19 @@
 package com.businesscart.android.model
 
+data class Address(
+    val street: String?,
+    val city: String?,
+    val state: String?,
+    val zip: String?,
+    val country: String?
+)
+
 data class Company(
     val _id: String,
     val name: String,
     val email: String,
     val phoneNumber: String,
-    val address: String
+    val address: Address
 )
 
 data class Product(
@@ -13,5 +21,7 @@ data class Product(
     val name: String,
     val description: String,
     val price: Double,
-    val company_id: String
+    val companyId: String,
+    val userId: String,
+    val image: String?
 )

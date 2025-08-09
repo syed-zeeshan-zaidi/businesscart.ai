@@ -1,38 +1,65 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProducts } from '../api';
+import { getProducts, getUserAssociatedCompanies } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Assuming this import is needed for the search icon
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 
-const CACHE_KEY = 'products_catalog_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+const CACHE_KEY_PREFIX = 'user_products_cache';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const Catalog: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
   const [companyIds, setCompanyIds] = useState<string[]>([]);
 
-  const fetchProducts = useCallback(async () => {
+  const getCacheKey = useCallback(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.user?.id;
+      return userId ? `${CACHE_KEY_PREFIX}_${userId}` : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const fetchProductsAndCompanies = useCallback(async () => {
     setLoading(true);
     try {
-      const fetchedProducts = await getProducts();
+      const [fetchedProducts, associatedCompanyIds] = await Promise.all([
+        getProducts(),
+        getUserAssociatedCompanies(),
+      ]);
+      
       setProducts(fetchedProducts);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: fetchedProducts, timestamp: Date.now() }));
-    } catch (_err: any) {
-      toast.error(_err.message || 'Failed to load products');
+      setCompanyIds(associatedCompanyIds);
+      if (associatedCompanyIds.length > 0) {
+        setCompanyIdFilter(associatedCompanyIds[0]);
+      }
+
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        localStorage.setItem(cacheKey, JSON.stringify({ 
+          products: fetchedProducts, 
+          companyIds: associatedCompanyIds,
+          timestamp: Date.now() 
+        }));
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load products');
     } finally {
       setLoading(false);
     }
-  }, [setProducts, setLoading]);
+  }, [getCacheKey]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -49,42 +76,39 @@ const Catalog: React.FC = () => {
     const role = decodeJWT(token);
     if (role !== 'customer') {
       toast.error('Access denied. Only customers can view the catalog.');
-      navigate('/home'); // Redirect non-customers
+      navigate('/home');
       return;
     }
-    setUserRole(role);
 
-    const loadProducts = async () => {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setProducts(data);
-          setLoading(false);
-          const uniqueCompanyIds = Array.from(new Set((data as Product[]).map((product: Product) => product.companyId)));
-          setCompanyIds(uniqueCompanyIds);
-          return;
+    const loadData = async () => {
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { products: cachedProducts, companyIds: cachedCompanyIds, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setProducts(cachedProducts);
+            setCompanyIds(cachedCompanyIds);
+            if (cachedCompanyIds.length > 0) {
+              setCompanyIdFilter(cachedCompanyIds[0]);
+            }
+            setLoading(false);
+            return;
+          }
         }
       }
-      await fetchProducts();
-      const fetchedProducts = await getProducts(); // Re-fetch to get products for company IDs
-      const uniqueCompanyIds = Array.from(new Set(fetchedProducts.map((product: Product) => product.companyId)));
-      setCompanyIds(uniqueCompanyIds);
+      await fetchProductsAndCompanies();
     };
 
-    loadProducts();
-  }, [isAuthenticated, navigate, decodeJWT, fetchProducts]); // fetchProducts is now a dependency
+    loadData();
+  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndCompanies, getCacheKey]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.companyId.toLowerCase().includes(companyIdFilter.toLowerCase()))
+      (companyIdFilter === '' || product.companyId === companyIdFilter)
     );
   }, [products, searchQuery, companyIdFilter]);
-
-  if (!userRole) {
-    return null; // Or a loading spinner/message while role is being determined
-  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -94,7 +118,6 @@ const Catalog: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
         <div className="mb-6 flex space-x-4">
-          {/* Search Input */}
           <div className="relative flex-grow">
             <input
               type="text"
@@ -106,21 +129,20 @@ const Catalog: React.FC = () => {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
 
-          {/* Company ID Filter Dropdown */}
-          <div className="relative w-1/3">
+          <div className="relative w-1/3 flex items-center">
+            <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
             <select
+              id="company-filter"
               value={companyIdFilter}
               onChange={(e) => setCompanyIdFilter(e.target.value)}
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             >
-              <option value="">All Companies</option>
               {companyIds.map((id) => (
                 <option key={id} value={id}>
                   {id}
                 </option>
               ))}
             </select>
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
         </div>
 
@@ -131,8 +153,7 @@ const Catalog: React.FC = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
-                onClick={() => navigate(`/products/${product._id}`)}
+                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
               >
                 <img
                   src={product.image || 'https://via.placeholder.com/300x200'}
@@ -140,12 +161,9 @@ const Catalog: React.FC = () => {
                   className="w-full h-48 object-cover"
                 />
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Product Name: {product.name}</h2>
-                  <p className="text-gray-600 text-sm line-clamp-2">Description: {product.description}</p>
-                  <p className="text-gray-600 text-sm line-clamp-2">Company ID: {product.companyId}</p>
-                  <p className="text-gray-600 text-sm line-clamp-2">Product ID: {product._id}</p>
-                  <p className="text-gray-600 text-sm line-clamp-2">User ID: {product.userId}</p>
-                  <p className="text-teal-600 font-bold mt-2">Price: ${product.price.toFixed(2)}</p>
+                  <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
+                  <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+                  <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
                   <AddToCartButton product={product} />
                 </div>
               </div>

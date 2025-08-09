@@ -184,7 +184,7 @@ The following services utilize a MongoDB database:
 ### 5.3. Product Service
 
 *   **POST /products**
-*   **GET /products**
+*   **GET /products**: For customers, this endpoint automatically returns products filtered by the `associate_company_ids` in their JWT.
 *   **GET /products/{productId}**
 *   **PUT /products/{productId}**
 *   **DELETE /products/{productId}**
@@ -247,7 +247,7 @@ The application uses JSON Web Tokens (JWT) for authentication and authorization.
 ### 10.1. Pages
 
 *   **`Cart.tsx`**
-*   **`Catalog.tsx`**
+*   **`Catalog.tsx`**: Displays a filterable catalog of products. For customers, it fetches all products they are authorized to see and then allows for client-side filtering by company. The filter defaults to the first company in the user's list.
 *   **`Home.tsx`**
 
 ### 10.2. Components
@@ -263,7 +263,23 @@ The application uses JSON Web Tokens (JWT) for authentication and authorization.
 *   **`Sidebar.tsx`**
 *   **`UserForm.tsx`**
 
-## 11. Environment Variables
+## 11. Android App
+
+A native Android application is available for customers. It provides a mobile-friendly experience for browsing the product catalog and managing their account.
+
+### 11.1. Features
+
+*   User login and session management.
+*   Product catalog view, filtered by the user's associated companies.
+*   A consistent user interface with a teal color theme that matches the web portal.
+
+### 11.2. Key Components
+
+*   **`MainActivity.kt`**: The main screen for the product catalog.
+*   **`LoginActivity.kt`**: Handles user authentication.
+*   **`DataModels.kt`**: Defines the data structures for the application.
+
+## 12. Environment Variables
 
 *   **`MONGO_URI`**
 *   **`JWT_SECRET`**
