@@ -6,8 +6,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.databinding.ItemProductBinding
 import com.businesscart.android.model.Product
 
-class ProductAdapter(private var products: List<Product>) :
-    RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() {
+class ProductAdapter(
+    private var products: List<Product>,
+    private val onAddToCartClicked: (Product) -> Unit
+) : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductViewHolder {
         val binding =
@@ -31,7 +33,10 @@ class ProductAdapter(private var products: List<Product>) :
         fun bind(product: Product) {
             binding.productName.text = product.name
             binding.productDescription.text = product.description
-            binding.productPrice.text = "$${product.price}"
+            binding.productPrice.text = "${product.price}"
+            binding.addToCartButton.setOnClickListener {
+                onAddToCartClicked(product)
+            }
         }
     }
 }

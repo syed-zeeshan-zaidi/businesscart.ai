@@ -3,20 +3,30 @@ package com.businesscart.android.ui.main
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.businesscart.android.api.CompanyApiClient
+import com.businesscart.android.R
+import com.businesscart.android.api.AddToCartRequest
+import com.businesscart.android.api.CheckoutApiClient
 import com.businesscart.android.api.ProductApiClient
 import com.businesscart.android.databinding.ActivityMainBinding
-import com.businesscart.android.model.Company
+import com.businesscart.android.model.CartItem
 import com.businesscart.android.model.Product
+import com.businesscart.android.ui.cart.CartActivity
 import com.businesscart.android.ui.login.LoginActivity
 import com.businesscart.android.util.SessionManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,7 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sessionManager: SessionManager
     private lateinit var productAdapter: ProductAdapter
     private var allProducts: List<Product> = emptyList()
-    private var companies: List<Company> = emptyList()
+    private var companyIds: List<String> = emptyList()
+    private val TAG = "MainActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,75 +52,146 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        fetchCompanies()
-        fetchProducts()
+        loadData()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_view_cart -> {
+                startActivity(Intent(this, CartActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupRecyclerView() {
-        productAdapter = ProductAdapter(emptyList())
+        productAdapter = ProductAdapter(emptyList()) { product ->
+            addToCart(product)
+        }
         binding.productRecyclerView.apply {
             adapter = productAdapter
             layoutManager = LinearLayoutManager(this@MainActivity)
         }
     }
 
-    private fun fetchCompanies() {
-        lifecycleScope.launch {
-            try {
-                val token = "Bearer ${sessionManager.getAuthToken()}"
-                val response = CompanyApiClient.apiService.getCompanies(token)
-                if (response.isSuccessful) {
-                    companies = response.body() ?: emptyList()
-                    setupCompanySpinner()
-                } else {
-                    Toast.makeText(this@MainActivity, "Failed to fetch companies", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+    private fun loadData() {
+        companyIds = getCompanyIdsFromJwt()
+        if (companyIds.isNotEmpty()) {
+            setupCompanySpinner()
+            fetchProducts()
+        } else {
+            Toast.makeText(this, "No associated companies found.", Toast.LENGTH_SHORT).show()
+            binding.companySpinner.isEnabled = false
+        }
+    }
+
+    private fun getCompanyIdsFromJwt(): List<String> {
+        val token = sessionManager.getAuthToken()
+        if (token.isNullOrEmpty()) return emptyList()
+        return try {
+            val parts = token.split(".")
+            if (parts.size == 3) {
+                val payload = String(Base64.decode(parts[1], Base64.URL_SAFE), Charsets.UTF_8)
+                val json = JSONObject(payload)
+                val user = json.getJSONObject("user")
+                val idsArray = user.getJSONArray("associate_company_ids")
+                List(idsArray.length()) { idsArray.getString(it) }
+            } else {
+                emptyList()
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error decoding JWT: ${e.message}", e)
+            emptyList()
         }
     }
 
     private fun fetchProducts() {
+        Log.d(TAG, "Attempting to fetch products...")
         lifecycleScope.launch {
             try {
-                val token = "Bearer ${sessionManager.getAuthToken()}"
-                val response = ProductApiClient.apiService.getProducts(token)
-                if (response.isSuccessful) {
-                    allProducts = response.body() ?: emptyList()
-                    // Initially filter products for the first company if available
-                    if (companies.isNotEmpty()) {
-                        filterProductsByCompany(companies[0]._id)
+                val productResponse = withContext(Dispatchers.IO) {
+                    val token = "Bearer ${sessionManager.getAuthToken()}"
+                    ProductApiClient.apiService.getProducts(token)
+                }
+
+                if (productResponse.isSuccessful && productResponse.body() != null) {
+                    allProducts = productResponse.body()!!
+                    Log.d(TAG, "Successfully fetched ${allProducts.size} products.")
+                    // Filter for the initially selected company
+                    if (companyIds.isNotEmpty()) {
+                        filterProductsByCompany(companyIds[0])
                     }
                 } else {
+                    Log.e(TAG, "Failed to fetch products. Code: ${productResponse.code()}, Message: ${productResponse.message()}")
                     Toast.makeText(this@MainActivity, "Failed to fetch products", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Exception in fetchProducts: ${e.message}", e)
                 Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun setupCompanySpinner() {
-        val companyNames = companies.map { it.name }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, companyNames)
+        Log.d(TAG, "Setting up company spinner with IDs: $companyIds")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, companyIds)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.companySpinner.adapter = adapter
+        binding.companySpinner.isEnabled = true
 
         binding.companySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val selectedCompany = companies[position]
-                filterProductsByCompany(selectedCompany._id)
+                val selectedCompanyId = companyIds[position]
+                Log.d(TAG, "Company selected: $selectedCompanyId")
+                filterProductsByCompany(selectedCompanyId)
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {
-                // Do nothing
+                productAdapter.updateProducts(emptyList())
             }
         }
     }
 
     private fun filterProductsByCompany(companyId: String) {
-        val filteredProducts = allProducts.filter { it.company_id == companyId }
+        val filteredProducts = allProducts.filter { it.companyId == companyId }
         productAdapter.updateProducts(filteredProducts)
+        Log.d(TAG, "Filtered products for $companyId. Found ${filteredProducts.size} products.")
+    }
+
+    private fun addToCart(product: Product) {
+        lifecycleScope.launch {
+            try {
+                val token = "Bearer ${sessionManager.getAuthToken()}"
+                val cartItem = CartItem(
+                    id = null, // id is null for new items
+                    productId = product._id,
+                    quantity = 1,
+                    companyId = product.companyId,
+                    name = product.name,
+                    price = product.price
+                )
+                val request = AddToCartRequest(entity = cartItem)
+                val response = withContext(Dispatchers.IO) {
+                    CheckoutApiClient.apiService.addItemToCart(token, request)
+                }
+
+                if (response.isSuccessful) {
+                    Toast.makeText(this@MainActivity, "${product.name} added to cart", Toast.LENGTH_SHORT).show()
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Failed to add item to cart. Code: ${response.code()}, Error: $errorBody")
+                    Toast.makeText(this@MainActivity, "Failed to add item to cart", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in addToCart: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
