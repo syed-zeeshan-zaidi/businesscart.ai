@@ -271,11 +271,14 @@ A native Android application is available for customers. It provides a mobile-fr
 
 *   User login and session management.
 *   Product catalog view, filtered by the user's associated companies.
+*   Add products to the shopping cart.
+*   View the shopping cart for each associated company.
 *   A consistent user interface with a teal color theme that matches the web portal.
 
 ### 11.2. Key Components
 
 *   **`MainActivity.kt`**: The main screen for the product catalog.
+*   **`CartActivity.kt`**: Displays the user's shopping cart.
 *   **`LoginActivity.kt`**: Handles user authentication.
 *   **`DataModels.kt`**: Defines the data structures for the application.
 

@@ -44,9 +44,9 @@ The Android app will be built using Kotlin, the officially recommended language 
         *   **Status:** Implemented.
 *   **Cart:**
     *   **Cart Screen:** A screen that displays the items in the user's cart for the currently selected company. Users should be able to update the quantity of items or remove them from the cart.
-        *   **Status:** Not Implemented.
-    *   **API Integration:** Implement `getCart`, `updateCartItem`, and `removeItemFromCart` API calls.
-        *   **Status:** Not Implemented.
+        *   **Status:** Implemented.
+    *   **API Integration:** Implement `getCart`, `addItemToCart`, `updateCartItem`, and `removeItemFromCart` API calls.
+        *   **Status:** `getCart` and `addItemToCart` are implemented.
 *   **Checkout:**
     *   **Checkout Screen:** A screen that displays the order summary (subtotal, shipping, tax, grand total) and allows the user to select a payment method.
         *   **Status:** Implemented.

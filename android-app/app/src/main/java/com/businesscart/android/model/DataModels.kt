@@ -25,3 +25,20 @@ data class Product(
     val userId: String,
     val image: String?
 )
+
+data class CartItem(
+    val id: String?,
+    val productId: String,
+    val quantity: Int,
+    val companyId: String,
+    val name: String,
+    val price: Double
+)
+
+data class Cart(
+    val id: String,
+    val userId: String,
+    val companyId: String,
+    val items: List<CartItem>,
+    val totalPrice: Double
+)

@@ -5,15 +5,22 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.businesscart.android.R
+import com.businesscart.android.api.AddToCartRequest
+import com.businesscart.android.api.CheckoutApiClient
 import com.businesscart.android.api.ProductApiClient
 import com.businesscart.android.databinding.ActivityMainBinding
+import com.businesscart.android.model.CartItem
 import com.businesscart.android.model.Product
+import com.businesscart.android.ui.cart.CartActivity
 import com.businesscart.android.ui.login.LoginActivity
 import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.Dispatchers
@@ -48,8 +55,25 @@ class MainActivity : AppCompatActivity() {
         loadData()
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_view_cart -> {
+                startActivity(Intent(this, CartActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun setupRecyclerView() {
-        productAdapter = ProductAdapter(emptyList())
+        productAdapter = ProductAdapter(emptyList()) { product ->
+            addToCart(product)
+        }
         binding.productRecyclerView.apply {
             adapter = productAdapter
             layoutManager = LinearLayoutManager(this@MainActivity)
@@ -138,5 +162,36 @@ class MainActivity : AppCompatActivity() {
         val filteredProducts = allProducts.filter { it.companyId == companyId }
         productAdapter.updateProducts(filteredProducts)
         Log.d(TAG, "Filtered products for $companyId. Found ${filteredProducts.size} products.")
+    }
+
+    private fun addToCart(product: Product) {
+        lifecycleScope.launch {
+            try {
+                val token = "Bearer ${sessionManager.getAuthToken()}"
+                val cartItem = CartItem(
+                    id = null, // id is null for new items
+                    productId = product._id,
+                    quantity = 1,
+                    companyId = product.companyId,
+                    name = product.name,
+                    price = product.price
+                )
+                val request = AddToCartRequest(entity = cartItem)
+                val response = withContext(Dispatchers.IO) {
+                    CheckoutApiClient.apiService.addItemToCart(token, request)
+                }
+
+                if (response.isSuccessful) {
+                    Toast.makeText(this@MainActivity, "${product.name} added to cart", Toast.LENGTH_SHORT).show()
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Failed to add item to cart. Code: ${response.code()}, Error: $errorBody")
+                    Toast.makeText(this@MainActivity, "Failed to add item to cart", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception in addToCart: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
