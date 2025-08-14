@@ -1,157 +1,200 @@
+// src/components/UserForm.tsx
 import React, { useState, useEffect } from 'react';
-import { getUsers, register, updateUser, deleteUser } from '../api';
-import { User } from '../types';
+import { getAccounts, register, updateAccount, deleteAccount } from '../api';
+import { Account } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
-const CACHE_KEY = 'users_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+const CACHE_KEY = 'accounts_cache';
+const CACHE_DURATION = 30 * 60 * 1000;
 
-const normalizeUser = (apiUser: any): User => ({
-  _id: apiUser.ID || apiUser._id,
-  name: apiUser.Name || apiUser.name,
-  email: apiUser.Email || apiUser.email,
-  role: apiUser.Role || apiUser.role,
-  phoneNumber: apiUser.PhoneNumber || apiUser.phoneNumber,
-  company_id: apiUser.CompanyID || apiUser.company_id,
-  associate_company_ids: apiUser.AssociateCompanyIDs || apiUser.associate_company_ids,
-});
+type FormData = Partial<Account> & {
+  code?: string;
+  customerCodes?: string[];
+  password?: string;
+};
+
+interface DecodedUser {
+  id: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  email: string;
+  associate_company_ids?: string[];
+}
 
 const UserForm = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const usersPerPage = 10;
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Omit<User, '_id'>>({
+  const { decodeJWT } = useAuth();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const accountsPerPage = 10;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     password: '',
     role: 'customer',
-    phoneNumber: '',
-    company_id: '',
+    code: '',
+    customerCodes: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const currentUser = JSON.parse(atob(localStorage.getItem('accessToken')?.split('.')[1] || ''))?.user || {};
-  const currentRole = currentUser.role || '';
-  const currentUserId = currentUser.id || '';
-  const currentCompanyId = currentUser.company_id || '';
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<DecodedUser | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const loadUsers = async () => {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          const normalizedData = data.map(normalizeUser);
-          filterUsersByRole(normalizedData);
-          return;
+    const initialize = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const decoded = decodeJWT(token);
+          setCurrentUser(decoded);
+        } catch (err) {
+          console.error('Error decoding JWT', err);
         }
       }
-      await fetchUsers();
+      await fetchAccounts();
+      setIsInitialized(true);
     };
-    loadUsers();
-  }, []);
+    initialize();
+  }, [decodeJWT]);
 
   useEffect(() => {
-    const filtered = users.filter(
-      (user) =>
-        (user.name && user.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (user.email && user.email.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    setFilteredUsers(filtered);
+    if (!isInitialized) return;
+
+    const searched = searchQuery
+      ? accounts.filter(
+          (account) =>
+            (account.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (account.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : accounts;
+
+    setFilteredAccounts(searched);
     setCurrentPage(1);
-  }, [searchQuery, users]);
+  }, [searchQuery, accounts, isInitialized]);
 
-    const filterUsersByRole = (data: User[]) => {
-    let filtered: User[] = [];
-    if (currentRole === 'admin') {
-        filtered = data;
-    } else if (currentRole === 'company') {
-        filtered = data.filter(
-        (user) =>
-            user._id === currentUserId ||
-            (user.associate_company_ids && user.associate_company_ids.includes(currentCompanyId))
-        );
-    } else if (currentRole === 'customer') {
-        filtered = data.filter((user) => user._id === currentUserId);
-    }
-    setUsers(filtered);
-    setFilteredUsers(filtered);
-    // Note: Caching the original, non-normalized data might be better if other parts of the app use it.
-    // For now, this caches the filtered, normalized data.
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: filtered, timestamp: Date.now() }));
-    };
+const fetchAccounts = async () => {
+  setIsLoading(true);
 
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getUsers();
-      const normalizedData = data.map(normalizeUser);
-      filterUsersByRole(normalizedData);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error fetching users');
-    } finally {
+  // 1. Try cache first
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp < CACHE_DURATION) {
+      setAccounts(data);
       setIsLoading(false);
+      return;
     }
-  };
+  }
 
-  const invalidateCache = () => {
-    localStorage.removeItem(CACHE_KEY);
-  };
+  try {
+    const data = await getAccounts();
+    if (!Array.isArray(data)) {
+      setAccounts([]);
+      return;
+    }
+
+    setAccounts(data);
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ data, timestamp: Date.now() })
+    );
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || 'Error fetching accounts');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const invalidateCache = () => localStorage.removeItem(CACHE_KEY);
+
+const handleRefresh = () => {
+  invalidateCache();
+  fetchAccounts();
+};
 
   const validateForm = () => {
-    const errors: string[] = [];
-    if (!formData.name) errors.push('Name is required');
-    if (!formData.email) errors.push('Email is required');
-    if (!editingId && !formData.password) errors.push('Password is required');
-    if (!formData.role) errors.push('Role is required');
-    if (!formData.phoneNumber) errors.push('Phone number is required');
-    if (formData.role === 'company' && !formData.company_id) errors.push('Company ID is required for company role');
-    return errors;
+    const errs: string[] = [];
+    if (!formData.name?.trim()) errs.push('Name is required');
+    if (!formData.email?.trim()) errs.push('Email is required');
+    if (!editingId && !formData.password?.trim()) errs.push('Password is required');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errs.push('Invalid email format');
+    }
+    return errs;
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors = validateForm();
-    setErrors(newErrors);
-    if (newErrors.length > 0) return;
+    const errs = validateForm();
+    if (errs.length) {
+      setErrors(errs);
+      return;
+    }
 
     setIsLoading(true);
     try {
-      if (editingId) {
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password; // Don't update password if empty
-        await updateUser(editingId, updateData);
-        toast.success('User updated successfully');
-      } else {
-        await register({ ...formData, password: formData.password || '' });
-        toast.success('User created successfully');
+      const payload: any = {
+        name: formData.name?.trim(),
+        email: formData.email?.trim(),
+        role: formData.role,
+        password: formData.password,
+      };
+
+      // role-specific sub-documents
+      if (formData.role === 'company') {
+        payload.company = {
+          name: formData.name?.trim(),
+          companyCode: formData.code?.trim() || '',
+          paymentMethods: [],
+          address: { street: '', city: '', state: '', zip: '' },
+          sellingArea: { radius: 0, center: { lat: 0, lng: 0 } },
+          status: 'active',
+        };
       }
+
+      if (formData.role === 'customer') {
+        payload.customer = {
+          customerCodes:
+            formData.customerCodes?.map((c) => ({
+              codeId: '',
+              customerCode: c.trim(),
+            })) || [],
+        };
+      }
+
+      if (editingId) {
+        if (!payload.password) delete payload.password;
+        await updateAccount(editingId, payload);
+        toast.success('Account updated');
+      } else {
+        await register(payload);
+        toast.success('Account created');
+      }
+
       setFormData({
         name: '',
         email: '',
         password: '',
         role: 'customer',
-        phoneNumber: '',
-        company_id: '',
+        code: '',
+        customerCodes: [],
       });
       setEditingId(null);
       setIsModalOpen(false);
-      invalidateCache();
-      await fetchUsers();
+      await fetchAccounts();
       setErrors([]);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save user');
+      toast.error(err.response?.data?.message || 'Error saving account');
     } finally {
       setIsLoading(false);
     }
@@ -159,188 +202,171 @@ const UserForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleEdit = (user: User) => {
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '',
-      role: user.role,
-      phoneNumber: user.phoneNumber,
-      company_id: user.company_id || '',
-    });
-    setEditingId(user._id);
-    setIsModalOpen(true);
-  };
+const handleEdit = (account: Account) => {
+  setFormData({
+    name: account.name || '',
+    email: account.email || '',
+    password: '',
+    role: account.role || 'customer',
+    code:
+      account.role === 'company'
+        ? account.company?.companyCode || ''
+        : '',
+    customerCodes:
+      account.role === 'customer'
+        ? account.customer?.customerCodes?.map((c) => c.customerCode) || []
+        : [],
+  });
+  setEditingId(account._id);
+  setIsModalOpen(true);
+};
 
   const handleDelete = async () => {
-    if (!userToDelete) return;
+    if (!accountToDelete) return;
     setIsLoading(true);
     try {
-      await deleteUser(userToDelete);
-      toast.success('User deleted successfully');
-      invalidateCache();
-      await fetchUsers();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete user');
-    } finally {
+      await deleteAccount(accountToDelete);
+      toast.success('Account deleted');
       setIsDeleteConfirmOpen(false);
-      setUserToDelete(null);
+      setAccountToDelete(null);
+      await fetchAccounts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error deleting account');
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const openDeleteConfirm = (id: string) => {
-    setUserToDelete(id);
-    setIsDeleteConfirmOpen(true);
+  const indexOfLast = currentPage * accountsPerPage;
+  const indexOfFirst = indexOfLast - accountsPerPage;
+  const currentAccounts = filteredAccounts.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredAccounts.length / accountsPerPage);
+
+  const DebugInfo = () => {
+    if (import.meta.env.MODE !== 'development') return null;
+    return (
+      <div className="mt-4 p-4 bg-gray-100 rounded text-sm">
+        <h3 className="font-bold mb-2">Debug Info:</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>Total: {accounts.length}</div>
+          <div>Filtered: {filteredAccounts.length}</div>
+          <div>Page: {currentPage}</div>
+          <div>User: {currentUser?.role || 'none'}</div>
+        </div>
+      </div>
+    );
   };
-
-  const openModal = () => {
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      role: 'customer',
-      phoneNumber: '',
-      company_id: '',
-    });
-    setEditingId(null);
-    setErrors([]);
-    setIsModalOpen(true);
-  };
-
-  // Pagination
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Users</h2>
-          { (currentRole === 'admin' || currentRole === 'company') && (
+          <h2 className="text-2xl font-semibold text-gray-800">Accounts</h2>
+          <div className="flex space-x-2">
             <button
-              onClick={openModal}
-              className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
-              <PlusIcon className="h-5 w-5" />
-              <span>Add User</span>
+              Refresh
             </button>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users by name or email..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+              <button
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'customer',
+                    code: '',
+                    customerCodes: [],
+                  });
+                  setIsModalOpen(true);
+                }}
+                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700"
+              >
+                <PlusIcon className="h-5 w-5 inline mr-1" />
+                Add Account
+              </button>
+            )}
           </div>
         </div>
 
-        {/* User Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {isLoading ? (
-            <div className="p-6 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">No users found.</div>
+        <div className="mb-6">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search accounts..."
+            className="w-full p-2 pl-10 border rounded-md"
+          />
+        </div>
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isLoading && accounts.length === 0 ? (
+            <div className="p-8 text-center">Loading...</div>
+          ) : filteredAccounts.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No accounts found</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
-                    {currentRole === 'admin' && (
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Status</th>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+                    <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {currentAccounts.map((account) => (
+                  <tr key={account._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">{account.name}</td>
+                    <td className="px-6 py-4">{account.email}</td>
+                    <td className="px-6 py-4">{account.role}</td>
+                    <td className="px-6 py-4">{account.accountStatus}</td>
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button onClick={() => handleEdit(account)} className="text-yellow-600">
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setAccountToDelete(account._id)} className="text-red-600">
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </td>
                     )}
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentUsers.map((user) => (
-                    <tr key={user._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user._id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phoneNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.company_id || '-'}</td>
-                      {currentRole === 'admin' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(user)}
-                            className="text-yellow-600 hover:text-yellow-800 mr-4"
-                            aria-label={`Edit ${user.name}`}
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => openDeleteConfirm(user._id)}
-                            className="text-red-600 hover:text-red-800"
-                            aria-label={`Delete ${user.name}`}
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-6 flex justify-end space-x-2">
-            <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
+          <div className="mt-4 flex justify-center space-x-2">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
-                key={`page-${i + 1}`}
-                onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-600 text-white' : ''}`}
               >
                 {i + 1}
               </button>
             ))}
-            <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
           </div>
         )}
 
-        {/* User Form Modal */}
+        <DebugInfo />
+
+        {/* Modal for Add/Edit */}
         <Transition appear show={isModalOpen} as={Fragment}>
           <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
             <Transition.Child
@@ -354,122 +380,111 @@ const UserForm = () => {
             >
               <div className="fixed inset-0 bg-black bg-opacity-25" />
             </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {editingId ? 'Edit User' : 'Add User'}
-                    </Dialog.Title>
-                    {errors.length > 0 && (
-                      <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md">
-                        {errors.map((error, idx) => (
-                          <p key={`error-${idx}`}>{error}</p>
-                        ))}
-                      </div>
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+              >
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                  <Dialog.Title className="text-lg font-medium mb-4">
+                    {editingId ? 'Edit Account' : 'Add Account'}
+                  </Dialog.Title>
+                  {errors.length > 0 && (
+                    <div className="bg-red-100 text-red-700 p-2 mb-4 rounded">
+                      {errors.map((e, i) => <p key={i}>{e}</p>)}
+                    </div>
+                  )}
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Name"
+                      className="w-full p-2 border rounded"
+                      required
+                    />
+                    <input
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Email"
+                      className="w-full p-2 border rounded"
+                      required
+                    />
+                    <input
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder={editingId ? 'New password (optional)' : 'Password'}
+                      className="w-full p-2 border rounded"
+                      required={!editingId}
+                    />
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="customer">Customer</option>
+                      <option value="company">Company</option>
+                      <option value="partner">Partner</option>
+                      {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
+                    </select>
+                    
+                    {formData.role === 'company' && (
+                      <input
+                        name="code"
+                        value={formData.code}
+                        onChange={handleChange}
+                        placeholder="Company Code"
+                        className="w-full p-2 border rounded"
+                      />
                     )}
-                    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Name</label>
-                          <input
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="John Doe"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Email</label>
-                          <input
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="john@example.com"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Password</label>
-                          <input
-                            name="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder={editingId ? 'Leave blank to keep unchanged' : 'Enter password'}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Role</label>
-                          <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="company">Company</option>
-                            <option value="customer">Customer</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                          <input
-                            name="phoneNumber"
-                            value={formData.phoneNumber}
-                            onChange={handleChange}
-                            placeholder="1234567890"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Company ID (optional)</label>
-                          <input
-                            name="company_id"
-                            value={formData.company_id}
-                            onChange={handleChange}
-                            placeholder="Company ID"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsModalOpen(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
-                        >
-                          {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
-                        </button>
-                      </div>
-                    </form>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
+                    {formData.role === 'customer' && (
+                      <input
+                        name="customerCodes"
+                        value={(formData.customerCodes || []).join(', ')}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            customerCodes: e.target.value
+                              .split(',')
+                              .map((c) => c.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                        placeholder="Customer Codes (comma-separated)"
+                        className="w-full p-2 border rounded"
+                      />
+                    )}
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="px-4 py-2 border rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-teal-600 text-white rounded"
+                      >
+                        {editingId ? 'Update' : 'Create'}
+                      </button>
+                    </div>
+                  </form>
+                </Dialog.Panel>
+              </Transition.Child>
             </div>
           </Dialog>
         </Transition>
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete Confirm */}
         <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
           <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
             <Transition.Child
@@ -483,47 +498,30 @@ const UserForm = () => {
             >
               <div className="fixed inset-0 bg-black bg-opacity-25" />
             </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Delete User
-                    </Dialog.Title>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Are you sure you want to delete this user? This action cannot be undone.
-                      </p>
-                    </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsDeleteConfirmOpen(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {isLoading ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+              >
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+                  <Dialog.Title className="text-lg font-medium mb-4">Confirm Delete</Dialog.Title>
+                  <p className="text-sm text-gray-600 mb-4">This action cannot be undone.</p>
+                  <div className="flex justify-end space-x-2">
+                    <button onClick={() => setIsDeleteConfirmOpen(false)} className="px-4 py-2 border rounded">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={isLoading}
+                      className="px-4 py-2 bg-red-600 text-white rounded"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
             </div>
           </Dialog>
         </Transition>

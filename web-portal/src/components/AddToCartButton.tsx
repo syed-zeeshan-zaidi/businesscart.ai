@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Product } from '../types';
 import { addItemToCart } from '../api';
+import { AxiosError } from 'axios';
 
 interface AddToCartButtonProps {
   product: Product;
@@ -17,8 +18,12 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product }) => {
       toast.success(`${product.name} added to cart!`);
       localStorage.removeItem('cart_cache'); // Invalidate cart cache
       window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to add item to cart');
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        toast.error(error.response?.data?.message || 'Failed to add item to cart');
+      } else {
+        toast.error('An unexpected error occurred.');
+      }
     } finally {
       setLoading(false);
     }

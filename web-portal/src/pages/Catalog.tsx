@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProducts, getUserAssociatedCompanies } from '../api';
+import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { Product } from '../types';
+import { Product, Account } from '../types';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 
@@ -19,6 +19,7 @@ const Catalog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
   const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [account, setAccount] = useState<Account | null>(null);
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -32,25 +33,35 @@ const Catalog: React.FC = () => {
     }
   }, []);
 
-  const fetchProductsAndCompanies = useCallback(async () => {
+  const fetchProductsAndAccount = useCallback(async () => {
     setLoading(true);
     try {
-      const [fetchedProducts, associatedCompanyIds] = await Promise.all([
+      const token = localStorage.getItem('accessToken');
+      if (!token) throw new Error('Not authenticated');
+      const decodedUser = decodeJWT(token);
+      if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
+
+      const [fetchedProducts, fetchedAccount] = await Promise.all([
         getProducts(),
-        getUserAssociatedCompanies(),
+        getAccount(decodedUser.id),
       ]);
       
       setProducts(fetchedProducts);
-      setCompanyIds(associatedCompanyIds);
-      if (associatedCompanyIds.length > 0) {
-        setCompanyIdFilter(associatedCompanyIds[0]);
+      setAccount(fetchedAccount);
+
+      if (fetchedAccount.role === 'customer' && fetchedAccount.customer) {
+        const customerCompanyIds = fetchedAccount.customer.customerCodes.map(c => c.customerCode);
+        setCompanyIds(customerCompanyIds);
+        if (customerCompanyIds.length > 0) {
+          setCompanyIdFilter(customerCompanyIds[0]);
+        }
       }
 
       const cacheKey = getCacheKey();
       if (cacheKey) {
         localStorage.setItem(cacheKey, JSON.stringify({ 
           products: fetchedProducts, 
-          companyIds: associatedCompanyIds,
+          account: fetchedAccount,
           timestamp: Date.now() 
         }));
       }
@@ -59,7 +70,7 @@ const Catalog: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getCacheKey]);
+  }, [getCacheKey, decodeJWT]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -73,8 +84,8 @@ const Catalog: React.FC = () => {
       return;
     }
 
-    const role = decodeJWT(token);
-    if (role !== 'customer') {
+    const decoded = decodeJWT(token);
+    if (decoded.role !== 'customer') {
       toast.error('Access denied. Only customers can view the catalog.');
       navigate('/home');
       return;
@@ -85,23 +96,27 @@ const Catalog: React.FC = () => {
       if (cacheKey) {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
-          const { products: cachedProducts, companyIds: cachedCompanyIds, timestamp } = JSON.parse(cached);
+          const { products: cachedProducts, account: cachedAccount, timestamp } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             setProducts(cachedProducts);
-            setCompanyIds(cachedCompanyIds);
-            if (cachedCompanyIds.length > 0) {
-              setCompanyIdFilter(cachedCompanyIds[0]);
+            setAccount(cachedAccount)
+            if (cachedAccount.customer) {
+                const customerCompanyIds = cachedAccount.customer.customerCodes.map((c: any) => c.customerCode);
+                setCompanyIds(customerCompanyIds);
+                if (customerCompanyIds.length > 0) {
+                    setCompanyIdFilter(customerCompanyIds[0]);
+                }
             }
             setLoading(false);
             return;
           }
         }
       }
-      await fetchProductsAndCompanies();
+      await fetchProductsAndAccount();
     };
 
     loadData();
-  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndCompanies, getCacheKey]);
+  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product =>

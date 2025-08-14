@@ -1,46 +1,72 @@
-export interface User {
-  _id: string;
-  name: string;
-  email: string;
-  password?: string;
-  role: string;
-  phoneNumber: string;
-  company_id?: string;
-  associate_company_ids?: string[];
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
-export interface Company {
-  _id: string;
+export interface CompanyData {
+  _id?: string;
   name: string;
   companyCode: string;
   paymentMethods: string[];
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    coordinates: { lat: number; lng: number };
-  };
+  address: Address;
   sellingArea: {
     radius: number;
-    center: { lat: number; lng: number };
+    center: {
+      lat: number;
+      lng: number;
+    };
   };
+  status: string;
+}
+
+export interface CustomerCodeEntry {
+  codeId: string;
+  customerCode: string;
+}
+
+export interface CustomerData {
+  customerCodes: CustomerCodeEntry[];
+}
+
+export interface PartnerData {
+  partnerCodeId?: string;
+  partnerCode?: string;
+  status: string;
+}
+
+export interface Account {
+  _id: string;
+  name:string;
+  email: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  accountStatus: 'active' | 'pending' | 'suspended' | 'inactive';
+  company?: CompanyData;
+  customer?: CustomerData;
+  partner?: PartnerData;
+  address?: Address;
+  password?: string;
 }
 
 export interface Product {
   _id: string;
   name: string;
   price: number;
-  companyId: string;
-  userId: string;
   description: string;
   image?: string;
+  companyId: string;
+  userId: string;
 }
 
 export interface Order {
   id: string;
   quoteId: string;
-  userId: string;
+  accountId: string;
   companyId: string;
   items: CartItem[];
   subtotal: number;
@@ -64,7 +90,7 @@ export interface CartItem {
 
 export interface Cart {
   id: string;
-  userId: string;
+  accountId: string;
   companyId: string;
   items: CartItem[];
   totalPrice: number;
@@ -73,7 +99,7 @@ export interface Cart {
 export interface Quote {
   id: string;
   cartId: string;
-  userId: string;
+  accountId: string;
   companyId: string;
   items: CartItem[];
   subtotal: number;

@@ -7,7 +7,7 @@ export const useAuth = () => {
   const decodeJWT = useCallback((token: string) => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.user?.role ?? null;
+      return payload.user ?? null;
     } catch {
       return null;
     }

@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { createProduct, getProducts, updateProduct, deleteProduct } from '../api';
-import { Product } from '../types';
+import { createProduct, getProducts, updateProduct, deleteProduct, getAccount } from '../api';
+import { Product, Account } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 const CACHE_KEY = 'products_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 const ProductForm = () => {
+  const { decodeJWT } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,9 +20,8 @@ const ProductForm = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string>('');
-  const [userId, setUserId] = useState<string>(''); // New state variable for userId
-  const [formData, setFormData] = useState({
+  const [account, setAccount] = useState<Account | null>(null);
+  const [formData, setFormData] = useState<Omit<Product, '_id'>>({
     name: '',
     price: 0,
     companyId: '',
@@ -33,43 +33,33 @@ const ProductForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const loadProducts = async () => {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setProducts(data);
-          setFilteredProducts(data);
-          return;
+    const loadInitialData = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const decodedUser = decodeJWT(token);
+          if (decodedUser && decodedUser.id) {
+            const fetchedAccount = await getAccount(decodedUser.id);
+            setAccount(fetchedAccount);
+            if (fetchedAccount.role === 'company' && fetchedAccount.company) {
+              setFormData((prev) => ({
+                ...prev,
+                companyId: fetchedAccount.company?.companyCode || '',
+                userId: fetchedAccount._id,
+              }));
+            }
+          }
+        } catch (e) {
+          toast.error('Failed to fetch account data.');
         }
+      } else {
+        toast.error('Please log in to access products.');
       }
       await fetchProducts();
     };
-    
-    // Decode JWT to get companyId
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const company = payload.user?.company_id || '';
-        const user = payload.user?.user_id || ''; // Extract userId
-        setCompanyId(company);
-        setUserId(user); // Set userId state
-        setFormData((prev) => ({
-          ...prev,
-          companyId: company,
-          userId: user, // Set userId in formData
-        }));
-      } catch (_e) {
-        
-        toast.error('Unable to fetch company data. Please enter Company ID manually.');
-      }
-    } else {
-      toast.error('Please log in to access products.');
-    }
 
-    loadProducts();
-  }, []);
+    loadInitialData();
+  }, [decodeJWT]);
 
   useEffect(() => {
     const filtered = products.filter((product) =>
@@ -98,12 +88,12 @@ const ProductForm = () => {
   };
 
   const validateForm = () => {
-    const errors: string[] = [];
-    if (!formData.name) errors.push('Product name is required');
-    if (formData.price <= 0) errors.push('Price must be positive');
-    if (!formData.companyId) errors.push('Company ID is required');
-    if (!formData.description) errors.push('Description is required');
-    return errors;
+    const newErrors: string[] = [];
+    if (!formData.name) newErrors.push('Product name is required');
+    if (formData.price <= 0) newErrors.push('Price must be positive');
+    if (!formData.companyId) newErrors.push('Company ID is required');
+    if (!formData.description) newErrors.push('Description is required');
+    return newErrors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,13 +105,19 @@ const ProductForm = () => {
     setIsLoading(true);
     try {
       if (editingId) {
-        await updateProduct(editingId, { ...formData, userId });
+        await updateProduct(editingId, formData);
         toast.success('Product updated successfully');
       } else {
-        await createProduct({ ...formData, userId });
+        await createProduct(formData);
         toast.success('Product created successfully');
       }
-      setFormData({ name: '', price: 0, companyId: companyId, description: '', userId: userId }); 
+      setFormData({
+        name: '',
+        price: 0,
+        companyId: account?.company?.companyCode || '',
+        description: '',
+        userId: account?._id || '',
+      });
       setEditingId(null);
       setIsModalOpen(false);
       invalidateCache();
@@ -148,7 +144,7 @@ const ProductForm = () => {
       price: product.price,
       companyId: product.companyId,
       description: product.description,
-      userId: product.userId, // Set userId when editing
+      userId: product.userId,
     });
     setEditingId(product._id);
     setIsModalOpen(true);
@@ -177,7 +173,13 @@ const ProductForm = () => {
   };
 
   const openModal = () => {
-    setFormData({ name: '', price: 0, companyId: companyId, description: '', userId: userId });
+    setFormData({
+      name: '',
+      price: 0,
+      companyId: account?.company?.companyCode || '',
+      description: '',
+      userId: account?._id || '',
+    });
     setEditingId(null);
     setErrors([]);
     setIsModalOpen(true);
@@ -374,6 +376,7 @@ const ProductForm = () => {
                           onChange={handleChange}
                           placeholder="Company ID"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                          readOnly
                         />
                       </div>
                       <div>

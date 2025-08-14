@@ -8,20 +8,20 @@ interface User {
   id: string;
   name?: string;
   role: 'customer' | 'company' | 'admin';
-  company_id?: string;
+  email: string;
 }
 
 const CACHE_KEY = 'products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const Dashboard: React.FC = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUser = () => {
       if (!isAuthenticated) {
         setUser(null);
         return;
@@ -30,26 +30,31 @@ const Dashboard: React.FC = () => {
       setIsLoading(true);
       try {
         const token = localStorage.getItem('accessToken');
-        if (!token) throw new Error('No access token found');
-        const response = await axios.get(`${import.meta.env.VITE_USER_API}/users/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(response.data.user);
+        if (!token) {
+          throw new Error('No access token found');
+        }
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const decodedUser = payload.user;
+        if (decodedUser) {
+          setUser(decodedUser);
+        } else {
+          throw new Error('Failed to decode user from token');
+        }
       } catch (err: any) {
-        
-        toast.error(err.response?.data?.message || 'Failed to load user data');
-        logout();
+        toast.error(err.message || 'Failed to load user data');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUser();
-  }, [isAuthenticated, logout]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const loadProducts = async () => {
-      if (!user || !['company', 'admin'].includes(user.role)) return;
+      if (!user || !['company', 'admin'].includes(user.role)) {
+        return;
+      }
 
       setIsLoading(true);
       try {
@@ -62,7 +67,9 @@ const Dashboard: React.FC = () => {
           }
         }
         const token = localStorage.getItem('accessToken');
-        if (!token) throw new Error('No access token found');
+        if (!token) {
+          throw new Error('No access token found');
+        }
         const response = await axios.get(`${import.meta.env.VITE_PRODUCT_API}/products`, {
           headers: { Authorization: `Bearer ${token}` },
         });

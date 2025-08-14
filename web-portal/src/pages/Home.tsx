@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getProducts } from '../api';
+import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { User, Product } from '../types';
+import { Account, Product } from '../types';
 
 const Home: React.FC = () => {
   const { isAuthenticated, logout, decodeJWT } = useAuth();
   const navigate = useNavigate();
-  const [user, setUser] = useState<Partial<User> | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchAccount = async () => {
       if (!isAuthenticated) {
-        setUser(null);
+        setAccount(null);
         return;
       }
 
@@ -24,17 +24,13 @@ const Home: React.FC = () => {
       try {
         const token = localStorage.getItem('accessToken');
         if (!token) throw new Error('No access token found');
-        const role = decodeJWT(token) as 'admin' | 'company' | 'customer' | null;
-        if (!role || !['customer', 'company', 'admin'].includes(role)) {
-          localStorage.removeItem('accessToken');
-          throw new Error('Invalid user role');
-        }
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userId: string = payload.user?.id || payload.sub || '';
-        if (!userId) throw new Error('User ID not found in JWT');
-        setUser({ _id: userId, role, name: payload.user?.name || '' });
-      } catch (err: any) {
+        const decoded = decodeJWT(token);
+        if (!decoded || !decoded.id) throw new Error('User ID not found in JWT');
         
+        const fetchedAccount = await getAccount(decoded.id);
+        setAccount(fetchedAccount);
+
+      } catch (err: any) {
         toast.error(err.message || 'Failed to load user data');
         logout();
       } finally {
@@ -42,23 +38,22 @@ const Home: React.FC = () => {
       }
     };
 
-    fetchUser();
-  }, [isAuthenticated, logout, navigate]);
+    fetchAccount();
+  }, [isAuthenticated, logout, decodeJWT]);
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!user || !user.role || user.role !== 'customer') return;
+      if (!account || account.role !== 'customer') return;
 
       setLoading(true);
       try {
-        const products = await getProducts();
-        const productsWithImages = products.slice(0, 3).map((product: Product) => ({
+        const fetchedProducts = await getProducts();
+        const productsWithImages = fetchedProducts.slice(0, 3).map((product: Product) => ({
           ...product,
           image: product.image || 'https://via.placeholder.com/300x200',
         }));
         setProducts(productsWithImages);
       } catch (err: any) {
-        
         toast.error(err.message || 'Failed to load products');
       } finally {
         setLoading(false);
@@ -66,7 +61,7 @@ const Home: React.FC = () => {
     };
 
     fetchProducts();
-  }, [user]);
+  }, [account]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -154,13 +149,13 @@ const Home: React.FC = () => {
         )}
 
         {/* Authenticated users content */}
-        {isAuthenticated && user && user.role && (
+        {isAuthenticated && account && (
           <div className="py-12">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">
-              Welcome, {user.name || user.role.charAt(0).toUpperCase() + user.role.slice(1)}!
+              Welcome, {account.name || account.role.charAt(0).toUpperCase() + account.role.slice(1)}!
             </h2>
 
-            {user.role === 'customer' && (
+            {account.role === 'customer' && (
               <>
                 {/* Hero Section */}
                 <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-12 mb-12 text-center">
@@ -214,10 +209,10 @@ const Home: React.FC = () => {
               </>
             )}
 
-            {user.role === 'company' && (
+            {account.role === 'company' && (
               <div>
                 <p className="text-lg text-gray-600 mb-6">
-                  Manage your products and orders for {user.company_id || 'your company'}.
+                  Manage your products and orders for {account.company?.name || 'your company'}.
                 </p>
                 <div className="space-x-4">
                   <Link
@@ -236,7 +231,7 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            {user.role === 'admin' && (
+            {account.role === 'admin' && (
               <div>
                 <p className="text-lg text-gray-600 mb-6">Administer users, products, and orders.</p>
                 <div className="space-x-4">

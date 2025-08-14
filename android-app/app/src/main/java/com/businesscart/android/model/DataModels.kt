@@ -42,3 +42,32 @@ data class Cart(
     val items: List<CartItem>,
     val totalPrice: Double
 )
+
+data class Quote(
+    val id: String,
+    val cartId: String,
+    val userId: String,
+    val companyId: String,
+    val items: List<CartItem>,
+    val subtotal: Double,
+    val shippingCost: Double,
+    val taxAmount: Double,
+    val grandTotal: Double,
+    val createdAt: String,
+    val expiresAt: String
+)
+
+data class Order(
+    val id: String,
+    val quoteId: String,
+    val userId: String,
+    val companyId: String,
+    val items: List<CartItem>,
+    val subtotal: Double,
+    val shippingCost: Double,
+    val taxAmount: Double,
+    val grandTotal: Double,
+    val paymentMethod: String,
+    val transactionId: String,
+    val createdAt: String
+)

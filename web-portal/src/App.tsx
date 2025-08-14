@@ -19,13 +19,21 @@ const App = () => {
 
   const getRedirectPath = () => {
     const token = localStorage.getItem('accessToken');
-    if (!token) return '/login';
-    const role = decodeJWT(token);
-    if (!['customer', 'admin', 'company'].includes(role)) {
+    if (!token) {
+      return '/login';
+    }
+    try {
+      const decoded = decodeJWT(token);
+      const role = decoded?.role || '';
+      if (!['customer', 'admin', 'company'].includes(role)) {
+        localStorage.removeItem('accessToken');
+        return '/login';
+      }
+      return role === 'customer' ? '/home' : '/dashboard';
+    } catch (err: any) {
       localStorage.removeItem('accessToken');
       return '/login';
     }
-    return role === 'customer' ? '/home' : '/dashboard';
   };
 
   const protectedRoutes = [
@@ -53,8 +61,14 @@ const App = () => {
         <div className="flex-1">
           <Routes>
             <Route path="/home" element={<Home />} />
-            <Route path="/login" element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Login />} />
-            <Route path="/register" element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Register />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Login />}
+            />
+            <Route
+              path="/register"
+              element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Register />}
+            />
             <Route
               path="/dashboard"
               element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}

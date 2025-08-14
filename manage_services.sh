@@ -2,8 +2,7 @@
 
 # Define service configurations
 declare -A services
-services["UserService"]="3000"
-services["CompanyService"]="3001"
+services["AccountService"]="3000"
 services["ProductService"]="3002"
 services["CheckoutService"]="3009"
 
@@ -35,7 +34,7 @@ start_services() {
   echo "CDK templates synthesized successfully."
 
   # Build Go services before starting
-  build_go_service "user-service" "bootstrap" "./cmd/server/main.go"
+  build_go_service "account-service" "bootstrap" "./cmd/server/main.go"
   build_go_service "checkout-service" "server" "./cmd/server"
 
   echo "Starting microservices in new terminal tabs..."
