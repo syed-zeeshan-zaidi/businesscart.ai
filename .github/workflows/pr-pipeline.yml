@@ -25,10 +25,33 @@ jobs:
       - name: Build CDK
         run: npm run build
 
+  build-go-services:
+    name: Build Go Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Build and Test Go Services
+        run: |
+          for service in account-service checkout-service; do
+            echo "Building and testing $service"
+            cd $service
+            go mod tidy
+            go build -v ./...
+            go test -v ./...
+            cd ..
+          done
+
   build-cdk-and-services:
     name: Build CDK + Microservices & CDK Synth
     runs-on: ubuntu-latest
-    needs: build-cdk
+    needs: [build-cdk, build-go-services]
 
     steps:
       - name: Checkout code
@@ -45,9 +68,9 @@ jobs:
       - name: Build CDK root
         run: npm run build
 
-      - name: Install & Build Microservices
+      - name: Install & Build JS Microservices
         run: |
-          for service in company-service product-service user-service web-portal; do
+          for service in product-service web-portal; do
             echo "Building $service"
             cd $service
             rm -rf node_modules dist
@@ -57,9 +80,9 @@ jobs:
             cd ..
           done
 
-      - name: Run Tests (Microservices except web-portal)
+      - name: Run Tests (JS Microservices except web-portal)
         run: |
-          for service in company-service product-service user-service; do
+          for service in product-service; do
             echo "Running tests for $service"
             cd $service
             npm run test || exit 1
