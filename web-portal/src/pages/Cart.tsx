@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, getUserAssociatedCompanies, createQuote } from '../api';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, getAssociatedCompanyIds, createQuote } from '../api';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -61,7 +61,7 @@ const Cart: React.FC = () => {
 
     const loadCompaniesAndCart = async () => {
       try {
-        const companies = await getUserAssociatedCompanies(); // Assuming decodeJWT returns user object with id
+        const companies = await getAssociatedCompanyIds(); // Assuming decodeJWT returns user object with id
         setAssociatedCompanies(companies);
         if (companies.length > 0) {
           const initialCompanyId = companies[0]; // Select the first company by default

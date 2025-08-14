@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { AxiosError } from 'axios';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -16,35 +17,48 @@ const Login: React.FC = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: string[] = [];
-    if (!formData.email) newErrors.push('Email is required');
-    if (!formData.password) newErrors.push('Password is required');
-    setErrors(newErrors);
-    if (newErrors.length > 0) return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const newErrors: string[] = [];
+  if (!formData.email) newErrors.push('Email is required');
+  if (!formData.password) newErrors.push('Password is required');
+  setErrors(newErrors);
+  if (newErrors.length > 0) return;
 
-    setIsLoading(true);
-    try {
-      const response = await login({ email: formData.email, password: formData.password });
-      const token = response.accessToken;
-      localStorage.setItem('accessToken', token);
+  setIsLoading(true);
+  try {
+    const response = await login({ email: formData.email, password: formData.password });
+    console.log('API response:', response);
+    const token = response.accessToken;
+    localStorage.setItem('accessToken', token);
+    console.log('Token set in localStorage:', localStorage.getItem('accessToken'));
 
-      const role = decodeJWT(token);
-      if (!['customer', 'admin', 'company'].includes(role)) {
-        localStorage.removeItem('accessToken');
-        throw new Error('Invalid user role');
-      }
-
-      toast.success('Login successful');
-      navigate(role === 'customer' ? '/home' : '/dashboard', { replace: true });
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Login failed');
+    const user = decodeJWT(token);
+    console.log('Decoded user:', user);
+    if (!user || !['customer', 'admin', 'company', 'partner'].includes(user.role)) {
+      console.log('Removing accessToken from localStorage');
       localStorage.removeItem('accessToken');
-    } finally {
-      setIsLoading(false);
+      throw new Error('Invalid user role');
     }
-  };
+
+    toast.success('Login successful');
+    console.log('Navigating to dashboard based on user role', user.role);
+    navigate(user.role === 'customer' ? '/home' : '/dashboard', { replace: true });
+    console.log('Navigated to:', user.role === 'customer' ? '/home' : '/dashboard');
+  } catch (err: unknown) {
+    console.error('Login error:', err);
+    if (err instanceof AxiosError) {
+      toast.error(err.response?.data?.message || 'Login failed');
+    } else if (err instanceof Error) {
+      toast.error(err.message);
+    } else {
+      toast.error('An unexpected error occurred.');
+    }
+    // localStorage.removeItem('accessToken'); // Comment out to debug
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
