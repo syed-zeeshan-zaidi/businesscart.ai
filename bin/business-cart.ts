@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { AccountServiceStack } from '../lib/account-service-stack';
-import { ProductServiceStack } from '../lib/product-service-stack';
+import { CatalogServiceStack } from '../lib/catalog-service-stack';
 import { WebPortalStack } from '../lib/web-portal-stack';
 import { CheckoutServiceStack } from '../lib/checkout-service-stack';
 
@@ -13,8 +13,8 @@ new AccountServiceStack(app, 'AccountServiceStack', {
   env: { region: 'us-east-1' },
 });
 
-// Product Service Stack
-new ProductServiceStack(app, 'ProductServiceStack', {
+// Catalog Service Stack
+new CatalogServiceStack(app, 'CatalogServiceStack', {
   env: { region: 'us-east-1' },
 });
 

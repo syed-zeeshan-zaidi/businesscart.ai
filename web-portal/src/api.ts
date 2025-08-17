@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Account, Product, Order, Cart, Quote } from './types';
 
 const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
-const PRODUCT_API_URL = import.meta.env.VITE_PRODUCT_API_URL || 'http://127.0.0.1:3002';
+const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
 const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3009';
 
 const api = axios.create();
@@ -112,23 +112,23 @@ export const deleteAccount = async (id: string): Promise<void> => {
 };
 
 export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.post(`${PRODUCT_API_URL}/products`, data);
+  const response = await api.post(`${CATALOG_API_URL}/products`, data);
   return response.data;
 };
 
 export const getProducts = async (): Promise<Product[]> => {
-  const response = await api.get(`${PRODUCT_API_URL}/products`);
+  const response = await api.get(`${CATALOG_API_URL}/products`);
   console.log('Products fetched:', response.data);
   return response.data;
 };
 
 export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
-  const response = await api.put(`${PRODUCT_API_URL}/products/${id}`, data);
+  const response = await api.put(`${CATALOG_API_URL}/products/${id}`, data);
   return response.data;
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
-  await api.delete(`${PRODUCT_API_URL}/products/${id}`);
+  await api.delete(`${CATALOG_API_URL}/products/${id}`);
 };
 
 export const deleteOrder = async (id: string): Promise<void> => {

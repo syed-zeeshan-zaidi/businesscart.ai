@@ -3,7 +3,7 @@
 # Define service configurations
 declare -A services
 services["AccountService"]="3000"
-services["ProductService"]="3002"
+services["CatalogService"]="3001"
 services["CheckoutService"]="3009"
 
 PID_FILE="sam_pids.txt"
@@ -35,6 +35,7 @@ start_services() {
 
   # Build Go services before starting
   build_go_service "account-service" "bootstrap" "./cmd/server/main.go"
+  build_go_service "catalog-service" "bootstrap" "./cmd/server/main.go"
   build_go_service "checkout-service" "server" "./cmd/server"
 
   echo "Starting microservices in new terminal tabs..."
@@ -54,7 +55,7 @@ start_services() {
     echo "Preparing to start $service_name on port $port..."
     # Construct the SAM command
     mkdir -p logs
-    sam_cmd="sam local start-api -t "$template_path" --docker-network businesscart-network --debug -l logs/$service_name.log --port "$port""
+    sam_cmd="sam local start-api -t \"$template_path\" --docker-network businesscart-network --debug -l logs/$service_name.log --port \"$port\""
 
     # Run SAM in a new tab and store its PID (from the gnome-terminal process)
     # Note: Getting the PID of the actual 'sam local' process inside the new tab is complex.
