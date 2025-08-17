@@ -4,13 +4,14 @@ export const createProductSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   price: z.number().min(0, 'Price must be non-negative'),
-  companyId: z.string().min(1, 'Company ID is required'),
+  image: z.string().optional(),
 });
 
 export const updateProductSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   description: z.string().optional(),
   price: z.number().min(0, 'Price must be non-negative').optional(),
+  image: z.string().optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

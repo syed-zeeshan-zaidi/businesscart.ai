@@ -17,9 +17,9 @@ import (
 
 // CheckoutRequest represents the request body for a checkout.
 type CheckoutRequest struct {
-	CompanyID    string        `json:"companyId"`
-	PromoCode    string        `json:"promoCode,omitempty"`
-	PaymentToken string        `json:"paymentToken"`
+	CompanyID    string          `json:"companyId"`
+	PromoCode    string          `json:"promoCode,omitempty"`
+	PaymentToken string          `json:"paymentToken"`
 	Items        []cart.CartItem `json:"items"`
 }
 
@@ -150,7 +150,7 @@ func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest
 }
 
 func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, userId string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
-    quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
+	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
 	}
@@ -160,11 +160,11 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-    if quote.UserID != userId {
-        return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
-    }
+	if quote.UserID != userId {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
 
-    respBody, _ := json.Marshal(quote)
+	respBody, _ := json.Marshal(quote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
@@ -278,7 +278,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 
 	// Simple tax and shipping calculation (placeholders)
 	taxAmount := cart.TotalPrice * 0.0825 // 8.25% tax
-	shippingCost := 10.00                  // Flat rate shipping
+	shippingCost := 10.00                 // Flat rate shipping
 
 	newQuote := &quote.Quote{
 		CartID:       cart.ID,

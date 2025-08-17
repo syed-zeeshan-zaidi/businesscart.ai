@@ -118,16 +118,21 @@ export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product
 
 export const getProducts = async (): Promise<Product[]> => {
   const response = await api.get(`${PRODUCT_API_URL}/products`);
+  console.log('Products fetched:', response.data);
   return response.data;
 };
 
-export const updateProduct = async (id: string, data: Omit<Product, '_id'>): Promise<Product> => {
+export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
   const response = await api.put(`${PRODUCT_API_URL}/products/${id}`, data);
   return response.data;
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
   await api.delete(`${PRODUCT_API_URL}/products/${id}`);
+};
+
+export const deleteOrder = async (id: string): Promise<void> => {
+  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
 };
 
 export const createOrder = async (data: { quoteId: string; paymentMethod: string; paymentToken: string }): Promise<Order> => {
@@ -144,10 +149,6 @@ export const getOrders = async (companyId?: string): Promise<Order[]> => {
 export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
   const response = await api.put(`${CHECKOUT_API_URL}/orders/${id}`, data);
   return response.data;
-};
-
-export const deleteOrder = async (id: string): Promise<void> => {
-  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
 };
 
 export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string; name: string; price: number } }): Promise<Cart> => {

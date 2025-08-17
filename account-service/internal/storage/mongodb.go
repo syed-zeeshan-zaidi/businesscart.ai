@@ -100,6 +100,26 @@ func (db *DB) GetAccounts(filter bson.M) ([]*Account, error) {
 	return accounts, err
 }
 
+// GetAccountCompaniesDataByIDs returns all *company* accounts whose _id
+// matches any of the provided IDs.
+func (db *DB) GetAccountCompaniesDataByIDs(ids []primitive.ObjectID) ([]*Account, error) {
+	if len(ids) == 0 {
+		return []*Account{}, nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": ids}, "role": RoleCompany}
+	cursor, err := db.accounts.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var out []*Account
+	if err := cursor.All(context.Background(), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 /* ---------- REFRESH TOKENS ---------- */
 
 func (db *DB) CreateRefreshToken(token *RefreshToken) error {

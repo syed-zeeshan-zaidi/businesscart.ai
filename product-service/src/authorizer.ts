@@ -32,7 +32,7 @@ export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<AP
         ],
       },
       context: {
-        userId: decoded.user.id,
+        accountID: decoded.user.id,
         userRole: decoded.user.role,
         company_id: decoded.user.company_id || null,
         associateCompanyIds: JSON.stringify(decoded.user.associate_company_ids || []),

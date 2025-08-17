@@ -171,4 +171,3 @@ login_or_register company2 "$COMPANY_TWO_COMP_CODE"
 login_or_register customer "$COMPANY_ONE_CUSTOMER_CODE"
 
 print_step "Test finished successfully"
-

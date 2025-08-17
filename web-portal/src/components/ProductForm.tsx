@@ -21,12 +21,12 @@ const ProductForm = () => {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
-  const [formData, setFormData] = useState<Omit<Product, '_id'>>({
+  const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     price: 0,
-    companyId: '',
     description: '',
-    userId: '',
+    accountID: '',
+    image: '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -41,11 +41,10 @@ const ProductForm = () => {
           if (decodedUser && decodedUser.id) {
             const fetchedAccount = await getAccount(decodedUser.id);
             setAccount(fetchedAccount);
-            if (fetchedAccount.role === 'company' && fetchedAccount.company) {
+            if (fetchedAccount.role === 'company') {
               setFormData((prev) => ({
                 ...prev,
-                companyId: fetchedAccount.company?.companyCode || '',
-                userId: fetchedAccount._id,
+                accountID: fetchedAccount._id,
               }));
             }
           }
@@ -90,8 +89,7 @@ const ProductForm = () => {
   const validateForm = () => {
     const newErrors: string[] = [];
     if (!formData.name) newErrors.push('Product name is required');
-    if (formData.price <= 0) newErrors.push('Price must be positive');
-    if (!formData.companyId) newErrors.push('Company ID is required');
+    if (formData.price === undefined || formData.price <= 0) newErrors.push('Price must be positive');
     if (!formData.description) newErrors.push('Description is required');
     return newErrors;
   };
@@ -105,18 +103,17 @@ const ProductForm = () => {
     setIsLoading(true);
     try {
       if (editingId) {
-        await updateProduct(editingId, formData);
+        await updateProduct(editingId, formData as Product);
         toast.success('Product updated successfully');
       } else {
-        await createProduct(formData);
+        await createProduct(formData as Omit<Product, '_id'>);
         toast.success('Product created successfully');
       }
       setFormData({
         name: '',
         price: 0,
-        companyId: account?.company?.companyCode || '',
         description: '',
-        userId: account?._id || '',
+        accountID: account?._id || '',
       });
       setEditingId(null);
       setIsModalOpen(false);
@@ -142,9 +139,9 @@ const ProductForm = () => {
     setFormData({
       name: product.name,
       price: product.price,
-      companyId: product.companyId,
       description: product.description,
-      userId: product.userId,
+      accountID: product.accountID,
+      image: product.image,
     });
     setEditingId(product._id);
     setIsModalOpen(true);
@@ -176,9 +173,9 @@ const ProductForm = () => {
     setFormData({
       name: '',
       price: 0,
-      companyId: account?.company?.companyCode || '',
       description: '',
-      userId: account?._id || '',
+      accountID: account?._id || '',
+      image: '',
     });
     setEditingId(null);
     setErrors([]);
@@ -240,7 +237,7 @@ const ProductForm = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -251,7 +248,7 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product._id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.companyId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.accountID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -369,14 +366,24 @@ const ProductForm = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Company ID</label>
+                        <label className="block text-sm font-medium text-gray-700">Account ID</label>
                         <input
-                          name="companyId"
-                          value={formData.companyId}
+                          name="accountID"
+                          value={formData.accountID}
                           onChange={handleChange}
-                          placeholder="Company ID"
+                          placeholder="Account ID"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                           readOnly
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Image URL</label>
+                        <input
+                          name="image"
+                          value={formData.image}
+                          onChange={handleChange}
+                          placeholder="Image URL"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
                       <div>

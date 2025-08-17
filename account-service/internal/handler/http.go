@@ -324,8 +324,49 @@ func (h *Handler) generateAndStoreRefreshToken(user *storage.Account) (string, e
 /* ---------- OTHER CRUD ---------- */
 
 func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
-	id, _ := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
-	acc, _ := h.db.GetAccountByID(id)
+	id, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(id)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	// attach full company data for customers, using the JWT for authorization
+	userClaims := r.Context().Value("user").(map[string]interface{})
+	if acc.Role == storage.RoleCustomer && userClaims["associate_company_ids"] != nil {
+		// We use the associate_company_ids from the JWT, not from the account document,
+		// to ensure the caller is authorized to see this data.
+		assocCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
+		if ok && len(assocCompanyIDs) > 0 {
+			ids := make([]primitive.ObjectID, 0, len(assocCompanyIDs))
+			for _, idInterface := range assocCompanyIDs {
+				if idStr, ok := idInterface.(string); ok {
+					if oid, err := primitive.ObjectIDFromHex(idStr); err == nil {
+						ids = append(ids, oid)
+					}
+				}
+			}
+
+			companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
+			attached := make([]storage.CompanyData, 0, len(companies))
+			for _, c := range companies {
+				if c.CompanyData != nil {
+					attached = append(attached, *c.CompanyData)
+				}
+			}
+			if acc.CustomerData == nil {
+				acc.CustomerData = &storage.CustomerData{}
+			}
+			acc.CustomerData.AttachedCompanies = attached
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(acc)
 }
 

@@ -9,13 +9,13 @@ import (
 )
 
 type Service struct {
-	collection *mongo.Collection
+	collection      *mongo.Collection
 	usersCollection *mongo.Collection
 }
 
 func NewService(db *mongo.Database) *Service {
 	return &Service{
-		collection: db.Collection("orders"),
+		collection:      db.Collection("orders"),
 		usersCollection: db.Collection("users"),
 	}
 }

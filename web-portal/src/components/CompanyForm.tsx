@@ -3,7 +3,6 @@ import { getAccounts } from '../api';
 import { Account } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
-import { useAuth } from '../hooks/useAuth';
 
 const CACHE_KEY = 'accounts_cache';
 const CACHE_DURATION = 30 * 60 * 1000;
@@ -11,7 +10,6 @@ const CACHE_DURATION = 30 * 60 * 1000;
 const invalidateCache = () => localStorage.removeItem(CACHE_KEY);
 
 const CompanyForm = () => {
-  const { decodeJWT } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

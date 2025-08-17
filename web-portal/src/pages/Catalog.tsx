@@ -4,7 +4,7 @@ import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { Product, Account } from '../types';
+import { Product } from '../types';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 
@@ -18,8 +18,7 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
-  const [companyIds, setCompanyIds] = useState<string[]>([]);
-  const [account, setAccount] = useState<Account | null>(null);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -47,13 +46,15 @@ const Catalog: React.FC = () => {
       ]);
       
       setProducts(fetchedProducts);
-      setAccount(fetchedAccount);
 
-      if (fetchedAccount.role === 'customer' && fetchedAccount.customer) {
-        const customerCompanyIds = fetchedAccount.customer.customerCodes.map(c => c.customerCode);
-        setCompanyIds(customerCompanyIds);
-        if (customerCompanyIds.length > 0) {
-          setCompanyIdFilter(customerCompanyIds[0]);
+      if (fetchedAccount.role === 'customer' && fetchedAccount.customer?.attachedCompanies) {
+        const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
+          id: c.companyCodeId,
+          name: c.name,
+        }));
+        setCompanies(customerCompanies);
+        if (customerCompanies.length > 0) {
+          setCompanyIdFilter(customerCompanies[0].id);
         }
       }
 
@@ -99,12 +100,14 @@ const Catalog: React.FC = () => {
           const { products: cachedProducts, account: cachedAccount, timestamp } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             setProducts(cachedProducts);
-            setAccount(cachedAccount)
-            if (cachedAccount.customer) {
-                const customerCompanyIds = cachedAccount.customer.customerCodes.map((c: any) => c.customerCode);
-                setCompanyIds(customerCompanyIds);
-                if (customerCompanyIds.length > 0) {
-                    setCompanyIdFilter(customerCompanyIds[0]);
+            if (cachedAccount.customer?.attachedCompanies) {
+                const customerCompanies = cachedAccount.customer.attachedCompanies.map((c: any) => ({
+                  id: c.companyCodeId,
+                  name: c.name,
+                }));
+                setCompanies(customerCompanies);
+                if (customerCompanies.length > 0) {
+                    setCompanyIdFilter(customerCompanies[0].id);
                 }
             }
             setLoading(false);
@@ -121,7 +124,7 @@ const Catalog: React.FC = () => {
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.companyId === companyIdFilter)
+      (companyIdFilter === '' || product.accountID === companyIdFilter)
     );
   }, [products, searchQuery, companyIdFilter]);
 
@@ -152,9 +155,9 @@ const Catalog: React.FC = () => {
               onChange={(e) => setCompanyIdFilter(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             >
-              {companyIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
                 </option>
               ))}
             </select>
@@ -168,7 +171,7 @@ const Catalog: React.FC = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+                className="bg-.white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
               >
                 <img
                   src={product.image || 'https://via.placeholder.com/300x200'}
@@ -179,7 +182,7 @@ const Catalog: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
                   <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
                   <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
-                  <AddToCartButton product={product} />
+                  <AddToCartButton product={product} quantity={1} />
                 </div>
               </div>
             ))}

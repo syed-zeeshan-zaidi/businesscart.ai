@@ -32,6 +32,7 @@ export interface CustomerCodeEntry {
 
 export interface CustomerData {
   customerCodes: CustomerCodeEntry[];
+  attachedCompanies?: CompanyData[];
 }
 
 export interface PartnerData {
@@ -56,11 +57,12 @@ export interface Account {
 export interface Product {
   _id: string;
   name: string;
+  description?: string;
   price: number;
-  description: string;
+  accountID: string;
   image?: string;
-  companyId: string;
-  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Order {

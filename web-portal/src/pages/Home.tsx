@@ -27,8 +27,15 @@ const Home: React.FC = () => {
         const decoded = decodeJWT(token);
         if (!decoded || !decoded.id) throw new Error('User ID not found in JWT');
         
+        const cachedAccount = localStorage.getItem('account');
+        if (cachedAccount) {
+          setAccount(JSON.parse(cachedAccount));
+          return;
+        }
+        
         const fetchedAccount = await getAccount(decoded.id);
         setAccount(fetchedAccount);
+        localStorage.setItem('account', JSON.stringify(fetchedAccount));
 
       } catch (err: any) {
         toast.error(err.message || 'Failed to load user data');

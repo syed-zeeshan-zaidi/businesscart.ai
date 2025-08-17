@@ -6,20 +6,20 @@ import { connectDB } from './services/db-service';
 interface ProductInput {
   name: string;
   price: number;
-  companyId: string;
   description?: string;
+  image?: string;
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await connectDB();
 
-    // Extract userId, userRole, and additional context from authorizer
-    const userId = event.requestContext.authorizer?.userId;
+    // Extract accountID, userRole, and additional context from authorizer
+    const accountID = event.requestContext.authorizer?.accountID;
     const userRole = event.requestContext.authorizer?.userRole;
     const associateCompanyIds = event.requestContext.authorizer?.associateCompanyIds;
 
-    if (!userId || !userRole) {
+    if (!accountID || !userRole) {
       return {
         statusCode: 401,
         body: JSON.stringify({ message: 'Unauthorized: Missing user context' }),
@@ -47,9 +47,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
           body: JSON.stringify({ message: 'Invalid JSON body' }),
         };
       }
-      const { name, price, companyId, description } = body;
+      const { name, price, description, image } = body;
 
-      if (!name || !price || !companyId) {
+      if (!name || !price) {
         return {
           statusCode: 400,
           body: JSON.stringify({
@@ -57,7 +57,6 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             errors: [
               !name && { message: 'Name is required' },
               !price && { message: 'Price is required' },
-              !companyId && { message: 'Company ID is required' },
             ].filter(Boolean),
           }),
         };
@@ -66,9 +65,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       const product = new Product({
         name,
         price,
-        companyId,
-        userId,
+        accountID,
         description,
+        image,
       });
 
       await product.save();
@@ -85,18 +84,19 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       if (userRole === 'admin') {
         products = await Product.find({});
       } else if (userRole === 'company') {
-        products = await Product.find({ userId });
+        products = await Product.find({ accountID });
       } else if (userRole === 'customer') {
-        let companyIds: string[] = [];
+        let companyAccountIds: string[] = [];
         try {
-          companyIds = JSON.parse(associateCompanyIds || '[]');
+          companyAccountIds = JSON.parse(associateCompanyIds || '[]');
         } catch (err) {
           return {
             statusCode: 400,
             body: JSON.stringify({ message: 'Invalid associate company IDs' }),
           };
         }
-        products = await Product.find({ companyId: { $in: companyIds } });
+        products = await Product.find({ accountID: { $in: companyAccountIds } });
+        console.log('Products fetched for customer:', products);
       } else {
         return {
           statusCode: 403,
@@ -119,7 +119,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             body: JSON.stringify({ message: 'Product not found' }),
           };
         }
-        if (product.userId !== userId) {
+        if (product.accountID !== accountID) {
           return {
             statusCode: 403,
             body: JSON.stringify({ message: 'Unauthorized access to product' }),
@@ -151,7 +151,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             body: JSON.stringify({ message: 'Product not found' }),
           };
         }
-        if (product.userId !== userId) {
+        if (product.accountID !== accountID) {
           return {
             statusCode: 403,
             body: JSON.stringify({ message: 'Unauthorized access to product' }),
@@ -184,7 +184,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             body: JSON.stringify({ message: 'Product not found' }),
           };
         }
-        if (product.userId !== userId) {
+        if (product.accountID !== accountID) {
           return {
             statusCode: 403,
             body: JSON.stringify({ message: 'Unauthorized access to product' }),
@@ -206,6 +206,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         throw error;
       }
     }
+
 
     return {
       statusCode: 404,
