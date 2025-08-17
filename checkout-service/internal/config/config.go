@@ -18,7 +18,7 @@ func NewConfig() *Config {
 		OrderServiceUrl:   getEnv("ORDER_SERVICE_URL", "http://order-service:3003"),
 		JWTSecret:         getEnv("JWT_SECRET", "your-secret-key"),
 		MongoURI:          getEnv("MONGO_URI", "mongodb://localhost:27017"),
-		MongoDatabase:     getEnv("MONGO_DB_NAME", "checkout-service"),
+		MongoDatabase:     getEnv("MONGO_DB_NAME", "CheckoutService"),
 	}
 }
 

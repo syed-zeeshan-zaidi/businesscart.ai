@@ -6,7 +6,6 @@ set -x
 # =============================================================================
 
 ACCOUNT_API="http://127.0.0.1:3000"
-# TODO: Verify the port for the Catalog Service API
 CATALOG_API="http://127.0.0.1:3001"
 PASSWORD="securepassword"
 
@@ -22,18 +21,21 @@ declare -A USERS=(
   [company1]="company-alpha@example.com"
   [company2]="company-beta@example.com"
   [customer]="customer-shared@example.com"
+  [customer2]="customer-two@example.com"
 )
 declare -A NAMES=(
   [admin]="Admin User"
   [company1]="Alpha Corp"
   [company2]="Beta Corp"
   [customer]="Shared Customer"
+  [customer2]="Second Customer"
 )
 declare -A ROLES=(
   [admin]="admin"
   [company1]="company"
   [company2]="company"
   [customer]="customer"
+  [customer2]="customer"
 )
 
 # --- JWT Storage -------------------------------------------------------
@@ -58,7 +60,7 @@ print_step() { echo -e "\n${CYAN}### $1 ###${NC}" >&2; }
 # -----------------------------------------------------------------------
 login_or_register() {
   local role_key="$1"
-  local code="$2"          # companyCode for company, customerCodes array for customer
+  local codes_str="$2"     # companyCode for company, comma-separated customerCodes for customer
   local email="${USERS[$role_key]}"
   local name="${NAMES[$role_key]}"
   local role="${ROLES[$role_key]}"
@@ -79,8 +81,6 @@ login_or_register() {
   fi
 
   # register
-  # For admin, we attempt registration only if login fails.
-  # For other roles, we proceed to register.
   if [ "$role_key" == "admin" ]; then
     echo "Admin login failed. Attempting to register admin..."
   fi
@@ -97,13 +97,15 @@ EOF
 
   case "$role" in
     company) 
-      payload=$(echo "$payload" | jq --arg code "$code" --arg company_name "$name" '. + {code: $code, companyName: $company_name}')
+      payload=$(echo "$payload" | jq --arg code "$codes_str" --arg company_name "$name" '. + {code: $code, companyName: $company_name}')
       ;;
     customer) 
-      payload=$(echo "$payload" | jq --argjson codes "[\"$code\"]" '. + {customerCodes: $codes}')
+      # Convert comma-separated string to JSON array
+      codes_json=$(echo "$codes_str" | tr ',' '\n' | jq -R . | jq -s .)
+      payload=$(echo "$payload" | jq --argjson codes "$codes_json" '. + {customerCodes: $codes}')
       ;;
     partner) 
-      [ -n "$code" ] && payload=$(echo "$payload" | jq --arg code "$code" '. + {code: $code}')
+      [ -n "$codes_str" ] && payload=$(echo "$payload" | jq --arg code "$codes_str" '. + {code: $code}')
       ;;
   esac
 
@@ -117,7 +119,7 @@ EOF
   echo -e "${GREEN}Registered $role_key${NC}"
   
   # login again to get JWT
-  login_or_register "$role_key" "$code"
+  login_or_register "$role_key" "$codes_str"
 }
 
 # -----------------------------------------------------------------------
@@ -185,7 +187,26 @@ create_product() {
 }
 
 # -----------------------------------------------------------------------
-# 4) Get Products
+# 4) Get Product Count
+# -----------------------------------------------------------------------
+get_product_count() {
+    local role_key="$1"
+    
+    resp=$(curl -s -w "\n%{http_code}" -X GET "$CATALOG_API/products" \
+        -H "Authorization: Bearer ${JWTS[$role_key]}")
+    status=$(tail -n1 <<<"$resp")
+    body=$(sed '$d' <<<"$resp")
+
+    if [ "$status" -eq 200 ]; then
+        echo "$body" | jq '. | length'
+    else
+        # If the request fails, assume no products
+        echo "0"
+    fi
+}
+
+# -----------------------------------------------------------------------
+# 5) Get Products
 # -----------------------------------------------------------------------
 get_products() {
     local role_key="$1"
@@ -208,7 +229,7 @@ get_products() {
 
 
 # -----------------------------------------------------------------------
-# 5) Main flow
+# 6) Main flow
 # -----------------------------------------------------------------------
 print_step "Starting ACCOUNT SERVICE tests"
 
@@ -223,25 +244,39 @@ create_codes "$COMPANY_TWO_COMP_CODE"  "$COMPANY_TWO_CUSTOMER_CODE" "PART-BETA-3
 login_or_register company1 "$COMPANY_ONE_COMP_CODE"
 login_or_register company2 "$COMPANY_TWO_COMP_CODE"
 
-# customer
+# customers
 login_or_register customer "$COMPANY_ONE_CUSTOMER_CODE"
+login_or_register customer2 "$COMPANY_ONE_CUSTOMER_CODE,$COMPANY_TWO_CUSTOMER_CODE"
 
 print_step "Starting CATALOG SERVICE tests"
 
-# Create 5 products for company1
-for i in {1..5}; do
-    create_product "company1" "Alpha Product $i" "$(($i * 10)).99" "Description for Alpha Product $i"
-done
+# --- Create products for company1 if they don't exist ---
+product_count1=$(get_product_count "company1")
+if [ "$product_count1" -eq 0 ]; then
+    print_step "No products found for company1. Creating them..."
+    for i in {1..5}; do
+        create_product "company1" "Alpha Product $i" "$(($i * 10)).99" "Description for Alpha Product $i"
+    done
+else
+    print_step "Found $product_count1 products for company1. Skipping creation."
+fi
 
-# Create 5 products for company2
-for i in {1..5}; do
-    create_product "company2" "Beta Product $i" "$(($i * 12)).50" "Description for Beta Product $i"
-done
+# --- Create products for company2 if they don't exist ---
+product_count2=$(get_product_count "company2")
+if [ "$product_count2" -eq 0 ]; then
+    print_step "No products found for company2. Creating them..."
+    for i in {1..5}; do
+        create_product "company2" "Beta Product $i" "$(($i * 12)).50" "Description for Beta Product $i"
+    done
+else
+    print_step "Found $product_count2 products for company2. Skipping creation."
+fi
 
 # Get products for each role
-get_products "admin"    # Should see 10 products
-get_products "company1" # Should see 5 products
-get_products "company2" # Should see 5 products
-get_products "customer" # Should see 5 products from company1
+get_products "admin"     # Should see 10 products
+get_products "company1"  # Should see 5 products
+get_products "company2"  # Should see 5 products
+get_products "customer"  # Should see 5 products
+get_products "customer2" # Should see 10 products
 
 print_step "Test finished successfully"

@@ -28,7 +28,7 @@ func NewDB(uri string) (*DB, error) {
 		return nil, err
 	}
 
-	db := client.Database("business-cart")
+	db := client.Database("ProductService")
 	return &DB{
 		client:   client,
 		products: db.Collection("products"),
