@@ -64,42 +64,82 @@ const Cart: React.FC = () => {
     }
     setUserRole(decodedUser.role);
 
-    const loadCompanies = async () => {
-      try {
-        const account = await getAccount(decodedUser.id);
+const loadCompanies = async () => {
+  try {
+    const account = await getAccount(decodedUser.id);
+    
+    if (account.customer?.attachedCompanies && account.customer.attachedCompanies.length > 0) {
+      const companies = account.customer.attachedCompanies.map(company => ({
+        id: company.companyCodeId || company._id || company.companyCode,
+        name: company.name,
+        companyCode: company.companyCode
+      }));
+      
+      setAvailableCompanies(companies);
+      
+      if (companies.length > 0) {
+        // Find first company with non-empty cart
+        let firstNonEmptyCompany = null;
         
-        if (account.customer?.attachedCompanies && account.customer.attachedCompanies.length > 0) {
-          const companies = account.customer.attachedCompanies.map(company => ({
-            id: company.companyCodeId || company._id || company.companyCode,
-            name: company.name,
-            companyCode: company.companyCode
-          }));
-          
-          setAvailableCompanies(companies);
-          
-          if (companies.length > 0) {
-            // Set the first company as default only if no company is selected
-            if (!selectedCompanyId) {
-              const defaultCompanyId = companies[0].id;
-              setSelectedCompanyId(defaultCompanyId);
-              await fetchCart(defaultCompanyId);
+        for (const company of companies) {
+          try {
+            const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${company.id}`);
+            if (cached) {
+              const { data, timestamp } = JSON.parse(cached);
+              if (Date.now() - timestamp < CACHE_DURATION && data.items && data.items.length > 0) {
+                firstNonEmptyCompany = company.id;
+                setSelectedCompanyId(company.id);
+                setCart(data);
+                setLoading(false);
+                setInitialLoadComplete(true);
+                return;
+              }
             }
-            setInitialLoadComplete(true);
-          } else {
-            setLoading(false);
-            setInitialLoadComplete(true);
-          }
-        } else {
-          setLoading(false);
-          setInitialLoadComplete(true);
-          toast.error('No companies available for shopping');
+          } catch {}
+          
+          try {
+            const testCart = await getCart(company.id);
+            if (testCart.items && testCart.items.length > 0) {
+              firstNonEmptyCompany = company.id;
+              setSelectedCompanyId(company.id);
+              setCart(testCart);
+              localStorage.setItem(`${CACHE_KEY_PREFIX}${company.id}`, JSON.stringify({ 
+                data: testCart, 
+                timestamp: Date.now() 
+              }));
+              setLoading(false);
+              setInitialLoadComplete(true);
+              return;
+            }
+          } catch {}
         }
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to load data');
+        
+        // If no company has items, select first company but don't load cart
+        if (firstNonEmptyCompany) {
+          setSelectedCompanyId(firstNonEmptyCompany);
+          await fetchCart(firstNonEmptyCompany);
+        } else {
+          setSelectedCompanyId(companies[0].id);
+          // Don't auto-load cart for empty companies
+          setCart(null);
+          setLoading(false);
+        }
+        setInitialLoadComplete(true);
+      } else {
         setLoading(false);
         setInitialLoadComplete(true);
       }
-    };
+    } else {
+      setLoading(false);
+      setInitialLoadComplete(true);
+      toast.error('No companies available for shopping');
+    }
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to load data');
+    setLoading(false);
+    setInitialLoadComplete(true);
+  }
+};
 
     loadCompanies();
   }, [isAuthenticated, navigate, decodeJWT, fetchCart]); // Removed selectedCompanyId from deps
