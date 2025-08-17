@@ -9,27 +9,6 @@ export interface Address {
   };
 }
 
-export interface CompanyData {
-  _id?: string;
-  name: string;
-  companyCode: string;
-  paymentMethods: string[];
-  address: Address;
-  sellingArea: {
-    radius: number;
-    center: {
-      lat: number;
-      lng: number;
-    };
-  };
-  status: string;
-}
-
-export interface CustomerCodeEntry {
-  codeId: string;
-  customerCode: string;
-}
-
 export interface CustomerData {
   customerCodes: CustomerCodeEntry[];
   attachedCompanies?: CompanyData[];
@@ -110,4 +89,39 @@ export interface Quote {
   grandTotal: number;
   createdAt: string;
   expiresAt: string;
+}
+export interface CompanyData {
+  _id?: string;
+  name: string;
+  status: string;
+  uniqueIdentifier?: string;
+  saleRepresentative?: string;
+  creditLimit?: number;
+  shippingMethods?: string[] | null;
+  paymentMethods?: string[];
+  deliveryMethods?: string[] | null;
+  leadTime?: number;
+  maxOrderAmountLimit?: number;
+  maxOrderQuantityLimit?: number;
+  minOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  quotesAllowed?: boolean;
+  companyCodeId?: string;
+  companyCode: string;
+  sellingArea: {
+    radius: number;
+    center: {
+      lat: number;
+      lng: number;
+    };
+  };
+  address: Address;
+}
+
+export interface CustomerCodeEntry {
+  codeId: string;
+  customerCode: string;
 }
