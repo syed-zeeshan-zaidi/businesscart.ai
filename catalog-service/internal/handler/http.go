@@ -45,7 +45,7 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	product.AccountID = userClaims["id"].(string)
+	product.SellerID = userClaims["id"].(string)
 
 	if err := h.db.CreateProduct(&product); err != nil {
 		http.Error(w, "Failed to create product", http.StatusInternalServerError)
@@ -66,7 +66,7 @@ func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	case "admin":
 		filter = bson.M{}
 	case "company":
-		filter = bson.M{"accountID": accountID}
+		filter = bson.M{"sellerID": accountID}
 	case "customer":
 		associateCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
 		if !ok {
@@ -77,7 +77,7 @@ func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		for _, id := range associateCompanyIDs {
 			companyIDs = append(companyIDs, id.(string))
 		}
-		filter = bson.M{"accountID": bson.M{"$in": companyIDs}}
+		filter = bson.M{"sellerID": bson.M{"$in": companyIDs}}
 	default:
 		http.Error(w, "Unauthorized: Invalid role", http.StatusForbidden)
 		return
@@ -111,7 +111,7 @@ func (h *Handler) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if userClaims["role"] != "admin" && product.AccountID != userClaims["id"].(string) {
+	if userClaims["role"] != "admin" && product.SellerID != userClaims["id"].(string) {
 		http.Error(w, "Unauthorized access to product", http.StatusForbidden)
 		return
 	}
@@ -133,7 +133,7 @@ func (h *Handler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if product.AccountID != userClaims["id"].(string) {
+	if product.SellerID != userClaims["id"].(string) {
 		http.Error(w, "Unauthorized access to product", http.StatusForbidden)
 		return
 	}
@@ -166,7 +166,7 @@ func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if product.AccountID != userClaims["id"].(string) {
+	if product.SellerID != userClaims["id"].(string) {
 		http.Error(w, "Unauthorized access to product", http.StatusForbidden)
 		return
 	}

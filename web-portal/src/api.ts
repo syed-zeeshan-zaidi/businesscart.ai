@@ -140,8 +140,9 @@ export const createOrder = async (data: { quoteId: string; paymentMethod: string
   return response.data;
 };
 
-export const getOrders = async (companyId?: string): Promise<Order[]> => {
-  const url = companyId ? `${CHECKOUT_API_URL}/orders?companyId=${companyId}` : `${CHECKOUT_API_URL}/orders`;
+export const getOrders = async (sellerId?: string): Promise<Order[]> => {
+  const url = sellerId ? `${CHECKOUT_API_URL}/orders?sellerId=${sellerId}` : `${CHECKOUT_API_URL}/orders`;
+  console.log('Fetching orders from:', url);
   const response = await api.get(url);
   return response.data;
 };
@@ -151,28 +152,28 @@ export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'>
   return response.data;
 };
 
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string; name: string; price: number } }): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number } }): Promise<Cart> => {
   const response = await api.post(`${CHECKOUT_API_URL}/cart`, data);
   return response.data;
 };
 
-export const getCart = async (companyId: string): Promise<Cart> => {
-  const response = await api.get(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+export const getCart = async (sellerId: string): Promise<Cart> => {
+  const response = await api.get(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
-export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, companyId: string): Promise<Cart> => {
-  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`, data);
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, sellerId: string): Promise<Cart> => {
+  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`, data);
   return response.data;
 };
 
-export const removeItemFromCart = async (itemId: string, companyId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`);
+export const removeItemFromCart = async (itemId: string, sellerId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`);
   return response.data;
 };
 
-export const clearCart = async (companyId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+export const clearCart = async (sellerId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
@@ -187,8 +188,8 @@ export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   return payload.user?.associate_company_ids || [];
 };
 
-export const createQuote = async (companyId: string): Promise<Quote> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { companyId });
+export const createQuote = async (sellerId: string): Promise<Quote> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { sellerId });
   return response.data;
 };
 

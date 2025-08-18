@@ -19,7 +19,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity }) 
         entity: {
           productId: product._id,
           quantity,
-          companyId: product.accountID,
+          sellerId: product.sellerID,
           name: product.name,
           price: product.price,
         },

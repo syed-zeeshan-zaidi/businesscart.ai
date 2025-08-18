@@ -38,7 +38,7 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
-  accountID: string;
+  sellerID: string;
   image?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -48,7 +48,7 @@ export interface Order {
   id: string;
   quoteId: string;
   accountId: string;
-  companyId: string;
+  sellerId: string;
   items: CartItem[];
   subtotal: number;
   shippingCost: number;
@@ -64,7 +64,7 @@ export interface CartItem {
   id: string;
   productId: string;
   quantity: number;
-  companyId: string;
+  sellerId: string;
   name: string;
   price: number;
 }
@@ -72,7 +72,7 @@ export interface CartItem {
 export interface Cart {
   id: string;
   accountId: string;
-  companyId: string;
+  sellerId: string;
   items: CartItem[];
   totalPrice: number;
 }
@@ -81,7 +81,7 @@ export interface Quote {
   id: string;
   cartId: string;
   accountId: string;
-  companyId: string;
+  sellerId: string;
   items: CartItem[];
   subtotal: number;
   shippingCost: number;

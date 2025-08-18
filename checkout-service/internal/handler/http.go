@@ -90,7 +90,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim is not a map"), nil
 	}
 
-	userId, ok := userClaim["id"].(string)
+	accountID, ok := userClaim["id"].(string)
 	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User ID missing"), nil
 	}
@@ -99,8 +99,6 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Role missing"), nil
 	}
-
-	companyId, _ := userClaim["company_id"].(string)
 
 	// Add this block to safely extract associate_company_ids
 	var associateCompanyIDs []string
@@ -112,44 +110,44 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		}
 	}
 
-	log.Printf("User ID: %s, Role: %s, Company ID: %s, Associate Company IDs: %v", userId, role, companyId, associateCompanyIDs)
+	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
 	if strings.HasPrefix(request.Path, "/cart") {
-		return h.handleCartRequest(request, userId, role, associateCompanyIDs)
+		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/quotes") {
-		return h.handleQuoteRequest(request, userId)
+		return h.handleQuoteRequest(request, accountID)
 	} else if strings.HasPrefix(request.Path, "/orders") {
-		return h.handleOrderRequest(request, userId, role, companyId)
+		return h.handleOrderRequest(request, accountID, role)
 	}
 
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, userId string, role string, companyId string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	if request.HTTPMethod == "POST" {
-		return h.handlePlaceOrderRequest(request, userId)
+		return h.handlePlaceOrderRequest(request, accountID)
 	}
 	if request.HTTPMethod == "GET" {
-		return h.handleGetOrdersRequest(request, userId, role, companyId)
+		return h.handleGetOrdersRequest(request, accountID, role)
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, userId string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, userId)
+		return h.handleCreateQuoteRequest(request, accountID)
 	}
 	if request.HTTPMethod == "GET" {
 		parts := strings.Split(request.Path, "/")
 		if len(parts) == 3 {
 			quoteId := parts[2]
-			return h.handleGetQuoteRequest(request, userId, quoteId)
+			return h.handleGetQuoteRequest(request, accountID, quoteId)
 		}
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, userId string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
 	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
@@ -160,7 +158,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-	if quote.UserID != userId {
+	if quote.AccountID != accountID {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
@@ -177,7 +175,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 	}, nil
 }
 
-func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, userId string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		QuoteID       string `json:"quoteId"`
 		PaymentMethod string `json:"paymentMethod"`
@@ -206,8 +204,8 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	newOrder := &order.Order{
 		ID:            primitive.NewObjectID(),
 		QuoteID:       quote.ID,
-		UserID:        userId,
-		CompanyID:     quote.CompanyID,
+		AccountID:     accountID,
+		SellerID:      quote.SellerID,
 		Items:         quote.Items,
 		Subtotal:      quote.Subtotal,
 		ShippingCost:  quote.ShippingCost,
@@ -223,7 +221,7 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	}
 
 	// Clean up cart and quote
-	_ = h.cartService.ClearCart(userId, quote.CompanyID)
+	_ = h.cartService.ClearCart(accountID, quote.SellerID)
 	_ = h.quoteService.DeleteQuote(req.QuoteID)
 
 	respBody, _ := json.Marshal(createdOrder)
@@ -239,8 +237,12 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	}, nil
 }
 
-func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, userId string, role string, companyId string) (events.APIGatewayProxyResponse, error) {
-	orders, err := h.orderService.GetOrders(userId, role, companyId)
+func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	var sellerID string
+	if role == "company" {
+		sellerID = accountID
+	}
+	orders, err := h.orderService.GetOrders(accountID, role, sellerID)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to get orders"), nil
 	}
@@ -258,16 +260,16 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	}, nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, userId string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		CartID    string `json:"cartId"`
-		CompanyID string `json:"companyId"`
+		CartID   string `json:"cartId"`
+		SellerID string `json:"sellerId"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	cart, err := h.cartService.GetCart(userId, req.CompanyID)
+	cart, err := h.cartService.GetCart(accountID, req.SellerID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 	}
@@ -282,8 +284,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 
 	newQuote := &quote.Quote{
 		CartID:       cart.ID,
-		UserID:       userId,
-		CompanyID:    req.CompanyID,
+		AccountID:    accountID,
+		SellerID:     req.SellerID,
 		Items:        cart.Items,
 		Subtotal:     cart.TotalPrice,
 		ShippingCost: shippingCost,
@@ -308,7 +310,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}, nil
 }
 
-func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest, userId string, role string, associateCompanyIDs []string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest, accountID string, role string, associateCompanyIDs []string) (events.APIGatewayProxyResponse, error) {
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
@@ -321,21 +323,21 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 		}
-		currentCart, err := h.cartService.GetCart(userId, req.Entity.CompanyID)
+		currentCart, err := h.cartService.GetCart(accountID, req.Entity.SellerID)
 		if err != nil && err.Error() != "cart not found" {
 			return h.errorResponse(http.StatusInternalServerError, "Failed to get cart"), nil
 		}
 		if currentCart == nil {
 			currentCart = &cart.Cart{
-				UserID:    userId,
-				CompanyID: req.Entity.CompanyID,
+				AccountID: accountID,
+				SellerID:  req.Entity.SellerID,
 				Items:     []cart.CartItem{},
 			}
 		}
 
 		found := false
 		for i, item := range currentCart.Items {
-			if item.ProductID == req.Entity.ProductID && item.CompanyID == req.Entity.CompanyID {
+			if item.ProductID == req.Entity.ProductID && item.SellerID == req.Entity.SellerID {
 				currentCart.Items[i].Quantity += req.Entity.Quantity
 				found = true
 				break
@@ -357,16 +359,16 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		}, nil
 
 	case "GET": // Get cart
-		companyId := request.QueryStringParameters["companyId"]
-		if companyId == "" {
-			return h.errorResponse(http.StatusBadRequest, "Company ID is required"), nil
+		sellerID := request.QueryStringParameters["sellerId"]
+		if sellerID == "" {
+			return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
 		}
 
 		// Authorization check for customer role
 		if role == "customer" {
 			can_access := false
 			for _, id := range associateCompanyIDs {
-				if id == companyId {
+				if id == sellerID {
 					can_access = true
 					break
 				}
@@ -376,11 +378,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 		}
 
-		fetchedCart, err := h.cartService.GetCart(userId, companyId)
+		fetchedCart, err := h.cartService.GetCart(accountID, sellerID)
 		if err != nil {
 			if err.Error() == "cart not found" {
 				// Return an empty cart if not found, as per previous cart-service behavior
-				emptyCart := cart.Cart{UserID: userId, CompanyID: companyId, Items: []cart.CartItem{}, TotalPrice: 0}
+				emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 				respBody, _ := json.Marshal(emptyCart)
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusOK,
@@ -399,9 +401,9 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 
 	case "PUT": // Update item quantity
 		itemId := request.PathParameters["itemId"]
-		companyId := request.QueryStringParameters["companyId"]
-		if itemId == "" || companyId == "" {
-			return h.errorResponse(http.StatusBadRequest, "Item ID and Company ID are required"), nil
+		sellerID := request.QueryStringParameters["sellerId"]
+		if itemId == "" || sellerID == "" {
+			return h.errorResponse(http.StatusBadRequest, "Item ID and Seller ID are required"), nil
 		}
 		var req CartItemRequest
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
@@ -413,7 +415,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 		}
 
-		currentCart, err := h.cartService.GetCart(userId, companyId)
+		currentCart, err := h.cartService.GetCart(accountID, sellerID)
 		if err != nil {
 			return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 		}
@@ -444,9 +446,9 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		itemId, hasItemId := request.PathParameters["itemId"]
 
 		if hasItemId && itemId != "" { // Remove specific item
-			companyId := request.QueryStringParameters["companyId"]
-			if companyId == "" {
-				return h.errorResponse(http.StatusBadRequest, "Company ID is required"), nil
+			sellerID := request.QueryStringParameters["sellerId"]
+			if sellerID == "" {
+				return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
 			}
 
 			objID, err := primitive.ObjectIDFromHex(itemId)
@@ -454,7 +456,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 				return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 			}
 
-			currentCart, err := h.cartService.GetCart(userId, companyId)
+			currentCart, err := h.cartService.GetCart(accountID, sellerID)
 			if err != nil {
 				return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 			}
@@ -484,14 +486,14 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}, nil
 
 		} else if request.Path == "/cart" { // Clear entire cart
-			companyId := request.QueryStringParameters["companyId"]
-			if companyId == "" {
-				return h.errorResponse(http.StatusBadRequest, "Company ID is required"), nil
+			sellerID := request.QueryStringParameters["sellerId"]
+			if sellerID == "" {
+				return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
 			}
-			if err := h.cartService.ClearCart(userId, companyId); err != nil {
+			if err := h.cartService.ClearCart(accountID, sellerID); err != nil {
 				return h.errorResponse(http.StatusInternalServerError, "Failed to clear cart"), nil
 			}
-			emptyCart := cart.Cart{UserID: userId, CompanyID: companyId, Items: []cart.CartItem{}, TotalPrice: 0}
+			emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 			respBody, _ := json.Marshal(emptyCart)
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusOK,

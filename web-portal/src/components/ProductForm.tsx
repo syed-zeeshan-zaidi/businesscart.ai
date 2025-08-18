@@ -25,7 +25,7 @@ const ProductForm = () => {
     name: '',
     price: 0,
     description: '',
-    accountID: '',
+    sellerID: '',
     image: '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -113,7 +113,7 @@ const ProductForm = () => {
         name: '',
         price: 0,
         description: '',
-        accountID: account?._id || '',
+        sellerID: account?._id || '',
       });
       setEditingId(null);
       setIsModalOpen(false);
@@ -140,7 +140,7 @@ const ProductForm = () => {
       name: product.name,
       price: product.price,
       description: product.description,
-      accountID: product.accountID,
+      sellerID: product.sellerID,
       image: product.image,
     });
     setEditingId(product._id);
@@ -174,7 +174,7 @@ const ProductForm = () => {
       name: '',
       price: 0,
       description: '',
-      accountID: account?._id || '',
+      sellerID: account?._id || '',
       image: '',
     });
     setEditingId(null);
@@ -248,7 +248,7 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product._id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.accountID}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.sellerID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -369,7 +369,7 @@ const ProductForm = () => {
                         <label className="block text-sm font-medium text-gray-700">Account ID</label>
                         <input
                           name="accountID"
-                          value={formData.accountID}
+                          value={formData.sellerID}
                           onChange={handleChange}
                           placeholder="Account ID"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"

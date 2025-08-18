@@ -38,6 +38,7 @@ const Catalog: React.FC = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) throw new Error('Not authenticated');
       const decodedUser = decodeJWT(token);
+      console.log('Decoded user Catalog :', decodedUser);
       if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
 
       const [fetchedProducts, fetchedAccount] = await Promise.all([
@@ -124,7 +125,7 @@ const Catalog: React.FC = () => {
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.accountID === companyIdFilter)
+      (companyIdFilter === '' || product.sellerID === companyIdFilter)
     );
   }, [products, searchQuery, companyIdFilter]);
 
