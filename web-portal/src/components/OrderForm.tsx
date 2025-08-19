@@ -69,7 +69,7 @@ const OrderForm = () => {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          setOrders(data);
+          setOrders(data ?? []);
           return;
         }
       }
@@ -88,7 +88,7 @@ const OrderForm = () => {
     setIsLoading(true);
     try {
       const data = await getOrders(companyId);
-      setOrders(data);
+      setOrders(data ?? []);
       localStorage.setItem(
         CACHE_KEY,
         JSON.stringify({ data, timestamp: Date.now() })

@@ -3,7 +3,7 @@ import { Account, Product, Order, Cart, Quote } from './types';
 
 const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
 const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
-const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3009';
+const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3002';
 
 const api = axios.create();
 
