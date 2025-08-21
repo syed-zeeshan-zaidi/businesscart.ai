@@ -1,29 +1,34 @@
 import axios from 'axios';
-import { User, Company, Product, Order, Cart, Quote } from './types';
+import { Account, Product, Order, Cart, Quote } from './types';
 
-const USER_API_URL = import.meta.env.VITE_USER_API_URL || 'http://127.0.0.1:3000';
-const COMPANY_API_URL = import.meta.env.VITE_COMPANY_API_URL || 'http://127.0.0.1:3001';
-const PRODUCT_API_URL = import.meta.env.VITE_PRODUCT_API_URL || 'http://127.0.0.1:3002';
-
-
-const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3009';
+const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
+const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
+const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3002';
 
 const api = axios.create();
 
 api.interceptors.request.use((config) => {
+  console.log('Starting Request', {
+    url: config.url,
+    method: config.method,
+    headers: config.headers,
+    data: config.data,
+  });
+
   const token = localStorage.getItem('accessToken');
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const expiry = payload.exp * 1000;
       if (Date.now() >= expiry) {
+        console.log('Token expired, removing from storage and redirecting to login.');
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
         throw new Error('Token expired');
       }
       config.headers.Authorization = `Bearer ${token}`;
-    } catch (_) {
-      // Intentionally left empty
+    } catch (e) {
+      console.error('Error processing token:', e);
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -32,9 +37,24 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('Response:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    });
+    return response;
+  },
   (error) => {
+    console.error('Response Error:', {
+      status: error.response?.status,
+      url: error.config.url,
+      data: error.response?.data,
+      message: error.message,
+    });
+
     if (error.response?.status === 401) {
+      console.log('Unauthorized, removing token and redirecting to login.');
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -47,14 +67,15 @@ export const register = async (data: {
   email: string;
   password: string;
   role: string;
-  phoneNumber: string;
-}): Promise<{ accessToken: string; user: User }> => {
-  const response = await api.post(`${USER_API_URL}/users/register`, data);
+  code?: string;
+  customerCodes?: string[];
+}): Promise<{ accessToken: string; account: Account }> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/register`, data);
   return response.data;
 };
 
-export const login = async (data: { email: string; password: string }): Promise<{ accessToken: string; user: User }> => {
-  const response = await api.post(`${USER_API_URL}/users/login`, data);
+export const login = async (data: { email: string; password: string }): Promise<{ accessToken: string; account: Account }> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/login`, data);
   return response.data;
 };
 
@@ -62,7 +83,7 @@ export const logout = async (): Promise<void> => {
   try {
     const token = localStorage.getItem('accessToken');
     if (token) {
-      await api.post(`${USER_API_URL}/users/logout`, {});
+      await api.post(`${ACCOUNT_API_URL}/accounts/logout`, {});
     }
   } catch (_) {
     // Intentionally left empty
@@ -71,76 +92,47 @@ export const logout = async (): Promise<void> => {
   }
 };
 
-export const getUsers = async (): Promise<User[]> => {
-  const response = await api.get(`${USER_API_URL}/users`);
+export const getAccounts = async (): Promise<Account[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts`);
   return response.data;
 };
 
-export const updateUser = async (id: string, data: Partial<Omit<User, '_id'>>): Promise<User> => {
-  const response = await api.patch(`${USER_API_URL}/users/${id}`, data);
-  return response.data.user;
-};
-
-export const deleteUser = async (id: string): Promise<void> => {
-  await api.delete(`${USER_API_URL}/users/${id}`);
-};
-
-export const createCompany = async (data: Omit<Company, '_id'>): Promise<Company> => {
-  const response = await api.post(`${COMPANY_API_URL}/companies`, data);
+export const getAccount = async (id: string): Promise<Account> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts/${id}`);
   return response.data;
 };
 
-export const getCompanies = async (): Promise<Company[]> => {
-  const response = await api.get(`${COMPANY_API_URL}/companies`);
+export const updateAccount = async (id: string, data: Partial<Omit<Account, '_id'>>): Promise<Account> => {
+  const response = await api.patch(`${ACCOUNT_API_URL}/accounts/${id}`, data);
   return response.data;
 };
 
-export const updateCompany = async (id: string, data: Omit<Company, '_id'>): Promise<Company> => {
-  const response = await api.put(`${COMPANY_API_URL}/companies/${id}`, data);
-  return response.data;
-};
-
-export const deleteCompany = async (id: string): Promise<void> => {
-  await api.delete(`${COMPANY_API_URL}/companies/${id}`);
-};
-
-export const updateUserWithCompany = async (companyId: string) => {
-  const jwt = localStorage.getItem('accessToken');
-  if (!jwt) {
-    throw new Error('No JWT found');
-  }
-  const payload = JSON.parse(atob(jwt.split('.')[1]));
-  const userId = payload.user?.id || payload.sub || '';
-  if (!userId) {
-    throw new Error('User ID not found in JWT');
-  }
-  const response = await axios.patch(`${USER_API_URL}/users/${userId}`, { company_id: companyId }, {
-    headers: { Authorization: `Bearer ${jwt}` },
-  });
-  const newJwt = response.data.accessToken;
-  if (newJwt) {
-    localStorage.setItem('accessToken', newJwt);
-  }
-  return response.data;
+export const deleteAccount = async (id: string): Promise<void> => {
+  await api.delete(`${ACCOUNT_API_URL}/accounts/${id}`);
 };
 
 export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.post(`${PRODUCT_API_URL}/products`, data);
+  const response = await api.post(`${CATALOG_API_URL}/products`, data);
   return response.data;
 };
 
 export const getProducts = async (): Promise<Product[]> => {
-  const response = await api.get(`${PRODUCT_API_URL}/products`);
+  const response = await api.get(`${CATALOG_API_URL}/products`);
+  console.log('Products fetched:', response.data);
   return response.data;
 };
 
-export const updateProduct = async (id: string, data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.put(`${PRODUCT_API_URL}/products/${id}`, data);
+export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
+  const response = await api.put(`${CATALOG_API_URL}/products/${id}`, data);
   return response.data;
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
-  await api.delete(`${PRODUCT_API_URL}/products/${id}`);
+  await api.delete(`${CATALOG_API_URL}/products/${id}`);
+};
+
+export const deleteOrder = async (id: string): Promise<void> => {
+  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
 };
 
 export const createOrder = async (data: { quoteId: string; paymentMethod: string; paymentToken: string }): Promise<Order> => {
@@ -148,8 +140,9 @@ export const createOrder = async (data: { quoteId: string; paymentMethod: string
   return response.data;
 };
 
-export const getOrders = async (companyId?: string): Promise<Order[]> => {
-  const url = companyId ? `${CHECKOUT_API_URL}/orders?companyId=${companyId}` : `${CHECKOUT_API_URL}/orders`;
+export const getOrders = async (sellerId?: string): Promise<Order[]> => {
+  const url = sellerId ? `${CHECKOUT_API_URL}/orders?sellerId=${sellerId}` : `${CHECKOUT_API_URL}/orders`;
+  console.log('Fetching orders from:', url);
   const response = await api.get(url);
   return response.data;
 };
@@ -159,46 +152,44 @@ export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'>
   return response.data;
 };
 
-export const deleteOrder = async (id: string): Promise<void> => {
-  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
-};
-
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string; name: string; price: number } }): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number } }): Promise<Cart> => {
   const response = await api.post(`${CHECKOUT_API_URL}/cart`, data);
   return response.data;
 };
 
-export const getCart = async (companyId: string): Promise<Cart> => {
-  const response = await api.get(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+export const getCart = async (sellerId: string): Promise<Cart> => {
+  const response = await api.get(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
-export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, companyId: string): Promise<Cart> => {
-  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`, data);
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, sellerId: string): Promise<Cart> => {
+  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`, data);
   return response.data;
 };
 
-export const removeItemFromCart = async (itemId: string, companyId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`);
+export const removeItemFromCart = async (itemId: string, sellerId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`);
   return response.data;
 };
 
-export const clearCart = async (companyId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+export const clearCart = async (sellerId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
-export const getUserAssociatedCompanies = async (): Promise<string[]> => {
+export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   const jwt = localStorage.getItem('accessToken');
   if (!jwt) {
     throw new Error('No JWT found');
   }
   const payload = JSON.parse(atob(jwt.split('.')[1]));
+  // This needs to be updated based on how customer/company association is stored in the JWT
+  // For now, returning an empty array.
   return payload.user?.associate_company_ids || [];
 };
 
-export const createQuote = async (companyId: string): Promise<any> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { companyId });
+export const createQuote = async (sellerId: string): Promise<Quote> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { sellerId });
   return response.data;
 };
 
@@ -206,4 +197,3 @@ export const getQuote = async (quoteId: string): Promise<Quote> => {
   const response = await api.get(`${CHECKOUT_API_URL}/quotes/${quoteId}`);
   return response.data;
 };
-

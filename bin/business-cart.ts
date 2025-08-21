@@ -1,26 +1,20 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
-import { UserServiceStack } from '../lib/user-service-stack';
-import { CompanyServiceStack } from '../lib/company-service-stack';
-import { ProductServiceStack } from '../lib/product-service-stack';
+import { AccountServiceStack } from '../lib/account-service-stack';
+import { CatalogServiceStack } from '../lib/catalog-service-stack';
 import { WebPortalStack } from '../lib/web-portal-stack';
 import { CheckoutServiceStack } from '../lib/checkout-service-stack';
 
 
 const app = new cdk.App();
 
-// User Service Stack
-new UserServiceStack(app, 'UserServiceStack', {
+// Account Service Stack
+new AccountServiceStack(app, 'AccountServiceStack', {
   env: { region: 'us-east-1' },
 });
 
-// Company Service Stack
-new CompanyServiceStack(app, 'CompanyServiceStack', {
-  env: { region: 'us-east-1' },
-});
-
-// Product Service Stack
-new ProductServiceStack(app, 'ProductServiceStack', {
+// Catalog Service Stack
+new CatalogServiceStack(app, 'CatalogServiceStack', {
   env: { region: 'us-east-1' },
 });
 

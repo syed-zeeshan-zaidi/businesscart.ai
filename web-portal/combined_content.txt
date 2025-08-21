@@ -10,28 +10,36 @@ FILE: ./web-portal/src/index.css
 FILE: ./web-portal/src/api.ts
 ================================================================================
 import axios from 'axios';
-import { User, Company, Product, Order } from './types';
+import { Account, Product, Order, Cart, Quote } from './types';
 
-const USER_API_URL = import.meta.env.VITE_USER_API_URL || 'http://127.0.0.1:3000';
-const COMPANY_API_URL = import.meta.env.VITE_COMPANY_API_URL || 'http://127.0.0.1:3001';
-const PRODUCT_API_URL = import.meta.env.VITE_PRODUCT_API_URL || 'http://127.0.0.1:3002';
-const ORDER_API_URL = import.meta.env.VITE_ORDER_API_URL || 'http://127.0.0.1:3003';
+const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
+const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
+const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3009';
 
 const api = axios.create();
 
 api.interceptors.request.use((config) => {
+  console.log('Starting Request', {
+    url: config.url,
+    method: config.method,
+    headers: config.headers,
+    data: config.data,
+  });
+
   const token = localStorage.getItem('accessToken');
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const expiry = payload.exp * 1000;
       if (Date.now() >= expiry) {
+        console.log('Token expired, removing from storage and redirecting to login.');
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
         throw new Error('Token expired');
       }
       config.headers.Authorization = `Bearer ${token}`;
     } catch (e) {
+      console.error('Error processing token:', e);
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -40,9 +48,24 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('Response:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    });
+    return response;
+  },
   (error) => {
+    console.error('Response Error:', {
+      status: error.response?.status,
+      url: error.config.url,
+      data: error.response?.data,
+      message: error.message,
+    });
+
     if (error.response?.status === 401) {
+      console.log('Unauthorized, removing token and redirecting to login.');
       localStorage.removeItem('accessToken');
       window.location.href = '/login';
     }
@@ -55,134 +78,263 @@ export const register = async (data: {
   email: string;
   password: string;
   role: string;
-  phoneNumber: string;
-}): Promise<{ accessToken: string; user: User }> => {
-  const response = await api.post(`${USER_API_URL}/users/register`, data);
+  code?: string;
+  customerCodes?: string[];
+}): Promise<{ accessToken: string; account: Account }> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/register`, data);
   return response.data;
 };
 
-export const login = async (data: { email: string; password: string }): Promise<{ accessToken: string; user: User }> => {
-  const response = await api.post(`${USER_API_URL}/users/login`, data);
+export const login = async (data: { email: string; password: string }): Promise<{ accessToken: string; account: Account }> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/login`, data);
   return response.data;
 };
 
-export const createCompany = async (data: Omit<Company, '_id'>): Promise<Company> => {
-  const response = await api.post(`${COMPANY_API_URL}/companies`, data);
+export const logout = async (): Promise<void> => {
+  try {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      await api.post(`${ACCOUNT_API_URL}/accounts/logout`, {});
+    }
+  } catch (_) {
+    // Intentionally left empty
+  } finally {
+    localStorage.removeItem('accessToken');
+  }
+};
+
+export const getAccounts = async (): Promise<Account[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts`);
   return response.data;
 };
 
-export const getCompanies = async (): Promise<Company[]> => {
-  const response = await api.get(`${COMPANY_API_URL}/companies`);
+export const getAccount = async (id: string): Promise<Account> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts/${id}`);
   return response.data;
 };
 
-export const updateCompany = async (id: string, data: Omit<Company, '_id'>): Promise<Company> => {
-  const response = await api.put(`${COMPANY_API_URL}/companies/${id}`, data);
+export const updateAccount = async (id: string, data: Partial<Omit<Account, '_id'>>): Promise<Account> => {
+  const response = await api.patch(`${ACCOUNT_API_URL}/accounts/${id}`, data);
   return response.data;
 };
 
-export const deleteCompany = async (id: string): Promise<void> => {
-  await api.delete(`${COMPANY_API_URL}/companies/${id}`);
+export const deleteAccount = async (id: string): Promise<void> => {
+  await api.delete(`${ACCOUNT_API_URL}/accounts/${id}`);
 };
 
-export const updateUserWithCompany = async (companyId: string) => {
+export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
+  const response = await api.post(`${CATALOG_API_URL}/products`, data);
+  return response.data;
+};
+
+export const getProducts = async (): Promise<Product[]> => {
+  const response = await api.get(`${CATALOG_API_URL}/products`);
+  console.log('Products fetched:', response.data);
+  return response.data;
+};
+
+export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
+  const response = await api.put(`${CATALOG_API_URL}/products/${id}`, data);
+  return response.data;
+};
+
+export const deleteProduct = async (id: string): Promise<void> => {
+  await api.delete(`${CATALOG_API_URL}/products/${id}`);
+};
+
+export const deleteOrder = async (id: string): Promise<void> => {
+  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
+};
+
+export const createOrder = async (data: { quoteId: string; paymentMethod: string; paymentToken: string }): Promise<Order> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/orders`, data);
+  return response.data;
+};
+
+export const getOrders = async (companyId?: string): Promise<Order[]> => {
+  const url = companyId ? `${CHECKOUT_API_URL}/orders?companyId=${companyId}` : `${CHECKOUT_API_URL}/orders`;
+  const response = await api.get(url);
+  return response.data;
+};
+
+export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
+  const response = await api.put(`${CHECKOUT_API_URL}/orders/${id}`, data);
+  return response.data;
+};
+
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; companyId: string; name: string; price: number } }): Promise<Cart> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/cart`, data);
+  return response.data;
+};
+
+export const getCart = async (companyId: string): Promise<Cart> => {
+  const response = await api.get(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+  return response.data;
+};
+
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, companyId: string): Promise<Cart> => {
+  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`, data);
+  return response.data;
+};
+
+export const removeItemFromCart = async (itemId: string, companyId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?companyId=${companyId}`);
+  return response.data;
+};
+
+export const clearCart = async (companyId: string): Promise<Cart> => {
+  const response = await api.delete(`${CHECKOUT_API_URL}/cart?companyId=${companyId}`);
+  return response.data;
+};
+
+export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   const jwt = localStorage.getItem('accessToken');
   if (!jwt) {
     throw new Error('No JWT found');
   }
   const payload = JSON.parse(atob(jwt.split('.')[1]));
-  const userId = payload.user?.id || payload.sub || '';
-  if (!userId) {
-    throw new Error('User ID not found in JWT');
-  }
-  const response = await axios.patch(`${USER_API_URL}/users/${userId}`, { company_id: companyId }, {
-    headers: { Authorization: `Bearer ${jwt}` },
-  });
-  const newJwt = response.data.accessToken;
-  if (newJwt) {
-    localStorage.setItem('accessToken', newJwt);
-  }
+  // This needs to be updated based on how customer/company association is stored in the JWT
+  // For now, returning an empty array.
+  return payload.user?.associate_company_ids || [];
+};
+
+export const createQuote = async (companyId: string): Promise<Quote> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { companyId });
   return response.data;
 };
 
-export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.post(`${PRODUCT_API_URL}/products`, data);
+export const getQuote = async (quoteId: string): Promise<Quote> => {
+  const response = await api.get(`${CHECKOUT_API_URL}/quotes/${quoteId}`);
   return response.data;
 };
 
-export const getProducts = async (): Promise<Product[]> => {
-  const response = await api.get(`${PRODUCT_API_URL}/products`);
-  return response.data;
-};
-
-export const updateProduct = async (id: string, data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.put(`${PRODUCT_API_URL}/products/${id}`, data);
-  return response.data;
-};
-
-export const deleteProduct = async (id: string): Promise<void> => {
-  await api.delete(`${PRODUCT_API_URL}/products/${id}`);
-};
-
-export const createOrder = async (data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
-  const response = await api.post(`${ORDER_API_URL}/orders`, data);
-  return response.data;
-};
-
-export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get(`${ORDER_API_URL}/orders`);
-  return response.data;
-};
-
-export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
-  const response = await api.put(`${ORDER_API_URL}/orders/${id}`, data);
-  return response.data;
-};
-
-export const deleteOrder = async (id: string): Promise<void> => {
-  await api.delete(`${ORDER_API_URL}/orders/${id}`);
-};
 ================================================================================
 FILE: ./web-portal/src/App.tsx
 ================================================================================
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './pages/Home';
 import Login from './components/Login';
 import Register from './components/Register';
+import UserForm from './components/UserForm';
 import CompanyForm from './components/CompanyForm';
 import ProductForm from './components/ProductForm';
 import OrderForm from './components/OrderForm';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import { useAuth } from './hooks/useAuth';
+import Catalog from './pages/Catalog';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
 
 const App = () => {
-  const isAuthenticated = useAuth();
+  const { isAuthenticated, decodeJWT } = useAuth();
+
+  const getRedirectPath = () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      return '/login';
+    }
+    try {
+      const decoded = decodeJWT(token);
+      const role = decoded?.role || '';
+      if (!['customer', 'admin', 'company'].includes(role)) {
+        localStorage.removeItem('accessToken');
+        return '/login';
+      }
+      return role === 'customer' ? '/home' : '/dashboard';
+    } catch (err: any) {
+      localStorage.removeItem('accessToken');
+      return '/login';
+    }
+  };
+
+  const protectedRoutes = [
+    '/dashboard',
+    '/companies',
+    '/products',
+    '/orders',
+    '/users',
+    '/admin',
+    '/admin/users',
+    '/admin/products',
+    '/admin/orders',
+  ];
 
   return (
     <Router>
       <div className="min-h-screen bg-gray-100 flex">
-        {isAuthenticated && <Sidebar />}
+        {isAuthenticated && (
+          <Routes>
+            {protectedRoutes.map((path) => (
+              <Route key={path} path={path} element={<Sidebar />} />
+            ))}
+          </Routes>
+        )}
         <div className="flex-1">
           <Routes>
-            <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
-            <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
+            <Route path="/home" element={<Home />} />
+            <Route
+              path="/login"
+              element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Login />}
+            />
+            <Route
+              path="/register"
+              element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Register />}
+            />
             <Route
               path="/dashboard"
-              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+              element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/companies"
-              element={isAuthenticated ? <CompanyForm /> : <Navigate to="/login" />}
+              element={isAuthenticated ? <CompanyForm /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/products"
-              element={isAuthenticated ? <ProductForm /> : <Navigate to="/login" />}
+              element={isAuthenticated ? <ProductForm /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/catalog"
+              element={isAuthenticated ? <Catalog /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/cart"
+              element={isAuthenticated ? <Cart /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/checkout/:quoteId"
+              element={isAuthenticated ? <Checkout /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/order-success"
+              element={isAuthenticated ? <OrderSuccess /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/orders"
-              element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" />}
+              element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" replace />}
             />
-            <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+            <Route
+              path="/users"
+              element={isAuthenticated ? <UserForm /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/admin"
+              element={isAuthenticated ? <div>Admin Panel</div> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/admin/users"
+              element={isAuthenticated ? <UserForm /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/admin/products"
+              element={isAuthenticated ? <ProductForm /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/admin/orders"
+              element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" replace />}
+            />
+            <Route path="/" element={<Home />} />
             <Route path="*" element={<div className="p-4 text-center text-gray-600">404 Not Found</div>} />
           </Routes>
         </div>
@@ -192,75 +344,121 @@ const App = () => {
 };
 
 export default App;
-
 ================================================================================
 FILE: ./web-portal/src/types.ts
 ================================================================================
-export interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  phoneNumber: string;
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
-export interface Company {
-  _id: string;
+export interface CompanyData {
+  _id?: string;
   name: string;
   companyCode: string;
   paymentMethods: string[];
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    coordinates: { lat: number; lng: number };
-  };
+  address: Address;
   sellingArea: {
     radius: number;
-    center: { lat: number; lng: number };
+    center: {
+      lat: number;
+      lng: number;
+    };
   };
+  status: string;
+}
+
+export interface CustomerCodeEntry {
+  codeId: string;
+  customerCode: string;
+}
+
+export interface CustomerData {
+  customerCodes: CustomerCodeEntry[];
+  attachedCompanies?: CompanyData[];
+}
+
+export interface PartnerData {
+  partnerCodeId?: string;
+  partnerCode?: string;
+  status: string;
+}
+
+export interface Account {
+  _id: string;
+  name:string;
+  email: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  accountStatus: 'active' | 'pending' | 'suspended' | 'inactive';
+  company?: CompanyData;
+  customer?: CustomerData;
+  partner?: PartnerData;
+  address?: Address;
+  password?: string;
 }
 
 export interface Product {
   _id: string;
   name: string;
+  description?: string;
   price: number;
-  companyId: string;
-  description: string;
+  accountID: string;
+  image?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Order {
-  _id: string;
-  base_grand_total: number;
-  grand_total: number;
-  customer_email: string;
-  billing_address: {
-    address_type: string;
-    city: string;
-    country_id: string;
-    firstname: string;
-    lastname: string;
-    postcode: string;
-    telephone: string;
-    street: string[];
-  };
+  id: string;
+  quoteId: string;
+  accountId: string;
+  companyId: string;
+  items: CartItem[];
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  grandTotal: number;
   payment: {
-    account_status: string;
-    additional_information: string[];
-    cc_last4: string;
-    method: string;
+    transactionId: string;
   };
-  items: {
-    sku: string;
-    name: string;
-    qty_ordered: number;
-    price: number;
-    row_total: number;
-    product_id: string;
-  }[];
-  company_id: string;
-  user_id: string;
+  createdAt: string;
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  companyId: string;
+  name: string;
+  price: number;
+}
+
+export interface Cart {
+  id: string;
+  accountId: string;
+  companyId: string;
+  items: CartItem[];
+  totalPrice: number;
+}
+
+export interface Quote {
+  id: string;
+  cartId: string;
+  accountId: string;
+  companyId: string;
+  items: CartItem[];
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  grandTotal: number;
+  createdAt: string;
+  expiresAt: string;
 }
 ================================================================================
 FILE: ./web-portal/src/index.tsx
@@ -278,15 +476,21 @@ root.render(
 );
 
 ================================================================================
+FILE: ./web-portal/src/setupTests.js
+================================================================================
+/* global global, process */
+Object.defineProperty(global, 'import.meta', {
+  value: { env: process.env },
+  writable: true,
+});
+================================================================================
 FILE: ./web-portal/src/components/OrderForm.tsx
 ================================================================================
 import { useState, useEffect } from 'react';
-import { createOrder, getOrders, updateOrder, deleteOrder } from '../api';
+import { getOrders, deleteOrder } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
 const CACHE_KEY = 'orders_cache';
@@ -298,70 +502,15 @@ const OrderForm = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 10;
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string>('');
-  const [companyId, setCompanyId] = useState<string>('');
-
-  const [formData, setFormData] = useState({
-    base_grand_total: 0,
-    grand_total: 0,
-    customer_email: '',
-    billing_address: {
-      address_type: 'billing',
-      city: '',
-      country_id: '',
-      firstname: '',
-      lastname: '',
-      postcode: '',
-      telephone: '',
-      street: [''],
-    },
-    payment: {
-      account_status: 'active',
-      additional_information: ['Payment processed'], // Changed to match cURL
-      cc_last4: '',
-      method: 'credit_card',
-    },
-    items: [{
-      sku: '',
-      name: '',
-      qty_ordered: 1,
-      price: 0,
-      row_total: 0,
-      product_id: '',
-    }],
-    company_id: '',
-    user_id: '',
-  });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Decode JWT to get userId and companyId
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const id = payload.user?.id || payload.sub || '';
-        const company = payload.user?.company_id || '';
-        setUserId(id);
-        setCompanyId(company);
-        setFormData((prev) => ({
-          ...prev,
-          user_id: id,
-          company_id: company,
-        }));
-      } catch (e) {
-        console.error('Failed to decode token:', e);
-        toast.error('Unable to fetch user data. Please enter User ID and Company ID manually.');
-      }
-    } else {
-      toast.error('Please log in to access orders.');
-    }
+  const currentUser = JSON.parse(atob(localStorage.getItem('accessToken')?.split('.')[1] || ''))?.user || {};
+  const currentRole = currentUser.role || '';
+  const currentCompanyId = currentUser.company_id || '';
 
+  useEffect(() => {
     const loadOrders = async () => {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
@@ -379,7 +528,7 @@ const OrderForm = () => {
 
   useEffect(() => {
     const filtered = orders.filter((order) =>
-      order.customer_email.toLowerCase().includes(searchQuery.toLowerCase())
+      order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredOrders(filtered);
     setCurrentPage(1);
@@ -388,12 +537,13 @@ const OrderForm = () => {
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const data = await getOrders();
+      const data = await getOrders(currentRole === 'company' ? currentCompanyId : undefined);
       setOrders(data);
       setFilteredOrders(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error fetching orders');
+    } catch (err) {
+      const error = err as any;
+      toast.error(error.response?.data?.message || 'Error fetching orders');
     } finally {
       setIsLoading(false);
     }
@@ -401,175 +551,6 @@ const OrderForm = () => {
 
   const invalidateCache = () => {
     localStorage.removeItem(CACHE_KEY);
-  };
-
-  const validateForm = () => {
-    const errors: string[] = [];
-    if (formData.base_grand_total <= 0) errors.push('Base grand total must be positive');
-    if (formData.grand_total <= 0) errors.push('Grand total must be positive');
-    if (!formData.customer_email) errors.push('Customer email is required');
-    if (!formData.billing_address.city) errors.push('Billing city is required');
-    if (!formData.billing_address.country_id) errors.push('Billing country ID is required');
-    if (!formData.billing_address.firstname) errors.push('Billing first name is required');
-    if (!formData.billing_address.lastname) errors.push('Billing last name is required');
-    if (!formData.billing_address.postcode) errors.push('Billing postcode is required');
-    if (!formData.billing_address.telephone) errors.push('Billing telephone is required');
-    if (!formData.billing_address.street[0]) errors.push('Billing street is required');
-    if (!formData.payment.cc_last4) errors.push('Credit card last 4 digits are required');
-    if (!formData.payment.additional_information[0]) errors.push('Payment additional information is required'); // Added validation
-    if (!formData.items[0].sku) errors.push('Item SKU is required');
-    if (!formData.items[0].name) errors.push('Item name is required');
-    if (formData.items[0].qty_ordered <= 0) errors.push('Item quantity must be positive');
-    if (formData.items[0].price <= 0) errors.push('Item price must be positive');
-    if (formData.items[0].row_total <= 0) errors.push('Item row total must be positive');
-    if (!formData.company_id) errors.push('Company ID is required');
-    if (!formData.user_id) errors.push('User ID is required');
-    return errors;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors = validateForm();
-    setErrors(newErrors);
-    if (newErrors.length > 0) return;
-
-    setIsLoading(true);
-    try {
-      const payload = { entity: formData };
-      if (editingId) {
-        await updateOrder(editingId, payload);
-        toast.success('Order updated successfully');
-      } else {
-        await createOrder(payload);
-        toast.success('Order created successfully');
-      }
-      setFormData({
-        base_grand_total: 0,
-        grand_total: 0,
-        customer_email: '',
-        billing_address: {
-          address_type: 'billing',
-          city: '',
-          country_id: '',
-          firstname: '',
-          lastname: '',
-          postcode: '',
-          telephone: '',
-          street: [''],
-        },
-        payment: {
-          account_status: 'active',
-          additional_information: ['Payment processed'], // Changed to match cURL
-          cc_last4: '',
-          method: 'credit_card',
-        },
-        items: [{
-          sku: '',
-          name: '',
-          qty_ordered: 1,
-          price: 0,
-          row_total: 0,
-          product_id: '',
-        }],
-        company_id: companyId,
-        user_id: userId,
-      });
-      setEditingId(null);
-      setIsModalOpen(false);
-      invalidateCache();
-      await fetchOrders();
-      setErrors([]);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save order');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    section?: 'billing_address' | 'payment' | 'items',
-    index?: number,
-    field?: string
-  ) => {
-    const { name, value } = e.target;
-    if (section === 'items' && index !== undefined && field) {
-      setFormData((prev) => {
-        const updatedItems = [...prev.items];
-        updatedItems[index] = { ...updatedItems[index], [field]: field === 'qty_ordered' || field === 'price' || field === 'row_total' ? parseFloat(value) || 0 : value };
-        return { ...prev, items: updatedItems };
-      });
-    } else if (section === 'billing_address' && field) {
-      setFormData((prev) => ({
-        ...prev,
-        billing_address: { ...prev.billing_address, [field]: value },
-      }));
-    } else if (section === 'payment' && field) {
-      setFormData((prev) => ({
-        ...prev,
-        payment: { ...prev.payment, [field]: value },
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: name === 'base_grand_total' || name === 'grand_total' ? parseFloat(value) || 0 : value,
-      }));
-    }
-  };
-
-  const handleArrayChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    section: 'billing_address' | 'payment',
-    index: number,
-    arrayField: 'street' | 'additional_information'
-  ) => {
-    const value = e.target.value;
-    setFormData((prev) => {
-      if (section === 'billing_address' && arrayField === 'street') {
-        const updatedSection = { ...prev.billing_address };
-        updatedSection.street = [...updatedSection.street];
-        updatedSection.street[index] = value;
-        return { ...prev, billing_address: updatedSection };
-      } else if (section === 'payment' && arrayField === 'additional_information') {
-        const updatedSection = { ...prev.payment };
-        updatedSection.additional_information = [...updatedSection.additional_information];
-        updatedSection.additional_information[index] = value;
-        return { ...prev, payment: updatedSection };
-      }
-      return prev;
-    });
-  };
-
-  const addItem = () => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { sku: '', name: '', qty_ordered: 1, price: 0, row_total: 0, product_id: '' }],
-    }));
-  };
-
-  const addStreet = () => {
-    setFormData((prev) => ({
-      ...prev,
-      billing_address: { ...prev.billing_address, street: [...prev.billing_address.street, ''] },
-    }));
-  };
-
-  const handleEdit = (order: Order) => {
-    setFormData({
-      base_grand_total: order.base_grand_total,
-      grand_total: order.grand_total,
-      customer_email: order.customer_email,
-      billing_address: { ...order.billing_address, street: [...order.billing_address.street] },
-      payment: { 
-        ...order.payment, 
-        additional_information: order.payment.additional_information.length ? [...order.payment.additional_information] : ['Payment processed'] // Ensure non-empty
-      },
-      items: order.items.map((item) => ({ ...item })),
-      company_id: order.company_id,
-      user_id: order.user_id,
-    });
-    setEditingId(order._id);
-    setIsModalOpen(true);
   };
 
   const handleDelete = async () => {
@@ -580,8 +561,9 @@ const OrderForm = () => {
       toast.success('Order deleted successfully');
       invalidateCache();
       await fetchOrders();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete order');
+    } catch (err) {
+      const error = err as any;
+      toast.error(error.response?.data?.message || 'Failed to delete order');
     } finally {
       setIsDeleteConfirmOpen(false);
       setOrderToDelete(null);
@@ -592,43 +574,6 @@ const OrderForm = () => {
   const openDeleteConfirm = (id: string) => {
     setOrderToDelete(id);
     setIsDeleteConfirmOpen(true);
-  };
-
-  const openModal = () => {
-    setFormData({
-      base_grand_total: 0,
-      grand_total: 0,
-      customer_email: '',
-      billing_address: {
-        address_type: 'billing',
-        city: '',
-        country_id: '',
-        firstname: '',
-        lastname: '',
-        postcode: '',
-        telephone: '',
-        street: [''],
-      },
-      payment: {
-        account_status: 'active',
-        additional_information: ['Payment processed'], // Changed to match cURL
-        cc_last4: '',
-        method: 'credit_card',
-      },
-      items: [{
-        sku: '',
-        name: '',
-        qty_ordered: 1,
-        price: 0,
-        row_total: 0,
-        product_id: '',
-      }],
-      company_id: companyId,
-      user_id: userId,
-    });
-    setEditingId(null);
-    setErrors([]);
-    setIsModalOpen(true);
   };
 
   // Pagination
@@ -647,13 +592,6 @@ const OrderForm = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">Orders</h2>
-          <button
-            onClick={openModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>Add Order</span>
-          </button>
         </div>
 
         {/* Search */}
@@ -663,7 +601,7 @@ const OrderForm = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search orders by customer email..."
+              placeholder="Search orders by ID..."
               className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -676,7 +614,7 @@ const OrderForm = () => {
             <div className="p-6 flex justify-center">
               <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
             </div>
-          ) : filteredOrders.length == 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <div className="p-6 text-center text-gray-600">No orders found.</div>
           ) : (
             <div className="overflow-x-auto">
@@ -684,7 +622,6 @@ const OrderForm = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grand Total</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -692,23 +629,15 @@ const OrderForm = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentOrders.map((order) => (
-                    <tr key={order._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order._id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.customer_email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.grand_total.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.company_id}</td>
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.grandTotal.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.companyId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => handleEdit(order)}
-                          className="text-yellow-600 hover:text-yellow-800 mr-4"
-                          aria-label={`Edit order ${order._id}`}
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(order._id)}
+                          onClick={() => openDeleteConfirm(order.id)}
                           className="text-red-600 hover:text-red-800"
-                          aria-label={`Delete order ${order._id}`}
+                          aria-label={`Delete order ${order.id}`}
                         >
                           <TrashIcon className="h-5 w-5" />
                         </button>
@@ -736,7 +665,7 @@ const OrderForm = () => {
                 key={i + 1}
                 onClick={() => paginate(i + 1)}
                 className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {i + 1}
@@ -751,347 +680,37 @@ const OrderForm = () => {
             </button>
           </div>
         )}
-
-        {/* Order Form Modal */}
-        <Transition appear show={isModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {editingId ? 'Edit Order' : 'Add Order'}
-                    </Dialog.Title>
-                    {errors.length > 0 && (
-                      <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md">
-                        {errors.map((error, idx) => (
-                          <p key={idx}>{error}</p>
-                        ))}
-                      </div>
-                    )}
-                    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Base Grand Total</label>
-                          <input
-                            name="base_grand_total"
-                            type="number"
-                            step="0.01"
-                            value={formData.base_grand_total}
-                            onChange={(e) => handleChange(e)}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Grand Total</label>
-                          <input
-                            name="grand_total"
-                            type="number"
-                            step="0.01"
-                            value={formData.grand_total}
-                            onChange={(e) => handleChange(e)}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-sm font-medium text-gray-700">Customer Email</label>
-                          <input
-                            name="customer_email"
-                            type="email"
-                            value={formData.customer_email}
-                            onChange={(e) => handleChange(e)}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Billing Address */}
-                      <div>
-                        <h4 className="text-md font-medium text-gray-800 mb-2">Billing Address</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">City</label>
-                            <input
-                              value={formData.billing_address.city}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'city')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Country ID</label>
-                            <input
-                              value={formData.billing_address.country_id}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'country_id')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">First Name</label>
-                            <input
-                              value={formData.billing_address.firstname}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'firstname')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                            <input
-                              value={formData.billing_address.lastname}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'lastname')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Postcode</label>
-                            <input
-                              value={formData.billing_address.postcode}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'postcode')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Telephone</label>
-                            <input
-                              value={formData.billing_address.telephone}
-                              onChange={(e) => handleChange(e, 'billing_address', undefined, 'telephone')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700">Street</label>
-                            {formData.billing_address.street.map((street, index) => (
-                              <input
-                                key={index}
-                                value={street}
-                                onChange={(e) => handleArrayChange(e, 'billing_address', index, 'street')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 mb-2"
-                              />
-                            ))}
-                            <button
-                              type="button"
-                              onClick={addStreet}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              + Add Street
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Payment */}
-                      <div>
-                        <h4 className="text-md font-medium text-gray-800 mb-2">Payment</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">CC Last 4</label>
-                            <input
-                              value={formData.payment.cc_last4}
-                              onChange={(e) => handleChange(e, 'payment', undefined, 'cc_last4')}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Items */}
-                      <div>
-                        <h4 className="text-md font-medium text-gray-800 mb-2">Items</h4>
-                        {formData.items.map((item, index) => (
-                          <div key={index} className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">SKU</label>
-                              <input
-                                value={item.sku}
-                                onChange={(e) => handleChange(e, 'items', index, 'sku')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Name</label>
-                              <input
-                                value={item.name}
-                                onChange={(e) => handleChange(e, 'items', index, 'name')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                              <input
-                                type="number"
-                                value={item.qty_ordered}
-                                onChange={(e) => handleChange(e, 'items', index, 'qty_ordered')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Price</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.price}
-                                onChange={(e) => handleChange(e, 'items', index, 'price')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Row Total</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.row_total}
-                                onChange={(e) => handleChange(e, 'items', index, 'row_total')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">Product ID</label>
-                              <input
-                                value={item.product_id}
-                                onChange={(e) => handleChange(e, 'items', index, 'product_id')}
-                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={addItem}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          + Add Item
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Company ID</label>
-                          <input
-                            name="company_id"
-                            value={formData.company_id}
-                            onChange={(e) => handleChange(e)}
-                            placeholder="Enter valid company ID"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">User ID</label>
-                          <input
-                            name="user_id"
-                            value={formData.user_id}
-                            onChange={(e) => handleChange(e)}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsModalOpen(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
-                        </button>
-                      </div>
-                    </form>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
-
-        {/* Delete Confirmation Modal */}
-        <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Delete Order
-                    </Dialog.Title>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Are you sure you want to delete this order? This action cannot be undone.
-                      </p>
-                    </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsDeleteConfirmOpen(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {isLoading ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
       </div>
+      {isDeleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-medium">Confirm Deletion</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Are you sure you want to delete this order? This action cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end space-x-2">
+              <button
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="px-4 py-2 border rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 border rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default OrderForm;
+
 ================================================================================
 FILE: ./web-portal/src/components/Register.tsx
 ================================================================================
@@ -1108,6 +727,8 @@ const Register = () => {
     password: '',
     role: 'company',
     phoneNumber: '',
+    business_code: '',
+    company_access_code: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -1117,6 +738,8 @@ const Register = () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Valid email is required');
     if (!formData.password || formData.password.length < 8) errors.push('Password must be at least 8 characters');
     if (!formData.role) errors.push('Role is required');
+    if (formData.role === 'company' && !formData.business_code) errors.push('Business code is required');
+    if (formData.role === 'customer' && !formData.company_access_code) errors.push('Company access code is required');
     if (!formData.phoneNumber || !/^\d{10}$/.test(formData.phoneNumber)) errors.push('Valid 10-digit phone number is required');
     return errors;
   };
@@ -1163,7 +786,7 @@ const Register = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Company User"
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               />
             </div>
             <div>
@@ -1174,7 +797,7 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="company@example.com"
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               />
             </div>
             <div>
@@ -1185,7 +808,7 @@ const Register = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="securepassword"
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               />
             </div>
             <div>
@@ -1194,11 +817,36 @@ const Register = () => {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               >
                 <option value="company">Company</option>
+                <option value="customer">Customer</option>
               </select>
             </div>
+            {formData.role === 'company' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Business Code</label>
+                <input
+                  name="business_code"
+                  value={formData.business_code}
+                  onChange={handleChange}
+                  placeholder="Enter your business code"
+                  className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            )}
+            {formData.role === 'customer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company Access Code</label>
+                <input
+                  name="company_access_code"
+                  value={formData.company_access_code}
+                  onChange={handleChange}
+                  placeholder="Enter company access code"
+                  className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700">Phone Number</label>
               <input
@@ -1206,19 +854,19 @@ const Register = () => {
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 placeholder="1234567890"
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors"
+              className="w-full bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors"
             >
               Register
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <a href="/login" className="text-blue-600 hover:underline">
+            <a href="/login" className="text-teal-600 hover:underline">
               Log in
             </a>
           </p>
@@ -1233,18 +881,19 @@ export default Register;
 FILE: ./web-portal/src/components/ProductForm.tsx
 ================================================================================
 import { useState, useEffect } from 'react';
-import { createProduct, getProducts, updateProduct, deleteProduct } from '../api';
-import { Product } from '../types';
+import { createProduct, getProducts, updateProduct, deleteProduct, getAccount } from '../api';
+import { Product, Account } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 const CACHE_KEY = 'products_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 const ProductForm = () => {
+  const { decodeJWT } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1253,52 +902,45 @@ const ProductForm = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string>(''); // New state variable
-  const [formData, setFormData] = useState({
+  const [account, setAccount] = useState<Account | null>(null);
+  const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     price: 0,
-    companyId: '',
     description: '',
+    accountID: '',
+    image: '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const loadProducts = async () => {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setProducts(data);
-          setFilteredProducts(data);
-          return;
+    const loadInitialData = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const decodedUser = decodeJWT(token);
+          if (decodedUser && decodedUser.id) {
+            const fetchedAccount = await getAccount(decodedUser.id);
+            setAccount(fetchedAccount);
+            if (fetchedAccount.role === 'company') {
+              setFormData((prev) => ({
+                ...prev,
+                accountID: fetchedAccount._id,
+              }));
+            }
+          }
+        } catch (e) {
+          toast.error('Failed to fetch account data.');
         }
+      } else {
+        toast.error('Please log in to access products.');
       }
       await fetchProducts();
     };
-    
-    // Decode JWT to get companyId
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const company = payload.user?.company_id || '';
-        setCompanyId(company);
-        setFormData((prev) => ({
-          ...prev,
-          companyId: company,
-        }));
-      } catch (e) {
-        console.error('Failed to decode token:', e);
-        toast.error('Unable to fetch company data. Please enter Company ID manually.');
-      }
-    } else {
-      toast.error('Please log in to access products.');
-    }
 
-    loadProducts();
-  }, []);
+    loadInitialData();
+  }, [decodeJWT]);
 
   useEffect(() => {
     const filtered = products.filter((product) =>
@@ -1327,12 +969,11 @@ const ProductForm = () => {
   };
 
   const validateForm = () => {
-    const errors: string[] = [];
-    if (!formData.name) errors.push('Product name is required');
-    if (formData.price <= 0) errors.push('Price must be positive');
-    if (!formData.companyId) errors.push('Company ID is required');
-    if (!formData.description) errors.push('Description is required');
-    return errors;
+    const newErrors: string[] = [];
+    if (!formData.name) newErrors.push('Product name is required');
+    if (formData.price === undefined || formData.price <= 0) newErrors.push('Price must be positive');
+    if (!formData.description) newErrors.push('Description is required');
+    return newErrors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1344,13 +985,18 @@ const ProductForm = () => {
     setIsLoading(true);
     try {
       if (editingId) {
-        await updateProduct(editingId, formData);
+        await updateProduct(editingId, formData as Product);
         toast.success('Product updated successfully');
       } else {
-        await createProduct(formData);
+        await createProduct(formData as Omit<Product, '_id'>);
         toast.success('Product created successfully');
       }
-      setFormData({ name: '', price: 0, companyId: companyId, description: '' });
+      setFormData({
+        name: '',
+        price: 0,
+        description: '',
+        accountID: account?._id || '',
+      });
       setEditingId(null);
       setIsModalOpen(false);
       invalidateCache();
@@ -1375,8 +1021,9 @@ const ProductForm = () => {
     setFormData({
       name: product.name,
       price: product.price,
-      companyId: product.companyId,
       description: product.description,
+      accountID: product.accountID,
+      image: product.image,
     });
     setEditingId(product._id);
     setIsModalOpen(true);
@@ -1405,7 +1052,13 @@ const ProductForm = () => {
   };
 
   const openModal = () => {
-    setFormData({ name: '', price: 0, companyId: companyId, description: '' });
+    setFormData({
+      name: '',
+      price: 0,
+      description: '',
+      accountID: account?._id || '',
+      image: '',
+    });
     setEditingId(null);
     setErrors([]);
     setIsModalOpen(true);
@@ -1429,7 +1082,7 @@ const ProductForm = () => {
           <h2 className="text-2xl font-semibold text-gray-800">Products</h2>
           <button
             onClick={openModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
             <span>Add Product</span>
@@ -1444,7 +1097,7 @@ const ProductForm = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search products by name..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             />
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
@@ -1454,7 +1107,7 @@ const ProductForm = () => {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {isLoading ? (
             <div className="p-6 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-6 text-center text-gray-600">No products found.</div>
@@ -1466,7 +1119,7 @@ const ProductForm = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -1477,7 +1130,7 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product._id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.companyId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.accountID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -1518,7 +1171,7 @@ const ProductForm = () => {
                 key={i + 1}
                 onClick={() => paginate(i + 1)}
                 className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {i + 1}
@@ -1579,7 +1232,7 @@ const ProductForm = () => {
                           value={formData.name}
                           onChange={handleChange}
                           placeholder="Product Name"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
                       <div>
@@ -1591,17 +1244,28 @@ const ProductForm = () => {
                           value={formData.price}
                           onChange={handleChange}
                           placeholder="19.99"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Company ID</label>
+                        <label className="block text-sm font-medium text-gray-700">Account ID</label>
                         <input
-                          name="companyId"
-                          value={formData.companyId}
+                          name="accountID"
+                          value={formData.accountID}
                           onChange={handleChange}
-                          placeholder="Company ID"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Account ID"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                          readOnly
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Image URL</label>
+                        <input
+                          name="image"
+                          value={formData.image}
+                          onChange={handleChange}
+                          placeholder="Image URL"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
                       <div>
@@ -1611,7 +1275,7 @@ const ProductForm = () => {
                           value={formData.description}
                           onChange={handleChange}
                           placeholder="Product description"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                           rows={4}
                         />
                       </div>
@@ -1626,7 +1290,7 @@ const ProductForm = () => {
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                          className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
                         >
                           {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
                         </button>
@@ -1707,634 +1371,115 @@ export default ProductForm;
 FILE: ./web-portal/src/components/CompanyForm.tsx
 ================================================================================
 import React, { useState, useEffect } from 'react';
-import { getCompanies, createCompany, updateCompany, deleteCompany, updateUserWithCompany } from '../api';
-import { Company } from '../types';
+import { getAccounts } from '../api';
+import { Account } from '../types';
 import Navbar from './Navbar';
-import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
-const CACHE_KEY = 'companies_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+const CACHE_KEY = 'accounts_cache';
+const CACHE_DURATION = 30 * 60 * 1000;
+
+const invalidateCache = () => localStorage.removeItem(CACHE_KEY);
 
 const CompanyForm = () => {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const companiesPerPage = 10;
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false);
-  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Omit<Company, '_id'>>({
-    name: '',
-    companyCode: '',
-    paymentMethods: ['cash'],
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      zip: '',
-      coordinates: { lat: 0, lng: 0 },
-    },
-    sellingArea: {
-      radius: 0,
-      center: { lat: 0, lng: 0 },
-    },
-  });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  useEffect(() => {
-    const loadCompanies = async () => {
+  const fetchAccounts = async () => {
+    setIsLoading(true);
+    try {
+      // 1. same cache as UserForm
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          setCompanies(data);
-          setFilteredCompanies(data);
+          setAccounts(data);
+          setIsLoading(false);
           return;
         }
       }
-      await fetchCompanies();
-    };
-    loadCompanies();
-  }, []);
 
-  useEffect(() => {
-    const filtered = companies.filter(
-      (company) =>
-        company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company.companyCode.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredCompanies(filtered);
-    setCurrentPage(1);
-  }, [searchQuery, companies]);
-
-  const fetchCompanies = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getCompanies();
-      setCompanies(data);
-      setFilteredCompanies(data);
+      // 2. fresh fetch
+      const data = await getAccounts();
+      setAccounts(data);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error fetching companies');
+      toast.error(err.response?.data?.message || 'Failed to fetch accounts');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const invalidateCache = () => {
-    localStorage.removeItem(CACHE_KEY);
+  const handleRefresh = () => {
+    invalidateCache();
+    fetchAccounts();
   };
 
-  const validateForm = () => {
-    const errors: string[] = [];
-    if (!formData.name) errors.push('Company name is required');
-    if (!formData.companyCode) errors.push('Company code is required');
-    if (formData.paymentMethods.length === 0) errors.push('At least one payment method required');
-    if (!formData.address.street) errors.push('Street is required');
-    if (!formData.address.city) errors.push('City is required');
-    if (!formData.address.state) errors.push('State is required');
-    if (!formData.address.zip) errors.push('Zip code is required');
-    if (formData.sellingArea.radius <= 0) errors.push('Selling area radius must be positive');
-    return errors;
-  };
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const newErrors = validateForm();
-    setErrors(newErrors);
-    if (newErrors.length > 0) return;
+  const companyAccounts = accounts.filter((a) => a.role === 'company');
 
-    setIsLoading(true);
-    try {
-      if (editingId) {
-        await updateCompany(editingId, formData);
-        toast.success('Company updated successfully');
-      } else {
-        const response = await createCompany(formData);
-        toast.success('Company created successfully');
-        try {
-          await updateUserWithCompany(response._id);
-          toast.success('User associated with company successfully');
-        } catch (updateError: any) {
-          console.error('Failed to associate user with company:', updateError);
-          toast.error(updateError.response?.data?.message || 'Failed to associate user with company');
-        }
-      }
-      setFormData({
-        name: '',
-        companyCode: '',
-        paymentMethods: ['cash'],
-        address: {
-          street: '',
-          city: '',
-          state: '',
-          zip: '',
-          coordinates: { lat: 0, lng: 0 },
-        },
-        sellingArea: {
-          radius: 0,
-          center: { lat: 0, lng: 0 },
-        },
-      });
-      setEditingId(null);
-      setIsModalOpen(false);
-      invalidateCache();
-      await fetchCompanies();
-      setErrors([]);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to save company');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    if (name.startsWith('address.coordinates.')) {
-      const field = name.split('.')[2] as 'lat' | 'lng';
-      setFormData({
-        ...formData,
-        address: {
-          ...formData.address,
-          coordinates: {
-            ...formData.address.coordinates,
-            [field]: parseFloat(value) || 0,
-          },
-        },
-      });
-    } else if (name.startsWith('sellingArea.center.')) {
-      const field = name.split('.')[2] as 'lat' | 'lng';
-      setFormData({
-        ...formData,
-        sellingArea: {
-          ...formData.sellingArea,
-          center: {
-            ...formData.sellingArea.center,
-            [field]: parseFloat(value) || 0,
-          },
-        },
-      });
-    } else if (name.startsWith('address.')) {
-      const field = name.split('.')[1] as keyof Omit<Company['address'], 'coordinates'>;
-      setFormData({
-        ...formData,
-        address: { ...formData.address, [field]: value },
-      });
-    } else if (name === 'sellingArea.radius') {
-      setFormData({
-        ...formData,
-        sellingArea: { ...formData.sellingArea, radius: parseFloat(value) || 0 },
-      });
-    } else if (name === 'paymentMethods') {
-      setFormData({
-        ...formData,
-        paymentMethods: value
-          .split(',')
-          .map((v) => v.trim())
-          .filter((v) => v),
-      });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-  };
-
-  const handleEdit = (company: Company) => {
-    setFormData({
-      name: company.name,
-      companyCode: company.companyCode,
-      paymentMethods: company.paymentMethods,
-      address: company.address,
-      sellingArea: company.sellingArea,
-    });
-    setEditingId(company._id);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (!companyToDelete) return;
-    setIsLoading(true);
-    try {
-      await deleteCompany(companyToDelete);
-      toast.success('Company deleted successfully');
-      invalidateCache();
-      await fetchCompanies();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete company');
-    } finally {
-      setIsDeleteConfirmOpen(false);
-      setCompanyToDelete(null);
-      setIsLoading(false);
-    }
-  };
-
-  const openDeleteConfirm = (id: string) => {
-    setCompanyToDelete(id);
-    setIsDeleteConfirmOpen(true);
-  };
-
-  const openModal = () => {
-    setFormData({
-      name: '',
-      companyCode: '',
-      paymentMethods: ['cash'],
-      address: {
-        street: '',
-        city: '',
-        state: '',
-        zip: '',
-        coordinates: { lat: 0, lng: 0 },
-      },
-      sellingArea: {
-        radius: 0,
-        center: { lat: 0, lng: 0 },
-      },
-    });
-    setEditingId(null);
-    setErrors([]);
-    setIsModalOpen(true);
-  };
-
-  // Pagination
-  const indexOfLastCompany = currentPage * companiesPerPage;
-  const indexOfFirstCompany = indexOfLastCompany - companiesPerPage;
-  const currentCompanies = filteredCompanies.slice(indexOfFirstCompany, indexOfLastCompany);
-  const totalPages = Math.ceil(filteredCompanies.length / companiesPerPage);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Companies</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">Company Directory</h2>
           <button
-            onClick={openModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            <PlusIcon className="h-5 w-5" />
-            <span>Add Company</span>
+            Refresh
           </button>
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search companies by name or code..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {companyAccounts.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+            <h2 className="text-2xl font-semibold text-gray-800">No Company Accounts</h2>
+            <p className="text-gray-600 mt-2">There are currently no accounts with the “company” role.</p>
           </div>
-        </div>
-
-        {/* Company Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {isLoading ? (
-            <div className="p-6 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-            </div>
-          ) : filteredCompanies.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">No companies found.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Methods</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        ) : (
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {companyAccounts.map((acc) => (
+                  <tr key={acc._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {acc.company?.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {acc.company?.companyCode || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        {acc.company?.status || acc.accountStatus}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentCompanies.map((company) => (
-                    <tr key={company._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company._id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{company.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.companyCode}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {company.address.street}, {company.address.city}, {company.address.state} {company.address.zip}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{company.paymentMethods.join(', ')}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleEdit(company)}
-                          className="text-yellow-600 hover:text-yellow-800 mr-4"
-                          aria-label={`Edit ${company.name}`}
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(company._id)}
-                          className="text-red-600 hover:text-red-800"
-                          aria-label={`Delete ${company.name}`}
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-end space-x-2">
-            <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {/* Company Form Modal */}
-        <Transition appear show={isModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {editingId ? 'Edit Company' : 'Add Company'}
-                    </Dialog.Title>
-                    {errors.length > 0 && (
-                      <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md">
-                        {errors.map((error, idx) => (
-                          <p key={idx}>{error}</p>
-                        ))}
-                      </div>
-                    )}
-                    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                          <input
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="Test Company"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Company Code</label>
-                          <input
-                            name="companyCode"
-                            value={formData.companyCode}
-                            onChange={handleChange}
-                            placeholder="CODE123"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700">Payment Methods (comma-separated)</label>
-                          <input
-                            name="paymentMethods"
-                            value={formData.paymentMethods.join(', ')}
-                            onChange={handleChange}
-                            placeholder="cash, credit_card"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Street</label>
-                          <input
-                            name="address.street"
-                            value={formData.address.street}
-                            onChange={handleChange}
-                            placeholder="123 Main St"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">City</label>
-                          <input
-                            name="address.city"
-                            value={formData.address.city}
-                            onChange={handleChange}
-                            placeholder="Anytown"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">State</label>
-                          <input
-                            name="address.state"
-                            value={formData.address.state}
-                            onChange={handleChange}
-                            placeholder="CA"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Zip Code</label>
-                          <input
-                            name="address.zip"
-                            value={formData.address.zip}
-                            onChange={handleChange}
-                            placeholder="12345"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Address Latitude</label>
-                          <input
-                            name="address.coordinates.lat"
-                            type="number"
-                            step="any"
-                            value={formData.address.coordinates.lat}
-                            onChange={handleChange}
-                            placeholder="37.7749"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Address Longitude</label>
-                          <input
-                            name="address.coordinates.lng"
-                            type="number"
-                            step="any"
-                            value={formData.address.coordinates.lng}
-                            onChange={handleChange}
-                            placeholder="-122.4194"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Selling Area Radius (km)</label>
-                          <input
-                            name="sellingArea.radius"
-                            type="number"
-                            step="any"
-                            value={formData.sellingArea.radius}
-                            onChange={handleChange}
-                            placeholder="10"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Selling Area Center Latitude</label>
-                          <input
-                            name="sellingArea.center.lat"
-                            type="number"
-                            step="any"
-                            value={formData.sellingArea.center.lat}
-                            onChange={handleChange}
-                            placeholder="37.7749"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Selling Area Center Longitude</label>
-                          <input
-                            name="sellingArea.center.lng"
-                            type="number"
-                            step="any"
-                            value={formData.sellingArea.center.lng}
-                            onChange={handleChange}
-                            placeholder="-122.4194"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsModalOpen(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
-                        </button>
-                      </div>
-                    </form>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
-
-        {/* Delete Confirmation Modal */}
-        <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      Delete Company
-                    </Dialog.Title>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Are you sure you want to delete this company? This action cannot be undone.
-                      </p>
-                    </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsDeleteConfirmOpen(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {isLoading ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
       </div>
     </div>
   );
@@ -2344,13 +1489,16 @@ export default CompanyForm;
 ================================================================================
 FILE: ./web-portal/src/components/Login.tsx
 ================================================================================
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../api';
-import toast, { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
+import { AxiosError } from 'axios';
 
-const Login = () => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { decodeJWT } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -2360,33 +1508,48 @@ const Login = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: string[] = [];
-    if (!formData.email) newErrors.push('Email is required');
-    if (!formData.password) newErrors.push('Password is required');
-    setErrors(newErrors);
-    if (newErrors.length > 0) return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const newErrors: string[] = [];
+  if (!formData.email) newErrors.push('Email is required');
+  if (!formData.password) newErrors.push('Password is required');
+  setErrors(newErrors);
+  if (newErrors.length > 0) return;
 
-    setIsLoading(true);
-    try {
-      const response = await login({ email: formData.email, password: formData.password });
-      localStorage.setItem('accessToken', response.accessToken);
-      toast.success('Login successful');
-      navigate('/dashboard', { replace: true });
-    } catch (err: any) {
+  setIsLoading(true);
+  try {
+    const response = await login({ email: formData.email, password: formData.password });
+    console.log('API response:', response);
+    const token = response.accessToken;
+    localStorage.setItem('accessToken', token);
+    console.log('Token set in localStorage:', localStorage.getItem('accessToken'));
+
+    const user = decodeJWT(token);
+    console.log('Decoded user:', user);
+    if (!user || !['customer', 'admin', 'company', 'partner'].includes(user.role)) {
+      console.log('Removing accessToken from localStorage');
+      localStorage.removeItem('accessToken');
+      throw new Error('Invalid user role');
+    }
+
+    toast.success('Login successful');
+    console.log('Navigating to dashboard based on user role', user.role);
+    navigate(user.role === 'customer' ? '/home' : '/dashboard', { replace: true });
+    console.log('Navigated to:', user.role === 'customer' ? '/home' : '/dashboard');
+  } catch (err: unknown) {
+    console.error('Login error:', err);
+    if (err instanceof AxiosError) {
       toast.error(err.response?.data?.message || 'Login failed');
-    } finally {
-      setIsLoading(false);
+    } else if (err instanceof Error) {
+      toast.error(err.message);
+    } else {
+      toast.error('An unexpected error occurred.');
     }
-  };
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (localStorage.getItem('accessToken')) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
+    // localStorage.removeItem('accessToken'); // Comment out to debug
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -2409,7 +1572,7 @@ const Login = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="you@example.com"
-              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             />
           </div>
           <div>
@@ -2420,33 +1583,39 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="w-full bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50"
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+        <p className="text-center text-gray-600 mt-4">
+          Don’t have an account?{' '}
+          <Link to="/register" className="text-teal-600 hover:underline">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );
 };
 
 export default Login;
-
 ================================================================================
 FILE: ./web-portal/src/components/Sidebar.tsx
 ================================================================================
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
   const links = [
     { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+    { name: 'Users', path: '/users', icon: UserIcon },
     { name: 'Companies', path: '/companies', icon: BuildingOffice2Icon },
     { name: 'Products', path: '/products', icon: ShoppingBagIcon },
     { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
@@ -2464,7 +1633,7 @@ const Sidebar = () => {
             to={link.path}
             className={({ isActive }) =>
               `flex items-center px-6 py-3 text-gray-200 hover:bg-gray-700 transition-colors ${
-                isActive ? 'bg-gray-900 text-white border-l-4 border-blue-500' : ''
+                isActive ? 'bg-gray-900 text-white border-l-4 border-teal-500' : ''
               }`
             }
           >
@@ -2479,23 +1648,124 @@ const Sidebar = () => {
 
 export default Sidebar;
 ================================================================================
+FILE: ./web-portal/src/components/AddToCartButton.tsx
+================================================================================
+import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { Product } from '../types';
+import { addItemToCart } from '../api';
+import { AxiosError } from 'axios';
+
+interface AddToCartButtonProps {
+  product: Product;
+  quantity: number;
+}
+
+const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleAddToCart = async () => {
+    setLoading(true);
+    try {
+      await addItemToCart({
+        entity: {
+          productId: product._id,
+          quantity,
+          companyId: product.accountID,
+          name: product.name,
+          price: product.price,
+        },
+      });
+      toast.success(`${product.name} added to cart!`);
+      localStorage.removeItem('cart_cache'); // Invalidate cart cache
+      window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        toast.error(error.response?.data?.message || 'Failed to add item to cart');
+      } else {
+        toast.error('An unexpected error occurred.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      className="mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition"
+      onClick={(e) => {
+        e.stopPropagation(); // Prevent product card's onClick from firing
+        handleAddToCart();
+      }}
+      disabled={loading}
+    >
+      {loading ? 'Adding...' : 'Add to Cart'}
+    </button>
+  );
+};
+
+export default AddToCartButton;
+================================================================================
 FILE: ./web-portal/src/components/Dashboard.tsx
 ================================================================================
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
+import axios from 'axios';
 import Navbar from './Navbar';
-import toast, { Toaster } from 'react-hot-toast';
-import { getProducts } from '../api';
-import { Product } from '../types';
+import { useAuth } from '../hooks/useAuth';
+
+interface User {
+  id: string;
+  name?: string;
+  role: 'customer' | 'company' | 'admin';
+  email: string;
+}
 
 const CACHE_KEY = 'products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-const Dashboard = () => {
+const Dashboard: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    const fetchUser = () => {
+      if (!isAuthenticated) {
+        setUser(null);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          throw new Error('No access token found');
+        }
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const decodedUser = payload.user;
+        if (decodedUser) {
+          setUser(decodedUser);
+        } else {
+          throw new Error('Failed to decode user from token');
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load user data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     const loadProducts = async () => {
+      if (!user || !['company', 'admin'].includes(user.role)) {
+        return;
+      }
+
       setIsLoading(true);
       try {
         const cached = localStorage.getItem(CACHE_KEY);
@@ -2503,11 +1773,17 @@ const Dashboard = () => {
           const { data, timestamp } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             setProductCount(data.length);
-            setIsLoading(false);
             return;
           }
         }
-        const data = await getProducts();
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          throw new Error('No access token found');
+        }
+        const response = await axios.get(`${import.meta.env.VITE_PRODUCT_API}/products`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = response.data.products;
         setProductCount(data.length);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
       } catch (err: any) {
@@ -2516,25 +1792,30 @@ const Dashboard = () => {
         setIsLoading(false);
       }
     };
+
     loadProducts();
-  }, []);
+  }, [user]);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex-1 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">Dashboard</h2>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            {user ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} Dashboard` : 'Dashboard'}
+          </h2>
           <p className="text-gray-600">
-            Manage your products and companies from the sidebar navigation.
+            {user?.role === 'customer'
+              ? 'View your orders and explore products.'
+              : 'Manage your products and companies from the sidebar navigation.'}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-800 mb-2">Products Overview</h3>
             {isLoading ? (
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto"></div>
             ) : (
               <p className="text-gray-600">
                 You have {productCount ?? '0'} product{productCount !== 1 ? 's' : ''}. View them in the Products section.
@@ -2544,36 +1825,622 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-800 mb-2">Companies Overview</h3>
             {isLoading ? (
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto"></div>
             ) : (
               <p className="text-gray-600">Company count coming soon. View them in the Companies section.</p>
             )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
 
 export default Dashboard;
 ================================================================================
-FILE: ./web-portal/src/components/Navbar.tsx
+FILE: ./web-portal/src/components/UserForm.tsx
 ================================================================================
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BellIcon, ShoppingCartIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
-import toast, { Toaster } from 'react-hot-toast';
-import { Disclosure, Menu, Transition } from '@headlessui/react';
+// src/components/UserForm.tsx
+import React, { useState, useEffect } from 'react';
+import { getAccounts, register, updateAccount, deleteAccount } from '../api';
+import { Account } from '../types';
+import Navbar from './Navbar';
+import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import { PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import toast, { Toaster } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
-const Navbar = () => {
-  const navigate = useNavigate();
-  const [userInitials, setUserInitials] = useState('');
-  const [companyName, setCompanyName] = useState('Your Company');
-  const [notificationCount] = useState(3); // Placeholder
-  const [cartCount] = useState(2); // Placeholder
+const CACHE_KEY = 'accounts_cache';
+const CACHE_DURATION = 30 * 60 * 1000;
+
+type FormData = Partial<Account> & {
+  code?: string;
+  customerCodes?: string[];
+  password?: string;
+};
+
+interface DecodedUser {
+  id: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  email: string;
+  associate_company_ids?: string[];
+}
+
+const UserForm = () => {
+  const { decodeJWT } = useAuth();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const accountsPerPage = 10;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    password: '',
+    role: 'customer',
+    code: '',
+    customerCodes: [],
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<DecodedUser | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    const initialize = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const decoded = decodeJWT(token);
+          setCurrentUser(decoded);
+        } catch (err) {
+          console.error('Error decoding JWT', err);
+        }
+      }
+      await fetchAccounts();
+      setIsInitialized(true);
+    };
+    initialize();
+  }, [decodeJWT]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const searched = searchQuery
+      ? accounts.filter(
+          (account) =>
+            (account.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (account.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : accounts;
+
+    setFilteredAccounts(searched);
+    setCurrentPage(1);
+  }, [searchQuery, accounts, isInitialized]);
+
+const fetchAccounts = async () => {
+  setIsLoading(true);
+
+  // 1. Try cache first
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp < CACHE_DURATION) {
+      setAccounts(data);
+      setIsLoading(false);
+      return;
+    }
+  }
+
+  try {
+    const data = await getAccounts();
+    if (!Array.isArray(data)) {
+      setAccounts([]);
+      return;
+    }
+
+    setAccounts(data);
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ data, timestamp: Date.now() })
+    );
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || 'Error fetching accounts');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const invalidateCache = () => localStorage.removeItem(CACHE_KEY);
+
+const handleRefresh = () => {
+  invalidateCache();
+  fetchAccounts();
+};
+
+  const validateForm = () => {
+    const errs: string[] = [];
+    if (!formData.name?.trim()) errs.push('Name is required');
+    if (!formData.email?.trim()) errs.push('Email is required');
+    if (!editingId && !formData.password?.trim()) errs.push('Password is required');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      errs.push('Invalid email format');
+    }
+    return errs;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs = validateForm();
+    if (errs.length) {
+      setErrors(errs);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const payload: any = {
+        name: formData.name?.trim(),
+        email: formData.email?.trim(),
+        role: formData.role,
+        password: formData.password,
+      };
+
+      // role-specific sub-documents
+      if (formData.role === 'company') {
+        payload.company = {
+          name: formData.name?.trim(),
+          companyCode: formData.code?.trim() || '',
+          paymentMethods: [],
+          address: { street: '', city: '', state: '', zip: '' },
+          sellingArea: { radius: 0, center: { lat: 0, lng: 0 } },
+          status: 'active',
+        };
+      }
+
+      if (formData.role === 'customer') {
+        payload.customer = {
+          customerCodes:
+            formData.customerCodes?.map((c) => ({
+              codeId: '',
+              customerCode: c.trim(),
+            })) || [],
+        };
+      }
+
+      if (editingId) {
+        if (!payload.password) delete payload.password;
+        await updateAccount(editingId, payload);
+        toast.success('Account updated');
+      } else {
+        await register(payload);
+        toast.success('Account created');
+      }
+
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'customer',
+        code: '',
+        customerCodes: [],
+      });
+      setEditingId(null);
+      setIsModalOpen(false);
+      await fetchAccounts();
+      setErrors([]);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error saving account');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+const handleEdit = (account: Account) => {
+  setFormData({
+    name: account.name || '',
+    email: account.email || '',
+    password: '',
+    role: account.role || 'customer',
+    code:
+      account.role === 'company'
+        ? account.company?.companyCode || ''
+        : '',
+    customerCodes:
+      account.role === 'customer'
+        ? account.customer?.customerCodes?.map((c) => c.customerCode) || []
+        : [],
+  });
+  setEditingId(account._id);
+  setIsModalOpen(true);
+};
+
+  const handleDelete = async () => {
+    if (!accountToDelete) return;
+    setIsLoading(true);
+    try {
+      await deleteAccount(accountToDelete);
+      toast.success('Account deleted');
+      setIsDeleteConfirmOpen(false);
+      setAccountToDelete(null);
+      await fetchAccounts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error deleting account');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const indexOfLast = currentPage * accountsPerPage;
+  const indexOfFirst = indexOfLast - accountsPerPage;
+  const currentAccounts = filteredAccounts.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredAccounts.length / accountsPerPage);
+
+  const DebugInfo = () => {
+    if (import.meta.env.MODE !== 'development') return null;
+    return (
+      <div className="mt-4 p-4 bg-gray-100 rounded text-sm">
+        <h3 className="font-bold mb-2">Debug Info:</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>Total: {accounts.length}</div>
+          <div>Filtered: {filteredAccounts.length}</div>
+          <div>Page: {currentPage}</div>
+          <div>User: {currentUser?.role || 'none'}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <Toaster position="top-right" />
+      <Navbar />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Accounts</h2>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              Refresh
+            </button>
+            {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+              <button
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'customer',
+                    code: '',
+                    customerCodes: [],
+                  });
+                  setIsModalOpen(true);
+                }}
+                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700"
+              >
+                <PlusIcon className="h-5 w-5 inline mr-1" />
+                Add Account
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search accounts..."
+            className="w-full p-2 pl-10 border rounded-md"
+          />
+        </div>
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {isLoading && accounts.length === 0 ? (
+            <div className="p-8 text-center">Loading...</div>
+          ) : filteredAccounts.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No accounts found</div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium">Status</th>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+                    <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {currentAccounts.map((account) => (
+                  <tr key={account._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">{account.name}</td>
+                    <td className="px-6 py-4">{account.email}</td>
+                    <td className="px-6 py-4">{account.role}</td>
+                    <td className="px-6 py-4">{account.accountStatus}</td>
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button onClick={() => handleEdit(account)} className="text-yellow-600">
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setAccountToDelete(account._id)} className="text-red-600">
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="mt-4 flex justify-center space-x-2">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-600 text-white' : ''}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <DebugInfo />
+
+        {/* Modal for Add/Edit */}
+        <Transition appear show={isModalOpen} as={Fragment}>
+          <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black bg-opacity-25" />
+            </Transition.Child>
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+              >
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                  <Dialog.Title className="text-lg font-medium mb-4">
+                    {editingId ? 'Edit Account' : 'Add Account'}
+                  </Dialog.Title>
+                  {errors.length > 0 && (
+                    <div className="bg-red-100 text-red-700 p-2 mb-4 rounded">
+                      {errors.map((e, i) => <p key={i}>{e}</p>)}
+                    </div>
+                  )}
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Name"
+                      className="w-full p-2 border rounded"
+                      required
+                    />
+                    <input
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Email"
+                      className="w-full p-2 border rounded"
+                      required
+                    />
+                    <input
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder={editingId ? 'New password (optional)' : 'Password'}
+                      className="w-full p-2 border rounded"
+                      required={!editingId}
+                    />
+                    <select
+                      name="role"
+                      value={formData.role}
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="customer">Customer</option>
+                      <option value="company">Company</option>
+                      <option value="partner">Partner</option>
+                      {currentUser?.role === 'admin' && <option value="admin">Admin</option>}
+                    </select>
+                    
+                    {formData.role === 'company' && (
+                      <input
+                        name="code"
+                        value={formData.code}
+                        onChange={handleChange}
+                        placeholder="Company Code"
+                        className="w-full p-2 border rounded"
+                      />
+                    )}
+                    {formData.role === 'customer' && (
+                      <input
+                        name="customerCodes"
+                        value={(formData.customerCodes || []).join(', ')}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            customerCodes: e.target.value
+                              .split(',')
+                              .map((c) => c.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                        placeholder="Customer Codes (comma-separated)"
+                        className="w-full p-2 border rounded"
+                      />
+                    )}
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="px-4 py-2 border rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="px-4 py-2 bg-teal-600 text-white rounded"
+                      >
+                        {editingId ? 'Update' : 'Create'}
+                      </button>
+                    </div>
+                  </form>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </Dialog>
+        </Transition>
+
+        {/* Delete Confirm */}
+        <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
+          <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black bg-opacity-25" />
+            </Transition.Child>
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+              >
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+                  <Dialog.Title className="text-lg font-medium mb-4">Confirm Delete</Dialog.Title>
+                  <p className="text-sm text-gray-600 mb-4">This action cannot be undone.</p>
+                  <div className="flex justify-end space-x-2">
+                    <button onClick={() => setIsDeleteConfirmOpen(false)} className="px-4 py-2 border rounded">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={isLoading}
+                      className="px-4 py-2 bg-red-600 text-white rounded"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </Dialog>
+        </Transition>
+      </div>
+    </div>
+  );
+};
+
+export default UserForm;
+================================================================================
+FILE: ./web-portal/src/components/Navbar.tsx
+================================================================================
+import React, { useState, useEffect, Fragment, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
+import { Toaster, toast } from 'react-hot-toast';
+import { Disclosure, Menu, Transition } from '@headlessui/react';
+import { useAuth } from '../hooks/useAuth';
+import { getCart } from '../api'; // Import getCart
+
+const Navbar: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, decodeJWT } = useAuth();
+  const [userInitials, setUserInitials] = useState('');
+  const [companyName, setCompanyName] = useState('BusinessCart');
+  const [notificationCount] = useState(3); // Placeholder
+  const [cartItemCount, setCartItemCount] = useState(0); // Initialize cartItemCount to 0
+  const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
+
+  const fetchCartCount = useCallback(async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setCartItemCount(0);
+      return;
+    }
+
+    try {
+      const decodedToken = decodeJWT(token);
+      const associatedCompanyIds = decodedToken.associate_company_ids || [];
+
+      let totalItems = 0;
+      for (const companyId of associatedCompanyIds) {
+        const cached = localStorage.getItem(`cart_cache_${companyId}`);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            totalItems += data.items.length;
+            continue; // Skip API call if cached and valid
+          }
+        }
+        // If not cached or expired, fetch from API
+        try {
+          const cart = await getCart(companyId);
+          totalItems += cart.items.length;
+          localStorage.setItem(`cart_cache_${companyId}`, JSON.stringify({ data: cart, timestamp: Date.now() }));
+        } catch (_error: any) {
+          
+          localStorage.removeItem(`cart_cache_${companyId}`); // Invalidate specific company cart cache on error
+        }
+      }
+      setCartItemCount(totalItems);
+    } catch (_error: any) {
+      
+      setCartItemCount(0);
+    }
+  }, [decodeJWT]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUserInitials('');
+      setCompanyName('BusinessCart');
+      setUserRole(null);
+      setCartItemCount(0); // Clear cart count on logout
+      return;
+    }
+
     const token = localStorage.getItem('accessToken');
     if (token) {
       try {
@@ -2586,24 +2453,28 @@ const Navbar = () => {
           .toUpperCase()
           .slice(0, 2);
         setUserInitials(initials);
-        setCompanyName(payload.user?.companyName || 'Your Company');
-      } catch (e) {
-        console.error('Invalid token');
+        setCompanyName(payload.user?.company_id ? `Company ${payload.user.company_id}` : 'BusinessCart');
+        setUserRole(payload.user?.role || null);
+        fetchCartCount(); // Fetch cart count when authenticated
+      } catch (_e) {
+        
         toast.error('Failed to load user data');
+        logout();
       }
     }
-  }, []);
+  }, [isAuthenticated, logout, fetchCartCount]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('products_cache');
-    toast.success('Logged out successfully');
-    navigate('/login', { replace: true });
-  };
+  useEffect(() => {
+    window.addEventListener('cartUpdated', fetchCartCount);
+
+    return () => {
+      window.removeEventListener('cartUpdated', fetchCartCount);
+    };
+  }, [fetchCartCount]);
 
   return (
     <Disclosure as="nav" className="bg-white shadow">
-      {({ open }) => (
+      {() => (
         <>
           <Toaster position="top-right" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2612,52 +2483,112 @@ const Navbar = () => {
                 <span className="text-lg font-medium text-gray-800">{companyName}</span>
               </div>
               <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <BellIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
-                  {notificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      {notificationCount}
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <ShoppingCartIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      {cartCount}
-                    </span>
-                  )}
-                </div>
-                <Menu as="div" className="relative">
-                  <Menu.Button className="flex items-center space-x-2">
-                    <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
-                      {userInitials || 'U'}
+                {userRole === 'customer' && (
+                  <>
+                    <div className="relative">
+                      <BellIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
+                      {notificationCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-600 text-white text- rounded-full h-4 w-4 flex items-center justify-center">
+                          {notificationCount}
+                        </span>
+                      )}
                     </div>
-                  </Menu.Button>
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
-                  >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                      <Menu.Item>
-                        {({ active }) => (
-                          <button
-                            onClick={handleLogout}
-                            className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                          >
-                            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                            Sign out
-                          </button>
+                    <div className="relative">
+                      <Link to="/cart">
+                        <ShoppingCartIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
+                        {cartItemCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-teal-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                            {cartItemCount}
+                          </span>
                         )}
-                      </Menu.Item>
-                    </Menu.Items>
-                  </Transition>
-                </Menu>
+                      </Link>
+                    </div>
+                  </>
+                )}
+                {isAuthenticated && (
+                  <Menu as="div" className="relative">
+                    <Menu.Button className="flex items-center space-x-2">
+                      <div className="h-8 w-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-medium">
+                        {userInitials || 'U'}
+                      </div>
+                    </Menu.Button>
+                    <Transition
+                      as={Fragment}
+                      enter="transition ease-out duration-100"
+                      enterFrom="transform opacity-0 scale-95"
+                      enterTo="transform opacity-100 scale-100"
+                      leave="transition ease-in duration-75"
+                      leaveFrom="transform opacity-100 scale-100"
+                      leaveTo="transform opacity-0 scale-95"
+                    >
+                      <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                        {userRole === 'company' && (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => navigate('/dashboard')}
+                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                              >
+                                Dashboard
+                              </button>
+                            )}
+                          </Menu.Item>
+                        )}
+                        {userRole === 'customer' && (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                to="/catalog"
+                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                              >
+                                Product Catalog
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        )}
+                        {userRole === 'admin' && (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => navigate('/admin')}
+                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                              >
+                                Admin Panel
+                              </button>
+                            )}
+                          </Menu.Item>
+                        )}
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={logout}
+                              className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                            >
+                              <ArrowRightStartOnRectangleIcon className="h-5 w-5 mr-2" />
+                              Sign out
+                            </button>
+                          )}
+                        </Menu.Item>
+                      </Menu.Items>
+                    </Transition>
+                  </Menu>
+                )}
+                {!isAuthenticated && (
+                  <>
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="text-gray-600 hover:text-gray-800 px-3 py-2 text-sm font-medium"
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => navigate('/register')}
+                      className="bg-teal-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-700"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -2668,44 +2599,1019 @@ const Navbar = () => {
 };
 
 export default Navbar;
+================================================================================
+FILE: ./web-portal/src/pages/Checkout.tsx
+================================================================================
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'react-hot-toast';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../hooks/useAuth';
+import { Quote } from '../types';
+import { createOrder, getQuote } from '../api';
 
+const Checkout: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { quoteId } = useParams<{ quoteId: string }>();
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('stripe');
+  
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+    if (!quoteId) {
+      toast.error('No quote ID provided.');
+      navigate('/cart');
+      return;
+    }
+
+    const fetchQuote = async () => {
+      setLoading(true);
+      try {
+        const fetchedQuote = await getQuote(quoteId);
+        setQuote(fetchedQuote);
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to fetch quote details.');
+        navigate('/cart');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuote();
+  }, [isAuthenticated, navigate, quoteId]);
+
+  const handlePlaceOrder = async () => {
+    if (!quote) {
+      toast.error('No quote available to place an order.');
+      return;
+    }
+    
+    const token = paymentMethod === 'stripe' ? 'tok_stripe_valid' : 'amz_pay_valid';
+
+    setLoading(true);
+    const toastId = toast.loading('Placing your order...');
+    try {
+      await createOrder({ quoteId: quote.id, paymentMethod, paymentToken: token });
+      toast.success('Order placed successfully!', { id: toastId });
+      navigate('/order-success');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to place order.', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (!quote) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Toaster position="top-right" />
+        <Navbar />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+          <p>Could not load quote details.</p>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-right" />
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+        <div className="bg-white shadow-lg rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Quote Summary</h2>
+          <div className="divide-y divide-gray-200">
+            {quote.items.map(item => (
+              <div key={item.id} className="flex items-center justify-between py-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
+                  <p className="text-gray-600">Quantity: {item.quantity}</p>
+                </div>
+                <p className="text-lg font-semibold text-gray-800">${(item.price * item.quantity).toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 border-t pt-6">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-gray-600">Subtotal:</p>
+              <p className="font-semibold">${quote.subtotal.toFixed(2)}</p>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-gray-600">Shipping:</p>
+              <p className="font-semibold">${quote.shippingCost.toFixed(2)}</p>
+            </div>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-gray-600">Tax:</p>
+              <p className="font-semibold">${quote.taxAmount.toFixed(2)}</p>
+            </div>
+            <div className="flex justify-between items-center text-xl font-bold text-gray-800">
+              <p>Grand Total:</p>
+              <p>${quote.grandTotal.toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Payment Details</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+              <div className="mt-2 flex items-center">
+                <input
+                  id="stripe"
+                  name="payment-method"
+                  type="radio"
+                  value="stripe"
+                  checked={paymentMethod === 'stripe'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                />
+                <label htmlFor="stripe" className="ml-3 block text-sm font-medium text-gray-700">
+                  Stripe
+                </label>
+              </div>
+              <div className="mt-2 flex items-center">
+                <input
+                  id="amazon_pay"
+                  name="payment-method"
+                  type="radio"
+                  value="amazon_pay"
+                  checked={paymentMethod === 'amazon_pay'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                />
+                <label htmlFor="amazon_pay" className="ml-3 block text-sm font-medium text-gray-700">
+                  Amazon Pay
+                </label>
+              </div>
+            </div>
+            
+          </div>
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={handlePlaceOrder}
+              className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold"
+            >
+              Place Order
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Checkout;
+
+================================================================================
+FILE: ./web-portal/src/pages/OrderSuccess.tsx
+================================================================================
+
+import React from 'react';
+import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+
+const OrderSuccess: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <h1 className="text-3xl font-bold text-teal-600 mb-4">Order Placed Successfully!</h1>
+          <p className="text-gray-700 mb-6">Thank you for your purchase. You will receive an email confirmation shortly.</p>
+          <Link
+            to="/home"
+            className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold"
+          >
+            Continue Shopping
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default OrderSuccess;
+
+================================================================================
+FILE: ./web-portal/src/pages/Home.tsx
+================================================================================
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getProducts, getAccount } from '../api';
+import { Toaster, toast } from 'react-hot-toast';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../hooks/useAuth';
+import { Account, Product } from '../types';
+
+const Home: React.FC = () => {
+  const { isAuthenticated, logout, decodeJWT } = useAuth();
+  const navigate = useNavigate();
+  const [account, setAccount] = useState<Account | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchAccount = async () => {
+      if (!isAuthenticated) {
+        setAccount(null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (!token) throw new Error('No access token found');
+        const decoded = decodeJWT(token);
+        if (!decoded || !decoded.id) throw new Error('User ID not found in JWT');
+        
+        const cachedAccount = localStorage.getItem('account');
+        if (cachedAccount) {
+          setAccount(JSON.parse(cachedAccount));
+          return;
+        }
+        
+        const fetchedAccount = await getAccount(decoded.id);
+        setAccount(fetchedAccount);
+        localStorage.setItem('account', JSON.stringify(fetchedAccount));
+
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load user data');
+        logout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAccount();
+  }, [isAuthenticated, logout, decodeJWT]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (!account || account.role !== 'customer') return;
+
+      setLoading(true);
+      try {
+        const fetchedProducts = await getProducts();
+        const productsWithImages = fetchedProducts.slice(0, 3).map((product: Product) => ({
+          ...product,
+          image: product.image || 'https://via.placeholder.com/300x200',
+        }));
+        setProducts(productsWithImages);
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [account]);
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-right" />
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {loading && <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>}
+
+        {/* Guest/Non-authenticated users - Company focused content */}
+        {!isAuthenticated && (
+          <div className="py-16">
+            {/* Hero Section for Companies */}
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-800 mb-4">Welcome to BusinessCart</h2>
+              <p className="text-lg text-gray-600 mb-8">Connect with your customers and manage your product catalog effortlessly.</p>
+              
+              <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-12 mb-12">
+                <h3 className="text-3xl font-bold tracking-tight mb-4">For Companies</h3>
+                <p className="text-lg max-w-2xl mx-auto mb-6">
+                  Create your product catalog, manage inventory, and give your customers exclusive access to your products.
+                </p>
+                <div className="space-x-4">
+                  <Link
+                    to="/register"
+                    className="inline-block bg-white text-teal-600 font-semibold px-6 py-3 rounded-md shadow hover:bg-gray-50 transition"
+                  >
+                    Register as Company
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="inline-block bg-teal-500 text-white px-6 py-3 rounded-md hover:bg-teal-400 transition"
+                  >
+                    Company Login
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Features for Companies */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+              <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                  </svg>
+                </div>
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">Product Management</h4>
+                <p className="text-gray-600">Easily add, edit, and organize your product catalog</p>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">Customer Access Control</h4>
+                <p className="text-gray-600">Grant specific customers access to your products</p>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 102 0V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 2a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">Order Management</h4>
+                <p className="text-gray-600">Track and manage customer orders efficiently</p>
+              </div>
+            </div>
+
+            {/* Customer Access Section */}
+            <div className="bg-teal-50 rounded-lg p-8 text-center">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">Are you a Customer?</h3>
+              <p className="text-gray-600 mb-6">Access your company's exclusive products with your customer account.</p>
+              <Link
+                to="/login"
+                className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+              >
+                Customer Login
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Authenticated users content */}
+        {isAuthenticated && account && (
+          <div className="py-12">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">
+              Welcome, {account.name || account.role.charAt(0).toUpperCase() + account.role.slice(1)}!
+            </h2>
+
+            {account.role === 'customer' && (
+              <>
+                {/* Hero Section */}
+                <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-12 mb-12 text-center">
+                  <h3 className="text-3xl font-bold tracking-tight">Shop Premium Products</h3>
+                  <p className="mt-4 text-lg max-w-2xl mx-auto">Explore our curated selection for your business needs.</p>
+                  <button
+                    onClick={() => navigate('/products')}
+                    className="mt-6 inline-block bg-white text-teal-600 font-semibold px-6 py-3 rounded-md shadow hover:bg-gray-50 transition"
+                  >
+                    Shop Now
+                  </button>
+                </div>
+
+                {/* Product Grid */}
+                <div>
+                  <h3 className="text-2xl font-semibold text-gray-800 mb-6">Featured Products</h3>
+                  {products.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                      {products.map((product) => (
+                        <div
+                          key={product._id}
+                          className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
+                          onClick={() => navigate(`/products/${product._id}`)}
+                        >
+                          <img
+                            src={product.image || 'https://via.placeholder.com/300x200'}
+                            alt={product.name}
+                            className="w-full h-48 object-cover"
+                          />
+                          <div className="p-4">
+                            <h4 className="text-xl font-semibold text-gray-800">{product.name}</h4>
+                            <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+                            <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
+                            <button className="mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition">
+                              Add to Cart
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-600 mb-6">No products available.</p>
+                  )}
+                  <Link
+                    to="/products"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    View All Products
+                  </Link>
+                </div>
+              </>
+            )}
+
+            {account.role === 'company' && (
+              <div>
+                <p className="text-lg text-gray-600 mb-6">
+                  Manage your products and orders for {account.company?.name || 'your company'}.
+                </p>
+                <div className="space-x-4">
+                  <Link
+                    to="/dashboard"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    Manage Products
+                  </Link>
+                  <Link
+                    to="/orders"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    Manage Orders
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {account.role === 'admin' && (
+              <div>
+                <p className="text-lg text-gray-600 mb-6">Administer users, products, and orders.</p>
+                <div className="space-x-4">
+                  <Link
+                    to="/admin/users"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    Manage Users
+                  </Link>
+                  <Link
+                    to="/admin/products"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    Manage Products
+                  </Link>
+                  <Link
+                    to="/admin/orders"
+                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                  >
+                    Manage Orders
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default Home;
+================================================================================
+FILE: ./web-portal/src/pages/Catalog.tsx
+================================================================================
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getProducts, getAccount } from '../api';
+import { Toaster, toast } from 'react-hot-toast';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../hooks/useAuth';
+import { Product } from '../types';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import AddToCartButton from '../components/AddToCartButton';
+
+const CACHE_KEY_PREFIX = 'user_products_cache';
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+const Catalog: React.FC = () => {
+  const { isAuthenticated, decodeJWT } = useAuth();
+  const navigate = useNavigate();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [companyIdFilter, setCompanyIdFilter] = useState('');
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+
+  const getCacheKey = useCallback(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.user?.id;
+      return userId ? `${CACHE_KEY_PREFIX}_${userId}` : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const fetchProductsAndAccount = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) throw new Error('Not authenticated');
+      const decodedUser = decodeJWT(token);
+      if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
+
+      const [fetchedProducts, fetchedAccount] = await Promise.all([
+        getProducts(),
+        getAccount(decodedUser.id),
+      ]);
+      
+      setProducts(fetchedProducts);
+
+      if (fetchedAccount.role === 'customer' && fetchedAccount.customer?.attachedCompanies) {
+        const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
+          id: c.companyCodeId,
+          name: c.name,
+        }));
+        setCompanies(customerCompanies);
+        if (customerCompanies.length > 0) {
+          setCompanyIdFilter(customerCompanies[0].id);
+        }
+      }
+
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        localStorage.setItem(cacheKey, JSON.stringify({ 
+          products: fetchedProducts, 
+          account: fetchedAccount,
+          timestamp: Date.now() 
+        }));
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  }, [getCacheKey, decodeJWT]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    const decoded = decodeJWT(token);
+    if (decoded.role !== 'customer') {
+      toast.error('Access denied. Only customers can view the catalog.');
+      navigate('/home');
+      return;
+    }
+
+    const loadData = async () => {
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { products: cachedProducts, account: cachedAccount, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setProducts(cachedProducts);
+            if (cachedAccount.customer?.attachedCompanies) {
+                const customerCompanies = cachedAccount.customer.attachedCompanies.map((c: any) => ({
+                  id: c.companyCodeId,
+                  name: c.name,
+                }));
+                setCompanies(customerCompanies);
+                if (customerCompanies.length > 0) {
+                    setCompanyIdFilter(customerCompanies[0].id);
+                }
+            }
+            setLoading(false);
+            return;
+          }
+        }
+      }
+      await fetchProductsAndAccount();
+    };
+
+    loadData();
+  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (companyIdFilter === '' || product.accountID === companyIdFilter)
+    );
+  }, [products, searchQuery, companyIdFilter]);
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-right" />
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
+
+        <div className="mb-6 flex space-x-4">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by name..."
+              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="relative w-1/3 flex items-center">
+            <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
+            <select
+              id="company-filter"
+              value={companyIdFilter}
+              onChange={(e) => setCompanyIdFilter(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            >
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProducts.map((product) => (
+              <div
+                key={product._id}
+                className="bg-.white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+              >
+                <img
+                  src={product.image || 'https://via.placeholder.com/300x200'}
+                  alt={product.name}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="p-4">
+                  <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
+                  <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+                  <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
+                  <AddToCartButton product={product} quantity={1} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-600">No products available in the catalog.</p>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default Catalog;
+================================================================================
+FILE: ./web-portal/src/pages/Cart.tsx
+================================================================================
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'react-hot-toast';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../hooks/useAuth';
+import { Cart as CartType } from '../types';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, getAssociatedCompanyIds, createQuote } from '../api';
+
+const CACHE_KEY_PREFIX = 'cart_cache_';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+const Cart: React.FC = () => {
+  const { isAuthenticated, decodeJWT } = useAuth();
+  const navigate = useNavigate();
+  const [cart, setCart] = useState<CartType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [associatedCompanies, setAssociatedCompanies] = useState<string[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  const invalidateCache = (companyId: string) => {
+    localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
+  };
+
+  const fetchCart = useCallback(async (companyId: string) => {
+    setLoading(true);
+    const loadingToastId = toast.loading(`Loading cart for company ${companyId}...`);
+    try {
+      const fetchedCart = await getCart(companyId);
+      setCart(fetchedCart);
+      localStorage.setItem(`${CACHE_KEY_PREFIX}${companyId}`, JSON.stringify({ data: fetchedCart, timestamp: Date.now() }));
+      toast.success(`Cart for company ${companyId} loaded successfully!`, { id: loadingToastId });
+    } catch (err: any) {
+      setCart(null); // Ensure cart is null on error
+      invalidateCache(companyId); // Invalidate cache on error
+      toast.error(err.response?.data?.message || `Failed to load cart for company ${companyId}.`, { id: loadingToastId });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    const role = decodeJWT(token);
+    if (role !== 'customer') {
+      toast.error('Access denied. Only customers can view their cart.');
+      navigate('/home'); // Redirect non-customers
+      return;
+    }
+    setUserRole(role);
+
+    const loadCompaniesAndCart = async () => {
+      try {
+        const companies = await getAssociatedCompanyIds(); // Assuming decodeJWT returns user object with id
+        setAssociatedCompanies(companies);
+        if (companies.length > 0) {
+          const initialCompanyId = companies[0]; // Select the first company by default
+          setSelectedCompanyId(initialCompanyId);
+          const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${initialCompanyId}`);
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_DURATION && data.companyId === initialCompanyId) {
+              setCart(data);
+              setLoading(false);
+              return;
+            }
+          }
+          await fetchCart(initialCompanyId);
+        } else {
+          setLoading(false);
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load associated companies');
+        setLoading(false);
+      }
+    };
+
+    loadCompaniesAndCart();
+
+    window.addEventListener('cartUpdated', () => {
+      if (selectedCompanyId) {
+        fetchCart(selectedCompanyId);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('cartUpdated', () => {
+        if (selectedCompanyId) {
+          fetchCart(selectedCompanyId);
+        }
+      });
+    };
+  }, [isAuthenticated, navigate, decodeJWT, fetchCart]);
+
+  const handleCompanyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const companyId = event.target.value;
+    setSelectedCompanyId(companyId);
+    fetchCart(companyId);
+  };
+
+  const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+    if (!selectedCompanyId) return;
+    setLoading(true);
+    try {
+      const updatedCart = await updateCartItem(itemId, { entity: { quantity } }, selectedCompanyId);
+      setCart(updatedCart);
+      toast.success('Item quantity updated!');
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful update
+      window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update item quantity');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveItem = async (itemId: string) => {
+    if (!selectedCompanyId) return;
+    setLoading(true);
+    try {
+      const updatedCart = await removeItemFromCart(itemId, selectedCompanyId);
+      setCart(updatedCart);
+      toast.success('Item removed from cart!');
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful removal
+      window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to remove item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearCart = async () => {
+    if (!selectedCompanyId) return;
+    setLoading(true);
+    try {
+      const clearedCart = await clearCart(selectedCompanyId);
+      setCart(clearedCart);
+      toast.success('Cart cleared!');
+      invalidateCache(selectedCompanyId); // Invalidate cache after successful clear
+      window.dispatchEvent(new Event('cartUpdated')); // Dispatch custom event
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to clear cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedCompanyId) {
+      toast.error('Please select a company to checkout.');
+      return;
+    }
+    setLoading(true);
+    const toastId = toast.loading('Proceeding to checkout...');
+    try {
+      const quote = await createQuote(selectedCompanyId);
+      toast.success('Quote created successfully!', { id: toastId });
+      navigate(`/checkout/${quote.id}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to create quote.', { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!userRole || loading || associatedCompanies.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-right" />
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Your Shopping Cart</h1>
+
+        {associatedCompanies.length > 0 && (
+          <div className="mb-6">
+            <label htmlFor="company-select" className="block text-sm font-medium text-gray-700">Select Company Cart:</label>
+            <select
+              id="company-select"
+              name="company-select"
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              value={selectedCompanyId || ''}
+              onChange={handleCompanyChange}
+            >
+              {associatedCompanies.map(companyId => (
+                <option key={companyId} value={companyId}>{companyId}</option>
+              ))}
+            </select>
+            {selectedCompanyId && (
+              <p className="mt-2 text-sm text-gray-600">Showing cart for company: <span className="font-medium">{selectedCompanyId}</span></p>
+            )}
+          </div>
+        )}
+
+        {!cart || !cart.items || cart.items.length === 0 ? (
+          <p className="text-gray-600">Your cart is empty for {selectedCompanyId || 'the selected company'}.</p>
+        ) : (
+          <div className="bg-white shadow-lg rounded-lg p-6">
+            <div className="divide-y divide-gray-200">
+              {cart.items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between py-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-800">{item.name || 'N/A'}</h2>
+                      <p className="text-gray-600">Price: ${item.price !== undefined ? item.price.toFixed(2) : 'N/A'}</p>
+                      <p className="text-gray-600">Quantity: {item.quantity}</p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => {
+                        if (item.id) {
+                          handleUpdateQuantity(item.id, parseInt(e.target.value));
+                        }
+                      }}
+                        className="w-20 p-2 border border-gray-300 rounded-md"
+                      />
+                      {item.id && (
+                        <button
+                          onClick={() => {
+                            if (item.id) {
+                              handleRemoveItem(item.id);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+              ))}
+            </div>
+            <div className="mt-6 flex justify-end space-x-4">
+              <p className="text-lg font-semibold text-gray-800">Total: ${cart.totalPrice !== undefined ? cart.totalPrice.toFixed(2) : 'N/A'}</p>
+              <button
+                onClick={handleClearCart}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+              >
+                Clear Cart
+              </button>
+              <button
+                onClick={handleCheckout}
+                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition"
+              >
+                Proceed to Checkout
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default Cart;
 ================================================================================
 FILE: ./web-portal/src/hooks/useAuth.ts
 ================================================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { logout as apiLogout } from '../api'; // Renamed to avoid conflict
 
 export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
 
+  const decodeJWT = useCallback((token: string) => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const logout = useCallback(async () => { // Wrapped in useCallback
+    await apiLogout(); // Call the actual API logout
+    setIsAuthenticated(false);
+  }, []); // No dependencies needed as apiLogout and setIsAuthenticated are stable
+
   useEffect(() => {
     const handleStorageChange = () => {
-      setIsAuthenticated(!!localStorage.getItem('accessToken'));
+      const hasToken = !!localStorage.getItem('accessToken');
+      if (hasToken !== isAuthenticated) {
+        setIsAuthenticated(hasToken);
+      }
     };
 
-    // Listen for storage events (cross-tab updates)
     window.addEventListener('storage', handleStorageChange);
-
-    // Poll for localStorage changes (same-tab updates)
-    const interval = setInterval(handleStorageChange, 100);
+    const interval = setInterval(handleStorageChange, 1000);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  return isAuthenticated;
+  return { isAuthenticated, logout, decodeJWT };
 };
-
 ================================================================================
 FILE: ./web-portal/src/types/env.d.ts
 ================================================================================
 interface ImportMetaEnv {
-  readonly VITE_USER_API_URL?: string;
-  readonly VITE_COMPANY_API_URL?: string;
-  readonly VITE_PRODUCT_API_URL?: string;
+  readonly VITE_USER_API_URL: string;
+  readonly VITE_COMPANY_API_URL: string;
+  readonly VITE_PRODUCT_API_URL: string;
+  readonly VITE_ORDER_API_URL: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+

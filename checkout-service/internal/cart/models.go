@@ -7,7 +7,7 @@ type CartItem struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	ProductID string             `bson:"productId" json:"productId"`
 	Quantity  int                `bson:"quantity" json:"quantity"`
-	CompanyID string             `bson:"companyId" json:"companyId"`
+	SellerID  string             `bson:"sellerId" json:"sellerId"`
 	Name      string             `bson:"name" json:"name"`
 	Price     float64            `bson:"price" json:"price"`
 }
@@ -15,8 +15,8 @@ type CartItem struct {
 // Cart represents a shopping cart.
 type Cart struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	UserID     string             `bson:"userId" json:"userId"`
-	CompanyID  string             `bson:"companyId" json:"companyId"`
+	AccountID  string             `bson:"accountId" json:"accountId"`
+	SellerID   string             `bson:"sellerId" json:"sellerId"`
 	Items      []CartItem         `bson:"items" json:"items"`
 	TotalPrice float64            `bson:"totalPrice" json:"totalPrice"`
 }

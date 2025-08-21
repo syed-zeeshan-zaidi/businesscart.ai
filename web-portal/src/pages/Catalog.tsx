@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProducts, getUserAssociatedCompanies } from '../api';
+import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +18,7 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
-  const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -32,25 +32,38 @@ const Catalog: React.FC = () => {
     }
   }, []);
 
-  const fetchProductsAndCompanies = useCallback(async () => {
+  const fetchProductsAndAccount = useCallback(async () => {
     setLoading(true);
     try {
-      const [fetchedProducts, associatedCompanyIds] = await Promise.all([
+      const token = localStorage.getItem('accessToken');
+      if (!token) throw new Error('Not authenticated');
+      const decodedUser = decodeJWT(token);
+      console.log('Decoded user Catalog :', decodedUser);
+      if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
+
+      const [fetchedProducts, fetchedAccount] = await Promise.all([
         getProducts(),
-        getUserAssociatedCompanies(),
+        getAccount(decodedUser.id),
       ]);
       
       setProducts(fetchedProducts);
-      setCompanyIds(associatedCompanyIds);
-      if (associatedCompanyIds.length > 0) {
-        setCompanyIdFilter(associatedCompanyIds[0]);
+
+      if (fetchedAccount.role === 'customer' && fetchedAccount.customer?.attachedCompanies) {
+        const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
+          id: c.companyCodeId,
+          name: c.name,
+        }));
+        setCompanies(customerCompanies);
+        if (customerCompanies.length > 0) {
+          setCompanyIdFilter(customerCompanies[0].id);
+        }
       }
 
       const cacheKey = getCacheKey();
       if (cacheKey) {
         localStorage.setItem(cacheKey, JSON.stringify({ 
           products: fetchedProducts, 
-          companyIds: associatedCompanyIds,
+          account: fetchedAccount,
           timestamp: Date.now() 
         }));
       }
@@ -59,7 +72,7 @@ const Catalog: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getCacheKey]);
+  }, [getCacheKey, decodeJWT]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -73,8 +86,8 @@ const Catalog: React.FC = () => {
       return;
     }
 
-    const role = decodeJWT(token);
-    if (role !== 'customer') {
+    const decoded = decodeJWT(token);
+    if (decoded.role !== 'customer') {
       toast.error('Access denied. Only customers can view the catalog.');
       navigate('/home');
       return;
@@ -85,28 +98,34 @@ const Catalog: React.FC = () => {
       if (cacheKey) {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
-          const { products: cachedProducts, companyIds: cachedCompanyIds, timestamp } = JSON.parse(cached);
+          const { products: cachedProducts, account: cachedAccount, timestamp } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             setProducts(cachedProducts);
-            setCompanyIds(cachedCompanyIds);
-            if (cachedCompanyIds.length > 0) {
-              setCompanyIdFilter(cachedCompanyIds[0]);
+            if (cachedAccount.customer?.attachedCompanies) {
+                const customerCompanies = cachedAccount.customer.attachedCompanies.map((c: any) => ({
+                  id: c.companyCodeId,
+                  name: c.name,
+                }));
+                setCompanies(customerCompanies);
+                if (customerCompanies.length > 0) {
+                    setCompanyIdFilter(customerCompanies[0].id);
+                }
             }
             setLoading(false);
             return;
           }
         }
       }
-      await fetchProductsAndCompanies();
+      await fetchProductsAndAccount();
     };
 
     loadData();
-  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndCompanies, getCacheKey]);
+  }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.companyId === companyIdFilter)
+      (companyIdFilter === '' || product.sellerID === companyIdFilter)
     );
   }, [products, searchQuery, companyIdFilter]);
 
@@ -137,9 +156,9 @@ const Catalog: React.FC = () => {
               onChange={(e) => setCompanyIdFilter(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             >
-              {companyIds.map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
                 </option>
               ))}
             </select>
@@ -153,7 +172,7 @@ const Catalog: React.FC = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+                className="bg-.white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
               >
                 <img
                   src={product.image || 'https://via.placeholder.com/300x200'}
@@ -164,7 +183,7 @@ const Catalog: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
                   <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
                   <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
-                  <AddToCartButton product={product} />
+                  <AddToCartButton product={product} quantity={1} />
                 </div>
               </div>
             ))}

@@ -1,47 +1,54 @@
-export interface User {
-  _id: string;
-  name: string;
-  email: string;
-  password?: string;
-  role: string;
-  phoneNumber: string;
-  company_id?: string;
-  associate_company_ids?: string[];
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
-export interface Company {
+export interface CustomerData {
+  customerCodes: CustomerCodeEntry[];
+  attachedCompanies?: CompanyData[];
+}
+
+export interface PartnerData {
+  partnerCodeId?: string;
+  partnerCode?: string;
+  status: string;
+}
+
+export interface Account {
   _id: string;
-  name: string;
-  companyCode: string;
-  paymentMethods: string[];
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    coordinates: { lat: number; lng: number };
-  };
-  sellingArea: {
-    radius: number;
-    center: { lat: number; lng: number };
-  };
+  name:string;
+  email: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  accountStatus: 'active' | 'pending' | 'suspended' | 'inactive';
+  company?: CompanyData;
+  customer?: CustomerData;
+  partner?: PartnerData;
+  address?: Address;
+  password?: string;
 }
 
 export interface Product {
   _id: string;
   name: string;
+  description?: string;
   price: number;
-  companyId: string;
-  userId: string;
-  description: string;
+  sellerID: string;
   image?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Order {
   id: string;
   quoteId: string;
-  userId: string;
-  companyId: string;
+  accountId: string;
+  sellerId: string;
   items: CartItem[];
   subtotal: number;
   shippingCost: number;
@@ -57,15 +64,15 @@ export interface CartItem {
   id: string;
   productId: string;
   quantity: number;
-  companyId: string;
+  sellerId: string;
   name: string;
   price: number;
 }
 
 export interface Cart {
   id: string;
-  userId: string;
-  companyId: string;
+  accountId: string;
+  sellerId: string;
   items: CartItem[];
   totalPrice: number;
 }
@@ -73,8 +80,8 @@ export interface Cart {
 export interface Quote {
   id: string;
   cartId: string;
-  userId: string;
-  companyId: string;
+  accountId: string;
+  sellerId: string;
   items: CartItem[];
   subtotal: number;
   shippingCost: number;
@@ -82,4 +89,39 @@ export interface Quote {
   grandTotal: number;
   createdAt: string;
   expiresAt: string;
+}
+export interface CompanyData {
+  _id?: string;
+  name: string;
+  status: string;
+  uniqueIdentifier?: string;
+  saleRepresentative?: string;
+  creditLimit?: number;
+  shippingMethods?: string[] | null;
+  paymentMethods?: string[];
+  deliveryMethods?: string[] | null;
+  leadTime?: number;
+  maxOrderAmountLimit?: number;
+  maxOrderQuantityLimit?: number;
+  minOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  quotesAllowed?: boolean;
+  companyCodeId?: string;
+  companyCode: string;
+  sellingArea: {
+    radius: number;
+    center: {
+      lat: number;
+      lng: number;
+    };
+  };
+  address: Address;
+}
+
+export interface CustomerCodeEntry {
+  codeId: string;
+  customerCode: string;
 }

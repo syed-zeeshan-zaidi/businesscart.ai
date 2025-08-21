@@ -10,8 +10,8 @@ import (
 type Order struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	QuoteID       primitive.ObjectID `bson:"quoteId" json:"quoteId"`
-	UserID        string             `bson:"userId" json:"userId"`
-	CompanyID     string             `bson:"companyId" json:"companyId"`
+	AccountID     string             `bson:"accountId" json:"accountId"`
+	SellerID      string             `bson:"sellerId" json:"sellerId"`
 	Items         []cart.CartItem    `bson:"items" json:"items"`
 	Subtotal      float64            `bson:"subtotal" json:"subtotal"`
 	ShippingCost  float64            `bson:"shippingCost" json:"shippingCost"`

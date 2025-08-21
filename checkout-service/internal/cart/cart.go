@@ -21,9 +21,9 @@ func NewService(db *mongo.Database) *Service {
 }
 
 // GetCart retrieves a user's cart for a specific company.
-func (s *Service) GetCart(userID, companyID string) (*Cart, error) {
+func (s *Service) GetCart(accountID, sellerID string) (*Cart, error) {
 	var cart Cart
-	err := s.collection.FindOne(context.TODO(), bson.M{"userId": userID, "companyId": companyID}).Decode(&cart)
+	err := s.collection.FindOne(context.TODO(), bson.M{"accountId": accountID, "sellerId": sellerID}).Decode(&cart)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New("cart not found")
@@ -35,10 +35,10 @@ func (s *Service) GetCart(userID, companyID string) (*Cart, error) {
 }
 
 // ClearCart removes all items from a user's cart for a specific company.
-func (s *Service) ClearCart(userID, companyID string) error {
+func (s *Service) ClearCart(accountID, sellerID string) error {
 	_, err := s.collection.UpdateOne(
 		context.TODO(),
-		bson.M{"userId": userID, "companyId": companyID},
+		bson.M{"accountId": accountID, "sellerId": sellerID},
 		bson.M{"$set": bson.M{"items": []CartItem{}}},
 	)
 	return err
@@ -46,11 +46,11 @@ func (s *Service) ClearCart(userID, companyID string) error {
 
 // SaveCart saves a cart to the database. If the cart already exists, it updates it.
 func (s *Service) SaveCart(cart *Cart) error {
-	log.Printf("Attempting to save cart for user %s, company %s", cart.UserID, cart.CompanyID)
+	log.Printf("Attempting to save cart for user %s, company %s", cart.AccountID, cart.SellerID)
 	cart.TotalPrice = s.calculateTotalPrice(*cart)
 	result, err := s.collection.UpdateOne(
 		context.TODO(),
-		bson.M{"userId": cart.UserID, "companyId": cart.CompanyID},
+		bson.M{"accountId": cart.AccountID, "sellerId": cart.SellerID},
 		bson.M{"$set": cart},
 		options.Update().SetUpsert(true),
 	)
