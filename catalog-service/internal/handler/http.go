@@ -34,7 +34,7 @@ func (h *Handler) RegisterRoutes(router *chi.Mux) {
 
 func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if userClaims["role"] != "company" {
+	if userClaims["role"] != "company" && userClaims["role"] != "admin" {
 		http.Error(w, "Unauthorized: Company role required", http.StatusForbidden)
 		return
 	}
