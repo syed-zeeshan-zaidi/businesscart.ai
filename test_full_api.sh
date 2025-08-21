@@ -101,8 +101,7 @@ EOF
       payload=$(echo "$payload" | jq --arg code "$codes_str" --arg company_name "$name" '. + {code: $code, companyName: $company_name}')
       ;;
     customer) 
-      # Convert comma-separated string to JSON array
-      codes_json=$(echo "$codes_str" | tr ',' '\n' | jq -R . | jq -s .)
+      codes_json=$(echo "$codes_str" | jq -R 'split(",")' | jq -sc '.')
       payload=$(echo "$payload" | jq --argjson codes "$codes_json" '. + {customerCodes: $codes}')
       ;;
     partner) 
@@ -233,7 +232,7 @@ get_products() {
 # -----------------------------------------------------------------------
 get_id_from_jwt() {
     local role_key="$1"
-    echo "${JWTS[$role_key]}" | cut -d'.' -f2 | base64 --decode | jq -r '.user.id' 2>/dev/null
+    echo "${JWTS[$role_key]}" | cut -d'.' -f2 | base64 --decode 2>/dev/null | jq -r '.user.id' 2>/dev/null
 }
 
 # -----------------------------------------------------------------------
@@ -262,46 +261,103 @@ get_orders() {
 # 8) Add to Cart (Create Quote)
 # -----------------------------------------------------------------------
 add_to_cart() {
-    local role_key="$1"
-    local payload="$2"
-    print_step "Adding items to cart for $role_key"
+  local role_key="$1"
+  local seller_id="$2"
+  local product_id="$3"
+  local quantity="$4"
 
-    resp=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/checkout" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${JWTS[$role_key]}" \
-        -d "$payload")
-    status=$(tail -n1 <<<"$resp")
-    body=$(sed '$d' <<<"$resp")
+  payload=$(jq -n \
+    --argjson entity "$(
+      jq -n \
+        --arg productId "$product_id" \
+        --arg sellerId "$seller_id" \
+        --argjson quantity "$quantity" \
+        '{productId: $productId, sellerId: $sellerId, quantity: $quantity}'
+    )" \
+    '{entity: $entity}')
 
-    if [ "$status" -eq 200 ]; then # Assuming 200 for quote creation/update
-        echo -e "${GREEN}Add to cart successful for $role_key${NC}"
-        echo "$body" | jq -r '.quoteId'
-    else
-        handle_error "Add to cart for $role_key" "$status" "$body"
-    fi
+  curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/cart" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JWTS[$role_key]}" \
+    -d "$payload"
 }
 
 # -----------------------------------------------------------------------
 # 9) Get Cart (Get Quote)
 # -----------------------------------------------------------------------
 get_cart() {
-    local role_key="$1"
-    local quote_id="$2"
-    print_step "Getting cart for $role_key with quoteId $quote_id"
-
-    resp=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_API/checkout/$quote_id" \
-        -H "Authorization: Bearer ${JWTS[$role_key]}")
-    status=$(tail -n1 <<<"$resp")
-    body=$(sed '$d' <<<"$resp")
-
-    if [ "$status" -eq 200 ]; then
-        echo -e "${GREEN}Get cart successful for $role_key${NC}"
-        echo "Response:"
-        echo "$body" | jq .
-    else
-        handle_error "Get cart for $role_key" "$status" "$body"
-    fi
+  local role_key="$1"
+  local seller_id="$2"
+  curl -s -w "\n%{http_code}" "$CHECKOUT_API/cart?sellerId=$seller_id" \
+    -H "Authorization: Bearer ${JWTS[$role_key]}"
 }
+
+
+# -----------------------------------------------------------------------
+# 10) Create Quote
+# -----------------------------------------------------------------------
+create_quote() {
+  local role_key="$1"
+  local seller_id="$2"
+  local cart_id="$3"
+
+  payload=$(jq -n \
+    --arg cartId "$cart_id" \
+    --arg sellerId "$seller_id" \
+    '{cartId: $cartId, sellerId: $sellerId}')
+
+  resp=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/quotes" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JWTS[$role_key]}" \
+    -d "$payload")
+  status=$(tail -n1 <<<"$resp")
+  body=$(sed '$d' <<<"$resp")
+
+  if [ "$status" -eq 200 ] || [ "$status" -eq 201 ]; then
+    echo "$body" | jq -r '.id'
+  else
+    handle_error "Create quote for $role_key" "$status" "$body"
+  fi
+}
+
+# -----------------------------------------------------------------------
+# 11) Get Quote
+# -----------------------------------------------------------------------
+get_quote() {
+  local role_key="$1"
+  local quote_id="$2"
+
+  print_step "Getting quote $quote_id for $role_key"
+  resp=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_API/quotes/$quote_id" \
+    -H "Authorization: Bearer ${JWTS[$role_key]}")
+  status=$(tail -n1 <<<"$resp")
+  body=$(sed '$d' <<<"$resp")
+
+  if [ "$status" -eq 200 ]; then
+    echo -e "${GREEN}Quote retrieved${NC}"
+    echo "$body" | jq .
+  else
+    handle_error "Get quote for $role_key" "$status" "$body"
+  fi
+}
+
+
+place_order() {
+  local role_key="$1"
+  local quote_id="$2"
+  local payment_method="${3:-card}"
+  local payment_token="${4:-tok_visa}"
+  payload=$(jq -n \
+    --arg quoteId "$quote_id" \
+    --arg paymentMethod "$payment_method" \
+    --arg paymentToken "$payment_token" \
+    '{quoteId: $quoteId, paymentMethod: $paymentMethod, paymentToken: $paymentToken}')
+  curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/orders" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JWTS[$role_key]}" \
+    -d "$payload"
+}
+
 
 
 # -----------------------------------------------------------------------
@@ -370,17 +426,34 @@ beta_product_id=$(echo "$all_products_json" | jq -r '.[] | select(.name=="Beta P
 company1_id=$(get_id_from_jwt "company1")
 company2_id=$(get_id_from_jwt "company2")
 
-# --- Test cart for customer ---
-cart_payload_customer=$(jq -n --arg product_id "$alpha_product_id" --arg company_id "$company1_id" 
-  '{items: [{productId: $product_id, quantity: 1, companyId: $company_id}]}')
-customer_quote_id=$(add_to_cart "customer" "$cart_payload_customer")
-get_cart "customer" "$customer_quote_id"
+# ----------------------------------------------------------
+# Cart / Quote / Order flow for customer
+# ----------------------------------------------------------
+print_step "Customer adds Alpha Product 1 to cart"
+add_to_cart "customer" "$company1_id" "$alpha_product_id" 1
+print_step "Customer views cart"
+cart_json=$(get_cart "customer" "$company1_id")
+cart_id=$(echo "$cart_json" | jq -r '.id')
+print_step "Customer creates quote"
+quote_id=$(create_quote "customer" "$company1_id" "$cart_id")
+get_quote "customer" "$quote_id"
 
-# --- Test cart for customer2 ---
-cart_payload_customer2=$(jq -n --arg p1_id "$alpha_product_id" --arg c1_id "$company1_id" --arg p2_id "$beta_product_id" --arg c2_id "$company2_id" 
-  '{items: [{productId: $p1_id, quantity: 2, companyId: $c1_id}, {productId: $p2_id, quantity: 3, companyId: $c2_id}]}')
-customer2_quote_id=$(add_to_cart "customer2" "$cart_payload_customer2")
-get_cart "customer2" "$customer2_quote_id"
+# ----------------------------------------------------------
+# Cart / Quote / Order flow for customer2
+# ----------------------------------------------------------
+print_step "Customer2 adds Alpha Product 2 & Beta Product 1 to cart"
+add_to_cart "customer2" "$company1_id" "$alpha_product_id" 2
+add_to_cart "customer2" "$company2_id" "$beta_product_id" 3
+print_step "Customer2 views carts"
+cart1_json=$(get_cart "customer2" "$company1_id")
+cart2_json=$(get_cart "customer2" "$company2_id")
+cart1_id=$(echo "$cart1_json" | jq -r '.id')
+cart2_id=$(echo "$cart2_json" | jq -r '.id')
+print_step "Customer2 creates quotes"
+quote1_id=$(create_quote "customer2" "$company1_id" "$cart1_id")
+quote2_id=$(create_quote "customer2" "$company2_id" "$cart2_id")
+get_quote "customer2" "$quote1_id"
+get_quote "customer2" "$quote2_id"
 
 
 print_step "Test finished successfully"
