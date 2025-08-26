@@ -4,40 +4,41 @@ import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
-import com.businesscart.android.databinding.ActivityLoginBinding
-import com.businesscart.android.ui.main.MainActivity
-import com.businesscart.android.ui.registration.RegistrationActivity
+import com.businesscart.android.ui.main.CatalogActivity
 import com.businesscart.android.util.SessionManager
+import com.auth0.android.jwt.JWT
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityLoginBinding
     private lateinit var sessionManager: SessionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_login)
 
         sessionManager = SessionManager(this)
 
         // Check if user is already logged in
         if (sessionManager.getAuthToken() != null) {
-            navigateToMain()
+            navigateToCatalog()
             return
         }
 
-        binding.register.setOnClickListener {
-            startActivity(Intent(this, RegistrationActivity::class.java))
-        }
+        val loginButton = findViewById<Button>(R.id.login)
+        val emailEditText = findViewById<EditText>(R.id.email)
+        val passwordEditText = findViewById<EditText>(R.id.password)
 
-        binding.login.setOnClickListener {
-            val email = binding.email.text.toString().trim()
-            val password = binding.password.text.toString().trim()
+        loginButton.setOnClickListener {
+            val email = emailEditText.text.toString().trim()
+            val password = passwordEditText.text.toString().trim()
 
             if (email.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
@@ -50,9 +51,40 @@ class LoginActivity : AppCompatActivity() {
                 try {
                     val response = RetrofitClient.apiService.login(request)
                     if (response.isSuccessful) {
-                        response.body()?.accessToken?.let { token ->
-                            sessionManager.saveAuthToken(token)
-                            navigateToMain()
+                        response.body()?.let { loginResponse ->
+                            val decodedJWT = JWT(loginResponse.accessToken)
+                            val userClaim = decodedJWT.getClaim("user")
+                            val user = userClaim.asObject(com.businesscart.android.model.DecodedUser::class.java)
+
+                            if (user == null) {
+                                Log.e("LoginActivity", "Decoded user object is null after parsing from claim.")
+                                Toast.makeText(this@LoginActivity, "Login failed: User data invalid.", Toast.LENGTH_LONG).show()
+                                return@let
+                            }
+
+                            if (user.role != "customer") {
+                                Toast.makeText(this@LoginActivity, "This app is for customers only.", Toast.LENGTH_LONG).show()
+                                return@let
+                            }
+
+                            // Save the token first
+                            sessionManager.saveAuthToken(loginResponse.accessToken)
+
+                            // Fetch full account details
+                            val accountResponse = RetrofitClient.apiService.getAccountById(user.id)
+                            if (accountResponse.isSuccessful) {
+                                accountResponse.body()?.let { fullAccount ->
+                                    sessionManager.saveAccount(fullAccount)
+                                    navigateToCatalog()
+                                } ?: run {
+                                    Log.e("LoginActivity", "Account details response body is null.")
+                                    Toast.makeText(this@LoginActivity, "Login failed: Could not retrieve account details.", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                val errorBody = accountResponse.errorBody()?.string()
+                                Log.e("LoginActivity", "Failed to fetch account details: $errorBody")
+                                Toast.makeText(this@LoginActivity, "Login failed: Could not retrieve account details.", Toast.LENGTH_LONG).show()
+                            }
                         }
                     } else {
                         val errorBody = response.errorBody()?.string()
@@ -67,8 +99,8 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun navigateToMain() {
-        val intent = Intent(this, MainActivity::class.java)
+    private fun navigateToCatalog() {
+        val intent = Intent(this, CatalogActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
     }

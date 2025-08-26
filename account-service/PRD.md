@@ -8,68 +8,92 @@ The goal is to consolidate user and company management into a single Go-based mi
 
 ## 2. Database Schema
 
-The `accounts` collection will store documents with the following structures.
+The service uses two main collections in MongoDB: `accounts` and `codes`.
 
-### Account Document (`type: "USER"` or `type: "COMPANY"`)
+### `accounts` Collection
 
-```json
-{
-  "_id": "<ObjectID>",
-  "type": "string", // "USER" or "COMPANY"
-  "name": "string",
-  "createdAt": "<ISODate>",
-  "updatedAt": "<ISODate>",
+Stores the unified account information for all roles (`admin`, `company`, `customer`, `partner`).
 
-  // User-specific fields
-  "email": "string (unique, for users)",
-  "passwordHash": "string (for users)",
-  "role": "string (admin, company, customer)",
-  "phoneNumber": "string",
-  "associateCompanyIds": ["<ObjectID>"],
+```go
+type Account struct {
+	ID            primitive.ObjectID `bson:"_id,omitempty"`
+	Name          string             `bson:"name"`
+	Email         string             `bson:"email"`
+	Password      string             `bson:"password"`
+	Role          string             `bson:"role"`
+	AccountStatus AccountStatus      `bson:"accountStatus"`
+	CreatedAt     time.Time          `bson:"createdAt"`
+	UpdatedAt     time.Time          `bson:"updatedAt"`
 
-  // Company-specific fields
-  "companyCode": "string (unique, for companies)",
-  "companyAccessCode": "string (for companies)",
-  "ownerId": "<ObjectID (user who owns the company)>",
-  "paymentMethods": ["string"],
-  "address": {
-    "street": "string",
-    "city": "string",
-    "state": "string",
-    "zip": "string"
-  },
-  "customers": ["<ObjectID (associated customer users)>"]
+	// Role-specific embedded documents
+	CompanyData  *CompanyData  `bson:"company,omitempty"`
+	CustomerData *CustomerData `bson:"customer,omitempty"`
+	PartnerData  *PartnerData  `bson:"partner,omitempty"`
+	Address      *Address      `bson:"address,omitempty"`
 }
 ```
 
-## 3. Simplified API Endpoints
+-   **`CompanyData`**: Contains company-specific fields, including a `Status` field (e.g., `pending_setup`, `active`).
+-   **`CustomerData`**: Contains customer-specific data, including a list of `CustomerCodes` they are associated with.
+-   **`PartnerData`**: Contains partner-specific information.
 
-The new `account-service` will expose a single `/accounts` resource.
+### `codes` Collection
 
-*   **`POST /accounts`** (Register)
-    *   Handles registration for all account types based on the `role` in the request body.
-    *   If `role` is "company", it creates both a `USER` and a `COMPANY` account.
+Stores registration codes created by an Admin.
 
-*   **`POST /accounts/login`**
-    *   Authenticates a user and returns JWTs.
+```go
+type Code struct {
+	ID           primitive.ObjectID `bson:"_id,omitempty"`
+	CompanyCode  string             `bson:"companyCode"`
+	CustomerCode string             `bson:"customerCode"`
+	PartnerCode  string             `bson:"partnerCode,omitempty"`
+	IsClaimed    bool               `bson:"is_claimed"`
+	CreatedAt    time.Time          `bson:"createdAt"`
+}
+```
 
-*   **`GET /accounts`** (Get multiple accounts)
-    *   **Admin:** Returns all accounts.
-    *   **Company:** `?role=customer` returns associated customer accounts.
-    *   **Customer:** `?type=company` returns associated company accounts.
+-   `CompanyCode`: Used once by a `company` to register.
+-   `CustomerCode`: Used by `customer`s to associate with a company. Can be used multiple times.
+-   `PartnerCode`: Used once by a `partner` to register.
 
-*   **`GET /accounts/{id}`**
-    *   Returns the details of any account (user or company) by its ID.
+## 3. Implemented API Endpoints
 
-*   **`PATCH /accounts/{id}`** (Update an account)
-    *   The primary update endpoint for users and companies. The service logic will determine what can be updated based on the user's role and the fields provided.
+The service exposes the following endpoints:
 
-*   **`DELETE /accounts/{id}`**
-    *   Deletes an account. Permissions are handled by the service.
+*   **`POST /accounts/register`**: Creates a new account. The logic varies based on the `role` provided.
+*   **`POST /accounts/login`**: Authenticates a user and returns an access token and a refresh token.
+*   **`GET /accounts`**: Retrieves a list of accounts. Results are filtered based on the caller's role (e.g., an Admin sees all, a Company sees their associated customers).
+*   **`GET /accounts/{id}`**: Retrieves the details of a specific account.
+*   **`PATCH /accounts/{id}`**: Updates the details of a specific account. This is a generic update endpoint.
+*   **`DELETE /accounts/{id}`**: Deletes an account.
+*   **`POST /codes`** (Admin Only): Creates a new registration code document containing a `CompanyCode` and `CustomerCode`.
+*   **`GET /codes/{code}`** (Admin Only): Retrieves the details of a specific registration code.
 
-## 4. Migration Plan & Progress
+## 4. Registration & Operational Flow
 
-This checklist will be updated as each step is completed.
+The registration process is managed by admins and relies on the `codes` collection.
+
+1.  **Admin Creates Codes**: An admin uses the `POST /codes` endpoint to create a new code document. This document contains a unique `CompanyCode` and a `CustomerCode`.
+
+2.  **Company Registration**:
+    *   A user registers with `role: "company"` and provides a valid, unclaimed `companyCode`.
+    *   The system validates the code in the `codes` collection.
+    *   If valid, a new `company` account is created with a `status` of `pending_setup`.
+    *   The `companyCode` is marked as `is_claimed: true`.
+    *   The company can then be updated (e.g., to `active` status) via the `PATCH /accounts/{id}` endpoint.
+
+3.  **Customer Registration**:
+    *   A new user registers with `role: "customer"` and provides one or more `customerCodes`.
+    *   The system finds the corresponding code documents to associate the new customer with the correct company/companies.
+    *   `customerCode`s are never marked as claimed and can be used by multiple customers.
+
+4.  **Partner Registration**:
+    *   A user registers with `role: "partner"` and can optionally provide a `partnerCode`.
+    *   If provided, the `partnerCode` is validated and marked as `is_claimed: true`.
+
+## 5. Migration Plan & Progress
+
+This checklist tracks the historical progress of the service migration.
 
 ### Phase 1: Planning & Setup
 
@@ -101,123 +125,3 @@ This checklist will be updated as each step is completed.
 - [ ] **(Next)** Run the `new_full_api_test.sh` script and verify all functionality.
 - [ ] Remove the old `user-service` and `company-service` directories and their stacks.
 - [ ] Update `bin/business-cart.ts` to use only the new `account-service-stack`.
-
-
-# Your last response
-Thank you, that's a critical clarification. It introduces a much more robust and secure workflow. I've revised my plan to
-  incorporate these new requirements.
-
-  Please review the following detailed plan and confirm if I've understood you correctly.
-
-  Revised Plan
-
-  1. New Database Collection: `codes`
-
-  I will create a new MongoDB collection named codes. This collection will be central to the new registration flow and will store
-  two types of codes:
-
-   * `BUSINESS` codes: Created by an Admin, used once by a company to register.
-   * `COMPANY` codes: Created by a Company user after they register, used by their customers to register.
-
-  A document in this collection will have this structure:
-
-   1 {
-   2   "_id": "<ObjectID>",
-   3   "code": "string",       // The unique code value (e.g., "BIZ-XYZ" or "COMP-ABC")
-   4   "type": "string",       // "BUSINESS" or "COMPANY"
-   5   "is_claimed": "boolean",   // For "BUSINESS" codes, is it used?
-   6   "company_id": "<ObjectID>", // For "COMPANY" codes, which company does it belong to?
-   7   "createdAt": "<ISODate>"
-   8 }
-
-  2. New `status` Field in `accounts` Collection
-
-  I will add a status field to the Account model for company accounts. This will track whether a company has completed its setup.
-
-   * `pending_setup`: The initial state after a company registers.
-   * `active`: The state after a company has set its unique customer-facing code.
-
-  3. New API Endpoints
-
-  I will create two new endpoints to manage these codes:
-
-   * `POST /codes` (Admin Only)
-       * Purpose: Allows an admin to create new BUSINESS codes.
-       * Request Body: { "code": "BIZ-XYZ", "type": "BUSINESS" }
-       * Authorization: Restricted to admin users.
-
-   * `POST /accounts/company-code` (Company Role Only)
-       * Purpose: Allows a newly registered company user to set their unique, unchangeable code for their customers.
-       * Request Body: { "code": "COMP-ABC" }
-       * Authorization: Restricted to company users whose status is pending_setup.
-
-  4. Updated Registration & Operational Flow
-
-  The entire process will now work as follows:
-
-   1. Admin Creates Business Code: An admin uses POST /codes to create one or more BUSINESS codes.
-
-   2. Company Registration (`POST /accounts`):
-       * A user registers with role: "company" and provides a valid, unclaimed businessCode.
-       * The system validates the code in the codes collection.
-       * If valid, a new company account and an associated user account are created with a status of pending_setup.
-       * The businessCode is marked as is_claimed: true.
-
-   3. Company Sets Its Code (`POST /accounts/company-code`):
-       * The newly registered company user logs in.
-       * They call the POST /accounts/company-code endpoint with their desired unique code (e.g., "COMP-ABC").
-       * The system verifies this code is globally unique.
-       * It then creates a new document in the codes collection with type: "COMPANY" and associates it with their company_id.
-       * Finally, the company's account status is updated to active.
-
-   4. Customer Registration (`POST /accounts`):
-       * A new user registers with role: "customer" and provides the companyCode (e.g., "COMP-ABC").
-       * The system finds the code in the codes collection.
-       * It uses the company_id from the code document to associate the new customer with the correct company.
-
-  This ensures no company can be created without a valid business code, and no customer can register without a valid code from an
-  active company.
-
-  Does this updated plan match your vision?
-
-╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│  > do we need following becaouse it can achive by account update call. * `POST /accounts/company-code` (Company Role Only)  │
-│           * Purpose: Allows a newly registered company user to set their unique, unchangeable code for their customers.     │
-│           * Request Body: { "code": "COMP-ABC" }                                                                            │
-│           * Authorization: Restricted to company users whose status is pending_setup.                                       │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-
-✦ That's an excellent point. You are correct, we could use the general PATCH /accounts/{id} endpoint to achieve this.
-
-  However, I would recommend we keep the dedicated POST /accounts/company-code endpoint for a few important reasons:
-
-   1. Clarity and Intent: A dedicated endpoint makes the API's purpose explicit. When another developer (or you, in the future) sees
-      POST /accounts/company-code, they know exactly what it does: it's a special, one-time action to set the company's customer code.
-      Overloading the PATCH endpoint makes the logic more hidden.
-
-   2. Security and Immutability: This code is meant to be set once and never changed. A dedicated endpoint makes this rule much easier
-      to enforce. The logic is simple: "If the company status is pending_setup, allow this action. Otherwise, reject it." If we used
-      the PATCH endpoint, we would have to add complex checks to the update logic to prevent this specific field from ever being
-      changed after it's been set.
-
-   3. Simpler Logic: The UpdateAccount handler can remain simple and focused on general updates (like changing a phone number or
-      address). The specialized, critical logic for creating the company code and activating the account is isolated in its own
-      handler, making the code cleaner and easier to maintain.
-
-  For these reasons, I strongly recommend we stick with the dedicated POST /accounts/company-code endpoint. It creates a more
-  robust, secure, and easier-to-understand API.
-
-  Does that reasoning make sense, or would you still prefer to merge this functionality into the update endpoint?
-
-╭─────────────────╮
-│  > ok keep it.  │
-╰─────────────────╯
-
-✦ Excellent. I will proceed with the plan as we've discussed.
-
-  First, I will implement the database schema changes by modifying account-service/internal/storage/models.go. I'll add the new
-  Code struct and the Status field to the Account struct.
- ╭────────────────────────────────────────────────────────╮
- │ ✔  ReadFile ...unt-service/internal/storage/models.go  │
- ╰────────────────────────────────────────────────────────╯
-✦ Okay, I'm updating models.go with the new Code struct and Status field.

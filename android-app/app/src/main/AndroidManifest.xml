@@ -2,8 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
+        android:name=".BusinessCartApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -20,11 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ui.registration.RegistrationActivity" />
-        <activity android:name=".ui.main.MainActivity" />
-        <activity android:name=".ui.cart.CartActivity" />
+        
+        <activity android:name=".ui.checkout.CartActivity" />
         <activity android:name=".ui.checkout.CheckoutActivity" />
-        <activity android:name=".ui.ordersuccess.OrderSuccessActivity" />
+        <activity android:name=".ui.checkout.OrderSuccessActivity" />
+        <activity android:name=".ui.checkout.OrderHistoryActivity" />
+        <activity android:name=".ui.main.CatalogActivity" />
     </application>
 
 </manifest>

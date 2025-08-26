@@ -4,30 +4,27 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.ordersuccess.OrderSuccessActivity">
+    tools:context=".ui.checkout.OrderSuccessActivity">
 
     <TextView
-        android:id="@+id/success_message"
+        android:id="@+id/successMessageTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Order Placed Successfully!"
         android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/back_to_main_button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/viewOrdersButton" />
 
     <Button
-        android:id="@+id/back_to_main_button"
+        android:id="@+id/viewOrdersButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Continue Shopping"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:text="View Orders"
+        app:layout_constraintTop_toBottomOf="@+id/successMessageTextView"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/success_message" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
