@@ -1,125 +1,126 @@
 package com.businesscart.android.ui.checkout
 
-import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.businesscart.android.api.CheckoutApiClient
-import com.businesscart.android.api.CreateOrderRequest
-import com.businesscart.android.databinding.ActivityCheckoutBinding
+import androidx.recyclerview.widget.RecyclerView
+import com.businesscart.android.R
+import com.businesscart.android.api.RetrofitClient
+import com.businesscart.android.model.CreateOrderRequest
 import com.businesscart.android.model.Quote
-import com.businesscart.android.ui.ordersuccess.OrderSuccessActivity
-import com.businesscart.android.util.SessionManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class CheckoutActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityCheckoutBinding
-    private lateinit var sessionManager: SessionManager
-    private lateinit var quoteItemAdapter: QuoteItemAdapter
-    private var quoteId: String? = null
-    private val TAG = "CheckoutActivity"
+    private lateinit var quoteSummaryTextView: TextView
+    private lateinit var subtotalTextView: TextView
+    private lateinit var shippingTextView: TextView
+    private lateinit var taxTextView: TextView
+    private lateinit var totalTextView: TextView
+    private lateinit var placeOrderButton: Button
+    private lateinit var progressBar: ProgressBar
+    private lateinit var quoteItemsRecyclerView: RecyclerView
+
+    private var currentQuote: Quote? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityCheckoutBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(R.layout.activity_checkout)
 
-        sessionManager = SessionManager(this)
-        quoteId = intent.getStringExtra("quoteId")
+        // Initialize Views
+        quoteSummaryTextView = findViewById(R.id.quoteSummaryTextView)
+        subtotalTextView = findViewById(R.id.subtotalTextView)
+        shippingTextView = findViewById(R.id.shippingTextView)
+        taxTextView = findViewById(R.id.taxTextView)
+        totalTextView = findViewById(R.id.totalTextView)
+        placeOrderButton = findViewById(R.id.placeOrderButton)
+        progressBar = findViewById(R.id.progressBar)
+        quoteItemsRecyclerView = findViewById(R.id.quoteItemsRecyclerView)
+        quoteItemsRecyclerView.layoutManager = LinearLayoutManager(this)
 
-        setupRecyclerView()
+        val quoteId = intent.getStringExtra("QUOTE_ID")
 
         if (quoteId == null) {
-            Toast.makeText(this, "Error: Quote ID not found.", Toast.LENGTH_LONG).show()
-            finish()
+            Toast.makeText(this, "Error: Quote ID is missing.", Toast.LENGTH_LONG).show()
+            finish() // Close the activity if there's no ID
             return
         }
 
-        fetchQuoteDetails(quoteId!!)
+        fetchQuoteDetails(quoteId)
 
-        binding.placeOrderButton.setOnClickListener {
-            placeOrder()
-        }
-    }
-
-    private fun setupRecyclerView() {
-        quoteItemAdapter = QuoteItemAdapter(emptyList())
-        binding.quoteItemsRecyclerView.apply {
-            adapter = quoteItemAdapter
-            layoutManager = LinearLayoutManager(this@CheckoutActivity)
-        }
-    }
-
-    private fun fetchQuoteDetails(id: String) {
-        lifecycleScope.launch {
-            try {
-                val token = "Bearer ${sessionManager.getAuthToken()}"
-                val response = withContext(Dispatchers.IO) {
-                    CheckoutApiClient.apiService.getQuote(token, id)
-                }
-
-                if (response.isSuccessful && response.body() != null) {
-                    val quote = response.body()!!
-                    displayQuote(quote)
-                } else {
-                    Log.e(TAG, "Failed to fetch quote. Code: ${response.code()}, Message: ${response.message()}")
-                    Toast.makeText(this@CheckoutActivity, "Failed to fetch quote details.", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception in fetchQuoteDetails: ${e.message}", e)
-                Toast.makeText(this@CheckoutActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        placeOrderButton.setOnClickListener {
+            currentQuote?.let {
+                placeOrder(it.id)
             }
         }
     }
 
-    private fun displayQuote(quote: Quote) {
-        quoteItemAdapter.updateItems(quote.items)
-        binding.subtotalTextView.text = "$${quote.subtotal}"
-        binding.shippingTextView.text = "$${quote.shippingCost}"
-        binding.taxTextView.text = "$${quote.taxAmount}"
-        binding.grandTotalTextView.text = "$${quote.grandTotal}"
-    }
-
-    private fun placeOrder() {
-        if (quoteId == null) {
-            Toast.makeText(this, "Cannot place order without a quote.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val paymentMethod = if (binding.stripeRadioButton.isChecked) "stripe" else "amazon_pay"
-        // Using a placeholder payment token as in the web portal
-        val paymentToken = if (paymentMethod == "stripe") "tok_stripe_valid" else "amz_pay_valid"
-
+    private fun fetchQuoteDetails(quoteId: String) {
+        progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
-                val token = "Bearer ${sessionManager.getAuthToken()}"
-                val request = CreateOrderRequest(
-                    quoteId = quoteId!!,
-                    paymentMethod = paymentMethod,
-                    paymentToken = paymentToken
-                )
-                val response = withContext(Dispatchers.IO) {
-                    CheckoutApiClient.apiService.createOrder(token, request)
-                }
-
-                if (response.isSuccessful && response.body() != null) {
-                    Toast.makeText(this@CheckoutActivity, "Order placed successfully!", Toast.LENGTH_LONG).show()
-                    val intent = Intent(this@CheckoutActivity, OrderSuccessActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
+                val response = RetrofitClient.checkoutApiService.getQuote(quoteId)
+                if (response.isSuccessful) {
+                    response.body()?.let { quote ->
+                        currentQuote = quote
+                        updateUiWithQuote(quote)
+                    }
                 } else {
-                    Log.e(TAG, "Failed to place order. Code: ${response.code()}, Message: ${response.message()}")
-                    Toast.makeText(this@CheckoutActivity, "Failed to place order.", Toast.LENGTH_SHORT).show()
+                    Log.e("CheckoutActivity", "Failed to fetch quote: ${response.errorBody()?.string()}")
+                    Toast.makeText(this@CheckoutActivity, "Failed to load quote details.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Exception in placeOrder: ${e.message}", e)
-                Toast.makeText(this@CheckoutActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("CheckoutActivity", "Exception when fetching quote", e)
+                Toast.makeText(this@CheckoutActivity, "An error occurred: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun updateUiWithQuote(quote: Quote) {
+        quoteItemsRecyclerView.adapter = QuoteAdapter(quote.items)
+
+        subtotalTextView.text = "Subtotal: $${String.format("%.2f", quote.subtotal)}"
+        shippingTextView.text = "Shipping: $${String.format("%.2f", quote.shippingCost)}"
+        taxTextView.text = "Tax: $${String.format("%.2f", quote.taxAmount)}"
+        totalTextView.text = "Total: $${String.format("%.2f", quote.grandTotal)}"
+        quoteSummaryTextView.text = "Quote Summary (${quote.items.size} items)"
+    }
+
+    private fun placeOrder(quoteId: String) {
+        progressBar.visibility = View.VISIBLE
+        placeOrderButton.isEnabled = false
+        
+        lifecycleScope.launch {
+            try {
+                val request = CreateOrderRequest(
+                    quoteId = quoteId,
+                    paymentMethod = "stripe",
+                    paymentToken = "tok_stripe_valid"
+                )
+                val response = RetrofitClient.checkoutApiService.createOrder(request)
+                if (response.isSuccessful) {
+                    Toast.makeText(this@CheckoutActivity, "Order placed successfully!", Toast.LENGTH_LONG).show()
+                    finish()
+                } else {
+                    Log.e("CheckoutActivity", "Failed to place order: ${response.errorBody()?.string()}")
+                    Toast.makeText(this@CheckoutActivity, "Failed to place order.", Toast.LENGTH_SHORT).show()
+                    placeOrderButton.isEnabled = true
+                }
+            } catch (e: Exception) {
+                Log.e("CheckoutActivity", "Exception when placing order", e)
+                Toast.makeText(this@CheckoutActivity, "An error occurred: ${e.message}", Toast.LENGTH_SHORT).show()
+                placeOrderButton.isEnabled = true
+            } finally {
+                progressBar.visibility = View.GONE
             }
         }
     }
