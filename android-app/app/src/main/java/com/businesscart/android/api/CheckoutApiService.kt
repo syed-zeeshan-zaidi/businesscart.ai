@@ -3,6 +3,9 @@ package com.businesscart.android.api
 import com.businesscart.android.model.AddItemToCartRequest
 import com.businesscart.android.model.Cart
 import com.businesscart.android.model.CartItem
+import com.businesscart.android.model.CreateOrderRequest
+import com.businesscart.android.model.Order
+import com.businesscart.android.model.Quote
 import com.businesscart.android.model.UpdateCartItemPayload
 import retrofit2.Response
 import retrofit2.http.Body
@@ -40,5 +43,11 @@ interface CheckoutApiService {
     suspend fun clearCart(@Query("sellerId") sellerId: String): Response<Cart>
 
     @POST("quotes")
-    suspend fun createQuote(@Body request: Map<String, String>): Response<com.businesscart.android.model.Quote>
+    suspend fun createQuote(@Body request: Map<String, String>): Response<Quote>
+
+    @GET("quotes/{quoteId}")
+    suspend fun getQuote(@Path("quoteId") quoteId: String): Response<Quote>
+
+    @POST("orders")
+    suspend fun createOrder(@Body request: CreateOrderRequest): Response<Order>
 }

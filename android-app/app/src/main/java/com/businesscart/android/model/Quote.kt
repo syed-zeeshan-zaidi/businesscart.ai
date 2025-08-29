@@ -13,3 +13,15 @@ data class Quote(
     val createdAt: String,
     val expiresAt: String
 )
+
+data class CreateOrderRequest(
+    val quoteId: String,
+    val paymentMethod: String,
+    val paymentToken: String
+)
+
+data class Order(
+    val id: String,
+    val quoteId: String,
+    val status: String
+)
