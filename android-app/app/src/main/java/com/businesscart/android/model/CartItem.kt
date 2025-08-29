@@ -8,3 +8,13 @@ data class CartItem(
     val name: String,
     val price: Double
 )
+
+data class AddItemToCartRequest(val entity: CartItem)
+
+data class UpdateCartItemRequest(
+    val quantity: Int
+)
+
+data class UpdateCartItemPayload(
+    val entity: UpdateCartItemRequest
+)

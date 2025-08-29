@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
+import com.businesscart.android.model.AddItemToCartRequest
 import com.businesscart.android.model.CartItem
 import com.businesscart.android.model.Product
 import com.businesscart.android.ui.checkout.CartActivity
@@ -122,7 +123,7 @@ class CatalogActivity : AppCompatActivity() {
     private fun addToCart(product: Product) {
         lifecycleScope.launch {
             try {
-                val request = CartItem(
+                val cartItem = CartItem(
                     id = null,
                     productId = product.id,
                     quantity = 1,
@@ -130,6 +131,7 @@ class CatalogActivity : AppCompatActivity() {
                     name = product.name,
                     price = product.price
                 )
+                val request = AddItemToCartRequest(entity = cartItem)
                 val response = RetrofitClient.checkoutApiService.addItemToCart(request)
                 if (response.isSuccessful) {
                     Toast.makeText(this@CatalogActivity, "${product.name} added to cart", Toast.LENGTH_SHORT).show()

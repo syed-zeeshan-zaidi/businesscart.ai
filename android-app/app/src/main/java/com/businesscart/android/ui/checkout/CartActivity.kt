@@ -19,6 +19,7 @@ import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
 import com.businesscart.android.model.CompanyData
 import com.businesscart.android.model.UpdateCartItemRequest
+import com.businesscart.android.model.UpdateCartItemPayload
 import com.businesscart.android.model.CartItem
 import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.launch
@@ -141,7 +142,8 @@ class CartActivity : AppCompatActivity() {
         lifecycleScope.launch {
             selectedCompanyId?.let { sellerId ->
                 cartItem.id?.let { itemId ->
-                    val response = RetrofitClient.checkoutApiService.updateCartItem(itemId, UpdateCartItemRequest(quantity = cartItem.quantity), sellerId)
+                    val payload = UpdateCartItemPayload(entity = UpdateCartItemRequest(quantity = cartItem.quantity))
+                    val response = RetrofitClient.checkoutApiService.updateCartItem(itemId, payload, sellerId)
                     if (response.isSuccessful) {
                         fetchCart()
                     }

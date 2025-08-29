@@ -1,8 +1,9 @@
 package com.businesscart.android.api
 
+import com.businesscart.android.model.AddItemToCartRequest
 import com.businesscart.android.model.Cart
 import com.businesscart.android.model.CartItem
-import com.businesscart.android.model.UpdateCartItemRequest
+import com.businesscart.android.model.UpdateCartItemPayload
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -17,7 +18,7 @@ import retrofit2.http.Query
 interface CheckoutApiService {
 
     @POST("cart")
-    suspend fun addItemToCart(@Body request: CartItem): Response<Cart>
+    suspend fun addItemToCart(@Body request: AddItemToCartRequest): Response<Cart>
 
     @GET("cart")
     suspend fun getCart(@Query("sellerId") sellerId: String): Response<Cart>
@@ -25,7 +26,7 @@ interface CheckoutApiService {
     @PUT("cart/{itemId}")
     suspend fun updateCartItem(
         @Path("itemId") itemId: String,
-        @Body request: UpdateCartItemRequest,
+        @Body request: UpdateCartItemPayload,
         @Query("sellerId") sellerId: String
     ): Response<Cart>
 
