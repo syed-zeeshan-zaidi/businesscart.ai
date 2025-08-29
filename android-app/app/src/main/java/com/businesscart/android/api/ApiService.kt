@@ -6,6 +6,7 @@ import com.businesscart.android.model.Account
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -18,5 +19,5 @@ interface ApiService {
     suspend fun login(@Body request: Map<String, String>): Response<LoginResponse>
 
     @GET("accounts/{id}")
-    suspend fun getAccountById(@Path("id") id: String): Response<Account>
+    suspend fun getAccount(@Path("id") id: String): Response<Account>
 }

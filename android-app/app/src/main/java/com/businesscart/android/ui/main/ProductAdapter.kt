@@ -11,7 +11,10 @@ import com.businesscart.android.R
 import com.businesscart.android.model.Product
 import com.squareup.picasso.Picasso
 
-class ProductAdapter(private val products: List<Product>) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
+class ProductAdapter(
+    private val products: List<Product>,
+    private val onAddToCartClick: (Product) -> Unit
+) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_product, parent, false)
@@ -22,10 +25,14 @@ class ProductAdapter(private val products: List<Product>) : RecyclerView.Adapter
         val product = products[position]
         holder.productName.text = product.name
         holder.productDescription.text = product.description
-        holder.productPrice.text = "$${product.price}"
+        holder.productPrice.text = "${product.price}"
 
         if (!product.image.isNullOrEmpty()) {
             Picasso.get().load(product.image).into(holder.productImage)
+        }
+
+        holder.addToCartButton.setOnClickListener {
+            onAddToCartClick(product)
         }
     }
 

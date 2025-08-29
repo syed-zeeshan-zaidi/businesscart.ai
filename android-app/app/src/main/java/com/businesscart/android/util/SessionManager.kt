@@ -24,6 +24,10 @@ class SessionManager(context: Context) {
         return sharedPreferences.getString("auth_token", null)
     }
 
+    fun getUserId(): String? {
+        return getAccount()?._id
+    }
+
     fun saveAccount(account: Account) {
         val accountJson = gson.toJson(account)
         val editor = sharedPreferences.edit()

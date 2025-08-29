@@ -1,7 +1,7 @@
 package com.businesscart.android.model
 
 data class CartItem(
-    val id: String,
+    val id: String?,
     val productId: String,
     val quantity: Int,
     val sellerId: String,
