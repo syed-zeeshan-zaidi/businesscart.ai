@@ -35,6 +35,7 @@ func (h *Handler) RegisterRoutes(router *chi.Mux) {
 		r.Patch("/accounts/{id}", h.UpdateAccount)
 		r.Delete("/accounts/{id}", h.DeleteAccount)
 		r.Post("/codes", h.CreateCode)    // admin only
+		r.Get("/codes", h.GetCodes)        // admin only
 		r.Get("/codes/{code}", h.GetCode) // admin only
 	})
 }
@@ -107,6 +108,27 @@ func (h *Handler) GetCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(doc)
+}
+
+func (h *Handler) GetCodes(w http.ResponseWriter, r *http.Request) {
+	// admin check
+	if r.Context().Value("user").(map[string]interface{})["role"] != "admin" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	codes, err := h.db.GetCodes(bson.M{})
+	if err != nil {
+		http.Error(w, "failed to retrieve codes", http.StatusInternalServerError)
+		return
+	}
+
+	if len(codes) == 0 {
+		json.NewEncoder(w).Encode([]*storage.Code{})
+		return
+	}
+
+	json.NewEncoder(w).Encode(codes)
 }
 
 /* ---------- ACCOUNT ENDPOINTS ---------- */

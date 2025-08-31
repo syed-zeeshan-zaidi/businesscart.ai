@@ -1,7 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../hooks/useAuth';
 
 const Sidebar = () => {
+  const { decodeJWT } = useAuth();
+  const token = localStorage.getItem('accessToken');
+  const user = token ? decodeJWT(token) : null;
+
   const links = [
     { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
     { name: 'Users', path: '/users', icon: UserIcon },
@@ -9,6 +14,10 @@ const Sidebar = () => {
     { name: 'Products', path: '/products', icon: ShoppingBagIcon },
     { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
   ];
+
+  if (user && user.role === 'admin') {
+    links.splice(1, 0, { name: 'Codes', path: '/codes', icon: DocumentPlusIcon });
+  }
 
   return (
     <div className="w-64 bg-gray-800 shadow-lg h-screen sticky top-0">

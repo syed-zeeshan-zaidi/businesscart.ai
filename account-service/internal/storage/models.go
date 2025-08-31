@@ -100,12 +100,12 @@ type Account struct {
 
 // ---------- code & auth ----------
 type Code struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty"`
-	CompanyCode  string             `bson:"companyCode"`
-	CustomerCode string             `bson:"customerCode"`
-	PartnerCode  string             `bson:"partnerCode,omitempty"`
-	IsClaimed    bool               `bson:"is_claimed"`
-	CreatedAt    time.Time          `bson:"createdAt"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CompanyCode  string             `bson:"companyCode" json:"companyCode"`
+	CustomerCode string             `bson:"customerCode" json:"customerCode"`
+	PartnerCode  string             `bson:"partnerCode,omitempty" json:"partnerCode,omitempty"`
+	IsClaimed    bool               `bson:"is_claimed" json:"isClaimed"`
+	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
 }
 
 type RefreshToken struct {
