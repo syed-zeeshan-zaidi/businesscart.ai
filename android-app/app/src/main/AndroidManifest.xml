@@ -22,7 +22,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
+        <activity android:name=".ui.account.AccountActivity" />
         <activity android:name=".ui.checkout.CartActivity" />
         <activity android:name=".ui.checkout.CheckoutActivity" />
         <activity android:name=".ui.checkout.OrderSuccessActivity" />

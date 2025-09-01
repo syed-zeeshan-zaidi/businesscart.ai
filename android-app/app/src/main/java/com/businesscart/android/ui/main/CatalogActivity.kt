@@ -20,6 +20,7 @@ import com.businesscart.android.api.RetrofitClient
 import com.businesscart.android.model.AddItemToCartRequest
 import com.businesscart.android.model.CartItem
 import com.businesscart.android.model.Product
+import com.businesscart.android.ui.account.AccountActivity
 import com.businesscart.android.ui.checkout.CartActivity
 import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.launch
@@ -56,6 +57,10 @@ class CatalogActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.action_cart -> {
                 startActivity(Intent(this, CartActivity::class.java))
+                true
+            }
+            R.id.action_account -> {
+                startActivity(Intent(this, AccountActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
