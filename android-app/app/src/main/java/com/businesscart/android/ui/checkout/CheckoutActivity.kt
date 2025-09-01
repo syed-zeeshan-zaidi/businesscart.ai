@@ -1,5 +1,6 @@
 package com.businesscart.android.ui.checkout
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -88,17 +89,17 @@ class CheckoutActivity : AppCompatActivity() {
     private fun updateUiWithQuote(quote: Quote) {
         quoteItemsRecyclerView.adapter = QuoteAdapter(quote.items)
 
-        subtotalTextView.text = "Subtotal: $${String.format("%.2f", quote.subtotal)}"
-        shippingTextView.text = "Shipping: $${String.format("%.2f", quote.shippingCost)}"
-        taxTextView.text = "Tax: $${String.format("%.2f", quote.taxAmount)}"
-        totalTextView.text = "Total: $${String.format("%.2f", quote.grandTotal)}"
+        subtotalTextView.text = "Subtotal: ${String.format("%.2f", quote.subtotal)}"
+        shippingTextView.text = "Shipping: ${String.format("%.2f", quote.shippingCost)}"
+        taxTextView.text = "Tax: ${String.format("%.2f", quote.taxAmount)}"
+        totalTextView.text = "Total: ${String.format("%.2f", quote.grandTotal)}"
         quoteSummaryTextView.text = "Quote Summary (${quote.items.size} items)"
     }
 
     private fun placeOrder(quoteId: String) {
         progressBar.visibility = View.VISIBLE
         placeOrderButton.isEnabled = false
-        
+
         lifecycleScope.launch {
             try {
                 val request = CreateOrderRequest(
@@ -108,8 +109,24 @@ class CheckoutActivity : AppCompatActivity() {
                 )
                 val response = RetrofitClient.checkoutApiService.createOrder(request)
                 if (response.isSuccessful) {
-                    Toast.makeText(this@CheckoutActivity, "Order placed successfully!", Toast.LENGTH_LONG).show()
-                    finish()
+                    response.body()?.let { order ->
+                        // Clear the cart
+                        currentQuote?.let { quote ->
+                            lifecycleScope.launch {
+                                try {
+                                    RetrofitClient.checkoutApiService.clearCart(quote.sellerId)
+                                } catch (e: Exception) {
+                                    Log.e("CheckoutActivity", "Exception when clearing cart", e)
+                                }
+                            }
+                        }
+
+                        // Start OrderSuccessActivity
+                        val intent = Intent(this@CheckoutActivity, OrderSuccessActivity::class.java)
+                        intent.putExtra("ORDER_ID", order.id)
+                        startActivity(intent)
+                        finish()
+                    }
                 } else {
                     Log.e("CheckoutActivity", "Failed to place order: ${response.errorBody()?.string()}")
                     Toast.makeText(this@CheckoutActivity, "Failed to place order.", Toast.LENGTH_SHORT).show()

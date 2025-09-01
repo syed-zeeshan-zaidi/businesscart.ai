@@ -15,14 +15,24 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/viewOrdersButton" />
+        app:layout_constraintBottom_toTopOf="@+id/orderIdTextView" />
+
+    <TextView
+        android:id="@+id/orderIdTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="204dp"
+        android:layout_marginTop="44dp"
+        android:textSize="18sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/successMessageTextView" />
 
     <Button
         android:id="@+id/viewOrdersButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="View Orders"
-        app:layout_constraintTop_toBottomOf="@+id/successMessageTextView"
+        app:layout_constraintTop_toBottomOf="@+id/orderIdTextView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />

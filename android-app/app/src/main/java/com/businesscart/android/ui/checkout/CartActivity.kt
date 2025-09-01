@@ -3,6 +3,8 @@ package com.businesscart.android.ui.checkout
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -21,6 +23,7 @@ import com.businesscart.android.model.CompanyData
 import com.businesscart.android.model.UpdateCartItemRequest
 import com.businesscart.android.model.UpdateCartItemPayload
 import com.businesscart.android.model.CartItem
+import com.businesscart.android.ui.main.CatalogActivity
 import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.launch
 
@@ -74,6 +77,26 @@ class CartActivity : AppCompatActivity() {
             clearCart()
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        progressBar.visibility = View.GONE
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.cart_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = 
+        when(item.itemId) {
+            R.id.action_catalog -> {
+                progressBar.visibility = View.VISIBLE
+                startActivity(Intent(this, CatalogActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
 
     private fun setupRecyclerView() {
         cartAdapter = CartAdapter(mutableListOf(), ::onUpdateCartItem, ::onRemoveCartItem)
