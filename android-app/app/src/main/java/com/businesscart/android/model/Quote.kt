@@ -20,7 +20,7 @@ data class CreateOrderRequest(
     val paymentToken: String
 )
 
-data class Order(
+data class SimpleOrder(
     val id: String,
     val quoteId: String,
     val status: String

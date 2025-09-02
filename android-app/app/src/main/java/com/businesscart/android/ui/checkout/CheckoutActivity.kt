@@ -16,6 +16,7 @@ import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
 import com.businesscart.android.model.CreateOrderRequest
 import com.businesscart.android.model.Quote
+import com.businesscart.android.model.SimpleOrder
 import kotlinx.coroutines.launch
 
 class CheckoutActivity : AppCompatActivity() {
