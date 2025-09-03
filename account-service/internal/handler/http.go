@@ -448,6 +448,13 @@ func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	id, _ := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
 	var upd map[string]interface{}
 	json.NewDecoder(r.Body).Decode(&upd)
+
+	// Ensure companyCode and companyCodeId are not changed
+	if company, ok := upd["company"].(map[string]interface{}); ok {
+		delete(company, "companyCode")
+		delete(company, "companyCodeId")
+	}
+
 	_ = h.db.UpdateAccount(id, upd)
 	w.WriteHeader(http.StatusOK)
 }
