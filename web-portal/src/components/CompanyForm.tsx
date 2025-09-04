@@ -9,9 +9,7 @@ const CACHE_KEY = 'accounts_cache';
 const CACHE_DURATION = 30 * 60 * 1000;
 const invalidateCache = () => localStorage.removeItem(CACHE_KEY);
 
-/* ------------------------------------------------------------------ */
-/* 1.  Hard-coded payment methods (exact strings the API accepts)     */
-/* ------------------------------------------------------------------ */
+/* ---------- constants ---------- */
 const PAYMENT_OPTIONS = [
   'credit_card',
   'purchase_order',
@@ -22,13 +20,19 @@ const PAYMENT_OPTIONS = [
   'deliver_pay'
 ] as const;
 
-/* ------------------------------------------------------------------ */
-/* 2.  Re-usable multi-select checkbox group                          */
-/* ------------------------------------------------------------------ */
-const PaymentMethodsSelect: React.FC<{
+const DELIVERY_OPTIONS = ['pickup', 'dropoff', 'shipping_out'] as const;
+const SHIPPING_OPTIONS = ['standard', 'express'] as const;
+
+type DeliveryMethod = typeof DELIVERY_OPTIONS[number];
+type ShippingOutOption = typeof SHIPPING_OPTIONS[number];
+
+/* ---------- reusable multi-select ---------- */
+const MultiSelect: React.FC<{
+  label: string;
+  options: readonly string[];
   value: string[];
   onChange: (list: string[]) => void;
-}> = ({ value, onChange }) => {
+}> = ({ label, options, value, onChange }) => {
   const toggle = (opt: string) =>
     onChange(
       value.includes(opt)
@@ -37,20 +41,23 @@ const PaymentMethodsSelect: React.FC<{
     );
 
   return (
-    <div className="mt-1 flex flex-wrap gap-2">
-      {PAYMENT_OPTIONS.map((opt) => (
-        <label key={opt} className="inline-flex items-center">
-          <input
-            type="checkbox"
-            checked={value.includes(opt)}
-            onChange={() => toggle(opt)}
-            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-          />
-          <span className="ml-2 text-sm text-gray-700">
-            {opt.replace(/_/g, ' ').toUpperCase()}
-          </span>
-        </label>
-      ))}
+    <div>
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <label key={opt} className="inline-flex items-center">
+            <input
+              type="checkbox"
+              checked={value.includes(opt)}
+              onChange={() => toggle(opt)}
+              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+            />
+            <span className="ml-2 text-sm text-gray-700">
+              {opt.replace(/_/g, ' ').toUpperCase()}
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 };
@@ -79,7 +86,6 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     setCompanyData(account.company || {});
   }, [account]);
 
-  /* -------------- unified change handler -------------------------- */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -92,7 +98,6 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     }
   };
 
-  /* -------------- save ------------------------------------------ */
   const handleSave = async () => {
     try {
       const updatedAccount = await updateAccount(account._id, {
@@ -106,29 +111,55 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     }
   };
 
-  /* -------------- field renderer -------------------------------- */
   const renderField = (key: keyof CompanyData) => {
     const value = companyData[key];
     const isDisabled = key === 'companyCode' || key === 'companyCodeId';
 
-    /* ---- special case: paymentMethods --------------------------- */
     if (key === 'paymentMethods') {
       return (
-        <div key={key}>
-          <label className="block text-sm font-medium text-gray-700">
-            Payment Methods
-          </label>
-          <PaymentMethodsSelect
-            value={(value as string[]) || []}
-            onChange={(list) =>
-              setCompanyData((prev) => ({ ...prev, paymentMethods: list }))
-            }
-          />
-        </div>
+        <MultiSelect
+          label="Payment Methods"
+          options={PAYMENT_OPTIONS}
+          value={(value as string[]) || []}
+          onChange={(list) =>
+            setCompanyData((prev) => ({ ...prev, paymentMethods: list }))
+          }
+        />
       );
     }
 
-    /* ---- boolean → checkbox ------------------------------------ */
+    if (key === 'deliveryMethods') {
+      return (
+        <MultiSelect
+          label="Delivery Methods"
+          options={DELIVERY_OPTIONS}
+          value={(value as DeliveryMethod[]) || []}
+          onChange={(list) =>
+            setCompanyData((prev) => ({
+              ...prev,
+              deliveryMethods: list as DeliveryMethod[],
+            }))
+          }
+        />
+      );
+    }
+
+    if (key === 'shippingOutOptions') {
+      return (
+        <MultiSelect
+          label="Shipping-out Options"
+          options={SHIPPING_OPTIONS}
+          value={(value as ShippingOutOption[]) || []}
+          onChange={(list) =>
+            setCompanyData((prev) => ({
+              ...prev,
+              shippingOutOptions: list as ShippingOutOption[],
+            }))
+          }
+        />
+      );
+    }
+
     if (typeof value === 'boolean') {
       return (
         <div key={key} className="flex items-center">
@@ -147,7 +178,6 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
       );
     }
 
-    /* ---- default → text input ---------------------------------- */
     return (
       <div key={key}>
         <label className="block text-sm font-medium text-gray-700">
@@ -165,7 +195,6 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     );
   };
 
-  /* -------------- modal shell ----------------------------------- */
   const modalContent = (
     <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
       <div className="flex justify-between items-center border-b pb-3">

@@ -10,7 +10,7 @@ import { getOrders, getAccount } from '../api';
 const OrderHistory: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<OrderType[]>([]);
+  const [orders, setOrders] = useState<OrderType[] | null>(null);
   const [account, setAccount] = useState<AccountType | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -105,7 +105,7 @@ const OrderHistory: React.FC = () => {
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
           </div>
-        ) : orders.length > 0 ? (
+        ) : orders && orders.length > 0 ? (
           <div className="bg-white shadow-lg rounded-lg overflow-hidden">
             <div className="divide-y divide-gray-200">
               {orders.map((order) => (

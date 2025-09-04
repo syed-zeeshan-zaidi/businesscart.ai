@@ -90,6 +90,10 @@ export interface Quote {
   createdAt: string;
   expiresAt: string;
 }
+
+export type DeliveryMethod   = 'pickup' | 'dropoff' | 'shipping_out';
+export type ShippingOutOption = 'standard' | 'express';
+
 export interface CompanyData {
   _id?: string;
   name: string;
@@ -99,7 +103,8 @@ export interface CompanyData {
   creditLimit?: number;
   shippingMethods?: string[] | null;
   paymentMethods?: string[];
-  deliveryMethods?: string[] | null;
+  deliveryMethods?: DeliveryMethod[];
+  shippingOutOptions?: ShippingOutOption[];
   leadTime?: number;
   maxOrderAmountLimit?: number;
   maxOrderQuantityLimit?: number;
@@ -113,10 +118,7 @@ export interface CompanyData {
   companyCode: string;
   sellingArea: {
     radius: number;
-    center: {
-      lat: number;
-      lng: number;
-    };
+    center: { lat: number; lng: number };
   };
   address: Address;
 }
