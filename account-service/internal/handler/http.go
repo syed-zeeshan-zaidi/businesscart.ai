@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -35,6 +36,7 @@ func (h *Handler) RegisterRoutes(router *chi.Mux) {
 		r.Patch("/accounts/{id}", h.UpdateAccount)
 		r.Delete("/accounts/{id}", h.DeleteAccount)
 		r.Post("/codes", h.CreateCode)    // admin only
+		r.Get("/codes", h.GetCodes)       // admin only
 		r.Get("/codes/{code}", h.GetCode) // admin only
 	})
 }
@@ -107,6 +109,27 @@ func (h *Handler) GetCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(doc)
+}
+
+func (h *Handler) GetCodes(w http.ResponseWriter, r *http.Request) {
+	// admin check
+	if r.Context().Value("user").(map[string]interface{})["role"] != "admin" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	codes, err := h.db.GetCodes(bson.M{})
+	if err != nil {
+		http.Error(w, "failed to retrieve codes", http.StatusInternalServerError)
+		return
+	}
+
+	if len(codes) == 0 {
+		json.NewEncoder(w).Encode([]*storage.Code{})
+		return
+	}
+
+	json.NewEncoder(w).Encode(codes)
 }
 
 /* ---------- ACCOUNT ENDPOINTS ---------- */
@@ -423,10 +446,72 @@ func (h *Handler) GetAccounts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
-	id, _ := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
-	var upd map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&upd)
-	_ = h.db.UpdateAccount(id, upd)
+	// ---------- 1.  authentication ----------
+	raw := r.Context().Value("user")
+	user, ok := raw.(map[string]interface{})
+	if !ok {
+		http.Error(w, "missing user context", http.StatusUnauthorized)
+		return
+	}
+	role, ok1 := user["role"].(string)
+	userID, ok2 := user["id"].(string)
+	if !ok1 || !ok2 {
+		http.Error(w, "invalid token claims", http.StatusUnauthorized)
+		return
+	}
+
+	// ---------- 2.  target account ----------
+	targetID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	// ---------- 3.  authorisation ----------
+	switch role {
+	case storage.RoleAdmin:
+		// admin can update any account
+	case storage.RoleCompany:
+		if userID != targetID.Hex() {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	default:
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	// ---------- 4.  decode ----------
+	var payload struct {
+		Company map[string]interface{} `json:"company"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	// ---------- 5.  build $set (skip protected keys) ----------
+	setFields := bson.M{}
+	for k, v := range payload.Company {
+		switch k {
+		case "companyCode", "companyCodeId":
+			continue // never overwrite
+		default:
+			setFields["company."+k] = v
+		}
+	}
+	if len(setFields) == 0 {
+		http.Error(w, "nothing to update", http.StatusBadRequest)
+		return
+	}
+
+	// ---------- 6.  partial update ----------
+	if err := h.db.UpdateAccount(targetID, setFields); err != nil {
+		log.Printf("UpdateAccount error: %+v", err)
+		http.Error(w, "update failed", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

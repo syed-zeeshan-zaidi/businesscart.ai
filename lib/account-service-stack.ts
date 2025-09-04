@@ -64,7 +64,7 @@ export class AccountServiceStack extends cdk.Stack {
             "#if($foreach.hasNext),#end": "",
             "#end": "",
           },
-          body: "$input.json('$')",
+          body: "$input.json(')",
         }),
       },
     });
@@ -85,6 +85,7 @@ export class AccountServiceStack extends cdk.Stack {
 
     const codes = this.api.root.addResource("codes");
     codes.addMethod("POST", integ);
+    codes.addMethod("GET", integ);
     const codeByCode = codes.addResource("{code}");
     codeByCode.addMethod("GET", integ);
 

@@ -59,6 +59,19 @@ func (db *DB) CountCodes(filter bson.M) (int64, error) {
 	return db.codes.CountDocuments(context.Background(), filter)
 }
 
+// GetCodes returns all codes matching the filter.
+func (db *DB) GetCodes(filter bson.M) ([]*Code, error) {
+	cursor, err := db.codes.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var codes []*Code
+	err = cursor.All(context.Background(), &codes)
+	return codes, err
+}
+
 /* ---------- ACCOUNTS ---------- */
 
 func (db *DB) CreateAccount(account *Account) error {

@@ -101,7 +101,7 @@ EOF
       payload=$(echo "$payload" | jq --arg code "$codes_str" --arg company_name "$name" '. + {code: $code, companyName: $company_name}')
       ;;
     customer) 
-      codes_json=$(echo "$codes_str" | jq -R 'split(",")' | jq -sc '.')
+      codes_json=$(echo "$codes_str" | jq -R 'split(",")')
       payload=$(echo "$payload" | jq --argjson codes "$codes_json" '. + {customerCodes: $codes}')
       ;;
     partner) 

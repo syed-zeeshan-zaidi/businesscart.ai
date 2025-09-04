@@ -73,3 +73,39 @@ The Android app will be built using Kotlin, the officially recommended language 
 *   **Performance:** The app should be fast and responsive, with smooth scrolling and quick screen transitions.
 *   **Security:** All API communication must be over HTTPS. Sensitive data, such as the JWT, must be stored securely on the device.
 *   **Error Handling:** The app should gracefully handle network errors and API errors, providing clear feedback to the user.
+
+## 6. API V2 Migration Plan (Corrected)
+
+This section outlines the necessary changes to update the Android app to work with the new backend API (V2). The V2 API introduces a consolidated checkout service, a new authentication flow, and updated data models.
+
+**Status:** Not Started
+
+### 6.1. Authentication & Core Models
+
+*   **Replace `User` Model:**
+    *   **Status:** Completed
+    *   **Details:** In `model/AuthModels.kt`, remove the `User` data class and replace it with a new `Account` data class that mirrors the structure of the `Account` model in the `account-service`. This will include nested data classes for `CompanyData`, `CustomerData`, etc.
+*   **Update API Endpoints:**
+    *   **Status:** Completed
+    *   **Details:** In `api/ApiService.kt`, change the `register` endpoint from `users/register` to `accounts/register` and the `login` endpoint from `users/login` to `accounts/login`.
+*   **Update Registration Flow:**
+    *   **Status:** Completed
+    *   **Details:** In `model/AuthModels.kt`, update the `RegistrationRequest` data class to include an optional `customerCodes` field. The registration UI will need to be updated to allow users to enter one or more customer codes. The role will be hardcoded to "customer".
+*   **Update `LoginResponse`:**
+    *   **Status:** Completed
+    *   **Details:** The `LoginResponse` in `model/AuthModels.kt` should now contain an `Account` object instead of a `User` object.
+
+### 6.2. Product Catalog
+
+*   **Update `Product` Model:**
+    *   **Status:** Completed
+    *   **Details:** In `model/DataModels.kt`, update the `Product` data class. Rename the `userId` and `companyId` fields to `sellerID`.
+
+### 6.3. Checkout Flow
+
+*   **Update `Cart`, `Quote`, and `Order` Models:**
+    *   **Status:** Completed
+    *   **Details:** In `model/DataModels.kt`, update the `Cart`, `Quote`, and `Order` data classes. Rename `userId` to `accountId` and `companyId` to `sellerId`.
+*   **Update `CheckoutApiService.kt`:**
+    *   **Status:** Completed
+    *   **Details:** In `api/CheckoutApiService.kt`, update the `createQuote` function. The request body should be changed to `CreateQuoteRequest(val cartId: String, val sellerId: String)`. The `getCart` function should also be updated to use `sellerId` instead of `companyId`.

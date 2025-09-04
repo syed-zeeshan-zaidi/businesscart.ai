@@ -111,6 +111,20 @@ export const deleteAccount = async (id: string): Promise<void> => {
   await api.delete(`${ACCOUNT_API_URL}/accounts/${id}`);
 };
 
+export const createCodes = async (data: { companyCode: string; customerCode: string; partnerCode?: string }): Promise<void> => {
+  await api.post(`${ACCOUNT_API_URL}/codes`, data);
+};
+
+export const getCode = async (code: string): Promise<any> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/codes/${code}`);
+  return response.data;
+};
+
+export const getCodes = async (): Promise<any[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/codes`);
+  return response.data;
+};
+
 export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
   const response = await api.post(`${CATALOG_API_URL}/products`, data);
   return response.data;

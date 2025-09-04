@@ -37,27 +37,54 @@ type Address struct {
 	Coords Coords `bson:"coordinates" json:"coordinates"`
 }
 
+type PaymentMethod string
+
+const (
+	CreditCard    PaymentMethod = "credit_card"
+	PurchaseOrder PaymentMethod = "purchase_order"
+	AmazonPay     PaymentMethod = "amazon_pay"
+	GooglePay     PaymentMethod = "google_pay"
+	StripePay     PaymentMethod = "stripe_pay"
+	PickupPay     PaymentMethod = "pickup_pay"
+	DeliverPay    PaymentMethod = "deliver_pay"
+)
+
+type DeliveryMethod string
+
+const (
+	pickupDelivery      DeliveryMethod = "pickup"
+	dropoffDelivery     DeliveryMethod = "dropoff"
+	shippingOutDelivery DeliveryMethod = "shipping_out"
+)
+
+type ShippingOutOption string
+
+const (
+	StandardShippingOut ShippingOutOption = "standard"
+	ExpressShippingOut  ShippingOutOption = "express"
+)
+
 // ---------- role sub-docs ----------
 type CompanyData struct {
-	Name                  string   `bson:"name" json:"name"`
-	Status                string   `bson:"status" json:"status"`
-	UniqueIdentifier      string   `bson:"uniqueIdentifier" json:"uniqueIdentifier"`
-	SaleRepresentative    string   `bson:"saleRepresentative" json:"saleRepresentative"`
-	CreditLimit           float64  `bson:"creditLimit" json:"creditLimit"`
-	ShippingMethods       []string `bson:"shippingMethods" json:"shippingMethods"`
-	PaymentMethods        []string `bson:"paymentMethods" json:"paymentMethods"`
-	DeliveryMethods       []string `bson:"deliveryMethods" json:"deliveryMethods"`
-	LeadTime              float64  `bson:"leadTime" json:"leadTime"`
-	MaxOrderAmountLimit   float64  `bson:"maxOrderAmountLimit" json:"maxOrderAmountLimit"`
-	MaxOrderQuantityLimit float64  `bson:"maxOrderQuantityLimit" json:"maxOrderQuantityLimit"`
-	MinOrderAmountLimit   float64  `bson:"minOrderAmountLimit" json:"minOrderAmountLimit"`
-	MinOrderQuantityLimit float64  `bson:"minOrderQuantityLimit" json:"minOrderQuantityLimit"`
-	MonthlyOrderLimit     float64  `bson:"monthlyOrderLimit" json:"monthlyOrderLimit"`
-	YearlyOrderLimit      float64  `bson:"yearlyOrderLimit" json:"yearlyOrderLimit"`
-	TaxableGoods          bool     `bson:"taxableGoods" json:"taxableGoods"`
-	QuotesAllowed         bool     `bson:"quotesAllowed" json:"quotesAllowed"`
-	CompanyCodeID         string   `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
-	CompanyCode           string   `bson:"companyCode" json:"companyCode"`
+	Name                  string              `bson:"name" json:"name"`
+	Status                string              `bson:"status" json:"status"`
+	UniqueIdentifier      string              `bson:"uniqueIdentifier" json:"uniqueIdentifier"`
+	SaleRepresentative    string              `bson:"saleRepresentative" json:"saleRepresentative"`
+	CreditLimit           float64             `bson:"creditLimit" json:"creditLimit"`
+	LeadTime              float64             `bson:"leadTime" json:"leadTime"`
+	MaxOrderAmountLimit   float64             `bson:"maxOrderAmountLimit" json:"maxOrderAmountLimit"`
+	MaxOrderQuantityLimit float64             `bson:"maxOrderQuantityLimit" json:"maxOrderQuantityLimit"`
+	MinOrderAmountLimit   float64             `bson:"minOrderAmountLimit" json:"minOrderAmountLimit"`
+	MinOrderQuantityLimit float64             `bson:"minOrderQuantityLimit" json:"minOrderQuantityLimit"`
+	MonthlyOrderLimit     float64             `bson:"monthlyOrderLimit" json:"monthlyOrderLimit"`
+	YearlyOrderLimit      float64             `bson:"yearlyOrderLimit" json:"yearlyOrderLimit"`
+	TaxableGoods          bool                `bson:"taxableGoods" json:"taxableGoods"`
+	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
+	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
+	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
+	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
+	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
 	SellingArea           struct {
 		Radius float64 `bson:"radius" json:"radius"`
 		Center Coords  `bson:"center" json:"center"`
@@ -100,12 +127,12 @@ type Account struct {
 
 // ---------- code & auth ----------
 type Code struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty"`
-	CompanyCode  string             `bson:"companyCode"`
-	CustomerCode string             `bson:"customerCode"`
-	PartnerCode  string             `bson:"partnerCode,omitempty"`
-	IsClaimed    bool               `bson:"is_claimed"`
-	CreatedAt    time.Time          `bson:"createdAt"`
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CompanyCode  string             `bson:"companyCode" json:"companyCode"`
+	CustomerCode string             `bson:"customerCode" json:"customerCode"`
+	PartnerCode  string             `bson:"partnerCode,omitempty" json:"partnerCode,omitempty"`
+	IsClaimed    bool               `bson:"is_claimed" json:"isClaimed"`
+	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
 }
 
 type RefreshToken struct {

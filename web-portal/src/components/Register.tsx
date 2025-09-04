@@ -11,8 +11,8 @@ const Register = () => {
     password: '',
     role: 'company',
     phoneNumber: '',
-    business_code: '',
-    company_access_code: '',
+    code: '',
+    customerCodes: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -22,8 +22,8 @@ const Register = () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Valid email is required');
     if (!formData.password || formData.password.length < 8) errors.push('Password must be at least 8 characters');
     if (!formData.role) errors.push('Role is required');
-    if (formData.role === 'company' && !formData.business_code) errors.push('Business code is required');
-    if (formData.role === 'customer' && !formData.company_access_code) errors.push('Company access code is required');
+    if (formData.role === 'company' && !formData.code) errors.push('Business code is required');
+    if (formData.role === 'customer' && !formData.customerCodes) errors.push('Company access code is required');
     if (!formData.phoneNumber || !/^\d{10}$/.test(formData.phoneNumber)) errors.push('Valid 10-digit phone number is required');
     return errors;
   };
@@ -35,7 +35,14 @@ const Register = () => {
     if (newErrors.length > 0) return;
 
     try {
-      const { accessToken } = await register(formData);
+      const { accessToken } = await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        code: formData.code,
+        customerCodes: formData.customerCodes.split(',').map(c => c.trim()),
+      });
       localStorage.setItem('accessToken', accessToken);
       setErrors([]);
       navigate('/dashboard');
@@ -111,8 +118,8 @@ const Register = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Business Code</label>
                 <input
-                  name="business_code"
-                  value={formData.business_code}
+                  name="code"
+                  value={formData.code}
                   onChange={handleChange}
                   placeholder="Enter your business code"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
@@ -123,10 +130,10 @@ const Register = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Company Access Code</label>
                 <input
-                  name="company_access_code"
-                  value={formData.company_access_code}
+                  name="customerCodes"
+                  value={formData.customerCodes}
                   onChange={handleChange}
-                  placeholder="Enter company access code"
+                  placeholder="Enter company access code(s), comma separated"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                 />
               </div>

@@ -13,6 +13,9 @@ import Catalog from './pages/Catalog';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
+import Account from './pages/Account';
+import OrderHistory from './pages/OrderHistory';
+import CodeForm from './components/CodeForm';
 
 const App = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -42,6 +45,7 @@ const App = () => {
     '/products',
     '/orders',
     '/users',
+    '/codes',
     '/admin',
     '/admin/users',
     '/admin/products',
@@ -98,12 +102,24 @@ const App = () => {
               element={isAuthenticated ? <OrderSuccess /> : <Navigate to="/login" replace />}
             />
             <Route
+              path="/account"
+              element={isAuthenticated ? <Account /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/order-history"
+              element={isAuthenticated ? <OrderHistory /> : <Navigate to="/login" replace />}
+            />
+            <Route
               path="/orders"
               element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/users"
               element={isAuthenticated ? <UserForm /> : <Navigate to="/login" replace />}
+            />
+            <Route
+              path="/codes"
+              element={isAuthenticated ? <CodeForm /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/admin"
