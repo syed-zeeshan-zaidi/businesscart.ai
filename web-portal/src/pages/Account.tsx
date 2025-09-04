@@ -6,18 +6,21 @@ import { useAuth } from '../hooks/useAuth';
 import { Account as AccountType } from '../types';
 import { getAccount } from '../api';
 
+const LOCAL_KEY = 'account'; // <-- single key for localStorage
+
 const Account: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [account, setAccount] = useState<AccountType | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* fetch only when not cached */
   const fetchAccount = useCallback(async (userId: string) => {
     setLoading(true);
     try {
       const fetchedAccount = await getAccount(userId);
       setAccount(fetchedAccount);
-      localStorage.setItem('accountDetails', JSON.stringify(fetchedAccount));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(fetchedAccount));
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to load account details.');
     } finally {
@@ -31,9 +34,7 @@ const Account: React.FC = () => {
       return;
     }
 
-    const cachedAccount = localStorage.getItem('accountDetails');
     const token = localStorage.getItem('accessToken');
-
     if (!token) {
       navigate('/login');
       return;
@@ -46,27 +47,27 @@ const Account: React.FC = () => {
       return;
     }
 
-    if (cachedAccount) {
-      const parsedAccount = JSON.parse(cachedAccount);
-      if (parsedAccount._id === decodedUser.id) {
-        setAccount(parsedAccount);
+    /* read localStorage */
+    const cached = localStorage.getItem(LOCAL_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed._id === decodedUser.id) {
+        setAccount(parsed);
         setLoading(false);
-      } else {
-        fetchAccount(decodedUser.id);
+        return;
       }
-    } else {
-      fetchAccount(decodedUser.id);
     }
+
+    /* fallback to network */
+    fetchAccount(decodedUser.id);
   }, [isAuthenticated, navigate, decodeJWT, fetchAccount]);
 
+  /* manual refresh */
   const handleRefresh = () => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
-      const decodedUser = decodeJWT(token);
-      if (decodedUser) {
-        fetchAccount(decodedUser.id);
-      }
-    }
+    if (!token) return;
+    const decoded = decodeJWT(token);
+    if (decoded) fetchAccount(decoded.id);
   };
 
   return (
@@ -86,7 +87,7 @@ const Account: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
           </div>
         ) : account ? (
           <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -107,12 +108,50 @@ const Account: React.FC = () => {
                   <p><strong>Company Status:</strong> {account.company.status}</p>
                 </div>
               )}
-              {account.customer && account.customer.attachedCompanies && (
+              {account.customer?.attachedCompanies && (
                 <div className="px-6 py-4">
                   <h3 className="text-lg font-semibold text-gray-800">Associated Companies</h3>
                   <ul>
                     {account.customer.attachedCompanies.map((company) => (
-                      <li key={company.companyCode}>{company.name} ({company.companyCode})</li>
+                      <React.Fragment key={company.companyCode}>
+                        <li>
+                          {company.name} ({company.companyCode})
+                        </li>
+                        {company.paymentMethods?.length && (
+                          <li className="ml-4 text-sm text-gray-600">
+                            Payment Methods: {company.paymentMethods.join(', ')}
+                          </li>
+                        )}
+                        <li className="ml-4 text-sm text-gray-600">
+                          {company.deliveryMethods?.length ? (
+                            <>
+                              Delivery Methods: {company.deliveryMethods.join(', ')}
+                            </>
+                          ) : (
+                            <>No Delivery Methods</>
+                          )}
+                        </li>
+                        <li className="ml-4 text-sm text-gray-600">
+                          Shipping Methods: {company.shippingMethods?.join(', ') || 'N/A'}
+                        </li>
+                        <li className="ml-4 text-sm text-gray-600">
+                          Sale Representative: {company.saleRepresentative || 'N/A'}
+                        </li>
+                        <li className="ml-4 text-sm text-gray-600">
+                          Billing Address:{' '}
+                          {[
+                            company.address?.street,
+                            company.address?.city,
+                            company.address?.state,
+                            company.address?.zip
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || '—'}
+                        </li>
+                        <li className="ml-4 text-sm text-gray-600">
+                          Credit Limit: {company.creditLimit}
+                        </li>
+                      </React.Fragment>
                     ))}
                   </ul>
                 </div>
