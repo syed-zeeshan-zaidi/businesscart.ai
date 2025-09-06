@@ -33,7 +33,7 @@ type Account struct {
 }
 ```
 
--   **`CompanyData`**: Contains company-specific fields, including a `Status` field (e.g., `pending_setup`, `active`).
+-   **`CompanyData`**: Contains company-specific fields, including a `Status` field (e.g., `pending_setup`, `active`). It also holds the configurations for the checkout process, such as `paymentMethods`, `deliveryMethods`, and `shippingOutOptions`. This data is passed to the Checkout Service to provide a company-specific checkout experience for customers.
 -   **`CustomerData`**: Contains customer-specific data, including a list of `CustomerCodes` they are associated with.
 -   **`PartnerData`**: Contains partner-specific information.
 
