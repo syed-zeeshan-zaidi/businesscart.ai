@@ -36,6 +36,10 @@ func (s *PaymentService) ProcessPayment(amount float64, method string, token str
 		}
 		fmt.Printf("Amazon Pay payment of $%.2f failed. Invalid token.\n", amount)
 		return "", false
+	case "pickup_pay":
+		transactionID := fmt.Sprintf("offline_tx_%d", time.Now().UnixNano())
+		fmt.Printf("Processing Pickup Pay of $%.2f. Marked as pending offline payment. TxID: %s\n", amount, transactionID)
+		return transactionID, true
 	default:
 		fmt.Printf("Unsupported payment method: %s\n", method)
 		return "", false

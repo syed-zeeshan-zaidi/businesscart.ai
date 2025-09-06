@@ -8,15 +8,18 @@ import (
 )
 
 type Quote struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	CartID       primitive.ObjectID `bson:"cartId" json:"cartId"`
-	AccountID    string             `bson:"accountId" json:"accountId"`
-	SellerID     string             `bson:"sellerId" json:"sellerId"`
-	Items        []cart.CartItem    `bson:"items" json:"items"`
-	Subtotal     float64            `bson:"subtotal" json:"subtotal"`
-	ShippingCost float64            `bson:"shippingCost" json:"shippingCost"`
-	TaxAmount    float64            `bson:"taxAmount" json:"taxAmount"`
-	GrandTotal   float64            `bson:"grandTotal" json:"grandTotal"`
-	CreatedAt    time.Time          `bson:"createdAt" json:"createdAt"`
-	ExpiresAt    time.Time          `bson:"expiresAt" json:"expiresAt"`
+	ID                          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CartID                      primitive.ObjectID `bson:"cartId" json:"cartId"`
+	AccountID                   string             `bson:"accountId" json:"accountId"`
+	SellerID                    string             `bson:"sellerId" json:"sellerId"`
+	Items                       []cart.CartItem    `bson:"items" json:"items"`
+	Subtotal                    float64            `bson:"subtotal" json:"subtotal"`
+	ShippingCost                float64            `bson:"shippingCost" json:"shippingCost"`
+	TaxAmount                   float64            `bson:"taxAmount" json:"taxAmount"`
+	GrandTotal                  float64            `bson:"grandTotal" json:"grandTotal"`
+	AvailablePaymentMethods     []string           `bson:"availablePaymentMethods" json:"availablePaymentMethods"`
+	AvailableDeliveryMethods    []string           `bson:"availableDeliveryMethods" json:"availableDeliveryMethods"`
+	AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
+	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
+	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
 }

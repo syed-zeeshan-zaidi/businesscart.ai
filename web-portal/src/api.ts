@@ -202,8 +202,13 @@ export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   return payload.user?.associate_company_ids || [];
 };
 
-export const createQuote = async (sellerId: string): Promise<Quote> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, { sellerId });
+export const createQuote = async (data: { 
+  sellerId: string;
+  paymentMethods: string[];
+  deliveryMethods: string[];
+  shippingOutOptions: string[];
+}): Promise<Quote> => {
+  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, data);
   return response.data;
 };
 

@@ -87,6 +87,9 @@ export interface Quote {
   shippingCost: number;
   taxAmount: number;
   grandTotal: number;
+  availablePaymentMethods: string[];
+  availableDeliveryMethods: string[];
+  availableShippingOutOptions: string[];
   createdAt: string;
   expiresAt: string;
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { Cart as CartType } from '../types';
+import { Cart as CartType, Account } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount } from '../api';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
@@ -14,6 +14,7 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [account, setAccount] = useState<Account | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -66,10 +67,11 @@ const Cart: React.FC = () => {
 
 const loadCompanies = async () => {
   try {
-    const account = await getAccount(decodedUser.id);
+    const accountData = await getAccount(decodedUser.id);
+    setAccount(accountData);
     
-    if (account.customer?.attachedCompanies && account.customer.attachedCompanies.length > 0) {
-      const companies = account.customer.attachedCompanies.map(company => ({
+    if (accountData.customer?.attachedCompanies && accountData.customer.attachedCompanies.length > 0) {
+      const companies = accountData.customer.attachedCompanies.map(company => ({
         id: company.companyCodeId || company._id || company.companyCode,
         name: company.name,
         companyCode: company.companyCode
@@ -216,10 +218,25 @@ const loadCompanies = async () => {
       return;
     }
 
+    const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
+    const paymentMethods = company?.paymentMethods || [];
+    const deliveryMethods = company?.deliveryMethods || [];
+    const shippingOutOptions = company?.shippingOutOptions || [];
+
+    console.log('Account data on checkout:', account);
+    console.log('Selected Company ID:', selectedCompanyId);
+    console.log('Found company for checkout:', company);
+    console.log('Payment methods being sent:', paymentMethods);
+
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote(selectedCompanyId);
+      const quote = await createQuote({ 
+        sellerId: selectedCompanyId,
+        paymentMethods: paymentMethods,
+        deliveryMethods: deliveryMethods,
+        shippingOutOptions: shippingOutOptions,
+      });
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);
     } catch (err: any) {

@@ -262,8 +262,11 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 
 func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		CartID   string `json:"cartId"`
-		SellerID string `json:"sellerId"`
+		CartID               string   `json:"cartId"`
+		SellerID             string   `json:"sellerId"`
+		PaymentMethods       []string `json:"paymentMethods"`
+		DeliveryMethods      []string `json:"deliveryMethods"`
+		ShippingOutOptions   []string `json:"shippingOutOptions"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -283,21 +286,25 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	shippingCost := 10.00                 // Flat rate shipping
 
 	newQuote := &quote.Quote{
-		CartID:       cart.ID,
-		AccountID:    accountID,
-		SellerID:     req.SellerID,
-		Items:        cart.Items,
-		Subtotal:     cart.TotalPrice,
-		ShippingCost: shippingCost,
-		TaxAmount:    taxAmount,
-		GrandTotal:   cart.TotalPrice + shippingCost + taxAmount,
+		CartID:                      cart.ID,
+		AccountID:                   accountID,
+		SellerID:                    req.SellerID,
+		Items:                       cart.Items,
+		Subtotal:                    cart.TotalPrice,
+		ShippingCost:                shippingCost,
+		TaxAmount:                   taxAmount,
+		GrandTotal:                  cart.TotalPrice + shippingCost + taxAmount,
+		AvailablePaymentMethods:     req.PaymentMethods,
+		AvailableDeliveryMethods:    req.DeliveryMethods,
+		AvailableShippingOutOptions: req.ShippingOutOptions,
 	}
 
-	if err := h.quoteService.CreateQuote(newQuote); err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Failed to create quote"), nil
+	createdQuote, err := h.quoteService.CreateQuote(newQuote)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
 	}
 
-	respBody, _ := json.Marshal(newQuote)
+	respBody, _ := json.Marshal(createdQuote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -12,8 +12,10 @@ const Checkout: React.FC = () => {
   const { quoteId } = useParams<{ quoteId: string }>();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('stripe');
   
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
+  const [selectedShippingOption, setSelectedShippingOption] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -30,6 +32,9 @@ const Checkout: React.FC = () => {
       try {
         const fetchedQuote = await getQuote(quoteId);
         setQuote(fetchedQuote);
+        if (fetchedQuote.availableDeliveryMethods && fetchedQuote.availableDeliveryMethods.length > 0) {
+          setSelectedDeliveryMethod(fetchedQuote.availableDeliveryMethods[0]);
+        }
       } catch (err: any) {
         toast.error(err.message || 'Failed to fetch quote details.');
         navigate('/cart');
@@ -41,18 +46,48 @@ const Checkout: React.FC = () => {
     fetchQuote();
   }, [isAuthenticated, navigate, quoteId]);
 
+  const filteredPaymentMethods = useMemo(() => {
+    if (!quote || !selectedDeliveryMethod) return [];
+
+    if (selectedDeliveryMethod === 'pickup') {
+      return quote.availablePaymentMethods.filter(p => p === 'pickup_pay');
+    }
+    return quote.availablePaymentMethods.filter(p => p !== 'pickup_pay');
+  }, [quote, selectedDeliveryMethod]);
+
+  useEffect(() => {
+    if (filteredPaymentMethods.length > 0) {
+      if (!filteredPaymentMethods.includes(selectedPaymentMethod)) {
+        setSelectedPaymentMethod(filteredPaymentMethods[0]);
+      }
+    } else {
+      setSelectedPaymentMethod('');
+    }
+  }, [filteredPaymentMethods, selectedPaymentMethod]);
+
   const handlePlaceOrder = async () => {
     if (!quote) {
       toast.error('No quote available to place an order.');
       return;
     }
+    if (!selectedPaymentMethod) {
+      toast.error('Please select a payment method.');
+      return;
+    }
     
-    const token = paymentMethod === 'stripe' ? 'tok_stripe_valid' : 'amz_pay_valid';
+    let token = 'tok_placeholder';
+    if (selectedPaymentMethod === 'stripe') {
+        token = 'tok_stripe_valid';
+    } else if (selectedPaymentMethod === 'amazon_pay') {
+        token = 'amz_pay_valid';
+    } else if (selectedPaymentMethod === 'pickup_pay') {
+        token = 'offline_payment';
+    }
 
     setLoading(true);
     const toastId = toast.loading('Placing your order...');
     try {
-      await createOrder({ quoteId: quote.id, paymentMethod, paymentToken: token });
+      await createOrder({ quoteId: quote.id, paymentMethod: selectedPaymentMethod, paymentToken: token });
       toast.success('Order placed successfully!', { id: toastId });
       navigate('/order-success');
     } catch (err: any) {
@@ -121,37 +156,60 @@ const Checkout: React.FC = () => {
             </div>
           </div>
           <div className="mt-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Payment Details</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Delivery & Payment</h2>
+            
+            <div className="mb-4">
+              <label htmlFor="delivery-method" className="block text-sm font-medium text-gray-700">Delivery Method</label>
+              <select
+                id="delivery-method"
+                value={selectedDeliveryMethod}
+                onChange={(e) => setSelectedDeliveryMethod(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              >
+                {quote.availableDeliveryMethods.map(method => (
+                  <option key={method} value={method}>{method.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedDeliveryMethod === 'shipping_out' && (
+              <div className="mb-4">
+                <label htmlFor="shipping-option" className="block text-sm font-medium text-gray-700">Shipping Option</label>
+                <select
+                  id="shipping-option"
+                  value={selectedShippingOption}
+                  onChange={(e) => setSelectedShippingOption(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  {quote.availableShippingOutOptions.map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-              <div className="mt-2 flex items-center">
-                <input
-                  id="stripe"
-                  name="payment-method"
-                  type="radio"
-                  value="stripe"
-                  checked={paymentMethod === 'stripe'}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
-                />
-                <label htmlFor="stripe" className="ml-3 block text-sm font-medium text-gray-700">
-                  Stripe
-                </label>
-              </div>
-              <div className="mt-2 flex items-center">
-                <input
-                  id="amazon_pay"
-                  name="payment-method"
-                  type="radio"
-                  value="amazon_pay"
-                  checked={paymentMethod === 'amazon_pay'}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
-                />
-                <label htmlFor="amazon_pay" className="ml-3 block text-sm font-medium text-gray-700">
-                  Amazon Pay
-                </label>
-              </div>
+              {filteredPaymentMethods.length > 0 ? (
+                filteredPaymentMethods.map(method => (
+                  <div key={method} className="mt-2 flex items-center">
+                    <input
+                      id={method}
+                      name="payment-method"
+                      type="radio"
+                      value={method}
+                      checked={selectedPaymentMethod === method}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                      className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                    />
+                    <label htmlFor={method} className="ml-3 block text-sm font-medium text-gray-700 capitalize">
+                      {method.replace(/_/g, ' ')}
+                    </label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-600 mt-2">No payment methods available for the selected delivery method.</p>
+              )}
             </div>
             
           </div>
@@ -159,6 +217,7 @@ const Checkout: React.FC = () => {
             <button
               onClick={handlePlaceOrder}
               className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold"
+              disabled={!selectedPaymentMethod}
             >
               Place Order
             </button>
