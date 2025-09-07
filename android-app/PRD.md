@@ -47,19 +47,6 @@ The Android app will be built using Kotlin, the officially recommended language 
         *   **Status:** Implemented.
     *   **API Integration:** Implement `getCart`, `addItemToCart`, `updateCartItem`, and `removeItemFromCart` API calls.
         *   **Status:** `getCart` and `addItemToCart` are implemented.
-*   **Checkout:**
-    *   **Checkout Screen:** A screen that displays the order summary (subtotal, shipping, tax, grand total) and allows the user to select a payment method.
-        *   **Status:** Not Implemented.
-    *   **API Integration:** Implement `createQuote`, `getQuote`, and `createOrder` API calls.
-        *   **Status:** Not Implemented.
-    *   **Implementation Plan:**
-        *   Update `CheckoutApiService.kt` to include `createQuote`, `getQuote`, and `createOrder` endpoints.
-        *   Add a `Quote` data class to `DataModels.kt`.
-        *   In `CartActivity.kt`, when the "Checkout" button is clicked, call the `createQuote` API and launch a new `CheckoutActivity`, passing the `quoteId`.
-        *   Create a new `CheckoutActivity` that fetches and displays the quote details.
-        *   The `CheckoutActivity` will handle payment method selection and call `createOrder` when the "Place Order" button is clicked.
-        *   Create a new `OrderSuccessActivity` to be displayed after a successful order.
-        *   Add the new activities to `AndroidManifest.xml`.
 *   **Order History:**
     *   **Order List Screen:** A screen displaying a list of the customer's past orders.
         *   **Status:** Not Implemented.
@@ -67,6 +54,41 @@ The Android app will be built using Kotlin, the officially recommended language 
         *   **Status:** Not Implemented.
     *   **API Integration:** Use the `getOrders` endpoint, filtering by the customer's user ID.
         *   **Status:** Not Implemented.
+
+**Phase 3: Advanced Checkout Implementation**
+
+This phase implements the full, company-specific checkout flow, including the quote lifecycle (upsert) and conditional delivery and payment options.
+
+**Status:** Completed
+
+1.  **Data Models (`app/src/main/java/.../model/DataModels.kt`):**
+    *   **Task:** Update the `Quote` data class.
+    *   **Details:** Add fields to store the company's configurations: `availablePaymentMethods: List<String>`, `availableDeliveryMethods: List<String>`, and `availableShippingOutOptions: List<String>`.
+    *   **Status:** Completed
+
+2.  **API Service (`app/src/main/java/.../api/CheckoutApiService.kt`):**
+    *   **Task:** Update the `createQuote` API call.
+    *   **Details:** The request body will be updated to send the seller ID and all three configuration arrays (`paymentMethods`, `deliveryMethods`, `shippingOutOptions`).
+    *   **Status:** Completed
+
+3.  **Cart Screen (`.../view/CartActivity.kt` & `.../viewmodel/CartViewModel.kt`):**
+    *   **Task:** Update the checkout logic.
+    *   **Details:** When the checkout button is clicked, the `CartViewModel` will find the selected company's full configuration from the user's `Account` data and call the updated `createQuote` function with the complete payload. It will then navigate to the `CheckoutActivity`, passing the `quoteId`.
+    *   **Status:** Completed
+
+4.  **Checkout Screen (New `.../view/CheckoutActivity.kt` & `.../viewmodel/CheckoutViewModel.kt`):**
+    *   **Task:** Implement the conditional UI and filtering logic.
+    *   **Details:**
+        *   The `CheckoutViewModel` will fetch the full `Quote` using the `quoteId`.
+        *   The `CheckoutActivity` UI will contain `Spinner` dropdowns for Delivery Method and Shipping Options, and a `RadioGroup` for Payment Methods.
+        *   The Shipping Options `Spinner` will only be visible if the selected delivery method is "shipping_out".
+        *   The `CheckoutViewModel` will filter the available payment methods based on the selected delivery method, and the UI will update dynamically.
+    *   **Status:** Completed
+
+5.  **Manifest & Navigation:**
+    *   **Task:** Declare new Activities.
+    *   **Details:** Add the new `CheckoutActivity` and `OrderSuccessActivity` to the `AndroidManifest.xml`.
+    *   **Status:** Completed
 
 ## 5. Non-Functional Requirements
 

@@ -20,6 +20,7 @@ data class CompanyData(
     val saleRepresentative: String,
     val creditLimit: Double,
     val shippingMethods: List<String>,
+    val shippingOutOptions: List<String>?,
     val paymentMethods: List<String>,
     val deliveryMethods: List<String>,
     val leadTime: Double,

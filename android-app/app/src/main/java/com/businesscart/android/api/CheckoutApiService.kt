@@ -3,6 +3,7 @@ package com.businesscart.android.api
 import com.businesscart.android.model.AddItemToCartRequest
 import com.businesscart.android.model.Cart
 import com.businesscart.android.model.CreateOrderRequest
+import com.businesscart.android.model.CreateQuoteRequest
 import com.businesscart.android.model.SimpleOrder
 import com.businesscart.android.model.Quote
 import com.businesscart.android.model.Order
@@ -40,7 +41,7 @@ interface CheckoutApiService {
     suspend fun clearCart(@Query("sellerId") sellerId: String): Response<Cart>
 
     @POST("quotes")
-    suspend fun createQuote(@Body sellerId: Map<String, String>): Response<Quote>
+    suspend fun createQuote(@Body createQuoteRequest: CreateQuoteRequest): Response<Quote>
 
     @GET("quotes/{quoteId}")
     suspend fun getQuote(@Path("quoteId") quoteId: String): Response<Quote>

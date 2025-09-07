@@ -9,13 +9,12 @@ import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, ge
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const Cart: React.FC = () => {
+const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unused-vars
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState<Account | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -63,7 +62,6 @@ const Cart: React.FC = () => {
       navigate('/home');
       return;
     }
-    setUserRole(decodedUser.role);
 
 const loadCompanies = async () => {
   try {
@@ -97,7 +95,7 @@ const loadCompanies = async () => {
                 return;
               }
             }
-          } catch {}
+          } catch (e) { /* Handle error silently */ }
           
           try {
             const testCart = await getCart(company.id);
@@ -113,7 +111,7 @@ const loadCompanies = async () => {
               setInitialLoadComplete(true);
               return;
             }
-          } catch {}
+          } catch (e) { /* Handle error silently */ }
         }
         
         // If no company has items, select first company but don't load cart

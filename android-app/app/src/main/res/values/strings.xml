@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">BusinessCart</string>
+    <string name="failed_to_fetch_account_details">Failed to fetch account details</string>
+    <string name="error_message">Error: %s</string>
+    <string name="total_price">Total: $%.2f</string>
+    <string name="failed_to_fetch_cart">Failed to fetch cart</string>
+    <string name="selected_company_not_found">Selected company not found</string>
+    <string name="failed_to_create_quote">Failed to create quote: %s</string>
+    <string name="price_label">$%.2f</string>
+    <string name="quote_summary">Quote Summary (%d items)</string>
 </resources>
