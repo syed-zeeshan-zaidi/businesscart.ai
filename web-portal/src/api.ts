@@ -216,3 +216,18 @@ export const getQuote = async (quoteId: string): Promise<Quote> => {
   const response = await api.get(`${CHECKOUT_API_URL}/quotes/${quoteId}`);
   return response.data;
 };
+
+export const getLocations = async (accountId: string): Promise<any[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${accountId}`);
+  return response.data;
+};
+
+export const upsertLocation = async (accountId: string, location: any): Promise<any> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${accountId}`, location);
+  return response.data;
+};
+
+export const deleteLocation = async (accountId: string, locationId: string): Promise<any> => {
+  const response = await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${accountId}/${locationId}`);
+  return response.data;
+};

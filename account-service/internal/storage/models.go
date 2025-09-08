@@ -64,6 +64,34 @@ const (
 	ExpressShippingOut  ShippingOutOption = "express"
 )
 
+// New structs for multiple locations/addresses
+type CompanyLocation struct {
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CompanyID      primitive.ObjectID `bson:"companyId" json:"companyId"` // Reference to the Company's Account ID
+	LocationName   string             `bson:"locationName" json:"locationName"`
+	Address        Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	ContactPerson  string             `bson:"contactPerson,omitempty" json:"contactPerson,omitempty"`
+	PhoneNumber    string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	OperatingHours string             `bson:"operatingHours,omitempty" json:"operatingHours,omitempty"` // e.g., "Mon-Fri 9-5"
+	Capacity       string             `bson:"capacity,omitempty" json:"capacity,omitempty"` // e.g., "5000 sq ft", "100 pallets"
+	LocationType   string             `bson:"locationType" json:"locationType"` // e.g., "pickup", "warehouse", "storefront"
+	IsDefault      bool               `bson:"isDefault" json:"isDefault"` // Flag for default location
+	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+
+type CustomerAddress struct {
+	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CustomerID         primitive.ObjectID `bson:"customerId" json:"customerId"` // Reference to the Customer's Account ID
+	RecipientName      string             `bson:"recipientName" json:"recipientName"`
+	Address            Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	PhoneNumber        string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	AddressLabel       string             `bson:"addressLabel,omitempty" json:"addressLabel,omitempty"` // e.g., "Home", "Work"
+	IsDefaultShipping  bool               `bson:"isDefaultShipping" json:"isDefaultShipping"` // Flag for default shipping address
+	CreatedAt          time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt          time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+
 // ---------- role sub-docs ----------
 type CompanyData struct {
 	Name                  string              `bson:"name" json:"name"`
@@ -89,7 +117,12 @@ type CompanyData struct {
 		Radius float64 `bson:"radius" json:"radius"`
 		Center Coords  `bson:"center" json:"center"`
 	} `bson:"sellingArea" json:"sellingArea"`
-	Address Address `bson:"address" json:"address"`
+	Address Address `bson:"address" json:"address"` // Company's primary address
+
+	// New fields for multiple locations
+	LocationIDs           []primitive.ObjectID `bson:"locationIds,omitempty" json:"locationIds,omitempty"`
+	DefaultPickupLocation *CompanyLocation     `bson:"defaultPickupLocation,omitempty" json:"defaultPickupLocation,omitempty"`
+	DefaultWarehouseLocation *CompanyLocation  `bson:"defaultWarehouseLocation,omitempty" json:"defaultWarehouseLocation,omitempty"`
 }
 
 type CustomerCodeEntry struct {
@@ -100,6 +133,11 @@ type CustomerCodeEntry struct {
 type CustomerData struct {
 	CustomerCodes     []CustomerCodeEntry `bson:"customerCodes" json:"customerCodes"`
 	AttachedCompanies []CompanyData       `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
+
+	// New fields for multiple addresses
+	AddressIDs            []primitive.ObjectID `bson:"addressIds,omitempty" json:"addressIds,omitempty"`
+	DefaultShippingAddress *CustomerAddress    `bson:"defaultShippingAddress,omitempty" json:"defaultShippingAddress,omitempty"`
+	RecentShippingAddresses []*CustomerAddress `bson:"recentShippingAddresses,omitempty" json:"recentShippingAddresses,omitempty"` // Bounded list
 }
 
 type PartnerData struct {
@@ -122,7 +160,7 @@ type Account struct {
 	CompanyData  *CompanyData  `bson:"company,omitempty" json:"company,omitempty"`
 	CustomerData *CustomerData `bson:"customer,omitempty" json:"customer,omitempty"`
 	PartnerData  *PartnerData  `bson:"partner,omitempty" json:"partner,omitempty"`
-	Address      *Address      `bson:"address,omitempty" json:"address,omitempty"`
+	Address      *Address      `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
 }
 
 // ---------- code & auth ----------

@@ -29,7 +29,7 @@ type Account struct {
 	CompanyData  *CompanyData  `bson:"company,omitempty"`
 	CustomerData *CustomerData `bson:"customer,omitempty"`
 	PartnerData  *PartnerData  `bson:"partner,omitempty"`
-	Address      *Address      `bson:"address,omitempty"`
+	Address      *Address      `bson:"address,omitempty"` // Account holder's primary address
 }
 ```
 
@@ -56,6 +56,96 @@ type Code struct {
 -   `CustomerCode`: Used by `customer`s to associate with a company. Can be used multiple times.
 -   `PartnerCode`: Used once by a `partner` to register.
 
+### Location and Address Management
+
+To support multiple pickup/shipout locations for companies and multiple shipping addresses for customers, the `account-service` will manage dedicated collections for `CompanyLocation` and `CustomerAddress` entities.
+
+#### `company_locations` Collection
+
+Stores detailed information for each company location.
+
+```go
+type CompanyLocation struct {
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CompanyID      primitive.ObjectID `bson:"companyId" json:"companyId"` // Reference to the Company's Account ID
+	LocationName   string             `bson:"locationName" json:"locationName"`
+	Address        Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	ContactPerson  string             `bson:"contactPerson,omitempty" json:"contactPerson,omitempty"`
+	PhoneNumber    string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	OperatingHours string             `bson:"operatingHours,omitempty" json:"operatingHours,omitempty"` // e.g., "Mon-Fri 9-5"
+	Capacity       string             `bson:"capacity,omitempty" json:"capacity,omitempty"` // e.g., "5000 sq ft", "100 pallets"
+	LocationType   string             `bson:"locationType" json:"locationType"` // e.g., "pickup", "warehouse", "storefront"
+	IsDefault      bool               `bson:"isDefault" json:"isDefault"` // Flag for default location
+	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+```
+
+#### `customer_addresses` Collection
+
+Stores detailed information for each customer shipping address.
+
+```go
+type CustomerAddress struct {
+	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CustomerID         primitive.ObjectID `bson:"customerId" json:"customerId"` // Reference to the Customer's Account ID
+	RecipientName      string             `bson:"recipientName" json:"recipientName"`
+	Address            Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	PhoneNumber        string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`	AddressLabel       string             `bson:"addressLabel,omitempty" json:"addressLabel,omitempty"` // e.g., "Home", "Work"
+	IsDefaultShipping  bool               `bson:"isDefaultShipping" json:"isDefaultShipping"` // Flag for default shipping address
+	CreatedAt          time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt          time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+```
+
+#### Updated Role Sub-Documents
+
+The `CompanyData` and `CustomerData` structs will be updated to include references to these new collections and to embed full details of default/recent locations/addresses for optimized frontend access.
+
+```go
+type CompanyData struct {
+	Name                  string              `bson:"name" json:"name"`
+	Status                string              `bson:"status" json:"status"`
+	UniqueIdentifier      string              `bson:"uniqueIdentifier" json:"uniqueIdentifier"`
+	SaleRepresentative    string              `bson:"saleRepresentative" json:"saleRepresentative"`
+	CreditLimit           float64             `bson:"creditLimit" json:"creditLimit"`
+	LeadTime              float64             `bson:"leadTime" json:"leadTime"`
+	MaxOrderAmountLimit   float64             `bson:"maxOrderAmountLimit" json:"maxOrderAmountLimit"`
+	MaxOrderQuantityLimit float64             `bson:"maxOrderQuantityLimit" json:"maxOrderQuantityLimit"`
+	MinOrderAmountLimit   float64             `bson:"minOrderAmountLimit" json:"minOrderAmountLimit"`
+	MinOrderQuantityLimit float64             `bson:"minOrderQuantityLimit" json:"minOrderQuantityLimit"`
+	MonthlyOrderLimit     float64             `bson:"monthlyOrderLimit" json:"monthlyOrderLimit"`
+	YearlyOrderLimit      float64             `bson:"yearlyOrderLimit" json:"yearlyOrderLimit"`
+	TaxableGoods          bool                `bson:"taxableGoods" json:"taxableGoods"`
+	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
+	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
+	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
+	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
+	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
+	SellingArea           struct {
+		Radius float64 `bson:"radius" json:"radius"`
+		Center Coords  `bson:"center" json:"center"`
+	} `bson:"sellingArea" json:"sellingArea"`
+	Address Address `bson:"address" json:"address"` // Company's primary address
+
+	// New fields for multiple locations
+	LocationIDs           []primitive.ObjectID `bson:"locationIds,omitempty" json:"locationIds,omitempty"` // References to CompanyLocation documents
+	DefaultPickupLocation *CompanyLocation     `bson:"defaultPickupLocation,omitempty" json:"defaultPickupLocation,omitempty"` // Full struct for default pickup
+	DefaultWarehouseLocation *CompanyLocation  `bson:"defaultWarehouseLocation,omitempty" json:"defaultWarehouseLocation,omitempty"` // Full struct for default warehouse
+}
+
+type CustomerData struct {
+	CustomerCodes     []CustomerCodeEntry `bson:"customerCodes" json:"customerCodes"`
+	AttachedCompanies []CompanyData       `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
+
+	// New fields for multiple addresses
+	AddressIDs            []primitive.ObjectID `bson:"addressIds,omitempty" json:"addressIds,omitempty"` // References to CustomerAddress documents
+	DefaultShippingAddress *CustomerAddress    `bson:"defaultShippingAddress,omitempty" json:"defaultShippingAddress,omitempty"` // Full struct for default shipping
+	RecentShippingAddresses []*CustomerAddress `bson:"recentShippingAddresses,omitempty" json:"recentShippingAddresses,omitempty"` // Bounded list of full structs
+}
+```
+
 ## 3. Implemented API Endpoints
 
 The service exposes the following endpoints:
@@ -64,10 +154,30 @@ The service exposes the following endpoints:
 *   **`POST /accounts/login`**: Authenticates a user and returns an access token and a refresh token.
 *   **`GET /accounts`**: Retrieves a list of accounts. Results are filtered based on the caller's role (e.g., an Admin sees all, a Company sees their associated customers).
 *   **`GET /accounts/{id}`**: Retrieves the details of a specific account.
+    *   **Updated Behavior:** For `company` and `customer` roles, this endpoint will now also perform internal lookups to fetch the full details of the `DefaultPickupLocation`, `DefaultWarehouseLocation` (for companies), `DefaultShippingAddress`, and `RecentShippingAddresses` (for customers) and embed them into the `CompanyData` and `CustomerData` sub-documents respectively. This provides immediate access to frequently used location data without additional frontend API calls.
 *   **`PATCH /accounts/{id}`**: Updates the details of a specific account. This is a generic update endpoint.
 *   **`DELETE /accounts/{id}`**: Deletes an account.
 *   **`POST /codes`** (Admin Only): Creates a new registration code document containing a `CompanyCode` and `CustomerCode`.
 *   **`GET /codes/{code}`** (Admin Only): Retrieves the details of a specific registration code.
+
+### Location and Address Management API Endpoints
+
+New API endpoints will be added to manage `CompanyLocation` and `CustomerAddress` entities. These endpoints will interact with the new `company_locations` and `customer_addresses` collections.
+
+*   **For `CompanyLocation` (accessible by `company` and `admin` roles):**
+    *   `POST /companies/{companyId}/locations`: Create a new location for a company.
+    *   `GET /companies/{companyId}/locations`: Get all locations for a company.
+    *   `GET /companies/{companyId}/locations/{locationId}`: Get a specific location.
+    *   `PUT /companies/{companyId}/locations/{locationId}`: Update a location.
+    *   `DELETE /companies/{companyId}/locations/{locationId}`: Delete a location.
+    *   **Authorization:** Implement middleware to ensure only the `companyId` owner or an `admin` can access/modify these.
+*   **For `CustomerAddress` (accessible by `customer` and `admin` roles):**
+    *   `POST /customers/{customerId}/addresses`: Create a new address for a customer.
+    *   `GET /customers/{customerId}/addresses`: Get all addresses for a customer.
+    *   `GET /customers/{customerId}/addresses/{addressId}`: Get a specific address.
+    *   `PUT /customers/{customerId}/addresses/{addressId}`: Update an address.
+    *   `DELETE /customers/{customerId}/addresses/{addressId}`: Delete an address.
+    *   **Authorization:** Implement middleware to ensure only the `customerId` owner or an `admin` can access/modify these.
 
 ## 4. Registration & Operational Flow
 
@@ -120,8 +230,15 @@ This checklist tracks the historical progress of the service migration.
 - [x] Define the Lambda, API Gateway, and database resources for the unified service.
 - [x] Ensure the API Gateway routes match the simplified endpoint list.
 
-### Phase 4: Testing & Cleanup
+### Phase 4: Location and Address Management (New Phase)
 
-- [ ] **(Next)** Run the `new_full_api_test.sh` script and verify all functionality.
+- [x] **(Next)** Update `account-service/internal/storage/models.go` with `CompanyLocation`, `CustomerAddress` structs, and `LocationIDs`/`AddressIDs` in `CompanyData`/`CustomerData`. (Completed in previous step)
+- [ ] Implement new MongoDB collections for `company_locations` and `customer_addresses`.
+- [ ] Implement new API endpoints in `account-service` for managing and fetching `CompanyLocation`s and `CustomerAddress`es.
+- [ ] Modify `GET /accounts/{id}` in `account-service` to perform internal lookups for default/recent `CompanyLocation` and `CustomerAddress` and embed their full details into the `Account` response.
+
+### Phase 5: Testing & Cleanup (Updated)
+
+- [ ] Run the `new_full_api_test.sh` script and verify all functionality.
 - [ ] Remove the old `user-service` and `company-service` directories and their stacks.
 - [ ] Update `bin/business-cart.ts` to use only the new `account-service-stack`.

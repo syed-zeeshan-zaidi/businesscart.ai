@@ -38,6 +38,11 @@ func (h *Handler) RegisterRoutes(router *chi.Mux) {
 		r.Post("/codes", h.CreateCode)    // admin only
 		r.Get("/codes", h.GetCodes)       // admin only
 		r.Get("/codes/{code}", h.GetCode) // admin only
+
+		// Location endpoints
+		r.Get("/accounts/locations/{accountID}", h.GetLocations)
+		r.Post("/accounts/locations/{accountID}", h.UpsertLocation)
+		r.Delete("/accounts/locations/{accountID}/{locationID}", h.DeleteLocation)
 	})
 }
 
@@ -309,7 +314,7 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, "", associateCompanyIDs)
+	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, "", associateCompanyIDs)
 	newRefresh, _ := h.generateAndStoreRefreshToken(user)
 
 	_ = h.db.DeleteRefreshToken(req.RefreshToken)
@@ -519,4 +524,224 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	id, _ := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
 	_ = h.db.DeleteAccount(id)
 	w.WriteHeader(http.StatusOK)
+}
+
+/* ---------- LOCATION ENDPOINTS ---------- */
+
+func (h *Handler) GetLocations(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Get the role of the authenticated user from the context
+	userClaims := r.Context().Value("user").(map[string]interface{})
+	authenticatedUserRole := userClaims["role"].(string)
+
+	// If the authenticated user is an admin, allow them to view locations for any account
+	if authenticatedUserRole == storage.RoleAdmin {
+		switch acc.Role {
+		case storage.RoleCompany:
+			locations, err := h.db.GetCompanyLocations(bson.M{"companyId": accountID})
+			if err != nil {
+				http.Error(w, "failed to get company locations", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(locations)
+			return
+		case storage.RoleCustomer:
+			addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": accountID})
+			if err != nil {
+				http.Error(w, "failed to get customer addresses", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(addresses)
+			return
+		default:
+			http.Error(w, "target account role not supported for locations", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// For non-admin users, only allow them to view their own locations
+	if authenticatedUserRole == storage.RoleCompany && acc.Role == storage.RoleCompany && userClaims["id"].(string) == accountID.Hex() {
+		locations, err := h.db.GetCompanyLocations(bson.M{"companyId": accountID})
+		if err != nil {
+			http.Error(w, "failed to get company locations", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(locations)
+		return
+	}
+
+	if authenticatedUserRole == storage.RoleCustomer && acc.Role == storage.RoleCustomer && userClaims["id"].(string) == accountID.Hex() {
+		addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": accountID})
+		if err != nil {
+			http.Error(w, "failed to get customer addresses", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(addresses)
+		return
+	}
+
+	http.Error(w, "Unauthorized to view locations for this account", http.StatusUnauthorized)
+}
+
+func (h *Handler) UpsertLocation(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	switch acc.Role {
+	case storage.RoleCompany:
+		var loc storage.CompanyLocation
+		if err := json.NewDecoder(r.Body).Decode(&loc); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		loc.CompanyID = accountID
+
+		// If an ID is provided, update the existing location
+		if loc.ID != primitive.NilObjectID {
+			loc.UpdatedAt = time.Now()
+			if err := h.db.UpdateCompanyLocation(loc.ID, &loc); err != nil {
+				http.Error(w, "failed to update company location", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(loc)
+			return
+		}
+
+		// Check for duplicates before creating
+		existing, err := h.db.GetCompanyLocations(bson.M{
+			"companyId":      accountID,
+			"address.street": loc.Address.Street,
+			"address.city":   loc.Address.City,
+			"address.state":  loc.Address.State,
+			"address.zip":    loc.Address.Zip,
+		})
+		if err == nil && len(existing) > 0 {
+			json.NewEncoder(w).Encode(existing[0])
+			return
+		}
+
+		loc.ID = primitive.NewObjectID()
+		loc.CreatedAt = time.Now()
+		loc.UpdatedAt = time.Now()
+		if err := h.db.CreateCompanyLocation(&loc); err != nil {
+			http.Error(w, "failed to create company location", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(loc)
+
+	case storage.RoleCustomer:
+		var addr storage.CustomerAddress
+		if err := json.NewDecoder(r.Body).Decode(&addr); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		addr.CustomerID = accountID
+
+		// If an ID is provided, update the existing address
+		if addr.ID != primitive.NilObjectID {
+			addr.UpdatedAt = time.Now()
+			if err := h.db.UpdateCustomerAddress(addr.ID, &addr); err != nil {
+				http.Error(w, "failed to update customer address", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(addr)
+			return
+		}
+
+		// Check for duplicates before creating
+		existing, err := h.db.GetCustomerAddresses(bson.M{
+			"customerId":     accountID,
+			"address.street": addr.Address.Street,
+			"address.city":   addr.Address.City,
+			"address.state":  addr.Address.State,
+			"address.zip":    addr.Address.Zip,
+		})
+		if err == nil && len(existing) > 0 {
+			json.NewEncoder(w).Encode(existing[0])
+			return
+		}
+
+		addr.ID = primitive.NewObjectID()
+		addr.CreatedAt = time.Now()
+		addr.UpdatedAt = time.Now()
+		if err := h.db.CreateCustomerAddress(&addr); err != nil {
+			http.Error(w, "failed to create customer address", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(addr)
+
+	default:
+		http.Error(w, "role not supported for locations", http.StatusBadRequest)
+	}
+}
+
+func (h *Handler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+	locationID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "locationID"))
+	if err != nil {
+		http.Error(w, "invalid locationID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	// Authorization check: Ensure the authenticated user owns the account
+	userClaims := r.Context().Value("user").(map[string]interface{})
+	authenticatedUserID := userClaims["id"].(string)
+	if authenticatedUserID != accountID.Hex() {
+		http.Error(w, "Unauthorized", http.StatusForbidden)
+		return
+	}
+
+	switch acc.Role {
+	case storage.RoleCompany:
+		if err := h.db.DeleteCompanyLocation(locationID); err != nil {
+			http.Error(w, "failed to delete company location", http.StatusInternalServerError)
+			return
+		}
+	case storage.RoleCustomer:
+		if err := h.db.DeleteCustomerAddress(locationID); err != nil {
+			http.Error(w, "failed to delete customer address", http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "role not supported for locations", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

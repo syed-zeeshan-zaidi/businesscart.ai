@@ -83,6 +83,14 @@ export class AccountServiceStack extends cdk.Stack {
     accountById.addMethod("DELETE", integ);
     accountById.addMethod("PUT", integ);
 
+    const locations = accounts.addResource("locations");
+    const locationByAccount = locations.addResource("{accountID}");
+    locationByAccount.addMethod("GET", integ);
+    locationByAccount.addMethod("POST", integ);
+
+    const locationById = locationByAccount.addResource("{locationID}");
+    locationById.addMethod("DELETE", integ);
+
     const codes = this.api.root.addResource("codes");
     codes.addMethod("POST", integ);
     codes.addMethod("GET", integ);
