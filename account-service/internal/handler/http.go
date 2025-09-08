@@ -543,11 +543,11 @@ func (h *Handler) GetLocations(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// Get the role of the authenticated user from the context
 	userClaims := r.Context().Value("user").(map[string]interface{})
 	authenticatedUserRole := userClaims["role"].(string)
+	authenticatedUserID := userClaims["id"].(string)
 
-	// If the authenticated user is an admin, allow them to view locations for any account
+	// Admins can view locations for any account
 	if authenticatedUserRole == storage.RoleAdmin {
 		switch acc.Role {
 		case storage.RoleCompany:
@@ -572,8 +572,8 @@ func (h *Handler) GetLocations(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// For non-admin users, only allow them to view their own locations
-	if authenticatedUserRole == storage.RoleCompany && acc.Role == storage.RoleCompany && userClaims["id"].(string) == accountID.Hex() {
+	// Company users can only view their own company locations
+	if authenticatedUserRole == storage.RoleCompany && acc.Role == storage.RoleCompany && authenticatedUserID == accountID.Hex() {
 		locations, err := h.db.GetCompanyLocations(bson.M{"companyId": accountID})
 		if err != nil {
 			http.Error(w, "failed to get company locations", http.StatusInternalServerError)
@@ -583,7 +583,8 @@ func (h *Handler) GetLocations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if authenticatedUserRole == storage.RoleCustomer && acc.Role == storage.RoleCustomer && userClaims["id"].(string) == accountID.Hex() {
+	// Customer users can only view their own customer addresses
+	if authenticatedUserRole == storage.RoleCustomer && acc.Role == storage.RoleCustomer && authenticatedUserID == accountID.Hex() {
 		addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": accountID})
 		if err != nil {
 			http.Error(w, "failed to get customer addresses", http.StatusInternalServerError)

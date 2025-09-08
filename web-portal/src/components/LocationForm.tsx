@@ -1,3 +1,4 @@
+/* LocationForm.tsx  –  FULL UPDATED FILE */
 import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import { getLocations, upsertLocation, deleteLocation } from '../api';
 import { useAuth } from '../hooks/useAuth';
@@ -5,20 +6,46 @@ import toast, { Toaster } from 'react-hot-toast';
 import { PlusIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
 import Navbar from './Navbar';
+import { Account } from '../types';
 
+/* ---------- small types ---------- */
+type Address = {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+type Location = {
+  id: string;
+  locationName?: string;
+  recipientName?: string;
+  address: Address;
+  contactPerson?: string;
+  phoneNumber?: string;
+  capacity?: string;
+  locationType?: string;
+  isDefault?: boolean;
+  addressLabel?: string;
+  isDefaultShipping?: boolean;
+};
+
+/* ---------- main component ---------- */
 const LocationForm: React.FC = () => {
   const { decodeJWT } = useAuth();
-  const [locations, setLocations] = useState<any[]>([]);
-  const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
+
+  /* ---------- state ---------- */
+  const [user, setUser] = useState<{ id: string; role: 'admin' | 'company' | 'customer'; email: string } | null>(null);
+  const [targetAccount, setTargetAccount] = useState<string>('');   /* <— company id for admin */
+  const [companyList, setCompanyList] = useState<{ id: string; name: string }[]>([]); /* fill this once */
+
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [newLocation, setNewLocation] = useState({
     locationName: '',
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      zip: '',
-    },
+    address: { street: '', city: '', state: '', zip: '' } as Address,
     contactPerson: '',
     phoneNumber: '',
     capacity: '',
@@ -28,115 +55,155 @@ const LocationForm: React.FC = () => {
     addressLabel: '',
     isDefaultShipping: false,
   });
-  const [user, setUser] = useState<any>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const locationsPerPage = 10;
 
+  /* ---------- bootstrap user ---------- */
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      const decodedUser = decodeJWT(token);
-      setUser(decodedUser);
-    }
+    const t = localStorage.getItem('accessToken');
+    if (t) setUser(decodeJWT(t));
   }, [decodeJWT]);
 
-  const fetchLocations = useCallback(async () => {
-    if (user) {
-      setIsLoading(true);
+/* ---------- fetch company list for admin ---------- */
+  useEffect(() => {
+    if (user?.role === 'admin') {
       try {
-        const fetchedLocations = await getLocations(user.id);
-        setLocations(fetchedLocations || []);
-        setFilteredLocations(fetchedLocations || []);
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to fetch locations');
-        setLocations([]);
-        setFilteredLocations([]);
-      } finally {
-        setIsLoading(false);
+        const raw = localStorage.getItem('accounts_cache');
+        if (raw) {
+          const { data } = JSON.parse(raw);
+          const companies = (data as Account[]).filter((a) => a.role === 'company');
+          setCompanyList(companies.map((c) => ({ id: c._id, name: c.company?.name || c.email })));
+        }
+      } catch {
+        toast.error('Could not load companies from cache');
       }
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      fetchLocations();
+  /* ---------- derive account id ---------- */
+  const accountID = user?.role === 'admin' ? targetAccount : user?.id ?? '';
+
+  /* ---------- load locations ---------- */
+  const fetchLocations = useCallback(async () => {
+    if (!accountID) return; /* admin has not chosen yet */
+    setIsLoading(true);
+    try {
+      const list = await getLocations(accountID);
+      setLocations(list ?? []);
+      setFilteredLocations(list ?? []);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Failed to fetch locations');
+      setLocations([]);
+      setFilteredLocations([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, fetchLocations]);
+  }, [accountID]);
 
   useEffect(() => {
-    const filtered = locations.filter((location) =>
-      (location.locationName || location.recipientName).toLowerCase().includes(searchQuery.toLowerCase())
+    fetchLocations();
+  }, [fetchLocations]);
+
+  /* ---------- search ---------- */
+  useEffect(() => {
+    const filtered = locations.filter((l) =>
+      (l.locationName || l.recipientName || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredLocations(filtered);
     setCurrentPage(1);
   }, [searchQuery, locations]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  /* ---------- form helpers ---------- */
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
+
     if (name in newLocation.address) {
-      setNewLocation((prev) => ({
-        ...prev,
-        address: { ...prev.address, [name]: value },
-      }));
+      setNewLocation((p) => ({ ...p, address: { ...p.address, [name]: value } }));
     } else if (type === 'checkbox') {
-      setNewLocation((prev) => ({ ...prev, [name]: checked }));
+      setNewLocation((p) => ({ ...p, [name]: checked }));
     } else {
-      setNewLocation((prev) => ({ ...prev, [name]: value }));
+      setNewLocation((p) => ({ ...p, [name]: value }));
     }
   };
 
+  /* ---------- submit ---------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user) {
-      setIsLoading(true);
-      try {
-        let payload: any = {
-          address: newLocation.address,
+    if (!accountID) return;
+    setIsLoading(true);
+    try {
+      let payload: any = { address: newLocation.address };
+      if (user?.role === 'company') {
+        payload = {
+          ...payload,
+          locationName: newLocation.locationName,
+          contactPerson: newLocation.contactPerson,
+          phoneNumber: newLocation.phoneNumber,
+          capacity: newLocation.capacity,
+          locationType: newLocation.locationType,
+          isDefault: newLocation.isDefault,
         };
-
-        if (user.role === 'company') {
-          payload = {
-            ...payload,
-            locationName: newLocation.locationName,
-            contactPerson: newLocation.contactPerson,
-            phoneNumber: newLocation.phoneNumber,
-            capacity: newLocation.capacity,
-            locationType: newLocation.locationType,
-            isDefault: newLocation.isDefault,
-          };
-        } else if (user.role === 'customer') {
-          payload = {
-            ...payload,
-            recipientName: newLocation.recipientName,
-            phoneNumber: newLocation.phoneNumber,
-            addressLabel: newLocation.addressLabel,
-            isDefaultShipping: newLocation.isDefaultShipping,
-          };
-        }
-        
-        if (editingId) {
-            payload.id = editingId;
-        }
-
-        await upsertLocation(user.id, payload);
-        toast.success(`Location ${editingId ? 'updated' : 'saved'} successfully!`);
-        fetchLocations();
-        closeModal();
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to save location');
-      } finally {
-        setIsLoading(false);
+      } else if (user?.role === 'customer') {
+        payload = {
+          ...payload,
+          recipientName: newLocation.recipientName,
+          phoneNumber: newLocation.phoneNumber,
+          addressLabel: newLocation.addressLabel,
+          isDefaultShipping: newLocation.isDefaultShipping,
+        };
       }
+      if (editingId) payload.id = editingId;
+
+      await upsertLocation(accountID, payload);
+      toast.success(`Location ${editingId ? 'updated' : 'saved'} successfully!`);
+      fetchLocations();
+      closeModal();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Save failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = (location: any) => {
+  /* ---------- delete ---------- */
+  const handleDelete = async () => {
+    if (!locationToDelete || !accountID) return;
+    setIsLoading(true);
+    try {
+      await deleteLocation(accountID, locationToDelete);
+      toast.success('Location deleted');
+      fetchLocations();
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Delete failed');
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setLocationToDelete(null);
+      setIsLoading(false);
+    }
+  };
+
+  /* ---------- modal helpers ---------- */
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+  };
+  const openDeleteConfirm = (id: string) => {
+    setLocationToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleEdit = (location: Location) => {
     setEditingId(location.id);
     setNewLocation({
       locationName: location.locationName || '',
@@ -158,62 +225,21 @@ const LocationForm: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!locationToDelete || !user) return;
-    setIsLoading(true);
-    try {
-      await deleteLocation(user.id, locationToDelete);
-      toast.success('Location deleted successfully');
-      fetchLocations();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete location');
-    } finally {
-      setIsDeleteConfirmOpen(false);
-      setLocationToDelete(null);
-      setIsLoading(false);
-    }
-  };
 
-  const openDeleteConfirm = (id: string) => {
-    setLocationToDelete(id);
-    setIsDeleteConfirmOpen(true);
-  };
-
-  const openModal = () => {
-    setEditingId(null);
-    setNewLocation({
-      locationName: '',
-      address: { street: '', city: '', state: '', zip: '' },
-      contactPerson: '',
-      phoneNumber: '',
-      capacity: '',
-      locationType: '',
-      isDefault: false,
-      recipientName: '',
-      addressLabel: '',
-      isDefaultShipping: false,
-    });
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingId(null);
-  };
-
-  // Pagination
-  const indexOfLastLocation = currentPage * locationsPerPage;
-  const indexOfFirstLocation = indexOfLastLocation - locationsPerPage;
-  const currentLocations = filteredLocations.slice(indexOfFirstLocation, indexOfLastLocation);
+  /* ---------- pagination ---------- */
+  const idxLast = currentPage * locationsPerPage;
+  const idxFirst = idxLast - locationsPerPage;
+  const current = filteredLocations.slice(idxFirst, idxLast);
   const totalPages = Math.ceil(filteredLocations.length / locationsPerPage);
 
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
+  /* ---------- render ---------- */
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header + Add button */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">Manage Locations</h2>
           <button
@@ -225,6 +251,24 @@ const LocationForm: React.FC = () => {
           </button>
         </div>
 
+        {/* Admin company selector */}
+        {user?.role === 'admin' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Select company</label>
+            <select
+              value={targetAccount}
+              onChange={(e) => setTargetAccount(e.target.value)}
+              className="w-full sm:w-64 p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            >
+              <option value="" disabled>-- choose --</option>
+              {companyList.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Search */}
         <div className="mb-6">
           <div className="relative">
             <input
@@ -238,37 +282,37 @@ const LocationForm: React.FC = () => {
           </div>
         </div>
 
+        {/* Grid */}
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
           </div>
-        ) : filteredLocations.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-            <h2 className="text-2xl font-semibold text-gray-800">No Locations Found</h2>
-            <p className="text-gray-600 mt-2">You have not added any locations yet.</p>
-          </div>
+        ) : !accountID ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">Please select a company first.</div>
+        ) : current.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">No locations found.</div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
+          <>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                     {user?.role === 'company' && (
                       <>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default</th>
                       </>
                     )}
                     {user?.role === 'customer' && (
                       <>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone Number</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address Label</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default Shipping</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default Ship</th>
                       </>
                     )}
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
@@ -276,9 +320,9 @@ const LocationForm: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {currentLocations.map((loc) => (
+                  {current.map((loc) => (
                     <tr key={loc.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{loc.locationName || loc.recipientName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{(loc.locationName || loc.recipientName)}</td>
                       {user?.role === 'company' && (
                         <>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.contactPerson}</td>
@@ -300,18 +344,10 @@ const LocationForm: React.FC = () => {
                         {loc.address.street}, {loc.address.city}, {loc.address.state} {loc.address.zip}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleEdit(loc)}
-                          className="text-yellow-600 hover:text-yellow-800 mr-4"
-                          aria-label={`Edit ${loc.locationName || loc.recipientName}`}
-                        >
+                        <button onClick={() => handleEdit(loc)} className="text-yellow-600 hover:text-yellow-800 mr-4">
                           <PencilIcon className="h-5 w-5" />
                         </button>
-                        <button
-                          onClick={() => openDeleteConfirm(loc.id)}
-                          className="text-red-600 hover:text-red-800"
-                          aria-label={`Delete ${loc.locationName || loc.recipientName}`}
-                        >
+                        <button onClick={() => openDeleteConfirm(loc.id)} className="text-red-600 hover:text-red-800">
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </td>
@@ -320,247 +356,120 @@ const LocationForm: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
-        
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-end space-x-2">
-            <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i + 1}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`px-3 py-1 border rounded text-sm ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'hover:bg-gray-50'}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
+      {/* ---------- Modals (unchanged) ---------- */}
       <Transition appear show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={closeModal}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
+          <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
             <div className="fixed inset-0 bg-black bg-opacity-25" />
           </Transition.Child>
-
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
+              <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                 <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    {editingId ? 'Edit Location' : 'Add New Location'}
-                  </Dialog.Title>
+                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">{editingId ? 'Edit Location' : 'Add New Location'}</Dialog.Title>
                   <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                     {user?.role === 'company' && (
                       <>
                         <div>
-                          <label htmlFor="locationName" className="block text-sm font-medium text-gray-700">Location Name</label>
-                          <input
-                            type="text"
-                            name="locationName"
-                            id="locationName"
-                            value={newLocation.locationName}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Location Name</label>
+                          <input name="locationName" value={newLocation.locationName} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700">Contact Person</label>
-                          <input
-                            type="text"
-                            name="contactPerson"
-                            id="contactPerson"
-                            value={newLocation.contactPerson}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                          <input name="contactPerson" value={newLocation.contactPerson} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
-                          <input
-                            type="text"
-                            name="phoneNumber"
-                            id="phoneNumber"
-                            value={newLocation.phoneNumber}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                          <input name="phoneNumber" value={newLocation.phoneNumber} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="capacity" className="block text-sm font-medium text-gray-700">Capacity</label>
-                          <input
-                            type="text"
-                            name="capacity"
-                            id="capacity"
-                            value={newLocation.capacity}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Capacity</label>
+                          <input name="capacity" value={newLocation.capacity} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="locationType" className="block text-sm font-medium text-gray-700">Location Type</label>
-                          <input
-                            type="text"
-                            name="locationType"
-                            id="locationType"
-                            value={newLocation.locationType}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Location Type</label>
+                          <input name="locationType" value={newLocation.locationType} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            name="isDefault"
-                            id="isDefault"
-                            checked={newLocation.isDefault}
-                            onChange={handleInputChange}
-                            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-900">Set as Default Location</label>
+                          <input type="checkbox" name="isDefault" checked={newLocation.isDefault} onChange={handleInputChange} className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded" />
+                          <label className="ml-2 block text-sm text-gray-900">Set as Default Location</label>
                         </div>
                       </>
                     )}
                     {user?.role === 'customer' && (
                       <>
                         <div>
-                          <label htmlFor="recipientName" className="block text-sm font-medium text-gray-700">Recipient Name</label>
-                          <input
-                            type="text"
-                            name="recipientName"
-                            id="recipientName"
-                            value={newLocation.recipientName}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
+                          <input name="recipientName" value={newLocation.recipientName} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
-                          <input
-                            type="text"
-                            name="phoneNumber"
-                            id="phoneNumber"
-                            value={newLocation.phoneNumber}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                          <input name="phoneNumber" value={newLocation.phoneNumber} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div>
-                          <label htmlFor="addressLabel" className="block text-sm font-medium text-gray-700">Address Label</label>
-                          <input
-                            type="text"
-                            name="addressLabel"
-                            id="addressLabel"
-                            value={newLocation.addressLabel}
-                            onChange={handleInputChange}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          />
+                          <label className="block text-sm font-medium text-gray-700">Address Label</label>
+                          <input name="addressLabel" value={newLocation.addressLabel} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                         </div>
                         <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            name="isDefaultShipping"
-                            id="isDefaultShipping"
-                            checked={newLocation.isDefaultShipping}
-                            onChange={handleInputChange}
-                            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-                          />
-                          <label htmlFor="isDefaultShipping" className="ml-2 block text-sm text-gray-900">Set as Default Shipping Address</label>
+                          <input type="checkbox" name="isDefaultShipping" checked={newLocation.isDefaultShipping} onChange={handleInputChange} className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded" />
+                          <label className="ml-2 block text-sm text-gray-900">Set as Default Shipping Address</label>
                         </div>
                       </>
                     )}
                     <div>
-                      <label htmlFor="street" className="block text-sm font-medium text-gray-700">Street</label>
-                      <input
-                        type="text"
-                        name="street"
-                        id="street"
-                        value={newLocation.address.street}
-                        onChange={handleInputChange}
-                        className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                      />
+                      <label className="block text-sm font-medium text-gray-700">Street</label>
+                      <input name="street" value={newLocation.address.street} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label htmlFor="city" className="block text-sm font-medium text-gray-700">City</label>
-                        <input
-                          type="text"
-                          name="city"
-                          id="city"
-                          value={newLocation.address.city}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus.border-teal-500"
-                        />
+                        <label className="block text-sm font-medium text-gray-700">City</label>
+                        <input name="city" value={newLocation.address.city} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                       </div>
                       <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-gray-700">State</label>
-                        <input
-                          type="text"
-                          name="state"
-                          id="state"
-                          value={newLocation.address.state}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus.border-teal-500"
-                        />
+                        <label className="block text-sm font-medium text-gray-700">State</label>
+                        <input name="state" value={newLocation.address.state} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                       </div>
                       <div>
-                        <label htmlFor="zip" className="block text-sm font-medium text-gray-700">Zip Code</label>
-                        <input
-                          type="text"
-                          name="zip"
-                          id="zip"
-                          value={newLocation.address.zip}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus.border-teal-500"
-                        />
+                        <label className="block text-sm font-medium text-gray-700">Zip Code</label>
+                        <input name="zip" value={newLocation.address.zip} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                       </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
-                      >
+                      <button type="button" onClick={closeModal} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                      <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
                         {isLoading ? 'Saving...' : editingId ? 'Update' : 'Save'}
                       </button>
                     </div>
@@ -574,52 +483,18 @@ const LocationForm: React.FC = () => {
 
       <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
+          <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
             <div className="fixed inset-0 bg-black bg-opacity-25" />
           </Transition.Child>
-
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
+              <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                    Delete Location
-                  </Dialog.Title>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500">
-                      Are you sure you want to delete this location? This action cannot be undone.
-                    </p>
-                  </div>
+                  <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">Delete Location</Dialog.Title>
+                  <div className="mt-2"><p className="text-sm text-gray-500">Are you sure? This action cannot be undone.</p></div>
                   <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsDeleteConfirmOpen(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={isLoading}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                    >
+                    <button type="button" onClick={() => setIsDeleteConfirmOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50">
                       {isLoading ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
