@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Account, Product, Order, Cart, Quote } from './types';
+import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress } from './types';
 
 const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
 const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
@@ -217,17 +217,32 @@ export const getQuote = async (quoteId: string): Promise<Quote> => {
   return response.data;
 };
 
-export const getLocations = async (accountId: string): Promise<any[]> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${accountId}`);
+// Company Location specific functions
+export const getCompanyLocations = async (companyId: string): Promise<CompanyLocation[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${companyId}`);
   return response.data;
 };
 
-export const upsertLocation = async (accountId: string, location: any): Promise<any> => {
-  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${accountId}`, location);
+export const upsertCompanyLocation = async (companyId: string, location: Partial<CompanyLocation>): Promise<CompanyLocation> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${companyId}`, location);
   return response.data;
 };
 
-export const deleteLocation = async (accountId: string, locationId: string): Promise<any> => {
-  const response = await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${accountId}/${locationId}`);
+export const deleteCompanyLocation = async (companyId: string, locationId: string): Promise<void> => {
+  await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${companyId}/${locationId}`);
+};
+
+// Customer Address specific functions
+export const getCustomerAddresses = async (customerId: string): Promise<CustomerAddress[]> => {
+  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${customerId}`);
   return response.data;
+};
+
+export const upsertCustomerAddress = async (customerId: string, address: Partial<CustomerAddress>): Promise<CustomerAddress> => {
+  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${customerId}`, address);
+  return response.data;
+};
+
+export const deleteCustomerAddress = async (customerId: string, addressId: string): Promise<void> => {
+  await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${customerId}/${addressId}`);
 };

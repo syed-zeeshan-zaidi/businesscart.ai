@@ -130,3 +130,30 @@ export interface CustomerCodeEntry {
   codeId: string;
   customerCode: string;
 }
+
+export interface CompanyLocation {
+  id: string;
+  companyId: string;
+  locationName: string;
+  address: Address;
+  contactPerson?: string;
+  phoneNumber?: string;
+  operatingHours?: string;
+  capacity?: string;
+  locationType: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerAddress {
+  id: string;
+  customerId: string;
+  recipientName: string;
+  address: Address;
+  phoneNumber?: string;
+  addressLabel?: string;
+  isDefaultShipping: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
