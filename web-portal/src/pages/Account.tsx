@@ -5,7 +5,6 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Account as AccountType } from '../types';
 import { getAccount } from '../api';
-import LocationForm from '../components/LocationForm';
 
 const LOCAL_KEY = 'account'; // <-- single key for localStorage
 
