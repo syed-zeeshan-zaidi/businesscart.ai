@@ -158,9 +158,6 @@ const Account: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="px-6 py-4">
-              <LocationForm />
-            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">

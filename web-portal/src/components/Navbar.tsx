@@ -203,10 +203,10 @@ const Navbar: React.FC = () => {
                             <Menu.Item>
                               {({ active }) => (
                                 <Link
-                                  to="/customer/locations"
+                                  to="/customer/addresses"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
-                                  My Locations
+                                  My Addresses
                                 </Link>
                               )}
                             </Menu.Item>

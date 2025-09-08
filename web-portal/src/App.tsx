@@ -17,7 +17,7 @@ import Account from './pages/Account';
 import OrderHistory from './pages/OrderHistory';
 import CodeForm from './components/CodeForm';
 import LocationForm from './components/LocationForm';
-import Locations from './pages/Locations';
+import Addresses from './pages/Addresses';
 
 const App = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -129,8 +129,8 @@ const App = () => {
               element={isAuthenticated ? <LocationForm /> : <Navigate to="/login" replace />}
             />
             <Route
-              path="/customer/locations"
-              element={isAuthenticated ? <Locations /> : <Navigate to="/login" replace />}
+              path="/customer/addresses"
+              element={isAuthenticated ? <Addresses /> : <Navigate to="/login" replace />}
             />
             <Route
               path="/admin"
