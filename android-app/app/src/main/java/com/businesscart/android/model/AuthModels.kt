@@ -92,3 +92,38 @@ data class DecodedUser(
     val email: String,
     val role: String
 )
+
+data class CompanyLocation(
+    val id: String,
+    val companyId: String,
+    val locationName: String,
+    val address: Address,
+    val contactPerson: String?,
+    val phoneNumber: String?,
+    val operatingHours: String?,
+    val capacity: String?,
+    val locationType: String,
+    val isDefault: Boolean,
+    val createdAt: String,
+    val updatedAt: String
+)
+
+data class CustomerAddress(
+    val id: String,
+    val customerId: String,
+    val recipientName: String,
+    val address: Address,
+    val phoneNumber: String?,
+    val addressLabel: String?,
+    val isDefaultShipping: Boolean,
+    val createdAt: String,
+    val updatedAt: String?
+)
+
+data class NewAddressDTO(
+    val recipientName: String,
+    val addressLabel: String?,
+    val address: Address,
+    val phoneNumber: String?,
+    val isDefaultShipping: Boolean
+)

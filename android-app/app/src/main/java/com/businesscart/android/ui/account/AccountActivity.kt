@@ -59,6 +59,11 @@ class AccountActivity : AppCompatActivity() {
             startActivity(Intent(this, OrderHistoryActivity::class.java))
         }
 
+        val manageAddressesBtn = findViewById<Button>(R.id.manageAddressesButton)
+        manageAddressesBtn.setOnClickListener { 
+            startActivity(Intent(this, AddressesActivity::class.java))
+        }
+
         fetchAccountDetails()
     }
 
