@@ -37,6 +37,7 @@ func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
 			"availableDeliveryMethods":    quote.AvailableDeliveryMethods,
 			"availableShippingOutOptions": quote.AvailableShippingOutOptions,
 			"companyLocations":            quote.CompanyLocations,
+			"customerAddresses":           quote.CustomerAddresses,
 			"cartId":                      quote.CartID,
 			"expiresAt":                   time.Now().Add(24 * time.Hour),
 		},

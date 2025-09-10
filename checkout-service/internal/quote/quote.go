@@ -30,6 +30,12 @@ type CompanyLocation struct {
 	Address      Address            `bson:"address" json:"address"`
 }
 
+// CustomerAddress represents a customer's address.
+type CustomerAddress struct {
+	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Address Address            `bson:"address" json:"address"`
+}
+
 // Quote represents a price quote for a cart.
 type Quote struct {
 	ID                          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
@@ -45,6 +51,7 @@ type Quote struct {
 	AvailableDeliveryMethods    []string           `bson:"availableDeliveryMethods" json:"availableDeliveryMethods"`
 	AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
 	CompanyLocations            []CompanyLocation  `bson:"companyLocations,omitempty" json:"companyLocations,omitempty"`
+	CustomerAddresses           []CustomerAddress  `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
 	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
 }

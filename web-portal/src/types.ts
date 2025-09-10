@@ -12,6 +12,7 @@ export interface Address {
 export interface CustomerData {
   customerCodes: CustomerCodeEntry[];
   attachedCompanies?: CompanyData[];
+  customerAddresses?: CustomerAddress[];
 }
 
 export interface PartnerData {
@@ -91,6 +92,7 @@ export interface Quote {
   availableDeliveryMethods: string[];
   availableShippingOutOptions: string[];
   companyLocations?: CompanyLocation[];
+  customerAddresses?: CustomerAddress[];
   createdAt: string;
   expiresAt: string;
 }

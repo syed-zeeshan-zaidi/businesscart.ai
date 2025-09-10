@@ -17,6 +17,7 @@ const Checkout: React.FC = () => {
   const [selectedShippingOption, setSelectedShippingOption] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [selectedPickupLocation, setSelectedPickupLocation] = useState('');
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,6 +80,10 @@ const Checkout: React.FC = () => {
       toast.error('Please select a pickup location.');
       return;
     }
+    if (selectedDeliveryMethod !== 'pickup' && !selectedDeliveryAddress) {
+      toast.error('Please select a delivery address.');
+      return;
+    }
     
     let token = 'tok_placeholder';
     if (selectedPaymentMethod === 'stripe') {
@@ -96,7 +101,9 @@ const Checkout: React.FC = () => {
         quoteId: quote.id, 
         paymentMethod: selectedPaymentMethod, 
         paymentToken: token,
+        deliveryMethod: selectedDeliveryMethod,
         pickupLocationId: selectedDeliveryMethod === 'pickup' ? selectedPickupLocation : undefined,
+        deliveryAddressId: selectedDeliveryMethod !== 'pickup' ? selectedDeliveryAddress : undefined,
       });
       toast.success('Order placed successfully!', { id: toastId });
       navigate('/order-success');
@@ -195,6 +202,25 @@ const Checkout: React.FC = () => {
                   {quote.companyLocations?.map(location => (
                     <option key={location.id} value={location.id}>
                       {location.locationName} - {location.address.street}, {location.address.city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedDeliveryMethod !== 'pickup' && (
+              <div className="mb-4">
+                <label htmlFor="delivery-address" className="block text-sm font-medium text-gray-700">Delivery Address</label>
+                <select
+                  id="delivery-address"
+                  value={selectedDeliveryAddress}
+                  onChange={(e) => setSelectedDeliveryAddress(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select an address</option>
+                  {quote.customerAddresses?.map(address => (
+                    <option key={address.id} value={address.id}>
+                      {address.addressLabel}: {address.address.street}, {address.address.city}
                     </option>
                   ))}
                 </select>

@@ -153,7 +153,9 @@ export const createOrder = async (data: {
   quoteId: string; 
   paymentMethod: string; 
   paymentToken: string;
+  deliveryMethod: string;
   pickupLocationId?: string;
+  deliveryAddressId?: string;
 }): Promise<Order> => {
   const response = await api.post(`${CHECKOUT_API_URL}/orders`, data);
   return response.data;
@@ -213,6 +215,7 @@ export const createQuote = async (data: {
   deliveryMethods: string[];
   shippingOutOptions: string[];
   companyLocations: CompanyLocation[];
+  customerAddresses: CustomerAddress[];
 }): Promise<Quote> => {
   const response = await api.post(`${CHECKOUT_API_URL}/quotes`, data);
   return response.data;
