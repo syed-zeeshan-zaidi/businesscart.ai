@@ -220,11 +220,15 @@ const loadCompanies = async () => {
     const paymentMethods = company?.paymentMethods || [];
     const deliveryMethods = company?.deliveryMethods || [];
     const shippingOutOptions = company?.shippingOutOptions || [];
+    const companyLocations = company?.companyLocations || [];
 
     console.log('Account data on checkout:', account);
     console.log('Selected Company ID:', selectedCompanyId);
     console.log('Found company for checkout:', company);
     console.log('Payment methods being sent:', paymentMethods);
+    console.log('Delivery methods being sent:', deliveryMethods);
+    console.log('Shipping out options being sent:', shippingOutOptions);
+    console.log('Company locations being sent:', companyLocations);
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
@@ -234,6 +238,7 @@ const loadCompanies = async () => {
         paymentMethods: paymentMethods,
         deliveryMethods: deliveryMethods,
         shippingOutOptions: shippingOutOptions,
+        companyLocations: companyLocations,
       });
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);

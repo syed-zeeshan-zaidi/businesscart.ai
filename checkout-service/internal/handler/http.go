@@ -177,9 +177,10 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 
 func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		QuoteID       string `json:"quoteId"`
-		PaymentMethod string `json:"paymentMethod"`
-		PaymentToken  string `json:"paymentToken"`
+		QuoteID          string `json:"quoteId"`
+		PaymentMethod    string `json:"paymentMethod"`
+		PaymentToken     string `json:"paymentToken"`
+		PickupLocationID string `json:"pickupLocationId,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -202,17 +203,18 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	}
 
 	newOrder := &order.Order{
-		ID:            primitive.NewObjectID(),
-		QuoteID:       quote.ID,
-		AccountID:     accountID,
-		SellerID:      quote.SellerID,
-		Items:         quote.Items,
-		Subtotal:      quote.Subtotal,
-		ShippingCost:  quote.ShippingCost,
-		TaxAmount:     quote.TaxAmount,
-		GrandTotal:    quote.GrandTotal,
-		PaymentMethod: req.PaymentMethod,
-		TransactionID: transactionID,
+		ID:               primitive.NewObjectID(),
+		QuoteID:          quote.ID,
+		AccountID:        accountID,
+		SellerID:         quote.SellerID,
+		Items:            quote.Items,
+		Subtotal:         quote.Subtotal,
+		ShippingCost:     quote.ShippingCost,
+		TaxAmount:        quote.TaxAmount,
+		GrandTotal:       quote.GrandTotal,
+		PaymentMethod:    req.PaymentMethod,
+		TransactionID:    transactionID,
+		PickupLocationID: req.PickupLocationID,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -262,11 +264,12 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 
 func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		CartID               string   `json:"cartId"`
-		SellerID             string   `json:"sellerId"`
-		PaymentMethods       []string `json:"paymentMethods"`
-		DeliveryMethods      []string `json:"deliveryMethods"`
-		ShippingOutOptions   []string `json:"shippingOutOptions"`
+		CartID             string                `json:"cartId"`
+		SellerID           string                `json:"sellerId"`
+		PaymentMethods     []string              `json:"paymentMethods"`
+		DeliveryMethods    []string              `json:"deliveryMethods"`
+		ShippingOutOptions []string              `json:"shippingOutOptions"`
+		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -297,6 +300,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		AvailablePaymentMethods:     req.PaymentMethods,
 		AvailableDeliveryMethods:    req.DeliveryMethods,
 		AvailableShippingOutOptions: req.ShippingOutOptions,
+		CompanyLocations:            req.CompanyLocations,
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)

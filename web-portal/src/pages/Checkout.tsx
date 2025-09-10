@@ -16,6 +16,7 @@ const Checkout: React.FC = () => {
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const [selectedShippingOption, setSelectedShippingOption] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [selectedPickupLocation, setSelectedPickupLocation] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -47,12 +48,12 @@ const Checkout: React.FC = () => {
   }, [isAuthenticated, navigate, quoteId]);
 
   const filteredPaymentMethods = useMemo(() => {
-    if (!quote || !selectedDeliveryMethod) return [];
+    if (!quote) return [];
 
-    if (selectedDeliveryMethod === 'pickup') {
-      return quote.availablePaymentMethods.filter(p => p === 'pickup_pay');
+    if (selectedDeliveryMethod !== 'pickup') {
+      return quote.availablePaymentMethods.filter(p => p !== 'pickup_pay');
     }
-    return quote.availablePaymentMethods.filter(p => p !== 'pickup_pay');
+    return quote.availablePaymentMethods;
   }, [quote, selectedDeliveryMethod]);
 
   useEffect(() => {
@@ -74,6 +75,10 @@ const Checkout: React.FC = () => {
       toast.error('Please select a payment method.');
       return;
     }
+    if (selectedDeliveryMethod === 'pickup' && !selectedPickupLocation) {
+      toast.error('Please select a pickup location.');
+      return;
+    }
     
     let token = 'tok_placeholder';
     if (selectedPaymentMethod === 'stripe') {
@@ -87,7 +92,12 @@ const Checkout: React.FC = () => {
     setLoading(true);
     const toastId = toast.loading('Placing your order...');
     try {
-      await createOrder({ quoteId: quote.id, paymentMethod: selectedPaymentMethod, paymentToken: token });
+      await createOrder({ 
+        quoteId: quote.id, 
+        paymentMethod: selectedPaymentMethod, 
+        paymentToken: token,
+        pickupLocationId: selectedDeliveryMethod === 'pickup' ? selectedPickupLocation : undefined,
+      });
       toast.success('Order placed successfully!', { id: toastId });
       navigate('/order-success');
     } catch (err: any) {
@@ -171,6 +181,25 @@ const Checkout: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            {selectedDeliveryMethod === 'pickup' && (
+              <div className="mb-4">
+                <label htmlFor="pickup-location" className="block text-sm font-medium text-gray-700">Pickup Location</label>
+                <select
+                  id="pickup-location"
+                  value={selectedPickupLocation}
+                  onChange={(e) => setSelectedPickupLocation(e.target.value)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select a location</option>
+                  {quote.companyLocations?.map(location => (
+                    <option key={location.id} value={location.id}>
+                      {location.locationName} - {location.address.street}, {location.address.city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {selectedDeliveryMethod === 'shipping_out' && (
               <div className="mb-4">

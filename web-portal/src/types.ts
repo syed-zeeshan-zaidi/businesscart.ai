@@ -90,6 +90,7 @@ export interface Quote {
   availablePaymentMethods: string[];
   availableDeliveryMethods: string[];
   availableShippingOutOptions: string[];
+  companyLocations?: CompanyLocation[];
   createdAt: string;
   expiresAt: string;
 }
@@ -108,6 +109,7 @@ export interface CompanyData {
   paymentMethods?: string[];
   deliveryMethods?: DeliveryMethod[];
   shippingOutOptions?: ShippingOutOption[];
+  companyLocations?: CompanyLocation[];
   leadTime?: number;
   maxOrderAmountLimit?: number;
   maxOrderQuantityLimit?: number;

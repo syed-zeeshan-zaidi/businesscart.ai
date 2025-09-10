@@ -149,7 +149,12 @@ export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
 };
 
-export const createOrder = async (data: { quoteId: string; paymentMethod: string; paymentToken: string }): Promise<Order> => {
+export const createOrder = async (data: { 
+  quoteId: string; 
+  paymentMethod: string; 
+  paymentToken: string;
+  pickupLocationId?: string;
+}): Promise<Order> => {
   const response = await api.post(`${CHECKOUT_API_URL}/orders`, data);
   return response.data;
 };
@@ -207,6 +212,7 @@ export const createQuote = async (data: {
   paymentMethods: string[];
   deliveryMethods: string[];
   shippingOutOptions: string[];
+  companyLocations: CompanyLocation[];
 }): Promise<Quote> => {
   const response = await api.post(`${CHECKOUT_API_URL}/quotes`, data);
   return response.data;
