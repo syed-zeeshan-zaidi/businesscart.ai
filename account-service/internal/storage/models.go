@@ -145,6 +145,7 @@ type CustomerCodeEntry struct {
 type CustomerData struct {
 	CustomerCodes     []CustomerCodeEntry     `bson:"customerCodes" json:"customerCodes"`
 	AttachedCompanies []AttachedCompaniesData `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
+	CustomerAddresses []CustomerAddress       `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 }
 
 type PartnerData struct {

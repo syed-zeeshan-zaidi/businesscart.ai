@@ -366,58 +366,76 @@ func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
 
 	// attach full company data for customers, using the JWT for authorization
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if acc.Role == storage.RoleCustomer && userClaims["associate_company_ids"] != nil {
-		// We use the associate_company_ids from the JWT, not from the account document,
-		// to ensure the caller is authorized to see this data.
-		assocCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
-		if ok && len(assocCompanyIDs) > 0 {
-			ids := make([]primitive.ObjectID, 0, len(assocCompanyIDs))
-			for _, idInterface := range assocCompanyIDs {
-				if idStr, ok := idInterface.(string); ok {
-					if oid, err := primitive.ObjectIDFromHex(idStr); err == nil {
-						ids = append(ids, oid)
-					}
+	if acc.Role == storage.RoleCustomer {
+		if acc.CustomerData == nil {
+			acc.CustomerData = &storage.CustomerData{}
+		}
+
+		// Fetch and attach customer addresses
+		addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": acc.ID})
+		if err != nil {
+			log.Printf("Failed to get addresses for customer %s: %v", acc.ID.Hex(), err)
+			acc.CustomerData.CustomerAddresses = []storage.CustomerAddress{}
+		} else {
+			plainAddresses := make([]storage.CustomerAddress, len(addresses))
+			for i, addrPtr := range addresses {
+				if addrPtr != nil {
+					plainAddresses[i] = *addrPtr
 				}
 			}
+			acc.CustomerData.CustomerAddresses = plainAddresses
+		}
 
-			companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
-			attached := make([]storage.AttachedCompaniesData, 0, len(companies))
-			for _, c := range companies {
-				if c.CompanyData != nil {
-					// For each company, fetch its locations
-					locations, err := h.db.GetCompanyLocations(bson.M{"companyId": c.ID})
-					if err != nil {
-						log.Printf("Failed to get locations for company %s: %v", c.ID.Hex(), err)
-						locations = []*storage.CompanyLocation{} // Ensure it's an empty slice, not nil
-					}
-
-					// Dereference the pointers to match the model
-					plainLocations := make([]storage.CompanyLocation, len(locations))
-					for i, locPtr := range locations {
-						if locPtr != nil {
-							plainLocations[i] = *locPtr
+		if userClaims["associate_company_ids"] != nil {
+			// We use the associate_company_ids from the JWT, not from the account document,
+			// to ensure the caller is authorized to see this data.
+			assocCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
+			if ok && len(assocCompanyIDs) > 0 {
+				ids := make([]primitive.ObjectID, 0, len(assocCompanyIDs))
+				for _, idInterface := range assocCompanyIDs {
+					if idStr, ok := idInterface.(string); ok {
+						if oid, err := primitive.ObjectIDFromHex(idStr); err == nil {
+							ids = append(ids, oid)
 						}
 					}
-
-					attached = append(attached, storage.AttachedCompaniesData{
-						Name:               c.CompanyData.Name,
-						CompanyCodeID:      c.CompanyData.CompanyCodeID,
-						CompanyCode:        c.CompanyData.CompanyCode,
-						SaleRepresentative: c.CompanyData.SaleRepresentative,
-						Address:            c.CompanyData.Address,
-						CreditLimit:        c.CompanyData.CreditLimit,
-						Status:             c.CompanyData.Status,
-						ShippingOutOptions: c.CompanyData.ShippingOutOptions,
-						PaymentMethods:     c.CompanyData.PaymentMethods,
-						DeliveryMethods:    c.CompanyData.DeliveryMethods,
-						CompanyLocations:   plainLocations,
-					})
 				}
+
+				companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
+				attached := make([]storage.AttachedCompaniesData, 0, len(companies))
+				for _, c := range companies {
+					if c.CompanyData != nil {
+						// For each company, fetch its locations
+						locations, err := h.db.GetCompanyLocations(bson.M{"companyId": c.ID})
+						if err != nil {
+							log.Printf("Failed to get locations for company %s: %v", c.ID.Hex(), err)
+							locations = []*storage.CompanyLocation{} // Ensure it's an empty slice, not nil
+						}
+
+						// Dereference the pointers to match the model
+						plainLocations := make([]storage.CompanyLocation, len(locations))
+						for i, locPtr := range locations {
+							if locPtr != nil {
+								plainLocations[i] = *locPtr
+							}
+						}
+
+						attached = append(attached, storage.AttachedCompaniesData{
+							Name:               c.CompanyData.Name,
+							CompanyCodeID:      c.CompanyData.CompanyCodeID,
+							CompanyCode:        c.CompanyData.CompanyCode,
+							SaleRepresentative: c.CompanyData.SaleRepresentative,
+							Address:            c.CompanyData.Address,
+							CreditLimit:        c.CompanyData.CreditLimit,
+							Status:             c.CompanyData.Status,
+							ShippingOutOptions: c.CompanyData.ShippingOutOptions,
+							PaymentMethods:     c.CompanyData.PaymentMethods,
+							DeliveryMethods:    c.CompanyData.DeliveryMethods,
+							CompanyLocations:   plainLocations,
+						})
+					}
+				}
+				acc.CustomerData.AttachedCompanies = attached
 			}
-			if acc.CustomerData == nil {
-				acc.CustomerData = &storage.CustomerData{}
-			}
-			acc.CustomerData.AttachedCompanies = attached
 		}
 	}
 
