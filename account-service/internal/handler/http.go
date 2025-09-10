@@ -381,10 +381,37 @@ func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
 			}
 
 			companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
-			attached := make([]storage.CompanyData, 0, len(companies))
+			attached := make([]storage.AttachedCompaniesData, 0, len(companies))
 			for _, c := range companies {
 				if c.CompanyData != nil {
-					attached = append(attached, *c.CompanyData)
+					// For each company, fetch its locations
+					locations, err := h.db.GetCompanyLocations(bson.M{"companyId": c.ID})
+					if err != nil {
+						log.Printf("Failed to get locations for company %s: %v", c.ID.Hex(), err)
+						locations = []*storage.CompanyLocation{} // Ensure it's an empty slice, not nil
+					}
+
+					// Dereference the pointers to match the model
+					plainLocations := make([]storage.CompanyLocation, len(locations))
+					for i, locPtr := range locations {
+						if locPtr != nil {
+							plainLocations[i] = *locPtr
+						}
+					}
+
+					attached = append(attached, storage.AttachedCompaniesData{
+						Name:               c.CompanyData.Name,
+						CompanyCodeID:      c.CompanyData.CompanyCodeID,
+						CompanyCode:        c.CompanyData.CompanyCode,
+						SaleRepresentative: c.CompanyData.SaleRepresentative,
+						Address:            c.CompanyData.Address,
+						CreditLimit:        c.CompanyData.CreditLimit,
+						Status:             c.CompanyData.Status,
+						ShippingOutOptions: c.CompanyData.ShippingOutOptions,
+						PaymentMethods:     c.CompanyData.PaymentMethods,
+						DeliveryMethods:    c.CompanyData.DeliveryMethods,
+						CompanyLocations:   plainLocations,
+					})
 				}
 			}
 			if acc.CustomerData == nil {
