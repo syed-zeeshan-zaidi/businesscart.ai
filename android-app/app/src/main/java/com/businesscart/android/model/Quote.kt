@@ -14,11 +14,7 @@ data class Quote(
     val expiresAt: String,
     val availablePaymentMethods: List<String>,
     val availableDeliveryMethods: List<String>,
-    val availableShippingOutOptions: List<String>
-)
-
-data class SimpleOrder(
-    val id: String,
-    val quoteId: String,
-    val status: String
+    val availableShippingOutOptions: List<String>,
+    val companyLocations: List<CompanyLocation>?,
+    val customerAddresses: List<CustomerAddress>?
 )

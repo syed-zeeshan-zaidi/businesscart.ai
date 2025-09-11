@@ -30,6 +30,10 @@ class CheckoutActivity : AppCompatActivity() {
     private lateinit var shippingOptionsSpinner: Spinner
     private lateinit var shippingOptionsLabel: TextView
     private lateinit var paymentMethodRadioGroup: RadioGroup
+    private lateinit var deliveryAddressSpinner: Spinner
+    private lateinit var deliveryAddressLabel: TextView
+    private lateinit var pickupLocationSpinner: Spinner
+    private lateinit var pickupLocationLabel: TextView
 
     // Other Views
     private lateinit var quoteSummaryTextView: TextView
@@ -42,7 +46,10 @@ class CheckoutActivity : AppCompatActivity() {
     private lateinit var quoteItemsRecyclerView: RecyclerView
 
     private var currentQuote: Quote? = null
-    private var selectedPaymentMethod: String = "" // default to empty
+    private var selectedPaymentMethod: String = ""
+    private var selectedDeliveryMethod: String = ""
+    private var selectedPickupLocationId: String? = null
+    private var selectedDeliveryAddressId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,13 +73,10 @@ class CheckoutActivity : AppCompatActivity() {
     }
 
     private fun bindViews() {
-        // Delivery and Payment
         deliveryMethodSpinner = findViewById(R.id.deliveryMethodSpinner)
         shippingOptionsSpinner = findViewById(R.id.shippingOptionsSpinner)
         shippingOptionsLabel = findViewById(R.id.shippingOptionsLabel)
         paymentMethodRadioGroup = findViewById(R.id.paymentMethodRadioGroup)
-
-        // Other
         quoteSummaryTextView = findViewById(R.id.quoteSummaryTextView)
         subtotalTextView = findViewById(R.id.subtotalTextView)
         shippingTextView = findViewById(R.id.shippingTextView)
@@ -82,6 +86,11 @@ class CheckoutActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         quoteItemsRecyclerView = findViewById(R.id.quoteItemsRecyclerView)
         quoteItemsRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        deliveryAddressSpinner = findViewById(R.id.deliveryAddressSpinner)
+        deliveryAddressLabel = findViewById(R.id.deliveryAddressLabel)
+        pickupLocationSpinner = findViewById(R.id.pickupLocationSpinner)
+        pickupLocationLabel = findViewById(R.id.pickupLocationLabel)
     }
 
     private fun observeViewModel() {
@@ -145,72 +154,101 @@ class CheckoutActivity : AppCompatActivity() {
     }
 
     private fun setupDeliveryAndPayment(quote: Quote) {
-        val deliveryAdapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            quote.availableDeliveryMethods
-        )
+        // Delivery Method Spinner
+        val deliveryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, quote.availableDeliveryMethods)
         deliveryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         deliveryMethodSpinner.adapter = deliveryAdapter
 
+        // Delivery Address Spinner
+        val addressAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, quote.customerAddresses?.map { "${it.addressLabel ?: it.recipientName}: ${it.address.street}" } ?: listOf())
+        addressAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        deliveryAddressSpinner.adapter = addressAdapter
+
+        // Pickup Location Spinner
+        val locationAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, quote.companyLocations?.map { "${it.locationName} - ${it.address.street}" } ?: listOf())
+        locationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        pickupLocationSpinner.adapter = locationAdapter
+
         deliveryMethodSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val method = quote.availableDeliveryMethods[position]
-
-                if (method == "shipping_out") {
-                    shippingOptionsLabel.visibility = View.VISIBLE
-                    shippingOptionsSpinner.visibility = View.VISIBLE
-                    val shippingAdapter = ArrayAdapter(
-                        this@CheckoutActivity,
-                        android.R.layout.simple_spinner_item,
-                        quote.availableShippingOutOptions
-                    )
-                    shippingAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                    shippingOptionsSpinner.adapter = shippingAdapter
-                } else {
-                    shippingOptionsLabel.visibility = View.GONE
-                    shippingOptionsSpinner.visibility = View.GONE
-                }
-
-                paymentMethodRadioGroup.removeAllViews()
-                val allowed = when (method) {
-                    "pickup" -> listOf("pickup_pay")
-                    else -> listOf("stripe", "amazon_pay")
-                }
-                allowed.forEach { pm ->
-                    val rb = RadioButton(this@CheckoutActivity).apply {
-                        text = pm.replace('_', ' ').replaceFirstChar { it.uppercase() }
-                        tag = pm
-                        layoutParams = RadioGroup.LayoutParams(
-                            RadioGroup.LayoutParams.MATCH_PARENT,
-                            RadioGroup.LayoutParams.WRAP_CONTENT
-                        )
-                    }
-                    paymentMethodRadioGroup.addView(rb)
-                }
-                if (allowed.isNotEmpty()) {
-                    val firstRadioButton = paymentMethodRadioGroup.getChildAt(0) as? RadioButton
-                    firstRadioButton?.isChecked = true
-                    selectedPaymentMethod = firstRadioButton?.tag as? String ?: ""
-                }
+                selectedDeliveryMethod = quote.availableDeliveryMethods[position]
+                updateUiForDeliveryMethod(selectedDeliveryMethod)
+                updatePaymentMethods(quote.availablePaymentMethods)
                 checkEnablePlaceOrderButton()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        paymentMethodRadioGroup.setOnCheckedChangeListener { _, checkedId ->
-            findViewById<RadioButton>(checkedId)?.let {
-                selectedPaymentMethod = it.tag as String
+        deliveryAddressSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedDeliveryAddressId = quote.customerAddresses?.get(position)?.id
+                checkEnablePlaceOrderButton()
             }
+            override fun onNothingSelected(parent: AdapterView<*>?) { selectedDeliveryAddressId = null }
+        }
+
+        pickupLocationSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedPickupLocationId = quote.companyLocations?.get(position)?.id
+                checkEnablePlaceOrderButton()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) { selectedPickupLocationId = null }
+        }
+
+        paymentMethodRadioGroup.setOnCheckedChangeListener { _, checkedId ->
+            findViewById<RadioButton>(checkedId)?.let { selectedPaymentMethod = it.tag as String }
             checkEnablePlaceOrderButton()
+        }
+    }
+
+    private fun updateUiForDeliveryMethod(method: String) {
+        if (method == "pickup") {
+            deliveryAddressLabel.visibility = View.GONE
+            deliveryAddressSpinner.visibility = View.GONE
+            pickupLocationLabel.visibility = View.VISIBLE
+            pickupLocationSpinner.visibility = View.VISIBLE
+            shippingOptionsLabel.visibility = View.GONE
+            shippingOptionsSpinner.visibility = View.GONE
+        } else {
+            deliveryAddressLabel.visibility = View.VISIBLE
+            deliveryAddressSpinner.visibility = View.VISIBLE
+            pickupLocationLabel.visibility = View.GONE
+            pickupLocationSpinner.visibility = View.GONE
+            if (method == "shipping_out") {
+                shippingOptionsLabel.visibility = View.VISIBLE
+                shippingOptionsSpinner.visibility = View.VISIBLE
+                val shippingAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, currentQuote?.availableShippingOutOptions ?: listOf())
+                shippingAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                shippingOptionsSpinner.adapter = shippingAdapter
+            } else {
+                shippingOptionsLabel.visibility = View.GONE
+                shippingOptionsSpinner.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun updatePaymentMethods(availableMethods: List<String>) {
+        paymentMethodRadioGroup.removeAllViews()
+        val filteredMethods = if (selectedDeliveryMethod != "pickup") availableMethods.filter { it != "pickup_pay" } else availableMethods
+
+        filteredMethods.forEach { pm ->
+            val rb = RadioButton(this).apply {
+                text = pm.replace('_', ' ').replaceFirstChar { it.uppercase() }
+                tag = pm
+                layoutParams = RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT)
+            }
+            paymentMethodRadioGroup.addView(rb)
+        }
+
+        if (filteredMethods.isNotEmpty()) {
+            (paymentMethodRadioGroup.getChildAt(0) as? RadioButton)?.isChecked = true
+        } else {
+            selectedPaymentMethod = ""
         }
     }
 
     private fun placeOrder() {
         val quote = currentQuote ?: return
-
-        val address = Address("", "", "", "", Coords(0.0, 0.0))
-
         val token = when (selectedPaymentMethod) {
             "stripe" -> "tok_stripe_valid"
             "amazon_pay" -> "amz_pay_valid"
@@ -221,7 +259,9 @@ class CheckoutActivity : AppCompatActivity() {
             quoteId = quote.id,
             paymentMethod = selectedPaymentMethod,
             paymentToken = token,
-            shippingAddress = address
+            deliveryMethod = selectedDeliveryMethod,
+            deliveryAddressId = if (selectedDeliveryMethod != "pickup") selectedDeliveryAddressId else null,
+            pickupLocationId = if (selectedDeliveryMethod == "pickup") selectedPickupLocationId else null
         )
 
         viewModel.createOrder(request)
@@ -230,8 +270,9 @@ class CheckoutActivity : AppCompatActivity() {
     private fun checkEnablePlaceOrderButton() {
         val isQuoteLoaded = currentQuote != null
         val isPaymentMethodSelected = selectedPaymentMethod.isNotEmpty()
-        val isDeliveryMethodSelected = deliveryMethodSpinner.selectedItem != null
+        val isDeliveryMethodSelected = selectedDeliveryMethod.isNotEmpty()
+        val isLocationSelected = if (selectedDeliveryMethod == "pickup") selectedPickupLocationId != null else selectedDeliveryAddressId != null
 
-        placeOrderButton.isEnabled = isQuoteLoaded && isPaymentMethodSelected && isDeliveryMethodSelected
+        placeOrderButton.isEnabled = isQuoteLoaded && isPaymentMethodSelected && isDeliveryMethodSelected && isLocationSelected
     }
 }

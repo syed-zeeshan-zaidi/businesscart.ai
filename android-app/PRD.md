@@ -90,6 +90,39 @@ This phase implements the full, company-specific checkout flow, including the qu
     *   **Details:** Add the new `CheckoutActivity` and `OrderSuccessActivity` to the `AndroidManifest.xml`.
     *   **Status:** Completed
 
+**Phase 5: Delivery and Pickup Location Implementation**
+
+This phase integrates the selection of delivery addresses and company pickup locations into the checkout flow.
+
+1.  **Data Models (`.../model/`):
+    *   **Task:** Update data models to include location and address information.
+    *   **Details:**
+        *   Ensure `Account` and `CustomerData` models are updated to include `customerAddresses: List<CustomerAddress>`.
+        *   Update the `Quote` data class to include `customerAddresses: List<CustomerAddress>?`.
+        *   Update the `Order` data class to include `deliveryAddressId: String?` and `deliveryMethod: String`.
+    *   **Status:** Not Started.
+
+2.  **API Service (`.../api/`):
+    *   **Task:** Update API service interfaces.
+    *   **Details:**
+        *   Update the `createQuote` function to include `customerAddresses` in the request body.
+        *   Update the `createOrder` function to accept `deliveryAddressId` and `deliveryMethod`.
+    *   **Status:** Not Started.
+
+3.  **Cart Screen (`.../ui/cart/`):
+    *   **Task:** Enhance the checkout process initiation.
+    *   **Details:** The `CartViewModel` will be updated to pass the `customerAddresses` from the user's `Account` data when calling `createQuote`.
+    *   **Status:** Not Started.
+
+4.  **Checkout Screen (`.../ui/checkout/`):
+    *   **Task:** Implement address selection UI.
+    *   **Details:**
+        *   The `CheckoutViewModel` will manage the state for the selected `deliveryAddressId`.
+        *   A `Spinner` for "Delivery Address" will be added to the UI.
+        *   This dropdown will be visible only when the selected delivery method is **not** 'pickup'.
+        *   The `createOrder` call will be updated to include the selected `deliveryAddressId`.
+    *   **Status:** Not Started.
+
 ## 5. Non-Functional Requirements
 
 *   **Performance:** The app should be fast and responsive, with smooth scrolling and quick screen transitions.

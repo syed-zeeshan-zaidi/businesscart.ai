@@ -32,8 +32,15 @@ type CompanyLocation struct {
 
 // CustomerAddress represents a customer's address.
 type CustomerAddress struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Address Address            `bson:"address" json:"address"`
+	ID                primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CustomerID        primitive.ObjectID `bson:"customerId" json:"customerId"`
+	RecipientName     string             `bson:"recipientName" json:"recipientName"`
+	Address           Address            `bson:"address" json:"address"`
+	PhoneNumber       *string            `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	AddressLabel      *string            `bson:"addressLabel,omitempty" json:"addressLabel,omitempty"`
+	IsDefaultShipping bool               `bson:"isDefaultShipping" json:"isDefaultShipping"`
+	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt         time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
 // Quote represents a price quote for a cart.

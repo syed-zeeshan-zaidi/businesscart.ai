@@ -35,7 +35,8 @@ data class CompanyData(
     val companyCodeId: String?,
     val companyCode: String,
     val sellingArea: SellingArea,
-    val address: Address
+    val address: Address,
+    val companyLocations: List<CompanyLocation>?
 )
 
 data class SellingArea(
@@ -50,7 +51,8 @@ data class CustomerCodeEntry(
 
 data class CustomerData(
     val customerCodes: List<CustomerCodeEntry>,
-    val attachedCompanies: List<CompanyData>?
+    val attachedCompanies: List<CompanyData>?,
+    val customerAddresses: List<CustomerAddress>?
 )
 
 data class PartnerData(

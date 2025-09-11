@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
+import com.businesscart.android.model.Account
 import com.businesscart.android.model.CompanyData
 import com.businesscart.android.model.UpdateCartItemRequest
 import com.businesscart.android.model.CartItem
@@ -41,6 +42,7 @@ class CartActivity : AppCompatActivity() {
     private var selectedCompanyId: String? = null
     private var companies: List<CompanyData> = listOf()
     private val companiesMap = mutableMapOf<String, CompanyData>()
+    private var account: Account? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,7 +113,8 @@ class CartActivity : AppCompatActivity() {
                 val userId = sessionManager.getUserId() ?: return@launch
                 val response = RetrofitClient.apiService.getAccount(userId)
                 if (response.isSuccessful) {
-                    response.body()?.customer?.attachedCompanies?.let {
+                    account = response.body()
+                    account?.customer?.attachedCompanies?.let {
                         companies = it
                         companiesMap.clear()
                         it.forEach { company ->
@@ -216,11 +219,15 @@ class CartActivity : AppCompatActivity() {
                     return@launch
                 }
 
+                val customerAddresses = account?.customer?.customerAddresses ?: emptyList()
+
                 val createQuoteRequest = CreateQuoteRequest(
                     sellerId = sellerId,
                     paymentMethods = company.paymentMethods,
                     deliveryMethods = company.deliveryMethods,
-                    shippingOutOptions = company.shippingOutOptions ?: emptyList()
+                    shippingOutOptions = company.shippingOutOptions ?: emptyList(),
+                    companyLocations = company.companyLocations ?: emptyList(),
+                    customerAddresses = customerAddresses
                 )
 
                 try {

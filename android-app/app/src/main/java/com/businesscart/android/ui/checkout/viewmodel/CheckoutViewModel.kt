@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.businesscart.android.api.RetrofitClient
 import com.businesscart.android.model.CreateOrderRequest
+import com.businesscart.android.model.Order
 import com.businesscart.android.model.Quote
-import com.businesscart.android.model.SimpleOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,8 +21,8 @@ class CheckoutViewModel : ViewModel() {
     private val _quoteState = MutableStateFlow<UiState<Quote>>(UiState.Loading)
     val quoteState: StateFlow<UiState<Quote>> = _quoteState
 
-    private val _orderState = MutableStateFlow<UiState<SimpleOrder>>(UiState.Loading)
-    val orderState: StateFlow<UiState<SimpleOrder>> = _orderState
+    private val _orderState = MutableStateFlow<UiState<Order>>(UiState.Loading)
+    val orderState: StateFlow<UiState<Order>> = _orderState
 
     fun getQuote(quoteId: String) {
         viewModelScope.launch {
