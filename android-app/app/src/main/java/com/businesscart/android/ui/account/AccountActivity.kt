@@ -39,6 +39,9 @@ class AccountActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_account)
 
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+
         sessionManager = SessionManager(this)
 
         nameTextView = findViewById(R.id.nameTextView)

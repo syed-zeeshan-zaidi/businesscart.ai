@@ -48,6 +48,9 @@ class CartActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cart)
 
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+
         recyclerView = findViewById(R.id.cartRecyclerView)
         checkoutButton = findViewById(R.id.checkoutButton)
         clearCartButton = findViewById(R.id.clearCartButton)
