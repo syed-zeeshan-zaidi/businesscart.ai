@@ -8,4 +8,8 @@
     <string name="failed_to_create_quote">Failed to create quote: %s</string>
     <string name="price_label">$%.2f</string>
     <string name="quote_summary">Quote Summary (%d items)</string>
+    <string name="select_company">Select Company:</string>
+    <string name="clear_cart">Clear Cart</string>
+    <string name="checkout">Checkout</string>
+    <string name="total_price_label">Total: $0.00</string>
 </resources>

@@ -14,6 +14,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -48,8 +49,11 @@ class CartActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cart)
 
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
         supportActionBar?.setDisplayUseLogoEnabled(true)
-        supportActionBar?.setDisplayShowHomeEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.title = " BusinessCart"
 
         recyclerView = findViewById(R.id.cartRecyclerView)
         checkoutButton = findViewById(R.id.checkoutButton)
@@ -65,8 +69,12 @@ class CartActivity : AppCompatActivity() {
 
         companySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedCompanyId = companies[position].let { it.companyCodeId ?: it.companyCode }
-                fetchCart()
+                if (companies.isNotEmpty()) {
+                    selectedCompanyId = companies[position].let { it.companyCodeId ?: it.companyCode }
+                    fetchCart()
+                } else {
+                    Log.e("CartActivity", "Companies list is empty, cannot select a company.")
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {

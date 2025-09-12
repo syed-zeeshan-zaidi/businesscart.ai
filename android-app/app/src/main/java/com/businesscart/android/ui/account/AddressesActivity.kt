@@ -8,6 +8,7 @@ import android.view.MenuItem
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,6 +32,12 @@ class AddressesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_addresses)
+
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.title = " BusinessCart"
 
         sessionManager = SessionManager(this)
         viewModel = ViewModelProvider(this).get(AddressViewModel::class.java)
@@ -101,55 +108,55 @@ class AddressesActivity : AppCompatActivity() {
             defaultChk.isChecked = address.isDefaultShipping
         }
 
-AlertDialog.Builder(this)
-    .setTitle(if (address == null) "Add Address" else "Edit Address")
-    .setView(dialogView)
-    .setPositiveButton("Save") { _, _ ->
-        if (address == null) {
-            /* ----------  NEW address – use slim DTO  ---------- */
-            val payload = NewAddressDTO(
-                recipientName = recipientNameEdit.text.toString().trim(),
-                addressLabel  = addressLabelEdit.text.toString().trim()
-                    .takeIf { it.isNotEmpty() },
-                address = Address(
-                    street = streetEdit.text.toString().trim(),
-                    city   = cityEdit.text.toString().trim(),
-                    state  = stateEdit.text.toString().trim(),
-                    zip    = zipEdit.text.toString().trim(),
-                    coordinates = Coords(33.6844, 73.0479)
-                ),
-                phoneNumber = phoneEdit.text.toString().trim()
-                    .takeIf { it.isNotEmpty() },
-                isDefaultShipping = defaultChk.isChecked
-            )
-            viewModel.upsertAddressSlim(sessionManager.getUserId()!!, payload)
+        AlertDialog.Builder(this)
+            .setTitle(if (address == null) "Add Address" else "Edit Address")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                if (address == null) {
+                    /* ----------  NEW address – use slim DTO  ---------- */
+                    val payload = NewAddressDTO(
+                        recipientName = recipientNameEdit.text.toString().trim(),
+                        addressLabel  = addressLabelEdit.text.toString().trim()
+                            .takeIf { it.isNotEmpty() },
+                        address = Address(
+                            street = streetEdit.text.toString().trim(),
+                            city   = cityEdit.text.toString().trim(),
+                            state  = stateEdit.text.toString().trim(),
+                            zip    = zipEdit.text.toString().trim(),
+                            coordinates = Coords(33.6844, 73.0479)
+                        ),
+                        phoneNumber = phoneEdit.text.toString().trim()
+                            .takeIf { it.isNotEmpty() },
+                        isDefaultShipping = defaultChk.isChecked
+                    )
+                    viewModel.upsertAddressSlim(sessionManager.getUserId()!!, payload)
 
-        } else {
-            /* ----------  EDIT address – keep full object  ---------- */
-            val payload = CustomerAddress(
-                id = address.id,
-                customerId = sessionManager.getUserId()!!,
-                recipientName = recipientNameEdit.text.toString().trim(),
-                address = Address(
-                    street = streetEdit.text.toString().trim(),
-                    city   = cityEdit.text.toString().trim(),
-                    state  = stateEdit.text.toString().trim(),
-                    zip    = zipEdit.text.toString().trim(),
-                    coordinates = Coords(33.6844, 73.0479)
-                ),
-                phoneNumber = phoneEdit.text.toString().trim()
-                    .takeIf { it.isNotEmpty() },
-                addressLabel = addressLabelEdit.text.toString().trim()
-                    .takeIf { it.isNotEmpty() },
-                isDefaultShipping = defaultChk.isChecked,
-                createdAt = address.createdAt,
-                updatedAt = null
-            )
-            viewModel.upsertAddress(sessionManager.getUserId()!!, payload)
-        }
-        viewModel.getAddresses(sessionManager.getUserId()!!)
-    }
-    .setNegativeButton("Cancel", null)
-    .show()
+                } else {
+                    /* ----------  EDIT address – keep full object  ---------- */
+                    val payload = CustomerAddress(
+                        id = address.id,
+                        customerId = sessionManager.getUserId()!!,
+                        recipientName = recipientNameEdit.text.toString().trim(),
+                        address = Address(
+                            street = streetEdit.text.toString().trim(),
+                            city   = cityEdit.text.toString().trim(),
+                            state  = stateEdit.text.toString().trim(),
+                            zip    = zipEdit.text.toString().trim(),
+                            coordinates = Coords(33.6844, 73.0479)
+                        ),
+                        phoneNumber = phoneEdit.text.toString().trim()
+                            .takeIf { it.isNotEmpty() },
+                        addressLabel = addressLabelEdit.text.toString().trim()
+                            .takeIf { it.isNotEmpty() },
+                        isDefaultShipping = defaultChk.isChecked,
+                        createdAt = address.createdAt,
+                        updatedAt = null
+                    )
+                    viewModel.upsertAddress(sessionManager.getUserId()!!, payload)
+                }
+                viewModel.getAddresses(sessionManager.getUserId()!!)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
