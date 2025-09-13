@@ -5,6 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
 import { getCart } from '../api'; // Import getCart
+import { Logo } from './logo';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -102,7 +103,8 @@ const Navbar: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                <span className="text-lg font-medium text-gray-800">{companyName}</span>
+                <span className="w-10 h-10 mr-2"><Logo /></span>
+                <span className="text-lg font-semibold text-gray-600">{companyName}</span>
               </div>
               <div className="flex items-center space-x-4">
                 {userRole === 'customer' && (
