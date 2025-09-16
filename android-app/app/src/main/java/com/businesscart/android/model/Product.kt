@@ -7,6 +7,7 @@ data class Product(
     val name: String,
     val description: String?,
     val price: Double,
+    val discountedPrice: Double?,
     @SerializedName("sellerID") val sellerId: String,
     val image: String?,
     val createdAt: String,

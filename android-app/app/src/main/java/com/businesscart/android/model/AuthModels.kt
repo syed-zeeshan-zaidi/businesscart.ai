@@ -46,11 +46,12 @@ data class SellingArea(
 
 data class CustomerCodeEntry(
     val codeId: String,
-    val customerCode: String
+    val customerCode: String,
+    val configuration: CustomerConfiguration?
 )
 
 data class CustomerData(
-    val customerCodes: List<CustomerCodeEntry>,
+    val customerConfigs: List<CustomerCodeEntry>,
     val attachedCompanies: List<CompanyData>?,
     val customerAddresses: List<CustomerAddress>?
 )
@@ -128,4 +129,8 @@ data class NewAddressDTO(
     val address: Address,
     val phoneNumber: String?,
     val isDefaultShipping: Boolean
+)
+
+data class CustomerConfiguration(
+    val discountPercentage: Double?
 )

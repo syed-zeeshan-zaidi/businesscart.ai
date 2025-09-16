@@ -1,5 +1,6 @@
 package com.businesscart.android.ui.main
 
+import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,7 +26,16 @@ class ProductAdapter(
         val product = products[position]
         holder.productName.text = product.name
         holder.productDescription.text = product.description
-        holder.productPrice.text = "${product.price}"
+
+        if (product.discountedPrice != null && product.discountedPrice < product.price) {
+            holder.productPrice.text = "${product.discountedPrice}"
+            holder.originalPrice.text = "${product.price}"
+            holder.originalPrice.paintFlags = holder.originalPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+            holder.originalPrice.visibility = View.VISIBLE
+        } else {
+            holder.productPrice.text = "${product.price}"
+            holder.originalPrice.visibility = View.GONE
+        }
 
         if (!product.image.isNullOrEmpty()) {
             Picasso.get().load(product.image).into(holder.productImage)
@@ -43,6 +53,7 @@ class ProductAdapter(
         val productName: TextView = itemView.findViewById(R.id.productNameTextView)
         val productDescription: TextView = itemView.findViewById(R.id.productDescriptionTextView)
         val productPrice: TextView = itemView.findViewById(R.id.productPriceTextView)
+        val originalPrice: TextView = itemView.findViewById(R.id.originalPriceTextView)
         val addToCartButton: Button = itemView.findViewById(R.id.addToCartButton)
     }
 }
