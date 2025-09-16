@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, Account } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount } from '../api';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations } from '../api';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -222,6 +222,7 @@ const loadCompanies = async () => {
     const shippingOutOptions = company?.shippingOutOptions || [];
     const companyLocations = company?.companyLocations || [];
     const customerAddresses = account?.customer?.customerAddresses || [];
+    const configurations = await getCustomerConfigurations();
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
@@ -233,6 +234,7 @@ const loadCompanies = async () => {
         shippingOutOptions: shippingOutOptions,
         companyLocations: companyLocations,
         customerAddresses: customerAddresses,
+        configurations,
       });
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);

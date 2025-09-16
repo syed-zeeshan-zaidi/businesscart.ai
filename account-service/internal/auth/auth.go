@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"business-cart/account-service/internal/storage"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,15 +18,44 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func GenerateJWT(userID, email, role, secret string, companyID string, associateCompanyIDs []string) (string, error) {
-	claims := jwt.MapClaims{
-		"user": map[string]interface{}{
-			"id":                    userID,
-			"email":                 email,
-			"role":                  role,
-			"associate_company_ids": associateCompanyIDs,
+// CustomerConfiguration represents the set of rules for a customer-company relationship in the JWT.
+type CustomerConfiguration struct {
+	CompanyID          string                  `json:"company_id"`
+	DiscountPercentage *float64                `json:"discount,omitempty"`
+	PaymentMethods     *[]storage.PaymentMethod  `json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]storage.DeliveryMethod `json:"deliveryMethods,omitempty"`
+	ShippingOutOptions *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
+}
+
+// UserClaims represents the user-specific data within the JWT.
+type UserClaims struct {
+	ID                  string                  `json:"id"`
+	Email               string                  `json:"email"`
+	Role                string                  `json:"role"`
+	AssociateCompanyIDs []string                `json:"associate_company_ids"`
+	Configurations      []CustomerConfiguration `json:"configurations,omitempty"`
+}
+
+// CustomClaims represents the full JWT payload.
+type CustomClaims struct {
+	User UserClaims `json:"user"`
+	jwt.RegisteredClaims
+}
+
+func GenerateJWT(userID, email, role, secret string, associateCompanyIDs []string, configs []CustomerConfiguration) (string, error) {
+	expirationTime := time.Now().Add(72 * time.Hour)
+
+	claims := &CustomClaims{
+		User: UserClaims{
+			ID:                  userID,
+			Email:               email,
+			Role:                role,
+			AssociateCompanyIDs: associateCompanyIDs,
+			Configurations:      configs,
 		},
-		"exp": time.Now().Add(time.Hour * 72).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -38,14 +68,20 @@ func ValidateJWT(tokenString, secret string) (*jwt.Token, error) {
 	})
 }
 
-func GenerateRefreshToken(userID, email, role, secret, companyID string, associateCompanyIDs []string) (string, error) {
-	claims := jwt.MapClaims{
-		"user": map[string]interface{}{
-			"id":                    userID,
-			"role":                  role,
-			"associate_company_ids": associateCompanyIDs,
+func GenerateRefreshToken(userID, email, role, secret string, associateCompanyIDs []string) (string, error) {
+	expirationTime := time.Now().Add(7 * 24 * time.Hour)
+
+	claims := &CustomClaims{
+		User: UserClaims{
+			ID:                  userID,
+			Email:               email,
+			Role:                role,
+			AssociateCompanyIDs: associateCompanyIDs,
+			// Configurations are intentionally omitted for refresh token
 		},
-		"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))

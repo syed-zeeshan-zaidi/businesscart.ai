@@ -28,6 +28,15 @@ type CartItemRequest struct {
 	Entity cart.CartItem `json:"entity"`
 }
 
+// CustomerConfiguration represents a customer-specific configuration.
+type CustomerConfiguration struct {
+	CompanyID          string   `json:"company_id"`
+	DiscountPercentage *float64 `json:"discount,omitempty"`
+	PaymentMethods     []string `json:"paymentMethods,omitempty"`
+	DeliveryMethods    []string `json:"deliveryMethods,omitempty"`
+	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
+}
+
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
 	cartService    *cart.Service
@@ -110,12 +119,50 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		}
 	}
 
+	// Add this block to safely extract configurations
+	var configurations []CustomerConfiguration
+	if configs, ok := userClaim["configurations"].([]interface{}); ok {
+		for _, config := range configs {
+			if configMap, ok := config.(map[string]interface{}); ok {
+				var customerConfig CustomerConfiguration
+				if companyID, ok := configMap["company_id"].(string); ok {
+					customerConfig.CompanyID = companyID
+				}
+				if discount, ok := configMap["discount"].(float64); ok {
+					customerConfig.DiscountPercentage = &discount
+				}
+				if pms, ok := configMap["paymentMethods"].([]interface{}); ok {
+					for _, pm := range pms {
+						if pmStr, ok := pm.(string); ok {
+							customerConfig.PaymentMethods = append(customerConfig.PaymentMethods, pmStr)
+						}
+					}
+				}
+				if dms, ok := configMap["deliveryMethods"].([]interface{}); ok {
+					for _, dm := range dms {
+						if dmStr, ok := dm.(string); ok {
+							customerConfig.DeliveryMethods = append(customerConfig.DeliveryMethods, dmStr)
+						}
+					}
+				}
+				if sos, ok := configMap["shippingOutOptions"].([]interface{}); ok {
+					for _, so := range sos {
+						if soStr, ok := so.(string); ok {
+							customerConfig.ShippingOutOptions = append(customerConfig.ShippingOutOptions, soStr)
+						}
+					}
+				}
+				configurations = append(configurations, customerConfig)
+			}
+		}
+	}
+
 	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
 	if strings.HasPrefix(request.Path, "/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/quotes") {
-		return h.handleQuoteRequest(request, accountID)
+		return h.handleQuoteRequest(request, accountID, configurations)
 	} else if strings.HasPrefix(request.Path, "/orders") {
 		return h.handleOrderRequest(request, accountID, role)
 	}
@@ -133,9 +180,9 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, accountID)
+		return h.handleCreateQuoteRequest(request, accountID, configurations)
 	}
 	if request.HTTPMethod == "GET" {
 		parts := strings.Split(request.Path, "/")
@@ -266,7 +313,7 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	}, nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		CartID             string                  `json:"cartId"`
 		SellerID           string                  `json:"sellerId"`
@@ -278,6 +325,22 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	// Check for customer-specific configuration
+	for _, config := range configurations {
+		if config.CompanyID == req.SellerID {
+			if config.PaymentMethods != nil {
+				req.PaymentMethods = config.PaymentMethods
+			}
+			if config.DeliveryMethods != nil {
+				req.DeliveryMethods = config.DeliveryMethods
+			}
+			if config.ShippingOutOptions != nil {
+				req.ShippingOutOptions = config.ShippingOutOptions
+			}
+			break
+		}
 	}
 
 	cart, err := h.cartService.GetCart(accountID, req.SellerID)

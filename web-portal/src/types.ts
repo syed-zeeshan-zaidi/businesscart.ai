@@ -10,7 +10,7 @@ export interface Address {
 }
 
 export interface CustomerData {
-  customerCodes: CustomerCodeEntry[];
+  customerConfigs: CustomerCodeEntry[];
   attachedCompanies?: CompanyData[];
   customerAddresses?: CustomerAddress[];
 }
@@ -39,6 +39,7 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
+  discountedPrice?: number;
   sellerID: string;
   image?: string;
   createdAt: Date;
@@ -133,6 +134,7 @@ export interface CompanyData {
 export interface CustomerCodeEntry {
   codeId: string;
   customerCode: string;
+  configuration?: CustomerConfiguration;
 }
 
 export interface CompanyLocation {
@@ -160,4 +162,22 @@ export interface CustomerAddress {
   isDefaultShipping: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PaymentMethod = 'credit_card' | 'purchase_order' | 'on_account' | 'stripe_pay';
+
+export interface CustomerConfiguration {
+  company_id: string;
+  discountPercentage?: number;
+  paymentMethods?: PaymentMethod[];
+  deliveryMethods?: DeliveryMethod[];
+  shippingOutOptions?: ShippingOutOption[];
+}
+
+export interface DecodedUser {
+  id: string;
+  email: string;
+  role: 'admin' | 'company' | 'customer' | 'partner';
+  associate_company_ids: string[];
+  configurations?: CustomerConfiguration[];
 }

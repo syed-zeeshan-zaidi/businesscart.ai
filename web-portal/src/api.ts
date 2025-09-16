@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress } from './types';
+import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress, CustomerConfiguration } from './types';
 
 const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
 const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
@@ -209,16 +209,30 @@ export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   return payload.user?.associate_company_ids || [];
 };
 
-export const createQuote = async (data: { 
+export const createQuote = async (data: {
   sellerId: string;
   paymentMethods: string[];
   deliveryMethods: string[];
   shippingOutOptions: string[];
   companyLocations: CompanyLocation[];
   customerAddresses: CustomerAddress[];
+  configurations?: CustomerConfiguration[];
 }): Promise<Quote> => {
   const response = await api.post(`${CHECKOUT_API_URL}/quotes`, data);
   return response.data;
+};
+
+export const getUserClaims = async (): Promise<any> => {
+  const jwt = localStorage.getItem('accessToken');
+  if (!jwt) {
+    throw new Error('No JWT found');
+  }
+  return JSON.parse(atob(jwt.split('.')[1]));
+};
+
+export const getCustomerConfigurations = async (): Promise<CustomerConfiguration[]> => {
+  const claims = await getUserClaims();
+  return claims.user?.customerConfig || [];
 };
 
 export const getQuote = async (quoteId: string): Promise<Quote> => {
@@ -254,4 +268,8 @@ export const upsertCustomerAddress = async (customerId: string, address: Partial
 
 export const deleteCustomerAddress = async (customerId: string, addressId: string): Promise<void> => {
   await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${customerId}/${addressId}`);
+};
+
+export const updateCustomerConfiguration = async (customerId: string, config: Partial<CustomerConfiguration>): Promise<void> => {
+  await api.patch(`${ACCOUNT_API_URL}/customers/${customerId}/configuration`, config);
 };

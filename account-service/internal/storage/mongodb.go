@@ -139,6 +139,30 @@ func (db *DB) GetAccountCompaniesDataByIDs(ids []primitive.ObjectID) ([]*Account
 	return out, nil
 }
 
+// UpdateCustomerConfiguration updates a specific customer's configuration for a given company.
+func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, companyID string, config *CustomerConfiguration) error {
+	filter := bson.M{"_id": customerID}
+	update := bson.M{
+		"$set": bson.M{"customer.customerConfigs.$[elem].configuration": config},
+	}
+	arrayFilters := options.Update().SetArrayFilters(options.ArrayFilters{
+		Filters: []interface{}{
+			bson.M{"elem.codeId": companyID},
+		},
+	})
+
+	result, err := db.accounts.UpdateOne(context.Background(), filter, update, arrayFilters)
+	if err != nil {
+		return err
+	}
+
+	// Optionally, check if a document was actually modified.
+	// If result.ModifiedCount == 0, it means the customer or the specific codeId was not found.
+	_ = result // result can be used for logging or more specific error handling
+
+	return nil
+}
+
 /* ---------- COMPANY LOCATIONS ---------- */
 
 // CreateCompanyLocation inserts a new company location document.

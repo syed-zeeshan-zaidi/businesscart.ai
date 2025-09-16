@@ -28,16 +28,22 @@ func NewHandler(db *storage.DB, jwtSecret, jwtRefreshSecret string) *Handler {
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
 	router.Post("/accounts/register", h.Register)
 	router.Post("/accounts/login", h.Login)
+	router.Post("/accounts/refresh", h.RefreshToken)
+	router.Post("/accounts/logout", h.LogoutUser)
 
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(h.jwtSecret))
 		r.Get("/accounts", h.GetAccounts)
 		r.Get("/accounts/{id}", h.GetAccountByID)
 		r.Patch("/accounts/{id}", h.UpdateAccount)
+		r.Put("/accounts/{id}", h.UpdateAccount) // Added PUT
 		r.Delete("/accounts/{id}", h.DeleteAccount)
 		r.Post("/codes", h.CreateCode)    // admin only
 		r.Get("/codes", h.GetCodes)       // admin only
 		r.Get("/codes/{code}", h.GetCode) // admin only
+
+		// Customer configuration endpoint
+		r.Patch("/customers/{customerId}/configuration", h.UpdateCustomerConfiguration) // company only
 
 		// Location endpoints
 		r.Get("/accounts/locations/{accountID}", h.GetLocations)
@@ -146,7 +152,7 @@ type RegisterRequest struct {
 	Email         string   `json:"email"`
 	Password      string   `json:"password"`
 	Role          string   `json:"role"`          // customer | company | partner
-	Code          string   `json:"code"`          // companyCode OR partnerCode OR ignored for customer
+	Code          string   `json:"code"`           // companyCode OR partnerCode OR ignored for customer
 	CustomerCodes []string `json:"customerCodes"` // for customer role only
 }
 
@@ -217,7 +223,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			})
 			// customer codes are **never** marked as claimed
 		}
-		acc.CustomerData = &storage.CustomerData{CustomerCodes: entries}
+		acc.CustomerData = &storage.CustomerData{CustomerConfigs: entries}
 
 	case "partner":
 		var partnerCode, partnerCodeID string
@@ -270,13 +276,23 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var associateCompanyIDs []string
+	var configs []auth.CustomerConfiguration
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
+			if codeEntry.Configuration != nil {
+				configs = append(configs, auth.CustomerConfiguration{
+					CompanyID:          codeEntry.CodeID,
+					DiscountPercentage: codeEntry.Configuration.DiscountPercentage,
+					PaymentMethods:     codeEntry.Configuration.PaymentMethods,
+					DeliveryMethods:    codeEntry.Configuration.DeliveryMethods,
+					ShippingOutOptions: codeEntry.Configuration.ShippingOutOptions,
+				})
+			}
 		}
 	}
 
-	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, "", associateCompanyIDs)
+	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, associateCompanyIDs, configs)
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
@@ -308,13 +324,23 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	user, _ := h.db.GetAccountByID(rt.UserID)
 	var associateCompanyIDs []string
+	var configs []auth.CustomerConfiguration
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
+			if codeEntry.Configuration != nil {
+				configs = append(configs, auth.CustomerConfiguration{
+					CompanyID:          codeEntry.CodeID,
+					DiscountPercentage: codeEntry.Configuration.DiscountPercentage,
+					PaymentMethods:     codeEntry.Configuration.PaymentMethods,
+					DeliveryMethods:    codeEntry.Configuration.DeliveryMethods,
+					ShippingOutOptions: codeEntry.Configuration.ShippingOutOptions,
+				})
+			}
 		}
 	}
 
-	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, "", associateCompanyIDs)
+	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, associateCompanyIDs, configs)
 	newRefresh, _ := h.generateAndStoreRefreshToken(user)
 
 	_ = h.db.DeleteRefreshToken(req.RefreshToken)
@@ -335,12 +361,12 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) generateAndStoreRefreshToken(user *storage.Account) (string, error) {
 	var associateCompanyIDs []string
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
 		}
 	}
 
-	token, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, "", associateCompanyIDs)
+	token, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, associateCompanyIDs)
 	_ = h.db.CreateRefreshToken(&storage.RefreshToken{
 		UserID:    user.ID,
 		Token:     token,
@@ -464,7 +490,7 @@ func (h *Handler) GetAccounts(w http.ResponseWriter, r *http.Request) {
 		filter = bson.M{
 			"$or": []bson.M{
 				{"_id": userIDHex},
-				{"customer.customerCodes.codeId": userID},
+				{"customer.customerConfigs.codeId": userID},
 			},
 		}
 	case storage.RoleCustomer, storage.RolePartner:
@@ -562,6 +588,49 @@ func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) UpdateCustomerConfiguration(w http.ResponseWriter, r *http.Request) {
+	// 1. Get customerId from URL
+	customerIDStr := chi.URLParam(r, "customerId")
+	customerID, err := primitive.ObjectIDFromHex(customerIDStr)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Get company from JWT
+	userClaims, ok := r.Context().Value("user").(map[string]interface{})
+	if !ok {
+		http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+		return
+	}
+
+	role, _ := userClaims["role"].(string)
+	companyID, _ := userClaims["id"].(string)
+
+	// 3. Authorize: Must be a company
+	if role != storage.RoleCompany {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// 4. Decode payload
+	var config storage.CustomerConfiguration
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 5. Call DB method to update the configuration for the specific customer-company link
+	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config); err != nil {
+		log.Printf("Failed to update customer configuration: %v", err)
+		http.Error(w, "Failed to update configuration", http.StatusInternalServerError)
+		return
+	}
+
+	// 6. Success
 	w.WriteHeader(http.StatusOK)
 }
 

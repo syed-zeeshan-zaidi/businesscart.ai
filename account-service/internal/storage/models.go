@@ -136,14 +136,23 @@ type AttachedCompaniesData struct {
 	CompanyLocations   []CompanyLocation   `json:"companyLocations,omitempty"`
 }
 
+// CustomerConfiguration defines specific settings that override a company's defaults for a single customer.
+type CustomerConfiguration struct {
+	DiscountPercentage *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+	PaymentMethods     *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
+	ShippingOutOptions *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
+}
+
 type CustomerCodeEntry struct {
-	CodeID string `bson:"codeId" json:"codeId"`
-	Code   string `bson:"customerCode" json:"customerCode"`
+	CodeID        string                 `bson:"codeId" json:"codeId"`
+	Code          string                 `bson:"customerCode" json:"customerCode"`
+	Configuration *CustomerConfiguration `bson:"configuration,omitempty" json:"configuration,omitempty"`
 }
 
 // Full customer data sub-docs for Account role customers
 type CustomerData struct {
-	CustomerCodes     []CustomerCodeEntry     `bson:"customerCodes" json:"customerCodes"`
+	CustomerConfigs     []CustomerCodeEntry     `bson:"customerConfigs" json:"customerConfigs"`
 	AttachedCompanies []AttachedCompaniesData `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
 	CustomerAddresses []CustomerAddress       `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 }

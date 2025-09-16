@@ -242,3 +242,36 @@ This checklist tracks the historical progress of the service migration.
 - [ ] Run the `new_full_api_test.sh` script and verify all functionality.
 - [ ] Remove the old `user-service` and `company-service` directories and their stacks.
 - [ ] Update `bin/business-cart.ts` to use only the new `account-service-stack`.
+
+## Refactoring: customerCodes to customerConfig
+
+This section outlines the plan to rename the critical `customerCodes` field to the more descriptive `customerConfig` across the application.
+
+### Part 1: `account-service` Backend Refactoring
+
+**Affected Files:**
+*   `internal/storage/models.go`
+*   `internal/handler/http.go`
+*   `internal/storage/mongodb.go`
+
+**Task List:**
+
+- [x] **Task 1.1:** Modify Data Model (`internal/storage/models.go`): In the `CustomerData` struct, rename the Go field `CustomerCodes` to `CustomerConfigs`.
+- [x] **Task 1.2:** Modify Data Model (`internal/storage/models.go`): Update the BSON tag for the field from `customerCodes` to `customerConfigs`.
+- [x] **Task 1.3:** Modify Data Model (`internal/storage/models.go`): Update the JSON tag for the field from `customerCodes` to `customerConfigs`.
+- [x] **Task 2.1:** Modify HTTP Handler (`internal/handler/http.go`): In the `RegisterRequest` struct, rename the `CustomerCodes` field to `CustomerConfigs` and update its JSON tag.
+- [x] **Task 2.2:** Modify HTTP Handler (`internal/handler/http.go`): In the `Register` handler, update logic that reads from `req.CustomerCodes` to use `req.CustomerConfigs`.
+- [x] **Task 2.3:** Modify HTTP Handler (`internal/handler/http.go`): In the `Login` handler, update the loop that iterates over `user.CustomerData.CustomerCodes` to use `user.CustomerData.CustomerConfigs`.
+- [x] **Task 2.4:** Modify HTTP Handler (`internal/handler/http.go`): In the `RefreshToken` handler, update the loop that iterates over `user.CustomerData.CustomerCodes` to use `user.CustomerData.CustomerConfigs`.
+- [x] **Task 2.5:** Modify HTTP Handler (`internal/handler/http.go`): In the `generateAndStoreRefreshToken` function, update the loop that iterates over `user.CustomerData.CustomerCodes` to use `user.CustomerData.CustomerConfigs`.
+- [x] **Task 2.6:** Modify HTTP Handler (`internal/handler/http.go`): In the `GetAccounts` handler, update the MongoDB query filter from `{"customer.customerCodes.codeId": userID}` to `{"customer.customerConfigs.codeId": userID}`.
+- [x] **Task 3.1:** Modify Database Logic (`internal/storage/mongodb.go`): In the `UpdateCustomerConfiguration` function, update the MongoDB update path from `customer.customerCodes.$[elem].configuration` to `customer.customerConfigs.$[elem].configuration`.
+
+### Part 2: Infrastructure (CDK) Review
+
+**Affected Files:**
+*   `lib/account-service-stack.ts`
+
+**Task List:**
+
+- [x] **Task 4.1:** Review `lib/account-service-stack.ts` for any hardcoded references to `customerCodes`. (No changes are expected).

@@ -50,3 +50,13 @@ type Quote struct {
 	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
 }
 ```
+
+## 5. Refactoring: Use Customer-Specific Configurations
+
+This section outlines the plan to use the customer-specific configurations passed in the JWT.
+
+### Task List:
+
+- [x] **Task 1:** In `internal/handler/http.go`, update the `LambdaHandler` to extract the `configurations` claim from the JWT.
+- [x] **Task 2:** In `internal/handler/http.go`, within the `handleCreateQuoteRequest` function, check for a customer-specific configuration for the given `sellerId`.
+- [x] **Task 3:** If a customer-specific configuration exists, use it to override the default company configurations (payment methods, delivery methods, shipping options) when creating a quote.

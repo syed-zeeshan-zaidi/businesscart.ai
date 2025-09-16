@@ -97,7 +97,10 @@ export class AccountServiceStack extends cdk.Stack {
     const codeByCode = codes.addResource("{code}");
     codeByCode.addMethod("GET", integ);
 
-    
+    const customers = this.api.root.addResource("customers");
+    const customerById = customers.addResource("{customerId}");
+    const customerConfig = customerById.addResource("configuration");
+    customerConfig.addMethod("PATCH", integ);
 
     // Output
     new cdk.CfnOutput(this, "AccountApiUrl", { value: this.api.url });
