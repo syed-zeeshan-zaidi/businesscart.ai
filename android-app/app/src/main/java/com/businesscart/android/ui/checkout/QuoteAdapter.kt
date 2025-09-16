@@ -1,5 +1,6 @@
 package com.businesscart.android.ui.checkout
 
+import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,12 +25,25 @@ class QuoteAdapter(private val items: List<CartItem>) : RecyclerView.Adapter<Quo
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val nameTextView: TextView = itemView.findViewById(R.id.quoteItemName)
         private val priceTextView: TextView = itemView.findViewById(R.id.quoteItemPrice)
+        private val discountedPriceTextView: TextView = itemView.findViewById(R.id.quoteItemDiscountedPrice)
+        private val lineItemTotalTextView: TextView = itemView.findViewById(R.id.lineItemTotal)
         private val quantityTextView: TextView = itemView.findViewById(R.id.quoteItemQuantity)
 
         fun bind(item: CartItem) {
             nameTextView.text = item.name
-            priceTextView.text = "$${String.format("%.2f", item.price)}"
             quantityTextView.text = "Qty: ${item.quantity}"
+            lineItemTotalTextView.text = "${String.format("%.2f", item.lineItemTotal)}"
+
+            if (item.discountedPrice != null && item.discountedPrice < item.price) {
+                priceTextView.text = "${String.format("%.2f", item.price)}"
+                priceTextView.paintFlags = priceTextView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                discountedPriceTextView.text = "${String.format("%.2f", item.discountedPrice)}"
+                discountedPriceTextView.visibility = View.VISIBLE
+            } else {
+                priceTextView.text = "${String.format("%.2f", item.price)}"
+                priceTextView.paintFlags = priceTextView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                discountedPriceTextView.visibility = View.GONE
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="16dp"
@@ -13,7 +14,7 @@
         android:id="@+id/cartItemName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Product Name"
+        tools:text="Product Name"
         android:textSize="16sp"
         android:textColor="@android:color/black"
         android:maxLines="2"
@@ -27,10 +28,22 @@
         android:id="@+id/cartItemPrice"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="$10.00"
+        tools:text="$10.00"
+        android:textSize="16sp"
+        android:textColor="@android:color/darker_gray"
+        app:layout_constraintTop_toTopOf="@id/cartItemName"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Discounted Price -->
+    <TextView
+        android:id="@+id/cartItemDiscountedPrice"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="$8.00"
         android:textSize="16sp"
         android:textColor="@android:color/black"
-        app:layout_constraintTop_toTopOf="@id/cartItemName"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/cartItemPrice"
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Quantity label -->
@@ -52,13 +65,24 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="12dp"
         android:paddingVertical="4dp"
-        android:text="1"
+        tools:text="1"
         android:textSize="16sp"
         android:textColor="#000000"
         android:background="?attr/selectableItemBackground"
         app:layout_constraintStart_toEndOf="@id/cartItemQuantityLabel"
         app:layout_constraintTop_toTopOf="@id/cartItemQuantityLabel"
         app:layout_constraintBottom_toBottomOf="@id/cartItemQuantityLabel"/>
+
+    <!-- Line Item Total -->
+    <TextView
+        android:id="@+id/lineItemTotal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="$10.00"
+        android:textSize="16sp"
+        android:textColor="@android:color/black"
+        app:layout_constraintTop_toBottomOf="@id/cartItemQuantityLabel"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Red "Remove" -->
     <TextView
@@ -71,8 +95,7 @@
         android:textColor="#FF5252"
         android:textSize="14sp"
         android:background="?attr/selectableItemBackground"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/cartItemQuantity"
-        app:layout_constraintBottom_toBottomOf="@id/cartItemQuantity" />
+        app:layout_constraintTop_toBottomOf="@id/lineItemTotal"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

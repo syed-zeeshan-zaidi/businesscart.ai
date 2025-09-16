@@ -148,7 +148,9 @@ class CatalogActivity : AppCompatActivity() {
                     quantity = 1,
                     sellerId = product.sellerId,
                     name = product.name,
-                    price = product.price
+                    price = product.price,
+                    discountedPrice = product.discountedPrice,
+                    lineItemTotal = 0.0
                 )
                 val request = AddItemToCartRequest(entity = cartItem)
                 val response = RetrofitClient.checkoutApiService.addItemToCart(request)

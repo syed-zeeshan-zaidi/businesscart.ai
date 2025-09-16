@@ -150,7 +150,7 @@ const Checkout: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
                   <p className="text-gray-600">Quantity: {item.quantity}</p>
                 </div>
-                <p className="text-lg font-semibold text-gray-800">${(item.price * item.quantity).toFixed(2)}</p>
+                <p className="text-lg font-semibold text-gray-800"><span className='text-gray-500 line-through text-sm'>${item.price.toFixed(2)} </span> ${item.lineItemTotal.toFixed(2)}</p>
               </div>
             ))}
           </div>

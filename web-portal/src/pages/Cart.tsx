@@ -312,7 +312,18 @@ const loadCompanies = async () => {
                   <div key={item.id} className="px-6 py-4 flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                      <p className="text-gray-600">${item.price?.toFixed(2) || '0.00'} each</p>
+                      {item.discountedPrice && item.discountedPrice < item.price ? (
+                        <>
+                          <p className="text-red-600 font-bold">
+                            ${item.discountedPrice.toFixed(2)} each
+                          </p>
+                          <p className="text-gray-500 line-through text-sm">
+                            ${item.price.toFixed(2)} each
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-gray-600">${item.price?.toFixed(2) || '0.00'} each</p>
+                      )}
                     </div>
                     
                     <div className="flex items-center space-x-4">
@@ -334,7 +345,7 @@ const loadCompanies = async () => {
                       </div>
                       
                       <p className="text-lg font-semibold text-gray-800 w-20 text-right">
-                        ${((item.price || 0) * item.quantity).toFixed(2)}
+                        ${item.lineItemTotal.toFixed(2)}
                       </p>
                       
                       <button

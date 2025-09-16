@@ -69,6 +69,8 @@ export interface CartItem {
   sellerId: string;
   name: string;
   price: number;
+  discountedPrice?: number;
+  lineItemTotal: number;
 }
 
 export interface Cart {

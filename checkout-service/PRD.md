@@ -18,6 +18,11 @@ The Checkout Service handles the entire checkout process, from quote creation to
 - **Payment Processing**: The service integrates with a mock Payment Service to process payments. It supports various online methods and offline methods like "pickup_pay".
 - **Quote Deletion**: Upon successful order placement, the corresponding quote is deleted.
 
+### Pricing
+
+- **Discounted Pricing**: The service correctly handles discounted prices. If a `discountedPrice` is available for a product, it is used for all calculations.
+- **Line Item and Cart Totals**: The service calculates the total for each line item (`lineItemTotal`) and the total for the entire cart (`totalPrice`), and these values are carried through to quotes and orders.
+
 ## 3. API Endpoints
 
 *   **`POST /quotes`**: Creates a new quote or updates an existing one. 
@@ -48,6 +53,21 @@ type Quote struct {
 	AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
 	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
 	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
+}
+```
+
+### `CartItem`
+
+```go
+type CartItem struct {
+	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	ProductID       string             `bson:"productId" json:"productId"`
+	Quantity        int                `bson:"quantity" json:"quantity"`
+	SellerID        string             `bson:"sellerId" json:"sellerId"`
+	Name            string             `bson:"name" json:"name"`
+	Price           float64            `bson:"price" json:"price"`
+	DiscountedPrice float64            `bson:"discountedPrice" json:"discountedPrice"`
+	LineItemTotal   float64            `bson:"lineItemTotal" json:"lineItemTotal"`
 }
 ```
 
