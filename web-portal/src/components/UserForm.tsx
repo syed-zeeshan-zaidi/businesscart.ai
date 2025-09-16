@@ -310,14 +310,99 @@ const UserForm = () => {
         {/* Modal for Add/Edit */}
         <Transition appear show={isModalOpen} as={Fragment}>
           <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-            {/* ... existing modal content ... */}
+            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+                            <div className="fixed inset-0 bg-black bg-opacity-25" />
+                        </Transition.Child>
+                        <div className="fixed inset-0 flex items-center justify-center p-4">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                                    <Dialog.Title className="text-lg font-medium mb-4">{editingId ? 'Edit Account' : 'Add Account'}</Dialog.Title>
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        {errors.length > 0 && (
+                                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                                <strong className="font-bold">Error!</strong>
+                                                <ul className="mt-2 list-disc pl-5">
+                                                    {errors.map((err, i) => <li key={i}>{err}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <label className="block text-sm font-medium">Name</label>
+                                            <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border rounded" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium">Email</label>
+                                            <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border rounded" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium">Password</label>
+                                            <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full p-2 border rounded" placeholder={editingId ? 'Leave blank to keep current' : ''} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium">Role</label>
+                                            <select name="role" value={formData.role} onChange={handleChange} className="w-full p-2 border rounded">
+                                                <option value="customer">Customer</option>
+                                                <option value="company">Company</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        {formData.role === 'company' && (
+                                            <div>
+                                                <label className="block text-sm font-medium">Company Code</label>
+                                                <input type="text" name="code" value={formData.code} onChange={handleChange} className="w-full p-2 border rounded" />
+                                            </div>
+                                        )}
+                                        {formData.role === 'customer' && (
+                                            <div>
+                                                <label className="block text-sm font-medium">Customer Codes (comma-separated)</label>
+                                                <input type="text" name="customerCodes" value={formData.customerCodes?.join(', ')} onChange={(e) => setFormData(prev => ({ ...prev, customerCodes: e.target.value.split(',').map(c => c.trim()) }))} className="w-full p-2 border rounded" />
+                                            </div>
+                                        )}
+                                        <div className="flex justify-end space-x-2 pt-4">
+                                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
+                                            <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded">{isLoading ? 'Saving...' : 'Save'}</button>
+                                        </div>
+                                    </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
           </Dialog>
         </Transition>
 
         {/* Delete Confirm */}
         <Transition appear show={isDeleteConfirmOpen} as={Fragment}>
            <Dialog as="div" className="relative z-50" onClose={() => setIsDeleteConfirmOpen(false)}>
-            {/* ... existing modal content ... */}
+            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+                            <div className="fixed inset-0 bg-black bg-opacity-25" />
+                        </Transition.Child>
+                        <div className="fixed inset-0 flex items-center justify-center p-4">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+                                    <Dialog.Title className="text-lg font-medium mb-2">Confirm Deletion</Dialog.Title>
+                                    <p>Are you sure you want to delete this account? This action cannot be undone.</p>
+                                    <div className="flex justify-end space-x-2 pt-6">
+                                        <button type="button" onClick={() => setIsDeleteConfirmOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
+                                        <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 bg-red-600 text-white rounded">{isLoading ? 'Deleting...' : 'Delete'}</button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
           </Dialog>
         </Transition>
 
