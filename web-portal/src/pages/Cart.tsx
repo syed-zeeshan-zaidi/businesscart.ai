@@ -314,7 +314,7 @@ const loadCompanies = async () => {
                       <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
                       {item.discountedPrice && item.discountedPrice < item.price ? (
                         <>
-                          <p className="text-red-600 font-bold">
+                          <p className="text-teal-600 font-bold">
                             ${item.discountedPrice.toFixed(2)} each
                           </p>
                           <p className="text-gray-500 line-through text-sm">

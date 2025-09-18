@@ -185,7 +185,7 @@ const Catalog: React.FC = () => {
                   <div className="mt-2">
                     {product.discountedPrice && product.discountedPrice < product.price ? (
                       <>
-                        <p className="text-red-600 font-bold text-lg">
+                        <p className="text-teal-600 font-bold text-lg">
                           ${product.discountedPrice.toFixed(2)}
                         </p>
                         <p className="text-gray-500 line-through text-sm">
