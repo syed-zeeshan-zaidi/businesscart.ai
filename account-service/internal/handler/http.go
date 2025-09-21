@@ -28,16 +28,27 @@ func NewHandler(db *storage.DB, jwtSecret, jwtRefreshSecret string) *Handler {
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
 	router.Post("/accounts/register", h.Register)
 	router.Post("/accounts/login", h.Login)
+	router.Post("/accounts/refresh", h.RefreshToken)
+	router.Post("/accounts/logout", h.LogoutUser)
 
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(h.jwtSecret))
 		r.Get("/accounts", h.GetAccounts)
 		r.Get("/accounts/{id}", h.GetAccountByID)
 		r.Patch("/accounts/{id}", h.UpdateAccount)
+		r.Put("/accounts/{id}", h.UpdateAccount) // Added PUT
 		r.Delete("/accounts/{id}", h.DeleteAccount)
 		r.Post("/codes", h.CreateCode)    // admin only
 		r.Get("/codes", h.GetCodes)       // admin only
 		r.Get("/codes/{code}", h.GetCode) // admin only
+
+		// Customer configuration endpoint
+		r.Patch("/customers/{customerId}/configuration", h.UpdateCustomerConfiguration) // company only
+
+		// Location endpoints
+		r.Get("/accounts/locations/{accountID}", h.GetLocations)
+		r.Post("/accounts/locations/{accountID}", h.UpsertLocation)
+		r.Delete("/accounts/locations/{accountID}/{locationID}", h.DeleteLocation)
 	})
 }
 
@@ -141,7 +152,7 @@ type RegisterRequest struct {
 	Email         string   `json:"email"`
 	Password      string   `json:"password"`
 	Role          string   `json:"role"`          // customer | company | partner
-	Code          string   `json:"code"`          // companyCode OR partnerCode OR ignored for customer
+	Code          string   `json:"code"`           // companyCode OR partnerCode OR ignored for customer
 	CustomerCodes []string `json:"customerCodes"` // for customer role only
 }
 
@@ -212,7 +223,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 			})
 			// customer codes are **never** marked as claimed
 		}
-		acc.CustomerData = &storage.CustomerData{CustomerCodes: entries}
+		acc.CustomerData = &storage.CustomerData{CustomerConfigs: entries}
 
 	case "partner":
 		var partnerCode, partnerCodeID string
@@ -265,13 +276,23 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var associateCompanyIDs []string
+	var configs []auth.CustomerConfiguration
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
+			if codeEntry.Configuration != nil {
+				configs = append(configs, auth.CustomerConfiguration{
+					CompanyID:          codeEntry.CodeID,
+					DiscountPercentage: codeEntry.Configuration.DiscountPercentage,
+					PaymentMethods:     codeEntry.Configuration.PaymentMethods,
+					DeliveryMethods:    codeEntry.Configuration.DeliveryMethods,
+					ShippingOutOptions: codeEntry.Configuration.ShippingOutOptions,
+				})
+			}
 		}
 	}
 
-	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, "", associateCompanyIDs)
+	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, associateCompanyIDs, configs)
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
@@ -303,13 +324,23 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	user, _ := h.db.GetAccountByID(rt.UserID)
 	var associateCompanyIDs []string
+	var configs []auth.CustomerConfiguration
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
+			if codeEntry.Configuration != nil {
+				configs = append(configs, auth.CustomerConfiguration{
+					CompanyID:          codeEntry.CodeID,
+					DiscountPercentage: codeEntry.Configuration.DiscountPercentage,
+					PaymentMethods:     codeEntry.Configuration.PaymentMethods,
+					DeliveryMethods:    codeEntry.Configuration.DeliveryMethods,
+					ShippingOutOptions: codeEntry.Configuration.ShippingOutOptions,
+				})
+			}
 		}
 	}
 
-	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, "", associateCompanyIDs)
+	newAccess, _ := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, associateCompanyIDs, configs)
 	newRefresh, _ := h.generateAndStoreRefreshToken(user)
 
 	_ = h.db.DeleteRefreshToken(req.RefreshToken)
@@ -330,12 +361,12 @@ func (h *Handler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) generateAndStoreRefreshToken(user *storage.Account) (string, error) {
 	var associateCompanyIDs []string
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerCodes {
+		for _, codeEntry := range user.CustomerData.CustomerConfigs {
 			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
 		}
 	}
 
-	token, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, "", associateCompanyIDs)
+	token, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, associateCompanyIDs)
 	_ = h.db.CreateRefreshToken(&storage.RefreshToken{
 		UserID:    user.ID,
 		Token:     token,
@@ -361,31 +392,76 @@ func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
 
 	// attach full company data for customers, using the JWT for authorization
 	userClaims := r.Context().Value("user").(map[string]interface{})
-	if acc.Role == storage.RoleCustomer && userClaims["associate_company_ids"] != nil {
-		// We use the associate_company_ids from the JWT, not from the account document,
-		// to ensure the caller is authorized to see this data.
-		assocCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
-		if ok && len(assocCompanyIDs) > 0 {
-			ids := make([]primitive.ObjectID, 0, len(assocCompanyIDs))
-			for _, idInterface := range assocCompanyIDs {
-				if idStr, ok := idInterface.(string); ok {
-					if oid, err := primitive.ObjectIDFromHex(idStr); err == nil {
-						ids = append(ids, oid)
+	if acc.Role == storage.RoleCustomer {
+		if acc.CustomerData == nil {
+			acc.CustomerData = &storage.CustomerData{}
+		}
+
+		// Fetch and attach customer addresses
+		addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": acc.ID})
+		if err != nil {
+			log.Printf("Failed to get addresses for customer %s: %v", acc.ID.Hex(), err)
+			acc.CustomerData.CustomerAddresses = []storage.CustomerAddress{}
+		} else {
+			plainAddresses := make([]storage.CustomerAddress, len(addresses))
+			for i, addrPtr := range addresses {
+				if addrPtr != nil {
+					plainAddresses[i] = *addrPtr
+				}
+			}
+			acc.CustomerData.CustomerAddresses = plainAddresses
+		}
+
+		if userClaims["associate_company_ids"] != nil {
+			// We use the associate_company_ids from the JWT, not from the account document,
+			// to ensure the caller is authorized to see this data.
+			assocCompanyIDs, ok := userClaims["associate_company_ids"].([]interface{})
+			if ok && len(assocCompanyIDs) > 0 {
+				ids := make([]primitive.ObjectID, 0, len(assocCompanyIDs))
+				for _, idInterface := range assocCompanyIDs {
+					if idStr, ok := idInterface.(string); ok {
+						if oid, err := primitive.ObjectIDFromHex(idStr); err == nil {
+							ids = append(ids, oid)
+						}
 					}
 				}
-			}
 
-			companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
-			attached := make([]storage.CompanyData, 0, len(companies))
-			for _, c := range companies {
-				if c.CompanyData != nil {
-					attached = append(attached, *c.CompanyData)
+				companies, _ := h.db.GetAccountCompaniesDataByIDs(ids)
+				attached := make([]storage.AttachedCompaniesData, 0, len(companies))
+				for _, c := range companies {
+					if c.CompanyData != nil {
+						// For each company, fetch its locations
+						locations, err := h.db.GetCompanyLocations(bson.M{"companyId": c.ID})
+						if err != nil {
+							log.Printf("Failed to get locations for company %s: %v", c.ID.Hex(), err)
+							locations = []*storage.CompanyLocation{} // Ensure it's an empty slice, not nil
+						}
+
+						// Dereference the pointers to match the model
+						plainLocations := make([]storage.CompanyLocation, len(locations))
+						for i, locPtr := range locations {
+							if locPtr != nil {
+								plainLocations[i] = *locPtr
+							}
+						}
+
+						attached = append(attached, storage.AttachedCompaniesData{
+							Name:               c.CompanyData.Name,
+							CompanyCodeID:      c.CompanyData.CompanyCodeID,
+							CompanyCode:        c.CompanyData.CompanyCode,
+							SaleRepresentative: c.CompanyData.SaleRepresentative,
+							Address:            c.CompanyData.Address,
+							CreditLimit:        c.CompanyData.CreditLimit,
+							Status:             c.CompanyData.Status,
+							ShippingOutOptions: c.CompanyData.ShippingOutOptions,
+							PaymentMethods:     c.CompanyData.PaymentMethods,
+							DeliveryMethods:    c.CompanyData.DeliveryMethods,
+							CompanyLocations:   plainLocations,
+						})
+					}
 				}
+				acc.CustomerData.AttachedCompanies = attached
 			}
-			if acc.CustomerData == nil {
-				acc.CustomerData = &storage.CustomerData{}
-			}
-			acc.CustomerData.AttachedCompanies = attached
 		}
 	}
 
@@ -414,7 +490,7 @@ func (h *Handler) GetAccounts(w http.ResponseWriter, r *http.Request) {
 		filter = bson.M{
 			"$or": []bson.M{
 				{"_id": userIDHex},
-				{"customer.customerCodes.codeId": userID},
+				{"customer.customerConfigs.codeId": userID},
 			},
 		}
 	case storage.RoleCustomer, storage.RolePartner:
@@ -515,8 +591,272 @@ func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (h *Handler) UpdateCustomerConfiguration(w http.ResponseWriter, r *http.Request) {
+	// 1. Get customerId from URL
+	customerIDStr := chi.URLParam(r, "customerId")
+	customerID, err := primitive.ObjectIDFromHex(customerIDStr)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Get company from JWT
+	userClaims, ok := r.Context().Value("user").(map[string]interface{})
+	if !ok {
+		http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+		return
+	}
+
+	role, _ := userClaims["role"].(string)
+	companyID, _ := userClaims["id"].(string)
+
+	// 3. Authorize: Must be a company
+	if role != storage.RoleCompany {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// 4. Decode payload
+	var config storage.CustomerConfiguration
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 5. Call DB method to update the configuration for the specific customer-company link
+	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config); err != nil {
+		log.Printf("Failed to update customer configuration: %v", err)
+		http.Error(w, "Failed to update configuration", http.StatusInternalServerError)
+		return
+	}
+
+	// 6. Success
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	id, _ := primitive.ObjectIDFromHex(chi.URLParam(r, "id"))
 	_ = h.db.DeleteAccount(id)
 	w.WriteHeader(http.StatusOK)
+}
+
+/* ---------- LOCATION ENDPOINTS ---------- */
+
+func (h *Handler) GetLocations(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	userClaims := r.Context().Value("user").(map[string]interface{})
+	authenticatedUserRole := userClaims["role"].(string)
+	authenticatedUserID := userClaims["id"].(string)
+
+	// Admins can view locations for any account
+	if authenticatedUserRole == storage.RoleAdmin {
+		switch acc.Role {
+		case storage.RoleCompany:
+			locations, err := h.db.GetCompanyLocations(bson.M{"companyId": accountID})
+			if err != nil {
+				http.Error(w, "failed to get company locations", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(locations)
+			return
+		case storage.RoleCustomer:
+			addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": accountID})
+			if err != nil {
+				http.Error(w, "failed to get customer addresses", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(addresses)
+			return
+		default:
+			http.Error(w, "target account role not supported for locations", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Company users can only view their own company locations
+	if authenticatedUserRole == storage.RoleCompany && acc.Role == storage.RoleCompany && authenticatedUserID == accountID.Hex() {
+		locations, err := h.db.GetCompanyLocations(bson.M{"companyId": accountID})
+		if err != nil {
+			http.Error(w, "failed to get company locations", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(locations)
+		return
+	}
+
+	// Customer users can only view their own customer addresses
+	if authenticatedUserRole == storage.RoleCustomer && acc.Role == storage.RoleCustomer && authenticatedUserID == accountID.Hex() {
+		addresses, err := h.db.GetCustomerAddresses(bson.M{"customerId": accountID})
+		if err != nil {
+			http.Error(w, "failed to get customer addresses", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(addresses)
+		return
+	}
+
+	http.Error(w, "Unauthorized to view locations for this account", http.StatusUnauthorized)
+}
+
+func (h *Handler) UpsertLocation(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	switch acc.Role {
+	case storage.RoleCompany:
+		var loc storage.CompanyLocation
+		if err := json.NewDecoder(r.Body).Decode(&loc); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		loc.CompanyID = accountID
+
+		// If an ID is provided, update the existing location
+		if loc.ID != primitive.NilObjectID {
+			loc.UpdatedAt = time.Now()
+			if err := h.db.UpdateCompanyLocation(loc.ID, &loc); err != nil {
+				http.Error(w, "failed to update company location", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(loc)
+			return
+		}
+
+		// Check for duplicates before creating
+		existing, err := h.db.GetCompanyLocations(bson.M{
+			"companyId":      accountID,
+			"address.street": loc.Address.Street,
+			"address.city":   loc.Address.City,
+			"address.state":  loc.Address.State,
+			"address.zip":    loc.Address.Zip,
+		})
+		if err == nil && len(existing) > 0 {
+			json.NewEncoder(w).Encode(existing[0])
+			return
+		}
+
+		loc.ID = primitive.NewObjectID()
+		loc.CreatedAt = time.Now()
+		loc.UpdatedAt = time.Now()
+		if err := h.db.CreateCompanyLocation(&loc); err != nil {
+			http.Error(w, "failed to create company location", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(loc)
+
+	case storage.RoleCustomer:
+		var addr storage.CustomerAddress
+		if err := json.NewDecoder(r.Body).Decode(&addr); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		addr.CustomerID = accountID
+
+		// If an ID is provided, update the existing address
+		if addr.ID != primitive.NilObjectID {
+			addr.UpdatedAt = time.Now()
+			if err := h.db.UpdateCustomerAddress(addr.ID, &addr); err != nil {
+				http.Error(w, "failed to update customer address", http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(addr)
+			return
+		}
+
+		// Check for duplicates before creating
+		existing, err := h.db.GetCustomerAddresses(bson.M{
+			"customerId":     accountID,
+			"address.street": addr.Address.Street,
+			"address.city":   addr.Address.City,
+			"address.state":  addr.Address.State,
+			"address.zip":    addr.Address.Zip,
+		})
+		if err == nil && len(existing) > 0 {
+			json.NewEncoder(w).Encode(existing[0])
+			return
+		}
+
+		addr.ID = primitive.NewObjectID()
+		addr.CreatedAt = time.Now()
+		addr.UpdatedAt = time.Now()
+		if err := h.db.CreateCustomerAddress(&addr); err != nil {
+			http.Error(w, "failed to create customer address", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(addr)
+
+	default:
+		http.Error(w, "role not supported for locations", http.StatusBadRequest)
+	}
+}
+
+func (h *Handler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
+	accountID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "accountID"))
+	if err != nil {
+		http.Error(w, "invalid accountID", http.StatusBadRequest)
+		return
+	}
+	locationID, err := primitive.ObjectIDFromHex(chi.URLParam(r, "locationID"))
+	if err != nil {
+		http.Error(w, "invalid locationID", http.StatusBadRequest)
+		return
+	}
+
+	acc, err := h.db.GetAccountByID(accountID)
+	if err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+
+	// Authorization check: Ensure the authenticated user owns the account
+	userClaims := r.Context().Value("user").(map[string]interface{})
+	authenticatedUserID := userClaims["id"].(string)
+	if authenticatedUserID != accountID.Hex() {
+		http.Error(w, "Unauthorized", http.StatusForbidden)
+		return
+	}
+
+	switch acc.Role {
+	case storage.RoleCompany:
+		if err := h.db.DeleteCompanyLocation(locationID); err != nil {
+			http.Error(w, "failed to delete company location", http.StatusInternalServerError)
+			return
+		}
+	case storage.RoleCustomer:
+		if err := h.db.DeleteCustomerAddress(locationID); err != nil {
+			http.Error(w, "failed to delete customer address", http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "role not supported for locations", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

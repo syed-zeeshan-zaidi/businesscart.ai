@@ -14,14 +14,17 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
+import com.businesscart.android.model.Account
 import com.businesscart.android.model.CompanyData
 import com.businesscart.android.model.UpdateCartItemRequest
 import com.businesscart.android.model.CartItem
+import com.businesscart.android.model.CreateQuoteRequest
 import com.businesscart.android.model.UpdateCartItemPayload
 import com.businesscart.android.ui.main.CatalogActivity
 import com.businesscart.android.util.SessionManager
@@ -39,10 +42,18 @@ class CartActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private var selectedCompanyId: String? = null
     private var companies: List<CompanyData> = listOf()
+    private val companiesMap = mutableMapOf<String, CompanyData>()
+    private var account: Account? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cart)
+
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.title = " BusinessCart"
 
         recyclerView = findViewById(R.id.cartRecyclerView)
         checkoutButton = findViewById(R.id.checkoutButton)
@@ -58,14 +69,17 @@ class CartActivity : AppCompatActivity() {
 
         companySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                selectedCompanyId = companies[position].companyCodeId
-                fetchCart()
+                if (companies.isNotEmpty()) {
+                    selectedCompanyId = companies[position].let { it.companyCodeId ?: it.companyCode }
+                    fetchCart()
+                } else {
+                    Log.e("CartActivity", "Companies list is empty, cannot select a company.")
+                }
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {
                 selectedCompanyId = null
-                cartAdapter.cartItems.clear()
-                cartAdapter.notifyDataSetChanged()
+                clearCartView()
             }
         }
 
@@ -88,10 +102,9 @@ class CartActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = 
+    override fun onOptionsItemSelected(item: MenuItem): Boolean =
         when(item.itemId) {
             R.id.action_catalog -> {
-                progressBar.visibility = View.VISIBLE
                 startActivity(Intent(this, CatalogActivity::class.java))
                 true
             }
@@ -111,19 +124,27 @@ class CartActivity : AppCompatActivity() {
                 val userId = sessionManager.getUserId() ?: return@launch
                 val response = RetrofitClient.apiService.getAccount(userId)
                 if (response.isSuccessful) {
-                    response.body()?.customer?.attachedCompanies?.let {
+                    account = response.body()
+                    account?.customer?.attachedCompanies?.let {
                         companies = it
+                        companiesMap.clear()
+                        it.forEach { company ->
+                            val id = company.companyCodeId ?: company.companyCode
+                            if (id != null) {
+                                companiesMap[id] = company
+                            }
+                        }
                         val companyNames = it.map { company -> company.name }
                         val adapter = ArrayAdapter(this@CartActivity, android.R.layout.simple_spinner_item, companyNames)
                         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                         companySpinner.adapter = adapter
                     }
                 } else {
-                    Toast.makeText(this@CartActivity, "Failed to fetch account details", Toast.LENGTH_SHORT).show()
+                    showToast(getString(R.string.failed_to_fetch_account_details))
                 }
             } catch (e: Exception) {
                 Log.e("CartActivity", "Error fetching account details", e)
-                Toast.makeText(this@CartActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                showToast(getString(R.string.error_message, e.message))
             } finally {
                 progressBar.visibility = View.GONE
             }
@@ -142,18 +163,16 @@ class CartActivity : AppCompatActivity() {
                             cartAdapter.cartItems.clear()
                             cartAdapter.cartItems.addAll(it.items)
                             cartAdapter.notifyDataSetChanged()
-                            totalTextView.text = "Total: ${it.totalPrice}"
+                            totalTextView.text = getString(R.string.total_price, it.totalPrice)
                         }
                     } else {
                         Log.e("CartActivity", "Error fetching cart: ${response.errorBody()?.string()}")
-                        Toast.makeText(this@CartActivity, "Failed to fetch cart", Toast.LENGTH_SHORT).show()
-                        cartAdapter.cartItems.clear()
-                        cartAdapter.notifyDataSetChanged()
-                        totalTextView.text = "Total: $0.00"
+                        showToast(getString(R.string.failed_to_fetch_cart))
+                        clearCartView()
                     }
                 } catch (e: Exception) {
                     Log.e("CartActivity", "Error fetching cart", e)
-                    Toast.makeText(this@CartActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showToast(getString(R.string.error_message, e.message))
                 } finally {
                     progressBar.visibility = View.GONE
                 }
@@ -202,18 +221,53 @@ class CartActivity : AppCompatActivity() {
 
     private fun createQuote() {
         lifecycleScope.launch {
-            selectedCompanyId?.let {
-                val response = RetrofitClient.checkoutApiService.createQuote(mapOf("sellerId" to it))
-                if (response.isSuccessful) {
-                    response.body()?.let {
-                        val intent = Intent(this@CartActivity, CheckoutActivity::class.java)
-                        intent.putExtra("QUOTE_ID", it.id)
-                        startActivity(intent)
+            selectedCompanyId?.let { sellerId ->
+                progressBar.visibility = View.VISIBLE
+                val company = companiesMap[sellerId]
+                if (company == null) {
+                    showToast(getString(R.string.selected_company_not_found))
+                    progressBar.visibility = View.GONE
+                    return@launch
+                }
+
+                val customerAddresses = account?.customer?.customerAddresses ?: emptyList()
+
+                val createQuoteRequest = CreateQuoteRequest(
+                    sellerId = sellerId,
+                    paymentMethods = company.paymentMethods,
+                    deliveryMethods = company.deliveryMethods,
+                    shippingOutOptions = company.shippingOutOptions ?: emptyList(),
+                    companyLocations = company.companyLocations ?: emptyList(),
+                    customerAddresses = customerAddresses
+                )
+
+                try {
+                    val response = RetrofitClient.checkoutApiService.createQuote(createQuoteRequest)
+                    if (response.isSuccessful) {
+                        response.body()?.let {
+                            val intent = Intent(this@CartActivity, CheckoutActivity::class.java)
+                            intent.putExtra("QUOTE_ID", it.id)
+                            startActivity(intent)
+                        }
+                    } else {
+                        showToast(getString(R.string.failed_to_create_quote, response.errorBody()?.string()), Toast.LENGTH_LONG)
                     }
-                } else {
-                    Toast.makeText(this@CartActivity, "Failed to create quote", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    showToast(getString(R.string.failed_to_create_quote, e.message), Toast.LENGTH_LONG)
+                } finally {
+                    progressBar.visibility = View.GONE
                 }
             }
         }
+    }
+
+    private fun clearCartView() {
+        cartAdapter.cartItems.clear()
+        cartAdapter.notifyDataSetChanged()
+        totalTextView.text = getString(R.string.total_price, 0.0)
+    }
+
+    private fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+        Toast.makeText(this@CartActivity, message, duration).show()
     }
 }

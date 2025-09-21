@@ -294,7 +294,67 @@ A native Android application is available for customers. It provides a mobile-fr
 *   **`CHECKOUT_API`**
 *   **`PAYMENT_API`**
 
-## 12. To-Do and Future Improvements
+## 13. Before Production Launch
+
+This section outlines critical and highly recommended changes that must be addressed across all services before the application is deployed to a production environment. The following issues were identified during a production readiness review.
+
+### 13.1. Infrastructure Readiness (AWS CDK)
+
+These issues apply to the CDK stacks for `account-service`, `catalog-service`, and `checkout-service`.
+
+*   **Critical: Insecure Secret Management**
+    *   **Issue:** Secrets (`MONGO_URI`, `JWT_SECRET`) are loaded from `.env` files at deployment time and stored in Lambda environment variables. This is a major security risk.
+    *   **Recommendation:** Store all secrets in **AWS Secrets Manager** or **AWS Systems Manager Parameter Store (SecureString)**. The Lambda execution roles should be granted IAM permissions to read these secrets at runtime.
+
+*   **High: Lack of Multi-Stage Environments**
+    *   **Issue:** The stacks have hardcoded values for development (e.g., `NODE_ENV: 'development'`, `stageName: 'dev'`). This prevents proper deployment to multiple environments like staging and production.
+    *   **Recommendation:** Parameterize the CDK stacks to accept a `stage` or `environment` prop. This will allow for deploying different configurations (e.g., memory, timeouts, environment variables) for each environment.
+
+*   **High: Insufficient Observability**
+    *   **Issue:** API Gateway and Lambda functions lack essential monitoring, logging, and tracing configurations. This makes debugging and monitoring in production extremely difficult.
+    *   **Recommendation:**
+        *   **API Gateway:** Enable access logging, CloudWatch metrics, and AWS X-Ray tracing in the `deployOptions`.
+        *   **Lambda:** Configure a **Dead-Letter Queue (DLQ)** for each function to capture failed invocations. Enable AWS X-Ray tracing to analyze performance bottlenecks.
+
+*   **Medium: Overly Permissive CORS**
+    *   **Issue:** The API Gateways are configured with `allowOrigins: ['*']` or `apigw.Cors.ALL_ORIGINS`, which is too permissive for production.
+    *   **Recommendation:** Restrict the allowed origins to the specific domain of the web portal.
+
+*   **Medium: Checkout Service Architecture ("Mono-Lambda")**
+    *   **Issue:** The `checkout-service` uses a single Lambda function for multiple, distinct concerns (`/cart`, `/quotes`, `/orders`).
+    *   **Recommendation:** For better scalability, security (least privilege), and separation of concerns, refactor the `checkout-service` into multiple Lambda functions, each handling a specific resource (e.g., a `CartHandler`, `QuoteHandler`, `OrderHandler`).
+
+### 13.2. Application Readiness (Go Services)
+
+These issues apply to the Go application code in `account-service`, `catalog-service`, and `checkout-service`.
+
+*   **Critical: Open Admin Registration Endpoint**
+    *   **Issue:** The `account-service` has a public endpoint that allows anyone to register as an "admin". This is a critical security vulnerability.
+    *   **Recommendation:** **Immediately remove this functionality.** Admin users must only be created through a secure, out-of-band process (e.g., a secure script, manual database entry, or an internal tool with strict access controls).
+
+*   **High: Lack of Structured Logging**
+    *   **Issue:** Services use the basic `log` package or have no logging at all. This produces unstructured logs that are difficult to search, filter, and analyze in CloudWatch.
+    *   **Recommendation:** Implement a **structured logging library** like `zerolog` or `zap`. Logs should be in JSON format and include contextual information like `request_id`, `service_name`, and `log_level`.
+
+*   **High: Inconsistent and Unsafe Error Handling**
+    *   **Issue:** Errors are often ignored using the blank identifier (`_`), and error responses are simple strings that can leak internal details.
+    *   **Recommendation:**
+        *   **Never ignore errors.** Every error must be logged and handled appropriately.
+        *   Implement a standardized JSON error response format across all APIs (e.g., `{ "error": { "code": "...", "message": "..." } }`).
+
+*   **High: Missing Input Validation**
+    *   **Issue:** Incoming request bodies and parameters are not validated. This can lead to data corruption, application crashes, and security vulnerabilities.
+    *   **Recommendation:** Use a validation library (e.g., `go-playground/validator`) to validate all incoming data against predefined rules (e.g., required fields, email format, password complexity).
+
+*   **Medium: Scattered Authorization Logic**
+    *   **Issue:** Authorization checks (e.g., checking user roles) are duplicated and mixed with business logic inside each handler. This is error-prone and hard to maintain.
+    *   **Recommendation:** Refactor authorization logic into reusable, composable **middleware**. For example, create `AdminOnly` or `CompanyOrAdmin` middleware that can be applied to specific routes.
+
+*   **Medium: Hardcoded Business Logic**
+    *   **Issue:** The `checkout-service` contains hardcoded business logic, such as tax rates and shipping costs.
+    *   **Recommendation:** Externalize this logic. It should be configurable and potentially managed by separate, dedicated services (e.g., `TaxService`, `ShippingService`).
+
+## 14. To-Do and Future Improvements
 
 *   **`bin/business-cart.ts`:**
     *   Replace placeholder API URLs with the actual outputs from the service stacks.
@@ -304,11 +364,11 @@ A native Android application is available for customers. It provides a mobile-fr
     *   Consider adding a more robust solution for managing environment variables.
     *   Review and refactor the code to improve its quality and maintainability.
 
-### 12.1. Placeholder Service Implementation Details
+### 14.1. Placeholder Service Implementation Details
 
 The following placeholder services require full implementation:
 
-#### 12.1.1. Checkout Service
+#### 14.1.1. Checkout Service
 
 The `checkout-service` is the orchestrator of the entire checkout process. It should coordinate with various other services to finalize an order.
 
@@ -320,7 +380,7 @@ The `checkout-service` is the orchestrator of the entire checkout process. It sh
     *   Integrate with third-party services for tax calculation (e.g., Avalara, TaxJar), shipping rates (e.g., Shippo, EasyPost), and promotion management.
 *   **Error Handling and Rollbacks:** Implement robust error handling and transaction management. For example, if the payment fails, the order should be marked as "failed" and the process should stop. This might involve implementing a Saga pattern to ensure data consistency across microservices.
 
-#### 12.1.2. Payment Service
+#### 14.1.2. Payment Service
 
 The `payment-service` is responsible for handling all payment-related operations.
 

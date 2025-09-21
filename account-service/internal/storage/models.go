@@ -64,7 +64,36 @@ const (
 	ExpressShippingOut  ShippingOutOption = "express"
 )
 
-// ---------- role sub-docs ----------
+// Multiple locations/addresses for Account role companies
+type CompanyLocation struct {
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CompanyID      primitive.ObjectID `bson:"companyId" json:"companyId"` // Reference to the Company's Account ID
+	LocationName   string             `bson:"locationName" json:"locationName"`
+	Address        Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	ContactPerson  string             `bson:"contactPerson,omitempty" json:"contactPerson,omitempty"`
+	PhoneNumber    string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	OperatingHours string             `bson:"operatingHours,omitempty" json:"operatingHours,omitempty"` // e.g., "Mon-Fri 9-5"
+	Capacity       string             `bson:"capacity,omitempty" json:"capacity,omitempty"`             // e.g., "5000 sq ft", "100 pallets"
+	LocationType   string             `bson:"locationType" json:"locationType"`                         // e.g., "pickup", "warehouse", "storefront"
+	IsDefault      bool               `bson:"isDefault" json:"isDefault"`                               // Flag for default location
+	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+
+// Multiple addresses for Account role customers
+type CustomerAddress struct {
+	ID                primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	CustomerID        primitive.ObjectID `bson:"customerId" json:"customerId"` // Reference to the Customer's Account ID
+	RecipientName     string             `bson:"recipientName" json:"recipientName"`
+	Address           Address            `bson:"address" json:"address"` // Re-use existing Address struct
+	PhoneNumber       string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	AddressLabel      string             `bson:"addressLabel,omitempty" json:"addressLabel,omitempty"` // e.g., "Home", "Work"
+	IsDefaultShipping bool               `bson:"isDefaultShipping" json:"isDefaultShipping"`           // Flag for default shipping address
+	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt         time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+
+// Full company data sub-docs for Account role companies
 type CompanyData struct {
 	Name                  string              `bson:"name" json:"name"`
 	Status                string              `bson:"status" json:"status"`
@@ -89,17 +118,43 @@ type CompanyData struct {
 		Radius float64 `bson:"radius" json:"radius"`
 		Center Coords  `bson:"center" json:"center"`
 	} `bson:"sellingArea" json:"sellingArea"`
-	Address Address `bson:"address" json:"address"`
+	Address Address `bson:"address" json:"address"` // Company's primary address
+}
+
+// GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.
+type AttachedCompaniesData struct {
+	Name               string              `json:"name"`
+	CompanyCodeID      string              `json:"companyCodeId,omitempty"`
+	CompanyCode        string              `json:"companyCode"`
+	SaleRepresentative string              `json:"saleRepresentative"`
+	Address            Address             `json:"address"`
+	CreditLimit        float64             `json:"creditLimit"`
+	Status             string              `json:"status"`
+	ShippingOutOptions []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
+	PaymentMethods     []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
+	DeliveryMethods    []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
+	CompanyLocations   []CompanyLocation   `json:"companyLocations,omitempty"`
+}
+
+// CustomerConfiguration defines specific settings that override a company's defaults for a single customer.
+type CustomerConfiguration struct {
+	DiscountPercentage *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+	PaymentMethods     *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
+	ShippingOutOptions *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
 }
 
 type CustomerCodeEntry struct {
-	CodeID string `bson:"codeId" json:"codeId"`
-	Code   string `bson:"customerCode" json:"customerCode"`
+	CodeID        string                 `bson:"codeId" json:"codeId"`
+	Code          string                 `bson:"customerCode" json:"customerCode"`
+	Configuration *CustomerConfiguration `bson:"configuration,omitempty" json:"configuration,omitempty"`
 }
 
+// Full customer data sub-docs for Account role customers
 type CustomerData struct {
-	CustomerCodes     []CustomerCodeEntry `bson:"customerCodes" json:"customerCodes"`
-	AttachedCompanies []CompanyData       `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
+	CustomerConfigs     []CustomerCodeEntry     `bson:"customerConfigs" json:"customerConfigs"`
+	AttachedCompanies []AttachedCompaniesData `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
+	CustomerAddresses []CustomerAddress       `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 }
 
 type PartnerData struct {
@@ -108,7 +163,7 @@ type PartnerData struct {
 	Status        string `bson:"status" json:"status"`
 }
 
-// ---------- unified account ----------
+// Full Account Document structure
 type Account struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Name          string             `bson:"name" json:"name"`
@@ -118,11 +173,10 @@ type Account struct {
 	AccountStatus AccountStatus      `bson:"accountStatus" json:"accountStatus"`
 	CreatedAt     time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt     time.Time          `bson:"updatedAt" json:"updatedAt"`
-
-	CompanyData  *CompanyData  `bson:"company,omitempty" json:"company,omitempty"`
-	CustomerData *CustomerData `bson:"customer,omitempty" json:"customer,omitempty"`
-	PartnerData  *PartnerData  `bson:"partner,omitempty" json:"partner,omitempty"`
-	Address      *Address      `bson:"address,omitempty" json:"address,omitempty"`
+	CompanyData   *CompanyData       `bson:"company,omitempty" json:"company,omitempty"`
+	CustomerData  *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
+	PartnerData   *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
+	Address       *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
 }
 
 // ---------- code & auth ----------

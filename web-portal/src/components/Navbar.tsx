@@ -5,6 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
 import { getCart } from '../api'; // Import getCart
+import { Logo } from './logo';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -102,7 +103,8 @@ const Navbar: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                <span className="text-lg font-medium text-gray-800">{companyName}</span>
+                <span className="w-10 h-10 mr-2"><Logo /></span>
+                <span className="text-lg font-semibold text-gray-600">{companyName}</span>
               </div>
               <div className="flex items-center space-x-4">
                 {userRole === 'customer' && (
@@ -144,26 +146,6 @@ const Navbar: React.FC = () => {
                       leaveTo="transform opacity-0 scale-95"
                     >
                       <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
-                              to="/account"
-                              className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                            >
-                              My Account
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
-                              to="/order-history"
-                              className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                            >
-                              Order History
-                            </Link>
-                          )}
-                        </Menu.Item>
                         {userRole === 'company' && (
                           <Menu.Item>
                             {({ active }) => (
@@ -177,16 +159,60 @@ const Navbar: React.FC = () => {
                           </Menu.Item>
                         )}
                         {userRole === 'customer' && (
-                          <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                to="/catalog"
-                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                              >
-                                Product Catalog
-                              </Link>
-                            )}
-                          </Menu.Item>
+                          <>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  Home
+                                </Link>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/catalog"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  Product Catalog
+                                </Link>
+                              )}
+                            </Menu.Item>
+
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/account"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  My Account
+                                </Link>
+                              )}
+                            </Menu.Item>
+
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/order-history"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  Order History
+                                </Link>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/customer/addresses"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  My Addresses
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          </>
                         )}
                         {userRole === 'admin' && (
                           <Menu.Item>

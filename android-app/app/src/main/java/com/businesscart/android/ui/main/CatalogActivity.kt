@@ -12,6 +12,7 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,6 +39,12 @@ class CatalogActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_catalog)
+
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.title = " BusinessCart"
 
         recyclerView = findViewById(R.id.recyclerView)
         companySpinner = findViewById(R.id.companySpinner)
@@ -86,6 +93,10 @@ class CatalogActivity : AppCompatActivity() {
     private fun fetchProducts() {
         Log.d(TAG, "Fetching products...")
         progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        companySpinner.visibility = View.GONE
+        findViewById<View>(R.id.companyLabel).visibility = View.GONE
+
         lifecycleScope.launch {
             try {
                 val products = RetrofitClient.productApiService.getProducts()
@@ -110,6 +121,9 @@ class CatalogActivity : AppCompatActivity() {
                 Toast.makeText(this@CatalogActivity, "Failed to fetch products", Toast.LENGTH_SHORT).show()
             } finally {
                 progressBar.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
+                companySpinner.visibility = View.VISIBLE
+                findViewById<View>(R.id.companyLabel).visibility = View.VISIBLE
             }
         }
     }
@@ -134,7 +148,9 @@ class CatalogActivity : AppCompatActivity() {
                     quantity = 1,
                     sellerId = product.sellerId,
                     name = product.name,
-                    price = product.price
+                    price = product.price,
+                    discountedPrice = product.discountedPrice,
+                    lineItemTotal = 0.0
                 )
                 val request = AddItemToCartRequest(entity = cartItem)
                 val response = RetrofitClient.checkoutApiService.addItemToCart(request)

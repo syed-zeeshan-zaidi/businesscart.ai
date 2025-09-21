@@ -182,7 +182,20 @@ const Catalog: React.FC = () => {
                 <div className="p-4">
                   <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
                   <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
-                  <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
+                  <div className="mt-2">
+                    {product.discountedPrice && product.discountedPrice < product.price ? (
+                      <>
+                        <p className="text-teal-600 font-bold text-lg">
+                          ${product.discountedPrice.toFixed(2)}
+                        </p>
+                        <p className="text-gray-500 line-through text-sm">
+                          ${product.price.toFixed(2)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
+                    )}
+                  </div>
                   <AddToCartButton product={product} quantity={1} />
                 </div>
               </div>

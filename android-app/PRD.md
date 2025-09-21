@@ -1,111 +1,33 @@
-# Product Requirements Document: BusinessCart Android App
+# Android App Product Requirements Document
 
-## 1. Introduction
+## Discounted Pricing Feature
 
-This document outlines the product requirements for the BusinessCart Android application. The app will provide a native mobile experience for "customer" users of the BusinessCart platform, focusing on core features available in the web portal. The implementation of "company" user features is postponed until next year.
+### Updated Plan for Implementation
 
-## 2. Goals
+**1. Update Data Models:** (Completed)
 
-*   Provide a fast, intuitive, and user-friendly native Android experience for customer users.
-*   Allow "customer" users to easily browse products, manage their cart, and place orders from their mobile devices.
-*   Maintain consistency with the existing BusinessCart web portal in terms of branding and functionality.
+*   **`Product.kt`:** Add a `discountedPrice` field to the `Product` data class. This field will be nullable. (Completed)
+*   **`AuthModels.kt`:**
+    *   Update `CustomerData` to use `customerConfigs` instead of `customerCodes`. (Completed)
+    *   Update `CustomerCodeEntry` to include a nullable `configuration` field of type `CustomerConfiguration`. (Completed)
+    *   Add the `CustomerConfiguration` data class with a `discountPercentage` field. (Completed)
 
-## 3. User Personas
+**2. Update API Service:**
 
-*   **Customer User:** An employee of a business who purchases supplies from other companies on the BusinessCart platform. They need a simple way to find products, see what's in their cart for each supplier, and place orders.
-*   **Company User:** (Out of Scope for initial release) A business owner or employee who needs to manage their online store.
+*   **`ApiService.kt`:** No changes are required.
 
-## 4. Feature Breakdown
+**3. Update UI Layer:**
 
-The Android app will be built using Kotlin, the officially recommended language for Android development. We will use the MVVM (Model-View-ViewModel) architecture pattern to create a scalable and maintainable codebase. We will use standard Android UI components and avoid external UI libraries to keep the app lightweight and performant.
+*   **`ProductAdapter.kt`:**
+    *   Modify the `ProductViewHolder` to check for a `discountedPrice`.
+    *   If a discounted price exists, display it and show the original price with a strikethrough.
+    *   Otherwise, display the original price.
 
-**Phase 1: Core Authentication & Setup (1-2 weeks)**
+**4. Correct Inconsistencies:**
 
-*   **Project Setup:**
-    *   **Status:** Completed.
-*   **User Authentication:**
-    *   **Login Screen:** A simple screen with email and password fields, and a "Login" button.
-        *   **Status:** Implemented.
-    *   **Registration Screen:** A screen with fields for name, email, password, and phone number. The role will be defaulted to "customer".
-        *   **Status:** Implemented.
-    *   **API Integration:** Implement the `login` and `register` API calls.
-        *   **Status:** Implemented.
-    *   **Session Management:** Store the JWT securely on the device (e.g., using Android's EncryptedSharedPreferences).
-        *   **Status:** Implemented.
+*   **`account-service/internal/auth/auth.go`:** In the `CustomerConfiguration` struct within the `auth` package, change the JSON tag for `DiscountPercentage` from `discount` to `discountPercentage` to match the rest of the application.
+*   **`web-portal/src/types.ts`:** In the `CustomerConfiguration` interface, change the `company_id` field to `codeId` to match the `CustomerCodeEntry` interface.
 
-**Phase 2: Customer User Features (2-3 weeks)**
+**5. Testing:**
 
-*   **Product Catalog:**
-    *   **Company Selection:** A dropdown or similar UI element to allow the customer to select which company's products they want to view.
-        *   **Status:** Implemented.
-    *   **Product List Screen:** A screen displaying a grid or list of products from the selected company.
-        *   **Status:** Implemented.
-    *   **API Integration:** Use the `getProducts` and `getCompanies` endpoints.
-        *   **Status:** Implemented.
-*   **Cart:**
-    *   **Cart Screen:** A screen that displays the items in the user's cart for the currently selected company. Users should be able to update the quantity of items or remove them from the cart.
-        *   **Status:** Implemented.
-    *   **API Integration:** Implement `getCart`, `addItemToCart`, `updateCartItem`, and `removeItemFromCart` API calls.
-        *   **Status:** `getCart` and `addItemToCart` are implemented.
-*   **Checkout:**
-    *   **Checkout Screen:** A screen that displays the order summary (subtotal, shipping, tax, grand total) and allows the user to select a payment method.
-        *   **Status:** Not Implemented.
-    *   **API Integration:** Implement `createQuote`, `getQuote`, and `createOrder` API calls.
-        *   **Status:** Not Implemented.
-    *   **Implementation Plan:**
-        *   Update `CheckoutApiService.kt` to include `createQuote`, `getQuote`, and `createOrder` endpoints.
-        *   Add a `Quote` data class to `DataModels.kt`.
-        *   In `CartActivity.kt`, when the "Checkout" button is clicked, call the `createQuote` API and launch a new `CheckoutActivity`, passing the `quoteId`.
-        *   Create a new `CheckoutActivity` that fetches and displays the quote details.
-        *   The `CheckoutActivity` will handle payment method selection and call `createOrder` when the "Place Order" button is clicked.
-        *   Create a new `OrderSuccessActivity` to be displayed after a successful order.
-        *   Add the new activities to `AndroidManifest.xml`.
-*   **Order History:**
-    *   **Order List Screen:** A screen displaying a list of the customer's past orders.
-        *   **Status:** Not Implemented.
-    *   **Order Detail Screen:** A screen showing the details of a specific order.
-        *   **Status:** Not Implemented.
-    *   **API Integration:** Use the `getOrders` endpoint, filtering by the customer's user ID.
-        *   **Status:** Not Implemented.
-
-## 5. Non-Functional Requirements
-
-*   **Performance:** The app should be fast and responsive, with smooth scrolling and quick screen transitions.
-*   **Security:** All API communication must be over HTTPS. Sensitive data, such as the JWT, must be stored securely on the device.
-*   **Error Handling:** The app should gracefully handle network errors and API errors, providing clear feedback to the user.
-
-## 6. API V2 Migration Plan (Corrected)
-
-This section outlines the necessary changes to update the Android app to work with the new backend API (V2). The V2 API introduces a consolidated checkout service, a new authentication flow, and updated data models.
-
-**Status:** Not Started
-
-### 6.1. Authentication & Core Models
-
-*   **Replace `User` Model:**
-    *   **Status:** Completed
-    *   **Details:** In `model/AuthModels.kt`, remove the `User` data class and replace it with a new `Account` data class that mirrors the structure of the `Account` model in the `account-service`. This will include nested data classes for `CompanyData`, `CustomerData`, etc.
-*   **Update API Endpoints:**
-    *   **Status:** Completed
-    *   **Details:** In `api/ApiService.kt`, change the `register` endpoint from `users/register` to `accounts/register` and the `login` endpoint from `users/login` to `accounts/login`.
-*   **Update Registration Flow:**
-    *   **Status:** Completed
-    *   **Details:** In `model/AuthModels.kt`, update the `RegistrationRequest` data class to include an optional `customerCodes` field. The registration UI will need to be updated to allow users to enter one or more customer codes. The role will be hardcoded to "customer".
-*   **Update `LoginResponse`:**
-    *   **Status:** Completed
-    *   **Details:** The `LoginResponse` in `model/AuthModels.kt` should now contain an `Account` object instead of a `User` object.
-
-### 6.2. Product Catalog
-
-*   **Update `Product` Model:**
-    *   **Status:** Completed
-    *   **Details:** In `model/DataModels.kt`, update the `Product` data class. Rename the `userId` and `companyId` fields to `sellerID`.
-
-### 6.3. Checkout Flow
-
-*   **Update `Cart`, `Quote`, and `Order` Models:**
-    *   **Status:** Completed
-    *   **Details:** In `model/DataModels.kt`, update the `Cart`, `Quote`, and `Order` data classes. Rename `userId` to `accountId` and `companyId` to `sellerId`.
-*   **Update `CheckoutApiService.kt`:**
-    *   **Status:** Completed
-    *   **Details:** In `api/CheckoutApiService.kt`, update the `createQuote` function. The request body should be changed to `CreateQuoteRequest(val cartId: String, val sellerId: String)`. The `getCart` function should also be updated to use `sellerId` instead of `companyId`.
+*   Manually test the Android app, web portal, and `account-service` to ensure the changes work as expected.

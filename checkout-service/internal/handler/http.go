@@ -28,6 +28,15 @@ type CartItemRequest struct {
 	Entity cart.CartItem `json:"entity"`
 }
 
+// CustomerConfiguration represents a customer-specific configuration.
+type CustomerConfiguration struct {
+	CompanyID          string   `json:"company_id"`
+	DiscountPercentage *float64 `json:"discount,omitempty"`
+	PaymentMethods     []string `json:"paymentMethods,omitempty"`
+	DeliveryMethods    []string `json:"deliveryMethods,omitempty"`
+	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
+}
+
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
 	cartService    *cart.Service
@@ -110,13 +119,51 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		}
 	}
 
+	// Add this block to safely extract configurations
+	var configurations []CustomerConfiguration
+	if configs, ok := userClaim["configurations"].([]interface{}); ok {
+		for _, config := range configs {
+			if configMap, ok := config.(map[string]interface{}); ok {
+				var customerConfig CustomerConfiguration
+				if companyID, ok := configMap["company_id"].(string); ok {
+					customerConfig.CompanyID = companyID
+				}
+				if discount, ok := configMap["discount"].(float64); ok {
+					customerConfig.DiscountPercentage = &discount
+				}
+				if pms, ok := configMap["paymentMethods"].([]interface{}); ok {
+					for _, pm := range pms {
+						if pmStr, ok := pm.(string); ok {
+							customerConfig.PaymentMethods = append(customerConfig.PaymentMethods, pmStr)
+						}
+					}
+				}
+				if dms, ok := configMap["deliveryMethods"].([]interface{}); ok {
+					for _, dm := range dms {
+						if dmStr, ok := dm.(string); ok {
+							customerConfig.DeliveryMethods = append(customerConfig.DeliveryMethods, dmStr)
+						}
+					}
+				}
+				if sos, ok := configMap["shippingOutOptions"].([]interface{}); ok {
+					for _, so := range sos {
+						if soStr, ok := so.(string); ok {
+							customerConfig.ShippingOutOptions = append(customerConfig.ShippingOutOptions, soStr)
+						}
+					}
+				}
+				configurations = append(configurations, customerConfig)
+			}
+		}
+	}
+
 	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
-	if strings.HasPrefix(request.Path, "/cart") {
+	if strings.HasPrefix(request.Path, "/checkout/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
-	} else if strings.HasPrefix(request.Path, "/quotes") {
-		return h.handleQuoteRequest(request, accountID)
-	} else if strings.HasPrefix(request.Path, "/orders") {
+	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
+		return h.handleQuoteRequest(request, accountID, configurations)
+	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
 	}
 
@@ -133,14 +180,14 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, accountID)
+		return h.handleCreateQuoteRequest(request, accountID, configurations)
 	}
 	if request.HTTPMethod == "GET" {
 		parts := strings.Split(request.Path, "/")
-		if len(parts) == 3 {
-			quoteId := parts[2]
+		if len(parts) == 4 {
+			quoteId := parts[3]
 			return h.handleGetQuoteRequest(request, accountID, quoteId)
 		}
 	}
@@ -177,9 +224,12 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 
 func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		QuoteID       string `json:"quoteId"`
-		PaymentMethod string `json:"paymentMethod"`
-		PaymentToken  string `json:"paymentToken"`
+		QuoteID           string `json:"quoteId"`
+		PaymentMethod     string `json:"paymentMethod"`
+		PaymentToken      string `json:"paymentToken"`
+		PickupLocationID  string `json:"pickupLocationId,omitempty"`
+		DeliveryAddressID string `json:"deliveryAddressId,omitempty"`
+		DeliveryMethod    string `json:"deliveryMethod"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -202,17 +252,20 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	}
 
 	newOrder := &order.Order{
-		ID:            primitive.NewObjectID(),
-		QuoteID:       quote.ID,
-		AccountID:     accountID,
-		SellerID:      quote.SellerID,
-		Items:         quote.Items,
-		Subtotal:      quote.Subtotal,
-		ShippingCost:  quote.ShippingCost,
-		TaxAmount:     quote.TaxAmount,
-		GrandTotal:    quote.GrandTotal,
-		PaymentMethod: req.PaymentMethod,
-		TransactionID: transactionID,
+		ID:                primitive.NewObjectID(),
+		QuoteID:           quote.ID,
+		AccountID:         accountID,
+		SellerID:          quote.SellerID,
+		Items:             quote.Items,
+		Subtotal:          quote.Subtotal,
+		ShippingCost:      quote.ShippingCost,
+		TaxAmount:         quote.TaxAmount,
+		GrandTotal:        quote.GrandTotal,
+		PaymentMethod:     req.PaymentMethod,
+		DeliveryMethod:    req.DeliveryMethod,
+		TransactionID:     transactionID,
+		PickupLocationID:  req.PickupLocationID,
+		DeliveryAddressID: req.DeliveryAddressID,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -260,13 +313,34 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	}, nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		CartID   string `json:"cartId"`
-		SellerID string `json:"sellerId"`
+		CartID             string                  `json:"cartId"`
+		SellerID           string                  `json:"sellerId"`
+		PaymentMethods     []string                `json:"paymentMethods"`
+		DeliveryMethods    []string                `json:"deliveryMethods"`
+		ShippingOutOptions []string                `json:"shippingOutOptions"`
+		CompanyLocations   []quote.CompanyLocation   `json:"companyLocations"`
+		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	// Check for customer-specific configuration
+	for _, config := range configurations {
+		if config.CompanyID == req.SellerID {
+			if config.PaymentMethods != nil {
+				req.PaymentMethods = config.PaymentMethods
+			}
+			if config.DeliveryMethods != nil {
+				req.DeliveryMethods = config.DeliveryMethods
+			}
+			if config.ShippingOutOptions != nil {
+				req.ShippingOutOptions = config.ShippingOutOptions
+			}
+			break
+		}
 	}
 
 	cart, err := h.cartService.GetCart(accountID, req.SellerID)
@@ -283,21 +357,27 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	shippingCost := 10.00                 // Flat rate shipping
 
 	newQuote := &quote.Quote{
-		CartID:       cart.ID,
-		AccountID:    accountID,
-		SellerID:     req.SellerID,
-		Items:        cart.Items,
-		Subtotal:     cart.TotalPrice,
-		ShippingCost: shippingCost,
-		TaxAmount:    taxAmount,
-		GrandTotal:   cart.TotalPrice + shippingCost + taxAmount,
+		CartID:                      cart.ID,
+		AccountID:                   accountID,
+		SellerID:                    req.SellerID,
+		Items:                       cart.Items,
+		Subtotal:                    cart.TotalPrice,
+		ShippingCost:                shippingCost,
+		TaxAmount:                   taxAmount,
+		GrandTotal:                  cart.TotalPrice + shippingCost + taxAmount,
+		AvailablePaymentMethods:     req.PaymentMethods,
+		AvailableDeliveryMethods:    req.DeliveryMethods,
+		AvailableShippingOutOptions: req.ShippingOutOptions,
+		CompanyLocations:            req.CompanyLocations,
+		CustomerAddresses:           req.CustomerAddresses,
 	}
 
-	if err := h.quoteService.CreateQuote(newQuote); err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Failed to create quote"), nil
+	createdQuote, err := h.quoteService.CreateQuote(newQuote)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
 	}
 
-	respBody, _ := json.Marshal(newQuote)
+	respBody, _ := json.Marshal(createdQuote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{

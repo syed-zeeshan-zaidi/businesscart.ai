@@ -11,6 +11,7 @@ import android.widget.Toast
 import android.widget.Button
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import com.businesscart.android.R
@@ -39,6 +40,12 @@ class AccountActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_account)
 
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayUseLogoEnabled(true)
+        supportActionBar?.setLogo(R.drawable.ic_logo)
+        supportActionBar?.title = " BusinessCart"
+
         sessionManager = SessionManager(this)
 
         nameTextView = findViewById(R.id.nameTextView)
@@ -55,8 +62,13 @@ class AccountActivity : AppCompatActivity() {
         logoutBtn.setOnClickListener { logout() }
 
         val orderHistoryBtn = findViewById<Button>(R.id.orderHistoryButton)
-        orderHistoryBtn.setOnClickListener { 
+        orderHistoryBtn.setOnClickListener {
             startActivity(Intent(this, OrderHistoryActivity::class.java))
+        }
+
+        val manageAddressesBtn = findViewById<Button>(R.id.manageAddressesButton)
+        manageAddressesBtn.setOnClickListener {
+            startActivity(Intent(this, AddressesActivity::class.java))
         }
 
         fetchAccountDetails()

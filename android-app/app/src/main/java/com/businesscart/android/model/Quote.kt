@@ -11,17 +11,10 @@ data class Quote(
     val taxAmount: Double,
     val grandTotal: Double,
     val createdAt: String,
-    val expiresAt: String
-)
-
-data class CreateOrderRequest(
-    val quoteId: String,
-    val paymentMethod: String,
-    val paymentToken: String
-)
-
-data class SimpleOrder(
-    val id: String,
-    val quoteId: String,
-    val status: String
+    val expiresAt: String,
+    val availablePaymentMethods: List<String>,
+    val availableDeliveryMethods: List<String>,
+    val availableShippingOutOptions: List<String>,
+    val companyLocations: List<CompanyLocation>?,
+    val customerAddresses: List<CustomerAddress>?
 )

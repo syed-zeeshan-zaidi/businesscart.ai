@@ -20,6 +20,7 @@ data class CompanyData(
     val saleRepresentative: String,
     val creditLimit: Double,
     val shippingMethods: List<String>,
+    val shippingOutOptions: List<String>?,
     val paymentMethods: List<String>,
     val deliveryMethods: List<String>,
     val leadTime: Double,
@@ -34,7 +35,8 @@ data class CompanyData(
     val companyCodeId: String?,
     val companyCode: String,
     val sellingArea: SellingArea,
-    val address: Address
+    val address: Address,
+    val companyLocations: List<CompanyLocation>?
 )
 
 data class SellingArea(
@@ -44,12 +46,14 @@ data class SellingArea(
 
 data class CustomerCodeEntry(
     val codeId: String,
-    val customerCode: String
+    val customerCode: String,
+    val configuration: CustomerConfiguration?
 )
 
 data class CustomerData(
-    val customerCodes: List<CustomerCodeEntry>,
-    val attachedCompanies: List<CompanyData>?
+    val customerConfigs: List<CustomerCodeEntry>,
+    val attachedCompanies: List<CompanyData>?,
+    val customerAddresses: List<CustomerAddress>?
 )
 
 data class PartnerData(
@@ -90,4 +94,43 @@ data class DecodedUser(
     val id: String,
     val email: String,
     val role: String
+)
+
+data class CompanyLocation(
+    val id: String,
+    val companyId: String,
+    val locationName: String,
+    val address: Address,
+    val contactPerson: String?,
+    val phoneNumber: String?,
+    val operatingHours: String?,
+    val capacity: String?,
+    val locationType: String,
+    val isDefault: Boolean,
+    val createdAt: String,
+    val updatedAt: String
+)
+
+data class CustomerAddress(
+    val id: String,
+    val customerId: String,
+    val recipientName: String,
+    val address: Address,
+    val phoneNumber: String?,
+    val addressLabel: String?,
+    val isDefaultShipping: Boolean,
+    val createdAt: String,
+    val updatedAt: String?
+)
+
+data class NewAddressDTO(
+    val recipientName: String,
+    val addressLabel: String?,
+    val address: Address,
+    val phoneNumber: String?,
+    val isDefaultShipping: Boolean
+)
+
+data class CustomerConfiguration(
+    val discountPercentage: Double?
 )

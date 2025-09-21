@@ -22,6 +22,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity }) 
           sellerId: product.sellerID,
           name: product.name,
           price: product.price,
+          discountedPrice: product.discountedPrice,
         },
       });
       toast.success(`${product.name} added to cart!`);

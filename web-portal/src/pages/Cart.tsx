@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { Cart as CartType } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount } from '../api';
+import { Cart as CartType, Account } from '../types';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations } from '../api';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const Cart: React.FC = () => {
+const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unused-vars
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -62,14 +62,14 @@ const Cart: React.FC = () => {
       navigate('/home');
       return;
     }
-    setUserRole(decodedUser.role);
 
 const loadCompanies = async () => {
   try {
-    const account = await getAccount(decodedUser.id);
+    const accountData = await getAccount(decodedUser.id);
+    setAccount(accountData);
     
-    if (account.customer?.attachedCompanies && account.customer.attachedCompanies.length > 0) {
-      const companies = account.customer.attachedCompanies.map(company => ({
+    if (accountData.customer?.attachedCompanies && accountData.customer.attachedCompanies.length > 0) {
+      const companies = accountData.customer.attachedCompanies.map(company => ({
         id: company.companyCodeId || company._id || company.companyCode,
         name: company.name,
         companyCode: company.companyCode
@@ -95,7 +95,7 @@ const loadCompanies = async () => {
                 return;
               }
             }
-          } catch {}
+          } catch (e) { /* Handle error silently */ }
           
           try {
             const testCart = await getCart(company.id);
@@ -111,7 +111,7 @@ const loadCompanies = async () => {
               setInitialLoadComplete(true);
               return;
             }
-          } catch {}
+          } catch (e) { /* Handle error silently */ }
         }
         
         // If no company has items, select first company but don't load cart
@@ -216,10 +216,26 @@ const loadCompanies = async () => {
       return;
     }
 
+    const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
+    const paymentMethods = company?.paymentMethods || [];
+    const deliveryMethods = company?.deliveryMethods || [];
+    const shippingOutOptions = company?.shippingOutOptions || [];
+    const companyLocations = company?.companyLocations || [];
+    const customerAddresses = account?.customer?.customerAddresses || [];
+    const configurations = await getCustomerConfigurations();
+
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote(selectedCompanyId);
+      const quote = await createQuote({ 
+        sellerId: selectedCompanyId,
+        paymentMethods: paymentMethods,
+        deliveryMethods: deliveryMethods,
+        shippingOutOptions: shippingOutOptions,
+        companyLocations: companyLocations,
+        customerAddresses: customerAddresses,
+        configurations,
+      });
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);
     } catch (err: any) {
@@ -296,7 +312,18 @@ const loadCompanies = async () => {
                   <div key={item.id} className="px-6 py-4 flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                      <p className="text-gray-600">${item.price?.toFixed(2) || '0.00'} each</p>
+                      {item.discountedPrice && item.discountedPrice < item.price ? (
+                        <>
+                          <p className="text-teal-600 font-bold">
+                            ${item.discountedPrice.toFixed(2)} each
+                          </p>
+                          <p className="text-gray-500 line-through text-sm">
+                            ${item.price.toFixed(2)} each
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-gray-600">${item.price?.toFixed(2) || '0.00'} each</p>
+                      )}
                     </div>
                     
                     <div className="flex items-center space-x-4">
@@ -318,7 +345,7 @@ const loadCompanies = async () => {
                       </div>
                       
                       <p className="text-lg font-semibold text-gray-800 w-20 text-right">
-                        ${((item.price || 0) * item.quantity).toFixed(2)}
+                        ${item.lineItemTotal.toFixed(2)}
                       </p>
                       
                       <button

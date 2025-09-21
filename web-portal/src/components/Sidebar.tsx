@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
+import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
+import { Logo } from './logo';
 
 const Sidebar = () => {
   const { decodeJWT } = useAuth();
@@ -19,10 +20,15 @@ const Sidebar = () => {
     links.splice(1, 0, { name: 'Codes', path: '/codes', icon: DocumentPlusIcon });
   }
 
+  if (user && (user.role === 'admin' || user.role === 'company')) {
+    links.push({ name: 'Locations', path: '/locations', icon: MapPinIcon });
+  }
+
   return (
     <div className="w-64 bg-gray-800 shadow-lg h-screen sticky top-0">
-      <div className="p-6">
-        <h1 className="text-2xl font-semibold text-gray-200">BusinessCart</h1>
+      <div className="p-6 flex">
+        <span className="w-10 h-10"><Logo /></span>
+        <h1 className="text-2xl font-semibold text-gray-400 p-1">BusinessCart</h1>
       </div>
       <nav className="mt-4">
         {links.map((link) => (

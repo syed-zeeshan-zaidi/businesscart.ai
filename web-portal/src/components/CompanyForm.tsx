@@ -332,7 +332,7 @@ const CompanyForm = () => {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="bg-teal-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
           >
             Refresh
           </button>

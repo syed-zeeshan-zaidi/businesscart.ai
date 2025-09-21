@@ -43,11 +43,22 @@ func init() {
 // Adapter to convert API Gateway request to http.Request
 func adapter(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	log.Printf("Received headers: %+v", req.Headers)
+	log.Printf("Received request: %+v", req)
+
+	requestPath := req.Path
+	for key, value := range req.PathParameters {
+		requestPath = strings.Replace(requestPath, "{"+key+"}", value, -1)
+	}
+	log.Printf("Reconstructed requestPath: %s", requestPath)
+
 	// Create a new http.Request
-	httpRequest, err := http.NewRequest(req.HTTPMethod, req.Path, strings.NewReader(req.Body))
+	httpRequest, err := http.NewRequest(req.HTTPMethod, requestPath, strings.NewReader(req.Body))
 	if err != nil {
+		log.Printf("Error creating http.Request: %v", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, err
 	}
+	log.Printf("Created httpRequest URL: %s", httpRequest.URL.String())
+
 	// Copy headers from the API Gateway request to the http.Request
 	for key, value := range req.Headers {
 		httpRequest.Header.Set(key, value)

@@ -1,7 +1,7 @@
 package com.businesscart.android.ui.checkout
 
 import android.app.AlertDialog
-import android.graphics.Color
+import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,13 +31,26 @@ class CartAdapter(
     inner class CartViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val nameTextView:     TextView = itemView.findViewById(R.id.cartItemName)
         private val priceTextView:    TextView = itemView.findViewById(R.id.cartItemPrice)
+        private val discountedPriceTextView: TextView = itemView.findViewById(R.id.cartItemDiscountedPrice)
+        private val lineItemTotalTextView: TextView = itemView.findViewById(R.id.lineItemTotal)
         private val quantityTextView: TextView = itemView.findViewById(R.id.cartItemQuantity)
         private val removeButton:     TextView = itemView.findViewById(R.id.removeCartItemButton)
 
         fun bind(cartItem: CartItem) {
             nameTextView.text  = cartItem.name
-            priceTextView.text = cartItem.price.toString()
             quantityTextView.text = cartItem.quantity.toString()
+            lineItemTotalTextView.text = "${String.format("%.2f", cartItem.lineItemTotal)}"
+
+            if (cartItem.discountedPrice != null && cartItem.discountedPrice < cartItem.price) {
+                priceTextView.text = "${String.format("%.2f", cartItem.price)}"
+                priceTextView.paintFlags = priceTextView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                discountedPriceTextView.text = "${String.format("%.2f", cartItem.discountedPrice)}"
+                discountedPriceTextView.visibility = View.VISIBLE
+            } else {
+                priceTextView.text = "${String.format("%.2f", cartItem.price)}"
+                priceTextView.paintFlags = priceTextView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                discountedPriceTextView.visibility = View.GONE
+            }
 
             quantityTextView.setOnClickListener { showQuantityDialog(cartItem) }
             removeButton.setOnClickListener     { onRemove(cartItem) }

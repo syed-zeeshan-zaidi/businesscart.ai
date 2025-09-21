@@ -82,13 +82,13 @@ const Home: React.FC = () => {
           <div className="py-16">
             {/* Hero Section for Companies */}
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-gray-800 mb-4">Welcome to BusinessCart</h2>
-              <p className="text-lg text-gray-600 mb-8">Connect with your customers and manage your product catalog effortlessly.</p>
-              
+              <h2 className="text-4xl font-bold text-gray-800 mb-4">Cloud Native B2B E-Commerce</h2>
+              <p className="text-lg font-bold text-teal-800 mb-8">Connect with your customers and manage your B2B E-Commerce effortlessly.</p>
+
               <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-12 mb-12">
                 <h3 className="text-3xl font-bold tracking-tight mb-4">For Companies</h3>
                 <p className="text-lg max-w-2xl mx-auto mb-6">
-                  Create your product catalog, manage inventory, and give your customers exclusive access to your products.
+                  Create your product catalog, manage inventory, and give your customers exclusive access to your products with custom configurations and pricing.
                 </p>
                 <div className="space-x-4">
                   <Link

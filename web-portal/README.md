@@ -60,3 +60,4 @@ To run the Web Portal locally, follow these steps:
     npm run dev
     ```
 4.  Open your browser and navigate to the provided local URL.
+

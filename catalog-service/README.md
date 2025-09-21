@@ -45,3 +45,7 @@ The Product Service exposes a RESTful API for product management:
 -   `GET /products/{productId}`: Retrieves a single product by its ID. (Requires ownership).
 -   `PUT /products/{productId}`: Updates a product's details. (Requires ownership).
 -   `DELETE /products/{productId}`: Deletes a product. (Requires ownership).
+
+
+## cloud image url
+https://res.cloudinary.com/dvbs5snoc/image/upload/v1757019264/Designer-Baking-Gloves-Pair-with-Label_ugj9dw.png

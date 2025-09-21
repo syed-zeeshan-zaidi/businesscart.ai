@@ -11,7 +11,10 @@ data class Order(
     val taxAmount: Double,
     val grandTotal: Double,
     val payment: Payment,
-    val createdAt: String
+    val createdAt: String,
+    val deliveryMethod: String?,
+    val deliveryAddressId: String?,
+    val pickupLocationId: String?
 )
 
 data class Payment(

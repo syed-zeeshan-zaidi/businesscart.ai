@@ -54,6 +54,16 @@
             app:layout_constraintTop_toBottomOf="@+id/productDescriptionTextView"
             tools:text="$99.99" />
 
+        <TextView
+            android:id="@+id/originalPriceTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+            app:layout_constraintBaseline_toBaselineOf="@+id/productPriceTextView"
+            app:layout_constraintStart_toEndOf="@+id/productPriceTextView"
+            tools:text="$129.99" />
+
         <Button
             android:id="@+id/addToCartButton"
             android:layout_width="wrap_content"

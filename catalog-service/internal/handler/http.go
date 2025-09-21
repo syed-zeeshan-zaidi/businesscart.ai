@@ -94,6 +94,26 @@ func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if role == "customer" {
+		if customerConfigs, ok := userClaims["configurations"].([]interface{}); ok {
+			discountMap := make(map[string]float64)
+			for _, config := range customerConfigs {
+				if configMap, ok := config.(map[string]interface{}); ok {
+					companyID, _ := configMap["company_id"].(string)
+					if discount, ok := configMap["discount"].(float64); ok && companyID != "" {
+						discountMap[companyID] = discount
+					}
+				}
+			}
+
+			for _, product := range products {
+				if discount, ok := discountMap[product.SellerID]; ok {
+					product.DiscountedPrice = product.Price * (1 - discount/100)
+				}
+			}
+		}
+	}
+
 	json.NewEncoder(w).Encode(products)
 }
 
