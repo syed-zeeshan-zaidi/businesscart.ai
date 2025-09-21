@@ -159,11 +159,11 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
-	if strings.HasPrefix(request.Path, "/cart") {
+	if strings.HasPrefix(request.Path, "/checkout/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
-	} else if strings.HasPrefix(request.Path, "/quotes") {
+	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
 		return h.handleQuoteRequest(request, accountID, configurations)
-	} else if strings.HasPrefix(request.Path, "/orders") {
+	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
 	}
 
@@ -186,8 +186,8 @@ func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest
 	}
 	if request.HTTPMethod == "GET" {
 		parts := strings.Split(request.Path, "/")
-		if len(parts) == 3 {
-			quoteId := parts[2]
+		if len(parts) == 4 {
+			quoteId := parts[3]
 			return h.handleGetQuoteRequest(request, accountID, quoteId)
 		}
 	}

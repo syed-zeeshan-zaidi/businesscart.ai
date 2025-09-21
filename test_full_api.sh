@@ -2,12 +2,10 @@
 set -x
 
 # =============================================================================
-# Idempotent Account & Catalog Service Test
+# Idempotent Consolidated API Test
 # =============================================================================
 
-ACCOUNT_API="http://127.0.0.1:3000"
-CATALOG_API="http://127.0.0.1:3001"
-CHECKOUT_API="http://127.0.0.1:3002"
+API_BASE_URL="http://127.0.0.1:3000"
 PASSWORD="securepassword"
 
 # --- Static codes (only companyCode + customerCode mandatory) ----------
@@ -69,7 +67,7 @@ login_or_register() {
   print_step "Login or register $role_key"
 
   # try login
-  resp=$(curl -s -w "\n%{http_code}" -X POST "$ACCOUNT_API/accounts/login" \
+  resp=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/accounts/login" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\"}")
   status=$(tail -n1 <<<"$resp")
@@ -109,7 +107,7 @@ EOF
       ;;
   esac
 
-  reg_resp=$(curl -s -w "\n%{http_code}" -X POST "$ACCOUNT_API/accounts/register" \
+  reg_resp=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/accounts/register" \
     -H "Content-Type: application/json" \
     -d "$payload")
   reg_status=$(tail -n1 <<<"$reg_resp")
@@ -139,7 +137,7 @@ create_codes() {
     payload=$(echo "$payload" | jq --arg partner "$partner_code" '. + {partnerCode: $partner}')
   fi
 
-  resp=$(curl -s -w "\n%{http_code}" -X POST "$ACCOUNT_API/codes" \
+  resp=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/codes" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[admin]}" \
     -d "$payload")
@@ -172,7 +170,7 @@ create_product() {
         --arg description "$description" \
         '{name: $name, price: $price, description: $description}')
 
-    resp=$(curl -s -w "\n%{http_code}" -X POST "$CATALOG_API/products" \
+    resp=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/products" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer ${JWTS[$role_key]}" \
         -d "$payload")
@@ -192,7 +190,7 @@ create_product() {
 get_product_count() {
     local role_key="$1"
     
-    resp=$(curl -s -w "\n%{http_code}" -X GET "$CATALOG_API/products" \
+    resp=$(curl -s -w "\n%{http_code}" -X GET "$API_BASE_URL/products" \
         -H "Authorization: Bearer ${JWTS[$role_key]}")
     status=$(tail -n1 <<<"$resp")
     body=$(sed '$d' <<<"$resp")
@@ -212,7 +210,7 @@ get_products() {
     local role_key="$1"
     print_step "Getting products for $role_key"
 
-    resp=$(curl -s -w "\n%{http_code}" -X GET "$CATALOG_API/products" \
+    resp=$(curl -s -w "\n%{http_code}" -X GET "$API_BASE_URL/products" \
         -H "Authorization: Bearer ${JWTS[$role_key]}")
     status=$(tail -n1 <<<"$resp")
     body=$(sed '$d' <<<"$resp")
@@ -242,7 +240,7 @@ get_orders() {
     local role_key="$1"
     print_step "Getting orders for $role_key"
 
-    resp=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_API/orders" \
+    resp=$(curl -s -w "\n%{http_code}" -X GET "$API_BASE_URL/checkout/orders" \
         -H "Authorization: Bearer ${JWTS[$role_key]}")
     status=$(tail -n1 <<<"$resp")
     body=$(sed '$d' <<<"$resp")
@@ -276,7 +274,7 @@ add_to_cart() {
     )" \
     '{entity: $entity}')
 
-  curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/cart" \
+  curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/checkout/cart" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[$role_key]}" \
     -d "$payload"
@@ -288,7 +286,7 @@ add_to_cart() {
 get_cart() {
   local role_key="$1"
   local seller_id="$2"
-  curl -s -w "\n%{http_code}" "$CHECKOUT_API/cart?sellerId=$seller_id" \
+  curl -s -w "\n%{http_code}" "$API_BASE_URL/checkout/cart?sellerId=$seller_id" \
     -H "Authorization: Bearer ${JWTS[$role_key]}"
 }
 
@@ -306,7 +304,7 @@ create_quote() {
     --arg sellerId "$seller_id" \
     '{cartId: $cartId, sellerId: $sellerId}')
 
-  resp=$(curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/quotes" \
+  resp=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/checkout/quotes" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[$role_key]}" \
     -d "$payload")
@@ -328,7 +326,7 @@ get_quote() {
   local quote_id="$2"
 
   print_step "Getting quote $quote_id for $role_key"
-  resp=$(curl -s -w "\n%{http_code}" -X GET "$CHECKOUT_API/quotes/$quote_id" \
+  resp=$(curl -s -w "\n%{http_code}" -X GET "$API_BASE_URL/checkout/quotes/$quote_id" \
     -H "Authorization: Bearer ${JWTS[$role_key]}")
   status=$(tail -n1 <<<"$resp")
   body=$(sed '$d' <<<"$resp")
@@ -352,7 +350,7 @@ place_order() {
     --arg paymentMethod "$payment_method" \
     --arg paymentToken "$payment_token" \
     '{quoteId: $quoteId, paymentMethod: $paymentMethod, paymentToken: $paymentToken}')
-  curl -s -w "\n%{http_code}" -X POST "$CHECKOUT_API/orders" \
+  curl -s -w "\n%{http_code}" -X POST "$API_BASE_URL/checkout/orders" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${JWTS[$role_key]}" \
     -d "$payload"
@@ -419,7 +417,7 @@ get_orders "company1"
 get_orders "company2"
 
 # Get product and company IDs for cart tests
-all_products_json=$(curl -s -X GET "$CATALOG_API/products" -H "Authorization: Bearer ${JWTS[admin]}")
+all_products_json=$(curl -s -X GET "$API_BASE_URL/products" -H "Authorization: Bearer ${JWTS[admin]}")
 alpha_product_id=$(echo "$all_products_json" | jq -r '.[] | select(.name=="Alpha Product 1") | ._id')
 beta_product_id=$(echo "$all_products_json" | jq -r '.[] | select(.name=="Beta Product 1") | ._id')
 

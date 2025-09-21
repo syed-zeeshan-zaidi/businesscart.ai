@@ -17,37 +17,37 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface CheckoutApiService {
-    @GET("cart")
+    @GET("checkout/cart")
     suspend fun getCart(@Query("sellerId") sellerId: String): Response<Cart>
 
-    @POST("cart")
+    @POST("checkout/cart")
     suspend fun addItemToCart(@Body addItemToCartRequest: AddItemToCartRequest): Response<Cart>
 
-    @PUT("cart/{itemId}")
+    @PUT("checkout/cart/{itemId}")
     suspend fun updateCartItem(
         @Path("itemId") itemId: String,
         @Body updateCartItemRequest: UpdateCartItemPayload,
         @Query("sellerId") sellerId: String
     ): Response<Cart>
 
-    @DELETE("cart/{itemId}")
+    @DELETE("checkout/cart/{itemId}")
     suspend fun removeCartItem(
         @Path("itemId") itemId: String,
         @Query("sellerId") sellerId: String
     ): Response<Cart>
 
-    @DELETE("cart")
+    @DELETE("checkout/cart")
     suspend fun clearCart(@Query("sellerId") sellerId: String): Response<Cart>
 
-    @POST("quotes")
+    @POST("checkout/quotes")
     suspend fun createQuote(@Body createQuoteRequest: CreateQuoteRequest): Response<Quote>
 
-    @GET("quotes/{quoteId}")
+    @GET("checkout/quotes/{quoteId}")
     suspend fun getQuote(@Path("quoteId") quoteId: String): Response<Quote>
 
-    @POST("orders")
+    @POST("checkout/orders")
     suspend fun createOrder(@Body request: CreateOrderRequest): Response<Order>
 
-    @GET("orders")
+    @GET("checkout/orders")
     suspend fun getOrders(): Response<List<Order>>
 }

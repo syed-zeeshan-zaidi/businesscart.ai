@@ -1,9 +1,7 @@
 import axios from 'axios';
 import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress, CustomerConfiguration } from './types';
 
-const ACCOUNT_API_URL = import.meta.env.VITE_ACCOUNT_API_URL || 'http://127.0.0.1:3000';
-const CATALOG_API_URL = import.meta.env.VITE_CATALOG_API_URL || 'http://127.0.0.1:3001';
-const CHECKOUT_API_URL = import.meta.env.VITE_CHECKOUT_API_URL || 'http://127.0.0.1:3002';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
 
 const api = axios.create();
 
@@ -70,12 +68,12 @@ export const register = async (data: {
   code?: string;
   customerCodes?: string[];
 }): Promise<{ accessToken: string; account: Account }> => {
-  const response = await api.post(`${ACCOUNT_API_URL}/accounts/register`, data);
+  const response = await api.post(`${API_URL}/accounts/register`, data);
   return response.data;
 };
 
 export const login = async (data: { email: string; password: string }): Promise<{ accessToken: string; account: Account }> => {
-  const response = await api.post(`${ACCOUNT_API_URL}/accounts/login`, data);
+  const response = await api.post(`${API_URL}/accounts/login`, data);
   return response.data;
 };
 
@@ -83,7 +81,7 @@ export const logout = async (): Promise<void> => {
   try {
     const token = localStorage.getItem('accessToken');
     if (token) {
-      await api.post(`${ACCOUNT_API_URL}/accounts/logout`, {});
+      await api.post(`${API_URL}/accounts/logout`, {});
     }
   } catch (_) {
     // Intentionally left empty
@@ -93,60 +91,60 @@ export const logout = async (): Promise<void> => {
 };
 
 export const getAccounts = async (): Promise<Account[]> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/accounts`);
+  const response = await api.get(`${API_URL}/accounts`);
   return response.data;
 };
 
 export const getAccount = async (id: string): Promise<Account> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/accounts/${id}`);
+  const response = await api.get(`${API_URL}/accounts/${id}`);
   return response.data;
 };
 
 export const updateAccount = async (id: string, data: Partial<Omit<Account, '_id'>>): Promise<Account> => {
-  const response = await api.patch(`${ACCOUNT_API_URL}/accounts/${id}`, data);
+  const response = await api.patch(`${API_URL}/accounts/${id}`, data);
   return response.data;
 };
 
 export const deleteAccount = async (id: string): Promise<void> => {
-  await api.delete(`${ACCOUNT_API_URL}/accounts/${id}`);
+  await api.delete(`${API_URL}/accounts/${id}`);
 };
 
 export const createCodes = async (data: { companyCode: string; customerCode: string; partnerCode?: string }): Promise<void> => {
-  await api.post(`${ACCOUNT_API_URL}/codes`, data);
+  await api.post(`${API_URL}/codes`, data);
 };
 
 export const getCode = async (code: string): Promise<any> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/codes/${code}`);
+  const response = await api.get(`${API_URL}/codes/${code}`);
   return response.data;
 };
 
 export const getCodes = async (): Promise<any[]> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/codes`);
+  const response = await api.get(`${API_URL}/codes`);
   return response.data;
 };
 
 export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
-  const response = await api.post(`${CATALOG_API_URL}/products`, data);
+  const response = await api.post(`${API_URL}/products`, data);
   return response.data;
 };
 
 export const getProducts = async (): Promise<Product[]> => {
-  const response = await api.get(`${CATALOG_API_URL}/products`);
+  const response = await api.get(`${API_URL}/products`);
   console.log('Products fetched:', response.data);
   return response.data;
 };
 
 export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
-  const response = await api.put(`${CATALOG_API_URL}/products/${id}`, data);
+  const response = await api.put(`${API_URL}/products/${id}`, data);
   return response.data;
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
-  await api.delete(`${CATALOG_API_URL}/products/${id}`);
+  await api.delete(`${API_URL}/products/${id}`);
 };
 
 export const deleteOrder = async (id: string): Promise<void> => {
-  await api.delete(`${CHECKOUT_API_URL}/orders/${id}`);
+  await api.delete(`${API_URL}/checkout/orders/${id}`);
 };
 
 export const createOrder = async (data: { 
@@ -157,44 +155,44 @@ export const createOrder = async (data: {
   pickupLocationId?: string;
   deliveryAddressId?: string;
 }): Promise<Order> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/orders`, data);
+  const response = await api.post(`${API_URL}/checkout/orders`, data);
   return response.data;
 };
 
 export const getOrders = async (sellerId?: string): Promise<Order[]> => {
-  const url = sellerId ? `${CHECKOUT_API_URL}/orders?sellerId=${sellerId}` : `${CHECKOUT_API_URL}/orders`;
+  const url = sellerId ? `${API_URL}/checkout/orders?sellerId=${sellerId}` : `${API_URL}/checkout/orders`;
   console.log('Fetching orders from:', url);
   const response = await api.get(url);
   return response.data;
 };
 
 export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
-  const response = await api.put(`${CHECKOUT_API_URL}/orders/${id}`, data);
+  const response = await api.put(`${API_URL}/checkout/orders/${id}`, data);
   return response.data;
 };
 
 export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number } }): Promise<Cart> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/cart`, data);
+  const response = await api.post(`${API_URL}/checkout/cart`, data);
   return response.data;
 };
 
 export const getCart = async (sellerId: string): Promise<Cart> => {
-  const response = await api.get(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
+  const response = await api.get(`${API_URL}/checkout/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
 export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, sellerId: string): Promise<Cart> => {
-  const response = await api.put(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`, data);
+  const response = await api.put(`${API_URL}/checkout/cart/${itemId}?sellerId=${sellerId}`, data);
   return response.data;
 };
 
 export const removeItemFromCart = async (itemId: string, sellerId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart/${itemId}?sellerId=${sellerId}`);
+  const response = await api.delete(`${API_URL}/checkout/cart/${itemId}?sellerId=${sellerId}`);
   return response.data;
 };
 
 export const clearCart = async (sellerId: string): Promise<Cart> => {
-  const response = await api.delete(`${CHECKOUT_API_URL}/cart?sellerId=${sellerId}`);
+  const response = await api.delete(`${API_URL}/checkout/cart?sellerId=${sellerId}`);
   return response.data;
 };
 
@@ -218,7 +216,7 @@ export const createQuote = async (data: {
   customerAddresses: CustomerAddress[];
   configurations?: CustomerConfiguration[];
 }): Promise<Quote> => {
-  const response = await api.post(`${CHECKOUT_API_URL}/quotes`, data);
+  const response = await api.post(`${API_URL}/checkout/quotes`, data);
   return response.data;
 };
 
@@ -236,40 +234,40 @@ export const getCustomerConfigurations = async (): Promise<CustomerConfiguration
 };
 
 export const getQuote = async (quoteId: string): Promise<Quote> => {
-  const response = await api.get(`${CHECKOUT_API_URL}/quotes/${quoteId}`);
+  const response = await api.get(`${API_URL}/checkout/quotes/${quoteId}`);
   return response.data;
 };
 
 // Company Location specific functions
 export const getCompanyLocations = async (companyId: string): Promise<CompanyLocation[]> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${companyId}`);
+  const response = await api.get(`${API_URL}/accounts/locations/${companyId}`);
   return response.data;
 };
 
 export const upsertCompanyLocation = async (companyId: string, location: Partial<CompanyLocation>): Promise<CompanyLocation> => {
-  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${companyId}`, location);
+  const response = await api.post(`${API_URL}/accounts/locations/${companyId}`, location);
   return response.data;
 };
 
 export const deleteCompanyLocation = async (companyId: string, locationId: string): Promise<void> => {
-  await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${companyId}/${locationId}`);
+  await api.delete(`${API_URL}/accounts/locations/${companyId}/${locationId}`);
 };
 
 // Customer Address specific functions
 export const getCustomerAddresses = async (customerId: string): Promise<CustomerAddress[]> => {
-  const response = await api.get(`${ACCOUNT_API_URL}/accounts/locations/${customerId}`);
+  const response = await api.get(`${API_URL}/accounts/locations/${customerId}`);
   return response.data;
 };
 
 export const upsertCustomerAddress = async (customerId: string, address: Partial<CustomerAddress>): Promise<CustomerAddress> => {
-  const response = await api.post(`${ACCOUNT_API_URL}/accounts/locations/${customerId}`, address);
+  const response = await api.post(`${API_URL}/accounts/locations/${customerId}`, address);
   return response.data;
 };
 
 export const deleteCustomerAddress = async (customerId: string, addressId: string): Promise<void> => {
-  await api.delete(`${ACCOUNT_API_URL}/accounts/locations/${customerId}/${addressId}`);
+  await api.delete(`${API_URL}/accounts/locations/${customerId}/${addressId}`);
 };
 
 export const updateCustomerConfiguration = async (customerId: string, config: Partial<CustomerConfiguration>): Promise<void> => {
-  await api.patch(`${ACCOUNT_API_URL}/customers/${customerId}/configuration`, config);
+  await api.patch(`${API_URL}/customers/${customerId}/configuration`, config);
 };

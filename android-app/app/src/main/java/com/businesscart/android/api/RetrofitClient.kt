@@ -9,9 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL_ACCOUNT = "http://10.0.2.2:3000/"
-    private const val BASE_URL_CATALOG = "http://10.0.2.2:3001/"
-    private const val BASE_URL_CHECKOUT = "http://10.0.2.2:3002/"
+    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     private lateinit var sessionManager: SessionManager
 
@@ -35,40 +33,24 @@ object RetrofitClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private val retrofitAccount: Retrofit by lazy {
+    private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL_ACCOUNT)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-
-    private val retrofitCatalog: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL_CATALOG)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-
-    private val retrofitCheckout: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL_CHECKOUT)
+            .baseUrl(BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
     val apiService: ApiService by lazy {
-        retrofitAccount.create(ApiService::class.java)
+        retrofit.create(ApiService::class.java)
     }
 
     val productApiService: ProductApiService by lazy {
-        retrofitCatalog.create(ProductApiService::class.java)
+        retrofit.create(ProductApiService::class.java)
     }
 
     val checkoutApiService: CheckoutApiService by lazy {
-        retrofitCheckout.create(CheckoutApiService::class.java)
+        retrofit.create(CheckoutApiService::class.java)
     }
 
     fun initialize(context: Context) {
