@@ -3,24 +3,26 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-import * as dotenv from 'dotenv';
 import { join } from 'path';
 
-// Load Root environment variables from .env file
-dotenv.config({ path: join(__dirname, '..', '.env') });
-// Load environment variables for each service
-dotenv.config({ path: join(__dirname, "..", "account-service", ".env") })
-dotenv.config({ path: join(__dirname, '..', 'catalog-service', '.env') })
-dotenv.config({ path: join(__dirname, '..', 'checkout-service', '.env') })
+export interface BusinessCartStackProps extends cdk.StackProps {
+  stage: string;
+}
 
 export class BusinessCartStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: BusinessCartStackProps) {
     super(scope, id, props);
+
+    // Fetch secrets from SSM
+    const mongoUri = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/MONGO_URI`);
+    const jwtSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_SECRET`);
+    const jwtRefreshSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_REFRESH_SECRET`);
 
     // Account Service
     const accountService = new lambda.Function(this, 'AccountHandler', {
-      functionName: 'AccountHandler',
+      functionName: `AccountHandler-${props.stage}`,
       runtime: lambda.Runtime.GO_1_X,
       handler: 'bootstrap',
       code: lambda.Code.fromAsset(join(__dirname, '..', 'account-service'), {
@@ -37,16 +39,16 @@ export class BusinessCartStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        MONGO_URI: process.env.MONGO_URI || '',
-        JWT_SECRET: process.env.JWT_SECRET || '',
-        JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || '',
-        NODE_ENV: 'development',
+        MONGO_URI: mongoUri,
+        JWT_SECRET: jwtSecret,
+        JWT_REFRESH_SECRET: jwtRefreshSecret,
+        NODE_ENV: props.stage,
       },
     });
 
     // Catalog Service
     const catalogService = new lambda.Function(this, 'CatalogHandler', {
-        functionName: 'CatalogHandler',
+        functionName: `CatalogHandler-${props.stage}`,
         runtime: lambda.Runtime.GO_1_X,
         handler: 'bootstrap',
         code: lambda.Code.fromAsset(join(__dirname, '..', 'catalog-service'), {
@@ -63,16 +65,16 @@ export class BusinessCartStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,
         environment: {
-          MONGO_URI: process.env.MONGO_URI || '',
-          JWT_SECRET: process.env.JWT_SECRET || '',
-          JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || '',
-          NODE_ENV: 'development',
+          MONGO_URI: mongoUri,
+          JWT_SECRET: jwtSecret,
+          JWT_REFRESH_SECRET: jwtRefreshSecret,
+          NODE_ENV: props.stage,
         },
       });
 
     // Checkout Service
     const checkoutService = new lambda.Function(this, 'CheckoutHandler', {
-        functionName: 'CheckoutHandler',
+        functionName: `CheckoutHandler-${props.stage}`,
         runtime: lambda.Runtime.GO_1_X,
         handler: 'server',
         code: lambda.Code.fromAsset(join(__dirname, '..', 'checkout-service'), {
@@ -89,18 +91,18 @@ export class BusinessCartStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(30),
         memorySize: 256,
         environment: {
-          MONGO_URI: process.env.MONGO_URI || '',
-          JWT_SECRET: process.env.JWT_SECRET || '',
-          JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || '',
-          NODE_ENV: 'development',
+          MONGO_URI: mongoUri,
+          JWT_SECRET: jwtSecret,
+          JWT_REFRESH_SECRET: jwtRefreshSecret,
+          NODE_ENV: props.stage,
         },
       });
 
     // API Gateway
     const api = new apigw.RestApi(this, 'UnifiedApi', {
-      restApiName: 'BusinessCart API',
+      restApiName: `BusinessCart-API-${props.stage}`,
       description: 'Consolidated API for all BusinessCart services.',
-      deployOptions: { stageName: 'prod' },
+      deployOptions: { stageName: props.stage },
       defaultCorsPreflightOptions: {
         allowOrigins: apigw.Cors.ALL_ORIGINS,
         allowMethods: apigw.Cors.ALL_METHODS,
@@ -187,6 +189,7 @@ export class BusinessCartStack extends cdk.Stack {
 
     // Web Portal
     const portalBucket = new s3.Bucket(this, 'WebPortalBucket', {
+        bucketName: `web-portal-bucket-${props.stage}`,
         websiteIndexDocument: 'index.html',
         publicReadAccess: true,
         blockPublicAccess: new s3.BlockPublicAccess({ blockPublicAcls: false, blockPublicPolicy: false, ignorePublicAcls: false, restrictPublicBuckets: false }),

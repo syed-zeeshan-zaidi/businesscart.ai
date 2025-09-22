@@ -19,9 +19,11 @@ build_go_service() {
 }
 
 start_services() {
+  echo "Clearing CDK output directory..."
+  rm -rf cdk.out
   echo "Synthesizing all CDK stacks..."
   # Synthesize all stacks to ensure cross-stack references can be resolved.
-  npm run cdk synth || { echo "CDK synth failed. Exiting."; exit 1; }
+  npm run cdk synth -- -c stage=local || { echo "CDK synth failed. Exiting."; exit 1; }
   echo "CDK templates synthesized successfully."
 
   # Build Go services before starting
@@ -33,7 +35,7 @@ start_services() {
 
   # We point SAM to the ApiGatewayStack template.
   # CDK automatically resolves the cross-stack Lambda references within this template.
-  template_path="cdk.out/BusinessCartStack.template.json"
+  template_path="cdk.out/BusinessCartStack-local.template.json"
 
   if [ ! -f "$template_path" ]; then
     echo "Error: Template file not found at $template_path. CDK synth might have failed."
@@ -42,7 +44,7 @@ start_services() {
 
   echo "Preparing to start unified API on port $UNIFIED_API_PORT..."
   mkdir -p logs
-  sam_cmd="sam local start-api -t \"$template_path\" --docker-network businesscart-network --debug -l logs/unified-api.log --port \"$UNIFIED_API_PORT\""
+  sam_cmd="sam local start-api -t \"$template_path\" --docker-network businesscart-network --debug -l logs/unified-api.log --port \"$UNIFIED_API_PORT\" --env-vars local.env.json"
 
   gnome-terminal --tab --command="bash -c '$sam_cmd; exec bash'" &
   sleep 2 
