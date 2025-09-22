@@ -74,12 +74,16 @@ export class BusinessCartStack extends cdk.Stack {
       }),
     });
 
+    const allowedOrigins = props.stage === 'local'
+      ? apigw.Cors.ALL_ORIGINS
+      : ssm.StringListParameter.valueForTypedListParameter(this, `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`);
+
     const api = new apigw.RestApi(this, 'UnifiedApi', {
       restApiName: `BusinessCart-API-${props.stage}`,
       description: 'Consolidated API for all BusinessCart services.',
       deployOptions: { stageName: props.stage },
       defaultCorsPreflightOptions: {
-        allowOrigins: apigw.Cors.ALL_ORIGINS,
+        allowOrigins: allowedOrigins,
         allowMethods: apigw.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
       },

@@ -152,7 +152,7 @@ type CustomerCodeEntry struct {
 
 // Full customer data sub-docs for Account role customers
 type CustomerData struct {
-	CustomerConfigs     []CustomerCodeEntry     `bson:"customerConfigs" json:"customerConfigs"`
+	CustomerConfigs   []CustomerCodeEntry     `bson:"customerConfigs" json:"customerConfigs"`
 	AttachedCompanies []AttachedCompaniesData `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`
 	CustomerAddresses []CustomerAddress       `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 }

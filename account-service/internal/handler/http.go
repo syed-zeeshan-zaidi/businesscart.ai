@@ -152,7 +152,7 @@ type RegisterRequest struct {
 	Email         string   `json:"email"`
 	Password      string   `json:"password"`
 	Role          string   `json:"role"`          // customer | company | partner
-	Code          string   `json:"code"`           // companyCode OR partnerCode OR ignored for customer
+	Code          string   `json:"code"`          // companyCode OR partnerCode OR ignored for customer
 	CustomerCodes []string `json:"customerCodes"` // for customer role only
 }
 
