@@ -26,7 +26,7 @@ func main() {
 	}
 	log.Println("Successfully connected to MongoDB.")
 
-	db := client.Database(cfg.MongoDatabase)
+	db := client.Database("CheckoutService")
 	cartService := cart.NewService(db)
 	quoteService := quote.NewService(db)
 	orderService := order.NewService(db)

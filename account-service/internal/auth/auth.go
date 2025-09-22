@@ -20,10 +20,10 @@ func CheckPasswordHash(password, hash string) bool {
 
 // CustomerConfiguration represents the set of rules for a customer-company relationship in the JWT.
 type CustomerConfiguration struct {
-	CompanyID          string                  `json:"company_id"`
-	DiscountPercentage *float64                `json:"discount,omitempty"`
-	PaymentMethods     *[]storage.PaymentMethod  `json:"paymentMethods,omitempty"`
-	DeliveryMethods    *[]storage.DeliveryMethod `json:"deliveryMethods,omitempty"`
+	CompanyID          string                       `json:"company_id"`
+	DiscountPercentage *float64                     `json:"discount,omitempty"`
+	PaymentMethods     *[]storage.PaymentMethod     `json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]storage.DeliveryMethod    `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
 }
 
