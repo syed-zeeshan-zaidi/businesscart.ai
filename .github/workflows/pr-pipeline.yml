@@ -82,4 +82,4 @@ jobs:
           done
 
       - name: CDK Synth
-        run: npx cdk synth
+        run: npx cdk synth -c stage=local
