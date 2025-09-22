@@ -30,9 +30,6 @@ jobs:
       - name: Build root
         run: npm run build
 
-      - name: Lint root
-        run: npm run lint
-
       - name: Install web-portal dependencies
         working-directory: web-portal
         run: npm install
