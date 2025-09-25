@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress, CustomerConfiguration } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create();
 
@@ -46,7 +46,7 @@ api.interceptors.response.use(
   (error) => {
     console.error('Response Error:', {
       status: error.response?.status,
-      url: error.config.url,
+      url: error.config?.url,
       data: error.response?.data,
       message: error.message,
     });

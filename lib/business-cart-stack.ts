@@ -4,6 +4,12 @@ import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import { GoFunction } from '@aws-cdk/aws-lambda-go-alpha';
 import { Construct } from 'constructs';
 import { join } from 'path';
 
@@ -22,10 +28,19 @@ export class BusinessCartStack extends cdk.Stack {
     const jwtSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_SECRET`);
     const jwtRefreshSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_REFRESH_SECRET`);
 
-    // Shared Lambda props (without code/handler)
-    const lambdaDefaults = {
-      runtime: lambda.Runtime.GO_1_X,
-      timeout: cdk.Duration.seconds(10),
+    const rawOrigins =
+      props.stage === 'local'
+        ? '*' // local dev – allow all
+        : ssm.StringParameter.valueForStringParameter(
+            this,
+            `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`
+          );
+    const allowedOrigins = rawOrigins.split(',').map((o: string) => o.trim());
+
+    const sharedGoFunctionProps = {
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      architecture: props.stage === 'local' ? lambda.Architecture.X86_64 : lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(60),
       memorySize: 128,
       environment: {
         MONGO_URI: mongoUri,
@@ -35,48 +50,31 @@ export class BusinessCartStack extends cdk.Stack {
       },
     };
 
-    const accountService = new lambda.Function(this, 'AccountHandler', {
-      ...lambdaDefaults,
+    const accountService = new GoFunction(this, 'AccountHandler', {
+      ...sharedGoFunctionProps,
       functionName: `AccountHandler-${props.stage}`,
-      handler: 'bootstrap',
-      code: lambda.Code.fromAsset(join(__dirname, '..', 'account-service'), {
-        bundling: {
-          image: lambda.Runtime.GO_1_X.bundlingImage,
-          command: ['bash', '-c', 'go build -o /asset-output/bootstrap ./cmd/server/main.go'],
-          user: 'root',
-        },
-      }),
+      entry: join(__dirname, '..', 'account-service', 'cmd', 'server'),
+      environment: {
+        ...sharedGoFunctionProps.environment,
+        CORS_ALLOWED_ORIGINS: allowedOrigins.join(','),
+      },
     });
 
-    const catalogService = new lambda.Function(this, 'CatalogHandler', {
-      ...lambdaDefaults,
+    const catalogService = new GoFunction(this, 'CatalogHandler', {
+      ...sharedGoFunctionProps,
       functionName: `CatalogHandler-${props.stage}`,
-      handler: 'bootstrap',
-      code: lambda.Code.fromAsset(join(__dirname, '..', 'catalog-service'), {
-        bundling: {
-          image: lambda.Runtime.GO_1_X.bundlingImage,
-          command: ['bash', '-c', 'go build -o /asset-output/bootstrap ./cmd/server/main.go'],
-          user: 'root',
-        },
-      }),
+      entry: join(__dirname, '..', 'catalog-service', 'cmd', 'server'),
+      environment: {
+        ...sharedGoFunctionProps.environment,
+        CORS_ALLOWED_ORIGINS: allowedOrigins.join(','),
+      },
     });
 
-    const checkoutService = new lambda.Function(this, 'CheckoutHandler', {
-      ...lambdaDefaults,
+    const checkoutService = new GoFunction(this, 'CheckoutHandler', {
+      ...sharedGoFunctionProps,
       functionName: `CheckoutHandler-${props.stage}`,
-      handler: 'server',
-      code: lambda.Code.fromAsset(join(__dirname, '..', 'checkout-service'), {
-        bundling: {
-          image: lambda.Runtime.GO_1_X.bundlingImage,
-          command: ['bash', '-c', 'go build -o /asset-output/server ./cmd/server'],
-          user: 'root',
-        },
-      }),
+      entry: join(__dirname, '..', 'checkout-service', 'cmd', 'server'),
     });
-
-    const allowedOrigins = props.stage === 'local'
-      ? apigw.Cors.ALL_ORIGINS
-      : ssm.StringListParameter.valueForTypedListParameter(this, `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`);
 
     const api = new apigw.RestApi(this, 'UnifiedApi', {
       restApiName: `BusinessCart-API-${props.stage}`,
@@ -89,23 +87,21 @@ export class BusinessCartStack extends cdk.Stack {
       },
     });
 
-    const accountInteg = new apigw.LambdaIntegration(accountService, {
-      requestTemplates: {
-        'application/json': JSON.stringify({
-          resourcePath: '$context.resourcePath',
-          httpMethod: '$context.httpMethod',
-          pathParameters: '$input.params()',
-          queryStringParameters: '$input.params()',
-          headers: {
-            '#foreach($h in $input.params().header.keySet())':
-              '"$h": "$util.escapeJavaScript($input.params().header.get($h))"',
-            '#if($foreach.hasNext),#end': '',
-            '#end': '',
-          },
-        }),
-      },
-      proxy: false,
+    /* =====  CORS – 2xx/4xx/5xx must carry header  ===== */
+    const corsOrigin = props.stage === 'local'
+      ? "'*'"
+      : `'${ssm.StringParameter.valueFromLookup(this, `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`)}'`;
+
+    api.addGatewayResponse('Cors4XX', {
+      type: apigw.ResponseType.DEFAULT_4XX,
+      responseHeaders: { 'Access-Control-Allow-Origin': corsOrigin },
     });
+    api.addGatewayResponse('Cors5XX', {
+      type: apigw.ResponseType.DEFAULT_5XX,
+      responseHeaders: { 'Access-Control-Allow-Origin': corsOrigin },
+    });
+
+    const accountInteg = new apigw.LambdaIntegration(accountService);
 
     const accountsRoot = api.root.addResource('accounts');
     accountsRoot.addResource('register').addMethod('POST', accountInteg);
@@ -170,7 +166,7 @@ export class BusinessCartStack extends cdk.Stack {
       publicReadAccess: true,
       versioned: false,
       intelligentTieringConfigurations: [
-        { name: 'FreeTier', prefix: '' }, // valid shape
+        // { name: 'FreeTier', prefix: 'web-portal/' },
       ],
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicAcls: false,
@@ -182,13 +178,75 @@ export class BusinessCartStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
+    const viteApiUrl = props.stage === 'local'
+      ? 'http://127.0.0.1:3000 '
+      : ssm.StringParameter.valueFromLookup(
+          this,
+          `/BusinessCart/${props.stage}/ApiUrl`
+        );
+    
     new s3deploy.BucketDeployment(this, 'DeployWebPortal', {
-      sources: [s3deploy.Source.asset(join(__dirname, '..', 'web-portal', 'dist'))],
+      sources: [
+        s3deploy.Source.asset(join(__dirname, '..', 'web-portal'), {
+          bundling: {
+            image: cdk.DockerImage.fromRegistry('public.ecr.aws/bitnami/node:18'),
+            command: [
+              'bash',
+              '-c',
+              'npm install && npm run build && mv dist/* /asset-output/',
+            ],
+            environment: {
+              VITE_API_URL: viteApiUrl,
+            },
+            user: 'root',
+          },
+        }),
+      ],
       destinationBucket: portalBucket,
     });
+    new cdk.CfnOutput(this, 'ViteApiUrlFromSsm', { value: viteApiUrl });
 
-    new cdk.CfnOutput(this, 'WebPortalUrl', {
-      value: portalBucket.bucketWebsiteUrl,
+    new cdk.CfnOutput(this, 'WebPortalUrl', { value: portalBucket.bucketWebsiteUrl });
+
+    // --- Custom Domain and CDN for Web Portal ---
+
+    const domainName = 'www.businesscart.ai';
+    const zoneName = 'businesscart.ai';
+    const hostedZoneId = 'Z08097461K3514HDMUTR6';
+
+    // Look up the hosted zone in Route 53
+    const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'HostedZone', {
+      hostedZoneId: hostedZoneId,
+      zoneName: zoneName,
+    });
+
+    // Create an SSL/TLS certificate in ACM (must be in us-east-1 for CloudFront)
+    const certificate = new acm.Certificate(this, 'SiteCertificate', {
+      domainName: domainName,
+      validation: acm.CertificateValidation.fromDns(hostedZone),
+    });
+
+    // Create a CloudFront distribution
+    const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(portalBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+      domainNames: [domainName],
+      certificate: certificate,
+      defaultRootObject: 'index.html',
+    });
+
+    // Create a Route 53 'A' record to point the domain to the CloudFront distribution
+    new route53.ARecord(this, 'SiteAliasRecord', {
+      recordName: domainName,
+      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
+      zone: hostedZone,
+    });
+
+    // Output the CloudFront distribution domain name
+    new cdk.CfnOutput(this, 'DistributionDomainName', {
+      value: distribution.distributionDomainName,
     });
   }
 }

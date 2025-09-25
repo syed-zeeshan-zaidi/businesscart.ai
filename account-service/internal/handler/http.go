@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -26,6 +27,7 @@ func NewHandler(db *storage.DB, jwtSecret, jwtRefreshSecret string) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
+	router.Use(middleware.CorsMiddleware)
 	router.Post("/accounts/register", h.Register)
 	router.Post("/accounts/login", h.Login)
 	router.Post("/accounts/refresh", h.RefreshToken)
@@ -265,49 +267,71 @@ type LoginRequest struct {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var creds LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second) // ≤ Lambda timeout
+	defer cancel()
 
 	user, err := h.db.GetAccountByEmail(creds.Email)
 	if err != nil || !auth.CheckPasswordHash(creds.Password, user.Password) {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 
-	var associateCompanyIDs []string
+	// ---- build claims in-memory (no second query) ----
+	var assocIDs []string
 	var configs []auth.CustomerConfiguration
 	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
-		for _, codeEntry := range user.CustomerData.CustomerConfigs {
-			associateCompanyIDs = append(associateCompanyIDs, codeEntry.CodeID)
-			if codeEntry.Configuration != nil {
+		for _, e := range user.CustomerData.CustomerConfigs {
+			assocIDs = append(assocIDs, e.CodeID)
+			if e.Configuration != nil {
 				configs = append(configs, auth.CustomerConfiguration{
-					CompanyID:          codeEntry.CodeID,
-					DiscountPercentage: codeEntry.Configuration.DiscountPercentage,
-					PaymentMethods:     codeEntry.Configuration.PaymentMethods,
-					DeliveryMethods:    codeEntry.Configuration.DeliveryMethods,
-					ShippingOutOptions: codeEntry.Configuration.ShippingOutOptions,
+					CompanyID:          e.CodeID,
+					DiscountPercentage: e.Configuration.DiscountPercentage,
+					PaymentMethods:     e.Configuration.PaymentMethods,
+					DeliveryMethods:    e.Configuration.DeliveryMethods,
+					ShippingOutOptions: e.Configuration.ShippingOutOptions,
 				})
 			}
 		}
 	}
 
-	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, associateCompanyIDs, configs)
+	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, assocIDs, configs)
 	if err != nil {
-		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
+		http.Error(w, `{"error":"token gen"}`, http.StatusInternalServerError)
+		return
+	}
+	refreshToken, err := h.makeRefreshToken(ctx, user)
+	if err != nil {
+		http.Error(w, `{"error":"refresh token"}`, http.StatusInternalServerError)
 		return
 	}
 
-	refreshToken, err := h.generateAndStoreRefreshToken(user)
-	if err != nil {
-		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
-		return
-	}
-
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"accessToken":  accessToken,
 		"refreshToken": refreshToken,
 	})
+}
+
+// makeRefreshToken uses the already-loaded account – no extra DB call.
+func (h *Handler) makeRefreshToken(ctx context.Context, user *storage.Account) (string, error) {
+	var assoc []string
+	if user.Role == storage.RoleCustomer && user.CustomerData != nil {
+		for _, e := range user.CustomerData.CustomerConfigs {
+			assoc = append(assoc, e.CodeID)
+		}
+	}
+	tok, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role,
+		h.jwtRefreshSecret, assoc)
+	rt := &storage.RefreshToken{
+		UserID:    user.ID,
+		Token:     tok,
+		ExpiresAt: primitive.NewDateTimeFromTime(time.Now().Add(7 * 24 * time.Hour)),
+	}
+	return tok, h.db.CreateRefreshToken(rt) // ← no ctx, no &
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {

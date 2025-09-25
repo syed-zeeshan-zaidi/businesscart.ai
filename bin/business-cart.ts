@@ -18,8 +18,8 @@ type StageConfig = {
 };
 
 const stageConfig: StageConfig = {
-    prod: { account: '532697846782', region: 'us-east-1' },
-    staging: { account: '532697846782', region: 'us-west-2' },
+    prod: { account: '750495979823', region: 'us-east-1' },
+    staging: { account: '000000000000', region: 'us-east-1' },
     local: { account: '000000000000', region: 'us-east-1' } // Dummy values for local synth
     // Add more configs as needed
 };
