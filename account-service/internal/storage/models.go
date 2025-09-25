@@ -96,6 +96,7 @@ type CustomerAddress struct {
 // Full company data sub-docs for Account role companies
 type CompanyData struct {
 	Name                  string              `bson:"name" json:"name"`
+	LogoURL               string              `bson:"logoUrl" json:"logoUrl"`
 	Status                string              `bson:"status" json:"status"`
 	UniqueIdentifier      string              `bson:"uniqueIdentifier" json:"uniqueIdentifier"`
 	SaleRepresentative    string              `bson:"saleRepresentative" json:"saleRepresentative"`
@@ -124,6 +125,7 @@ type CompanyData struct {
 // GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.
 type AttachedCompaniesData struct {
 	Name               string              `json:"name"`
+	LogoURL            string              `json:"logoUrl"`
 	CompanyCodeID      string              `json:"companyCodeId,omitempty"`
 	CompanyCode        string              `json:"companyCode"`
 	SaleRepresentative string              `json:"saleRepresentative"`

@@ -106,6 +106,7 @@ export type ShippingOutOption = 'standard' | 'express';
 export interface CompanyData {
   _id?: string;
   name: string;
+  logoUrl?: string;
   status: string;
   uniqueIdentifier?: string;
   saleRepresentative?: string;

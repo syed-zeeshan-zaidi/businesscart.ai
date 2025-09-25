@@ -6,6 +6,7 @@ import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
 import { getCart } from '../api'; // Import getCart
 import { Logo } from './logo';
+import { Account } from '../types';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Navbar: React.FC = () => {
   const [notificationCount] = useState(3); // Placeholder
   const [cartItemCount, setCartItemCount] = useState(0); // Initialize cartItemCount to 0
   const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
 
   const fetchCartCount = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -55,7 +57,7 @@ const Navbar: React.FC = () => {
     }
   }, [decodeJWT]);
 
-  useEffect(() => {
+  const updateNavbarState = useCallback(() => {
     if (!isAuthenticated) {
       setUserInitials('');
       setCompanyName('BusinessCart');
@@ -65,9 +67,14 @@ const Navbar: React.FC = () => {
     }
 
     const token = localStorage.getItem('accessToken');
+    const accountData = localStorage.getItem('account');
+
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        const role = payload.user?.role || null;
+        setUserRole(role);
+
         const name = payload.user?.name || payload.user?.email || '';
         const initials = name
           .split(' ')
@@ -76,11 +83,19 @@ const Navbar: React.FC = () => {
           .toUpperCase()
           .slice(0, 2);
         setUserInitials(initials);
-        setCompanyName(payload.user?.company_id ? `Company ${payload.user.company_id}` : 'BusinessCart');
-        setUserRole(payload.user?.role || null);
-        fetchCartCount(); // Fetch cart count when authenticated
+
+        if (role === 'company' && accountData) {
+          const parsedAccount: Account = JSON.parse(accountData);
+          setAccount(parsedAccount);
+          setCompanyName(parsedAccount.company?.name || 'Company');
+        } else {
+          setCompanyName('BusinessCart');
+        }
+
+        if (role === 'customer') {
+          fetchCartCount(); // Fetch cart count only for customers
+        }
       } catch (_e) {
-        
         toast.error('Failed to load user data');
         logout();
       }
@@ -88,12 +103,15 @@ const Navbar: React.FC = () => {
   }, [isAuthenticated, logout, fetchCartCount]);
 
   useEffect(() => {
+    updateNavbarState();
+    window.addEventListener('storageUpdated', updateNavbarState);
     window.addEventListener('cartUpdated', fetchCartCount);
 
     return () => {
+      window.removeEventListener('storageUpdated', updateNavbarState);
       window.removeEventListener('cartUpdated', fetchCartCount);
     };
-  }, [fetchCartCount]);
+  }, [updateNavbarState, fetchCartCount]);
 
   return (
     <Disclosure as="nav" className="bg-white shadow">
@@ -103,7 +121,12 @@ const Navbar: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                <span className="w-10 h-10 mr-2"><Logo /></span>
+                {userRole !== 'company' && (
+                  <span className="w-10 h-10 mr-2"><Logo /></span>
+                )}
+                {userRole === 'company' && account?.company?.logoUrl && (
+                  <span><img src={account.company.logoUrl} alt="Company Logo" className="w-8 h-8 mr-1" /></span>
+                )}
                 <span className="text-lg font-semibold text-gray-600">{companyName}</span>
               </div>
               <div className="flex items-center space-x-4">
