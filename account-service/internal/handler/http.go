@@ -471,6 +471,7 @@ func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
 
 						attached = append(attached, storage.AttachedCompaniesData{
 							Name:               c.CompanyData.Name,
+							LogoURL:            c.CompanyData.LogoURL,
 							CompanyCodeID:      c.CompanyData.CompanyCodeID,
 							CompanyCode:        c.CompanyData.CompanyCode,
 							SaleRepresentative: c.CompanyData.SaleRepresentative,

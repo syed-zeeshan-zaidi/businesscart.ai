@@ -18,7 +18,7 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string; logoUrl?: string }[]>([]);
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -38,7 +38,6 @@ const Catalog: React.FC = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) throw new Error('Not authenticated');
       const decodedUser = decodeJWT(token);
-      console.log('Decoded user Catalog :', decodedUser);
       if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
 
       const [fetchedProducts, fetchedAccount] = await Promise.all([
@@ -52,6 +51,7 @@ const Catalog: React.FC = () => {
         const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
           id: c.companyCodeId,
           name: c.name,
+          logoUrl: c.logoUrl,
         }));
         setCompanies(customerCompanies);
         if (customerCompanies.length > 0) {
@@ -105,6 +105,7 @@ const Catalog: React.FC = () => {
                 const customerCompanies = cachedAccount.customer.attachedCompanies.map((c: any) => ({
                   id: c.companyCodeId,
                   name: c.name,
+                  logoUrl: c.logoUrl,
                 }));
                 setCompanies(customerCompanies);
                 if (customerCompanies.length > 0) {
@@ -129,6 +130,8 @@ const Catalog: React.FC = () => {
     );
   }, [products, searchQuery, companyIdFilter]);
 
+  const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
@@ -148,21 +151,33 @@ const Catalog: React.FC = () => {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
 
-          <div className="relative w-1/3 flex items-center">
-            <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
-            <select
-              id="company-filter"
-              value={companyIdFilter}
-              onChange={(e) => setCompanyIdFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            >
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {companies.length > 1 ? (
+            <div className="relative w-1/3 flex items-center">
+              {selectedCompany?.logoUrl && (
+                <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-2 rounded-full" />
+              )}
+              <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
+              <select
+                id="company-filter"
+                value={companyIdFilter}
+                onChange={(e) => setCompanyIdFilter(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+              >
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : companies.length === 1 && (
+            <div className="flex items-center">
+              {companies[0].logoUrl && (
+                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-2 rounded-full" />
+              )}
+              <span className="text-lg font-semibold text-gray-600">{companies[0].name}</span>
+            </div>
+          )}
         </div>
 
         {loading ? (
