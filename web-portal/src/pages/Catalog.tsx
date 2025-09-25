@@ -5,8 +5,9 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
+import FilterSidebar from '../components/FilterSidebar';
 
 const CACHE_KEY_PREFIX = 'user_products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -21,6 +22,8 @@ const Catalog: React.FC = () => {
   const [companies, setCompanies] = useState<{ id: string; name: string; logoUrl?: string }[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -132,13 +135,39 @@ const Catalog: React.FC = () => {
     }
   }, [products]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(product =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.sellerID === companyIdFilter) &&
-      (categoryFilter === '' || product.category === categoryFilter)
+  const filterableAttributes = useMemo(() => {
+    const attributes: Record<string, Set<string>> = {};
+    products.forEach(product => {
+      product.attributes?.forEach(attr => {
+        if (attr.type === 'filterable' && attr.key && attr.value) {
+          if (!attributes[attr.key]) {
+            attributes[attr.key] = new Set();
+          }
+          attributes[attr.key].add(attr.value);
+        }
+      });
+    });
+    return Object.fromEntries(
+      Object.entries(attributes).map(([key, valueSet]) => [key, Array.from(valueSet)])
     );
-  }, [products, searchQuery, companyIdFilter, categoryFilter]);
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const companyMatch = companyIdFilter === '' || product.sellerID === companyIdFilter;
+      const categoryMatch = categoryFilter === '' || product.category === categoryFilter;
+      const attributeMatch = Object.entries(attributeFilters).every(([key, value]) => {
+        if (!value) return true;
+        return product.attributes?.some(attr => attr.key === key && attr.value === value);
+      });
+      return nameMatch && companyMatch && categoryMatch && attributeMatch;
+    });
+  }, [products, searchQuery, companyIdFilter, categoryFilter, attributeFilters]);
+
+  const clearFilters = () => {
+    setAttributeFilters({});
+  };
 
   const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
 
@@ -146,22 +175,18 @@ const Catalog: React.FC = () => {
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
+      <FilterSidebar 
+        isOpen={isFilterOpen} 
+        onClose={() => setIsFilterOpen(false)}
+        filterableAttributes={filterableAttributes}
+        attributeFilters={attributeFilters}
+        setAttributeFilters={setAttributeFilters}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
         <div className="mb-6 flex space-x-4">
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by name..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          </div>
-
-          <div className="relative w-1/3">
+          <div className="relative w-1/6">
             <select
               id="category-filter"
               value={categoryFilter}
@@ -175,6 +200,21 @@ const Catalog: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <button onClick={() => setIsFilterOpen(true)} className="bg-gray p-2 rounded-md border border-gray-300">
+            Filters
+          </button>
+
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by name..."
+              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
 
           {companies.length > 1 ? (
@@ -213,7 +253,7 @@ const Catalog: React.FC = () => {
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-.white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
               >
                 <img
                   src={product.image || 'https://via.placeholder.com/300x200'}
@@ -224,6 +264,13 @@ const Catalog: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
                   {product.category && <p className="text-sm text-gray-500 mb-2">{product.category}</p>}
                   <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+                  <div className="mt-2">
+                    {product.attributes?.map(attr => (
+                      <div key={attr.key} className="text-xs">
+                        <span className="font-semibold">{attr.key}:</span> {attr.value}
+                      </div>
+                    ))}
+                  </div>
                   <div className="mt-2">
                     {product.discountedPrice && product.discountedPrice < product.price ? (
                       <>

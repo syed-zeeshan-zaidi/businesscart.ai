@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createProduct, getProducts, updateProduct, deleteProduct, getAccount } from '../api';
-import { Product, Account } from '../types';
+import { Product, Account, Attribute } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -28,6 +28,7 @@ const ProductForm = () => {
     sellerID: '',
     image: '',
     category: '',
+    attributes: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -116,6 +117,7 @@ const ProductForm = () => {
         description: '',
         sellerID: account?._id || '',
         category: '',
+        attributes: [],
       });
       setEditingId(null);
       setIsModalOpen(false);
@@ -137,6 +139,25 @@ const ProductForm = () => {
     });
   };
 
+  const handleAttributeChange = (index: number, field: keyof Attribute, value: string) => {
+    const newAttributes = [...(formData.attributes || [])];
+    newAttributes[index] = { ...newAttributes[index], [field]: value };
+    setFormData({ ...formData, attributes: newAttributes });
+  };
+
+  const addAttribute = () => {
+    setFormData({
+      ...formData,
+      attributes: [...(formData.attributes || []), { key: '', value: '', type: undefined }],
+    });
+  };
+
+  const removeAttribute = (index: number) => {
+    const newAttributes = [...(formData.attributes || [])];
+    newAttributes.splice(index, 1);
+    setFormData({ ...formData, attributes: newAttributes });
+  };
+
   const handleEdit = (product: Product) => {
     setFormData({
       name: product.name,
@@ -145,6 +166,7 @@ const ProductForm = () => {
       sellerID: product.sellerID,
       image: product.image,
       category: product.category,
+      attributes: product.attributes || [],
     });
     setEditingId(product._id);
     setIsModalOpen(true);
@@ -180,6 +202,7 @@ const ProductForm = () => {
       sellerID: account?._id || '',
       image: '',
       category: '',
+      attributes: [],
     });
     setEditingId(null);
     setErrors([]);
@@ -241,6 +264,7 @@ const ProductForm = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
@@ -253,6 +277,7 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product._id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.sellerID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
@@ -412,6 +437,50 @@ const ProductForm = () => {
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                           rows={4}
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Attributes</label>
+                        {formData.attributes?.map((attr, index) => (
+                          <div key={index} className="flex items-center space-x-2 mt-2">
+                            <input
+                              type="text"
+                              placeholder="Key"
+                              value={attr.key}
+                              onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Value"
+                              value={attr.value}
+                              onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md"
+                            />
+                            <select
+                              value={attr.type}
+                              onChange={(e) => handleAttributeChange(index, 'type', e.target.value as 'filterable' | 'system')}
+                              className="w-full p-2 border border-gray-300 rounded-md"
+                            >
+                              <option value="">None</option>
+                              <option value="filterable">Filterable</option>
+                              <option value="system">System</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => removeAttribute(index)}
+                              className="text-red-600"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addAttribute}
+                          className="mt-2 text-teal-600"
+                        >
+                          + Add Attribute
+                        </button>
                       </div>
                       <div className="mt-6 flex justify-end space-x-3">
                         <button

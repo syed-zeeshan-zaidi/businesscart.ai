@@ -34,6 +34,12 @@ export interface Account {
   password?: string;
 }
 
+export interface Attribute {
+  key: string;
+  value: string;
+  type?: 'filterable' | 'system';
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -43,6 +49,7 @@ export interface Product {
   sellerID: string;
   image?: string;
   category?: string;
+  attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
 }
