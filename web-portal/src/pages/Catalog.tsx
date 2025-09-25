@@ -8,6 +8,7 @@ import { Product } from '../types';
 import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 import FilterSidebar from '../components/FilterSidebar';
+import ProductDetailModal from '../components/ProductDetailModal';
 
 const CACHE_KEY_PREFIX = 'user_products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -24,6 +25,13 @@ const Catalog: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const openModal = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -66,10 +74,10 @@ const Catalog: React.FC = () => {
 
       const cacheKey = getCacheKey();
       if (cacheKey) {
-        localStorage.setItem(cacheKey, JSON.stringify({ 
-          products: fetchedProducts, 
+        localStorage.setItem(cacheKey, JSON.stringify({
+          products: fetchedProducts,
           account: fetchedAccount,
-          timestamp: Date.now() 
+          timestamp: Date.now()
         }));
       }
     } catch (err: any) {
@@ -182,6 +190,7 @@ const Catalog: React.FC = () => {
         attributeFilters={attributeFilters}
         setAttributeFilters={setAttributeFilters}
       />
+      <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
@@ -202,7 +211,7 @@ const Catalog: React.FC = () => {
             </select>
           </div>
 
-          <button onClick={() => setIsFilterOpen(true)} className="bg-gray p-2 rounded-md border border-gray-300">
+          <button onClick={() => setIsFilterOpen(true)} className="bg-white p-2 rounded-md border border-gray-300">
             Filters
           </button>
 
@@ -249,43 +258,40 @@ const Catalog: React.FC = () => {
         {loading ? (
           <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+                onClick={() => openModal(product)}
+                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
               >
-                <img
-                  src={product.image || 'https://via.placeholder.com/300x200'}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="h-48 bg-gray-200 flex items-center justify-center">
+                  <img
+                    src={product.image || 'https://via.placeholder.com/300x200'}
+                    alt={product.name}
+                    className="max-h-full max-w-full"
+                  />
+                </div>
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
-                  {product.category && <p className="text-sm text-gray-500 mb-2">{product.category}</p>}
-                  <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
-                  <div className="mt-2">
-                    {product.attributes?.map(attr => (
-                      <div key={attr.key} className="text-xs">
-                        <span className="font-semibold">{attr.key}:</span> {attr.value}
-                      </div>
-                    ))}
+                  <h2 className="text-xl font-semibold text-gray-800 truncate">{product.name}</h2>
+                  <p className="text-gray-500 text-sm">{product.category}</p>
+                  <div className="mt-4 flex justify-between items-center">
+                    <div>
+                      {product.discountedPrice && product.discountedPrice < product.price ? (
+                        <>
+                          <p className="text-teal-600 font-bold text-lg">
+                            ${product.discountedPrice.toFixed(2)}
+                          </p>
+                          <p className="text-gray-500 line-through text-sm">
+                            ${product.price.toFixed(2)}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
+                      )}
+                    </div>
+                    <AddToCartButton product={product} quantity={1} />
                   </div>
-                  <div className="mt-2">
-                    {product.discountedPrice && product.discountedPrice < product.price ? (
-                      <>
-                        <p className="text-teal-600 font-bold text-lg">
-                          ${product.discountedPrice.toFixed(2)}
-                        </p>
-                        <p className="text-gray-500 line-through text-sm">
-                          ${product.price.toFixed(2)}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
-                    )}
-                  </div>
-                  <AddToCartButton product={product} quantity={1} />
                 </div>
               </div>
             ))}

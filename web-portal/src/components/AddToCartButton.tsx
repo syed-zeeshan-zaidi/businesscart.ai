@@ -3,13 +3,15 @@ import { toast } from 'react-hot-toast';
 import { Product } from '../types';
 import { addItemToCart } from '../api';
 import { AxiosError } from 'axios';
+import { PlusIcon } from '@heroicons/react/24/solid';
 
 interface AddToCartButtonProps {
   product: Product;
   quantity: number;
+  variant?: 'card' | 'modal';
 }
 
-const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity }) => {
+const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity, variant = 'card' }) => {
   const [loading, setLoading] = useState(false);
 
   const handleAddToCart = async () => {
@@ -39,16 +41,26 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity }) 
     }
   };
 
+  const cardClassName = "group relative flex items-center justify-center w-10 h-10 bg-teal-600 text-white rounded-full hover:w-32 transition-all duration-300 ease-in-out";
+  const modalClassName = "mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition";
+
   return (
     <button
-      className="mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition"
+      className={variant === 'card' ? cardClassName : modalClassName}
       onClick={(e) => {
         e.stopPropagation(); // Prevent product card's onClick from firing
         handleAddToCart();
       }}
       disabled={loading}
     >
-      {loading ? 'Adding...' : 'Add to Cart'}
+      {loading ? 'Adding...' : (variant === 'card' ? (
+        <>
+          <PlusIcon className="h-6 w-6 transition-opacity duration-300 group-hover:opacity-0" />
+          <span className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            Add to Cart
+          </span>
+        </>
+      ) : 'Add to Cart')}
     </button>
   );
 };
