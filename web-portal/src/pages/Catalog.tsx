@@ -19,6 +19,8 @@ const Catalog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
   const [companies, setCompanies] = useState<{ id: string; name: string; logoUrl?: string }[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -123,12 +125,20 @@ const Catalog: React.FC = () => {
     loadData();
   }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
+  useEffect(() => {
+    if (products.length > 0) {
+      const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean) as string[]));
+      setCategories(uniqueCategories);
+    }
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.sellerID === companyIdFilter)
+      (companyIdFilter === '' || product.sellerID === companyIdFilter) &&
+      (categoryFilter === '' || product.category === categoryFilter)
     );
-  }, [products, searchQuery, companyIdFilter]);
+  }, [products, searchQuery, companyIdFilter, categoryFilter]);
 
   const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
 
@@ -149,6 +159,22 @@ const Catalog: React.FC = () => {
               className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
             />
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="relative w-1/3">
+            <select
+              id="category-filter"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </div>
 
           {companies.length > 1 ? (
@@ -196,6 +222,7 @@ const Catalog: React.FC = () => {
                 />
                 <div className="p-4">
                   <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
+                  {product.category && <p className="text-sm text-gray-500 mb-2">{product.category}</p>}
                   <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
                   <div className="mt-2">
                     {product.discountedPrice && product.discountedPrice < product.price ? (

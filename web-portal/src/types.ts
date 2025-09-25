@@ -42,6 +42,7 @@ export interface Product {
   discountedPrice?: number;
   sellerID: string;
   image?: string;
+  category?: string;
   createdAt: Date;
   updatedAt: Date;
 }

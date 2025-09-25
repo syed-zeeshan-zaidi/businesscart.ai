@@ -27,6 +27,7 @@ const ProductForm = () => {
     description: '',
     sellerID: '',
     image: '',
+    category: '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -114,6 +115,7 @@ const ProductForm = () => {
         price: 0,
         description: '',
         sellerID: account?._id || '',
+        category: '',
       });
       setEditingId(null);
       setIsModalOpen(false);
@@ -142,6 +144,7 @@ const ProductForm = () => {
       description: product.description,
       sellerID: product.sellerID,
       image: product.image,
+      category: product.category,
     });
     setEditingId(product._id);
     setIsModalOpen(true);
@@ -176,6 +179,7 @@ const ProductForm = () => {
       description: '',
       sellerID: account?._id || '',
       image: '',
+      category: '',
     });
     setEditingId(null);
     setErrors([]);
@@ -236,6 +240,7 @@ const ProductForm = () => {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
@@ -247,6 +252,7 @@ const ProductForm = () => {
                     <tr key={product._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product._id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.sellerID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
@@ -350,6 +356,16 @@ const ProductForm = () => {
                           value={formData.name}
                           onChange={handleChange}
                           placeholder="Product Name"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Category</label>
+                        <input
+                          name="category"
+                          value={formData.category}
+                          onChange={handleChange}
+                          placeholder="Category"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
