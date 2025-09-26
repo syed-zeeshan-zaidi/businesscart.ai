@@ -34,6 +34,12 @@ export interface Account {
   password?: string;
 }
 
+export interface Attribute {
+  key: string;
+  value: string;
+  type?: 'filterable' | 'system';
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -42,6 +48,8 @@ export interface Product {
   discountedPrice?: number;
   sellerID: string;
   image?: string;
+  category?: string;
+  attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +114,7 @@ export type ShippingOutOption = 'standard' | 'express';
 export interface CompanyData {
   _id?: string;
   name: string;
+  logoUrl?: string;
   status: string;
   uniqueIdentifier?: string;
   saleRepresentative?: string;

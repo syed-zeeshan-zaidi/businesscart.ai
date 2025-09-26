@@ -5,8 +5,10 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
+import FilterSidebar from '../components/FilterSidebar';
+import ProductDetailModal from '../components/ProductDetailModal';
 
 const CACHE_KEY_PREFIX = 'user_products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -18,7 +20,18 @@ const Catalog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string; logoUrl?: string }[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const openModal = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
 
   const getCacheKey = useCallback(() => {
     const token = localStorage.getItem('accessToken');
@@ -38,7 +51,6 @@ const Catalog: React.FC = () => {
       const token = localStorage.getItem('accessToken');
       if (!token) throw new Error('Not authenticated');
       const decodedUser = decodeJWT(token);
-      console.log('Decoded user Catalog :', decodedUser);
       if (!decodedUser || !decodedUser.id) throw new Error('Could not decode user from token');
 
       const [fetchedProducts, fetchedAccount] = await Promise.all([
@@ -52,6 +64,7 @@ const Catalog: React.FC = () => {
         const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
           id: c.companyCodeId,
           name: c.name,
+          logoUrl: c.logoUrl,
         }));
         setCompanies(customerCompanies);
         if (customerCompanies.length > 0) {
@@ -61,10 +74,10 @@ const Catalog: React.FC = () => {
 
       const cacheKey = getCacheKey();
       if (cacheKey) {
-        localStorage.setItem(cacheKey, JSON.stringify({ 
-          products: fetchedProducts, 
+        localStorage.setItem(cacheKey, JSON.stringify({
+          products: fetchedProducts,
           account: fetchedAccount,
-          timestamp: Date.now() 
+          timestamp: Date.now()
         }));
       }
     } catch (err: any) {
@@ -105,6 +118,7 @@ const Catalog: React.FC = () => {
                 const customerCompanies = cachedAccount.customer.attachedCompanies.map((c: any) => ({
                   id: c.companyCodeId,
                   name: c.name,
+                  logoUrl: c.logoUrl,
                 }));
                 setCompanies(customerCompanies);
                 if (customerCompanies.length > 0) {
@@ -122,21 +136,85 @@ const Catalog: React.FC = () => {
     loadData();
   }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(product =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (companyIdFilter === '' || product.sellerID === companyIdFilter)
+  useEffect(() => {
+    if (products.length > 0) {
+      const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean) as string[]));
+      setCategories(uniqueCategories);
+    }
+  }, [products]);
+
+  const filterableAttributes = useMemo(() => {
+    const attributes: Record<string, Set<string>> = {};
+    products.forEach(product => {
+      product.attributes?.forEach(attr => {
+        if (attr.type === 'filterable' && attr.key && attr.value) {
+          if (!attributes[attr.key]) {
+            attributes[attr.key] = new Set();
+          }
+          attributes[attr.key].add(attr.value);
+        }
+      });
+    });
+    return Object.fromEntries(
+      Object.entries(attributes).map(([key, valueSet]) => [key, Array.from(valueSet)])
     );
-  }, [products, searchQuery, companyIdFilter]);
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const companyMatch = companyIdFilter === '' || product.sellerID === companyIdFilter;
+      const categoryMatch = categoryFilter === '' || product.category === categoryFilter;
+      const attributeMatch = Object.entries(attributeFilters).every(([key, value]) => {
+        if (!value) return true;
+        return product.attributes?.some(attr => attr.key === key && attr.value === value);
+      });
+      return nameMatch && companyMatch && categoryMatch && attributeMatch;
+    });
+  }, [products, searchQuery, companyIdFilter, categoryFilter, attributeFilters]);
+
+  const clearFilters = () => {
+    setAttributeFilters({});
+  };
+
+  const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
+      <FilterSidebar 
+        isOpen={isFilterOpen} 
+        onClose={() => setIsFilterOpen(false)}
+        filterableAttributes={filterableAttributes}
+        attributeFilters={attributeFilters}
+        setAttributeFilters={setAttributeFilters}
+      />
+      <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
         <div className="mb-6 flex space-x-4">
+          <div className="relative w-1/6">
+            <select
+              id="category-filter"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            >
+              <option value="">All Categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button onClick={() => setIsFilterOpen(true)} className="bg-gray-200 p-2 rounded-md border border-gray-300">
+            Filters
+          </button>
+
           <div className="relative flex-grow">
             <input
               type="text"
@@ -148,55 +226,72 @@ const Catalog: React.FC = () => {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
 
-          <div className="relative w-1/3 flex items-center">
-            <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
-            <select
-              id="company-filter"
-              value={companyIdFilter}
-              onChange={(e) => setCompanyIdFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            >
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {companies.length > 1 ? (
+            <div className="relative w-1/3 flex items-center">
+              {selectedCompany?.logoUrl && (
+                <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-2 rounded-full" />
+              )}
+              <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
+              <select
+                id="company-filter"
+                value={companyIdFilter}
+                onChange={(e) => setCompanyIdFilter(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+              >
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : companies.length === 1 && (
+            <div className="flex items-center">
+              {companies[0].logoUrl && (
+                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-2 rounded-full" />
+              )}
+              <span className="text-lg font-semibold text-gray-600">{companies[0].name}</span>
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
-                className="bg-.white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition"
+                onClick={() => openModal(product)}
+                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
               >
-                <img
-                  src={product.image || 'https://via.placeholder.com/300x200'}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="h-48 bg-gray-200 flex items-center justify-center">
+                  <img
+                    src={product.image || 'https://via.placeholder.com/300x200'}
+                    alt={product.name}
+                    className="max-h-full max-w-full"
+                  />
+                </div>
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-800">{product.name}</h2>
-                  <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
-                  <div className="mt-2">
-                    {product.discountedPrice && product.discountedPrice < product.price ? (
-                      <>
-                        <p className="text-teal-600 font-bold text-lg">
-                          ${product.discountedPrice.toFixed(2)}
-                        </p>
-                        <p className="text-gray-500 line-through text-sm">
-                          ${product.price.toFixed(2)}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
-                    )}
+                  <h2 className="text-xl font-semibold text-gray-800 truncate">{product.name}</h2>
+                  <p className="text-gray-500 text-sm">{product.category}</p>
+                  <div className="mt-4 flex justify-between items-center">
+                    <div>
+                      {product.discountedPrice && product.discountedPrice < product.price ? (
+                        <>
+                          <p className="text-teal-600 font-bold text-lg">
+                            ${product.discountedPrice.toFixed(2)}
+                          </p>
+                          <p className="text-gray-500 line-through text-sm">
+                            ${product.price.toFixed(2)}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
+                      )}
+                    </div>
+                    <AddToCartButton product={product} quantity={1} />
                   </div>
-                  <AddToCartButton product={product} quantity={1} />
                 </div>
               </div>
             ))}

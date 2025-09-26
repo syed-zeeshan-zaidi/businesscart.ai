@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -9,63 +11,77 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+/* ---------- GLOBAL POOLED CLIENT ---------- */
+var (
+	once    sync.Once
+	client  *mongo.Client
+	connErr error
+)
+
+// Client returns the SAME *mongo.Client for the lifetime of the Lambda runtime.
+func Client(uri string) (*mongo.Client, error) {
+	once.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		client, connErr = mongo.Connect(ctx, options.Client().
+			ApplyURI(uri).
+			SetMaxPoolSize(5). // small pool
+			SetMinPoolSize(1)) // keep 1 warm
+	})
+	return client, connErr
+}
+
+/* ---------- DB TYPE (unchanged signature) ---------- */
 type DB struct {
 	client            *mongo.Client
 	accounts          *mongo.Collection
 	codes             *mongo.Collection
 	refreshtokens     *mongo.Collection
 	blacklistedtokens *mongo.Collection
-	// New collections
 	companyLocations  *mongo.Collection
 	customerAddresses *mongo.Collection
 }
 
+/* ---------- NEWDB ---------- */
 func NewDB(mongoURI string) (*DB, error) {
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongoURI))
+	c, err := Client(mongoURI) // <-- reuse global
 	if err != nil {
 		return nil, err
 	}
-
-	db := client.Database("AccountService")
+	db := c.Database("AccountService")
 	return &DB{
-		client:            client,
+		client:            c,
 		accounts:          db.Collection("accounts"),
 		codes:             db.Collection("codes"),
 		refreshtokens:     db.Collection("refreshtokens"),
 		blacklistedtokens: db.Collection("blacklistedtokens"),
-		// Initialize new collections
 		companyLocations:  db.Collection("company_locations"),
 		customerAddresses: db.Collection("customer_addresses"),
 	}, nil
 }
 
-/* ---------- CODES ---------- */
+/* ---------- EXACT SAME METHODS (no change) ---------- */
 
-// CreateCode inserts a new code document.
 func (db *DB) CreateCode(code *Code) error {
 	_, err := db.codes.InsertOne(context.Background(), code)
 	return err
 }
 
-// GetCode returns the first code matching the filter.
 func (db *DB) GetCode(filter bson.M) (*Code, error) {
 	var c Code
 	err := db.codes.FindOne(context.Background(), filter).Decode(&c)
 	return &c, err
 }
 
-// UpdateCode applies partial updates to an existing code document.
 func (db *DB) UpdateCode(id primitive.ObjectID, update bson.M) error {
 	_, err := db.codes.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": update})
 	return err
 }
 
-// CountCodes returns the number of codes matching the filter.
 func (db *DB) CountCodes(filter bson.M) (int64, error) {
 	return db.codes.CountDocuments(context.Background(), filter)
 }
 
-// GetCodes returns all codes matching the filter.
 func (db *DB) GetCodes(filter bson.M) ([]*Code, error) {
 	cursor, err := db.codes.Find(context.Background(), filter)
 	if err != nil {
@@ -119,8 +135,6 @@ func (db *DB) GetAccounts(filter bson.M) ([]*Account, error) {
 	return accounts, err
 }
 
-// GetAccountCompaniesDataByIDs returns all *company* accounts whose _id
-// matches any of the provided IDs.
 func (db *DB) GetAccountCompaniesDataByIDs(ids []primitive.ObjectID) ([]*Account, error) {
 	if len(ids) == 0 {
 		return []*Account{}, nil
@@ -139,7 +153,6 @@ func (db *DB) GetAccountCompaniesDataByIDs(ids []primitive.ObjectID) ([]*Account
 	return out, nil
 }
 
-// UpdateCustomerConfiguration updates a specific customer's configuration for a given company.
 func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, companyID string, config *CustomerConfiguration) error {
 	filter := bson.M{"_id": customerID}
 	update := bson.M{
@@ -151,34 +164,23 @@ func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, company
 		},
 	})
 
-	result, err := db.accounts.UpdateOne(context.Background(), filter, update, arrayFilters)
-	if err != nil {
-		return err
-	}
-
-	// Optionally, check if a document was actually modified.
-	// If result.ModifiedCount == 0, it means the customer or the specific codeId was not found.
-	_ = result // result can be used for logging or more specific error handling
-
-	return nil
+	_, err := db.accounts.UpdateOne(context.Background(), filter, update, arrayFilters)
+	return err
 }
 
 /* ---------- COMPANY LOCATIONS ---------- */
 
-// CreateCompanyLocation inserts a new company location document.
 func (db *DB) CreateCompanyLocation(location *CompanyLocation) error {
 	_, err := db.companyLocations.InsertOne(context.Background(), location)
 	return err
 }
 
-// GetCompanyLocation returns the first company location matching the filter.
 func (db *DB) GetCompanyLocation(filter bson.M) (*CompanyLocation, error) {
 	var cl CompanyLocation
 	err := db.companyLocations.FindOne(context.Background(), filter).Decode(&cl)
 	return &cl, err
 }
 
-// GetCompanyLocations returns all company locations matching the filter.
 func (db *DB) GetCompanyLocations(filter bson.M) ([]*CompanyLocation, error) {
 	cursor, err := db.companyLocations.Find(context.Background(), filter)
 	if err != nil {
@@ -191,13 +193,11 @@ func (db *DB) GetCompanyLocations(filter bson.M) ([]*CompanyLocation, error) {
 	return locations, err
 }
 
-// UpdateCompanyLocation replaces an existing company location document.
 func (db *DB) UpdateCompanyLocation(id primitive.ObjectID, location *CompanyLocation) error {
 	_, err := db.companyLocations.ReplaceOne(context.Background(), bson.M{"_id": id}, location)
 	return err
 }
 
-// DeleteCompanyLocation deletes a company location document.
 func (db *DB) DeleteCompanyLocation(id primitive.ObjectID) error {
 	_, err := db.companyLocations.DeleteOne(context.Background(), bson.M{"_id": id})
 	return err
@@ -205,20 +205,17 @@ func (db *DB) DeleteCompanyLocation(id primitive.ObjectID) error {
 
 /* ---------- CUSTOMER ADDRESSES ---------- */
 
-// CreateCustomerAddress inserts a new customer address document.
 func (db *DB) CreateCustomerAddress(address *CustomerAddress) error {
 	_, err := db.customerAddresses.InsertOne(context.Background(), address)
 	return err
 }
 
-// GetCustomerAddress returns the first customer address matching the filter.
 func (db *DB) GetCustomerAddress(filter bson.M) (*CustomerAddress, error) {
 	var ca CustomerAddress
 	err := db.customerAddresses.FindOne(context.Background(), filter).Decode(&ca)
 	return &ca, err
 }
 
-// GetCustomerAddresses returns all customer addresses matching the filter.
 func (db *DB) GetCustomerAddresses(filter bson.M) ([]*CustomerAddress, error) {
 	cursor, err := db.customerAddresses.Find(context.Background(), filter)
 	if err != nil {
@@ -231,13 +228,11 @@ func (db *DB) GetCustomerAddresses(filter bson.M) ([]*CustomerAddress, error) {
 	return addresses, err
 }
 
-// UpdateCustomerAddress replaces an existing customer address document.
 func (db *DB) UpdateCustomerAddress(id primitive.ObjectID, address *CustomerAddress) error {
 	_, err := db.customerAddresses.ReplaceOne(context.Background(), bson.M{"_id": id}, address)
 	return err
 }
 
-// DeleteCustomerAddress deletes a customer address document.
 func (db *DB) DeleteCustomerAddress(id primitive.ObjectID) error {
 	_, err := db.customerAddresses.DeleteOne(context.Background(), bson.M{"_id": id})
 	return err

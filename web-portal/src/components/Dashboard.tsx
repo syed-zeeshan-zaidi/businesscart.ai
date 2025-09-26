@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import axios from 'axios';
 import Navbar from './Navbar';
 import { useAuth } from '../hooks/useAuth';
+import { getProducts } from '../api'; // Import the correct API function
 
 interface User {
   id: string;
@@ -66,16 +66,11 @@ const Dashboard: React.FC = () => {
             return;
           }
         }
-        const token = localStorage.getItem('accessToken');
-        if (!token) {
-          throw new Error('No access token found');
-        }
-        const response = await axios.get(`${import.meta.env.VITE_PRODUCT_API}/products`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = response.data.products;
-        setProductCount(data.length);
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+        
+        const products = await getProducts(); // Use the correct API function
+        
+        setProductCount(products.length);
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() }));
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Error fetching products');
       } finally {

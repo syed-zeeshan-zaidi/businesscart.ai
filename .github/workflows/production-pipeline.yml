@@ -53,3 +53,45 @@ jobs:
             go vet ./...
             cd ..
           done
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-lint
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: CDK Synth
+        run: npx cpx cdk synth --all --context stage=prod
+
+      - name: CDK Deploy
+        run: npx cdk deploy --all --context stage=prod --require-approval never
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          STACK_NAME="BusinessCart-prod"
+          DISTRIBUTION_ID_OUTPUT_KEY="CloudFrontDistributionId"
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='$DISTRIBUTION_ID_OUTPUT_KEY'].OutputValue" --output text)
+          if [ -z "$DISTRIBUTION_ID" ]; then
+            echo "CloudFront Distribution ID not found in stack outputs."
+            exit 1
+          fi
+          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
