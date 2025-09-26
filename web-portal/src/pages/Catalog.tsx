@@ -5,7 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 import FilterSidebar from '../components/FilterSidebar';
 import ProductDetailModal from '../components/ProductDetailModal';
@@ -254,6 +254,28 @@ const Catalog: React.FC = () => {
             </div>
           )}
         </div>
+
+        {Object.values(attributeFilters).some(v => v) && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap items-center gap-2">
+              {Object.entries(attributeFilters).map(([key, value]) => value ? (
+                <div key={key} className="bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 flex items-center">
+                  <span>{key}: <strong>{value}</strong></span>
+                  <button 
+                    onClick={() => setAttributeFilters(prev => ({ ...prev, [key]: '' }))} 
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                    aria-label={`Remove ${key} filter`}
+                  >
+                    &#10005;
+                  </button>
+                </div>
+              ) : null)}
+              <button onClick={clearFilters} className="text-sm text-teal-600 hover:underline">
+                Clear All
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
