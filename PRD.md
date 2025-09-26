@@ -127,4 +127,23 @@ A suite of bash scripts is available for end-to-end testing of the running appli
 *   **CI/CD**: Add a `staging` environment to the CD pipeline to test changes before deploying to production. Automate the production deployment step in the `production-pipeline.yml` workflow.
 *   **Monitoring**: Implement comprehensive monitoring and alarming for all production Lambda functions and the API Gateway (e.g., error rates, latency, invocation metrics).
 *   **Testing**: Increase unit and integration test coverage across all services.
-*   **Services**: Implement the full logic for the placeholder services (e.g., integrate with a real payment gateway).
+## 8. Production Pipeline Workflow
+
+The production pipeline is defined in `.github/workflows/production-pipeline.yml` and is crucial for maintaining the integrity of the `main` branch.
+
+*   **Trigger**: This workflow is automatically triggered on every `push` to the `main` branch.
+*   **Purpose**: It acts as a quality gate to ensure that the codebase on the `main` branch is always in a buildable, well-formatted, and lint-free state, making it ready for deployment at any time.
+
+### 8.1. Pipeline Steps
+
+1.  **Environment Setup**: The workflow begins by setting up a clean `ubuntu-latest` environment.
+2.  **Checkout Code**: It checks out the latest version of the code from the `main` branch.
+3.  **Setup Node.js and Go**: It installs and configures the required versions of Node.js (v18) and Go (v1.23), enabling caching for faster dependency resolution in subsequent runs.
+4.  **Install Dependencies**: It runs `npm install` at the root and in the `web-portal` directory to fetch all necessary Node.js packages.
+5.  **Build**: It compiles the root project and the `web-portal` using `npm run build`.
+6.  **Lint**: It runs linters on the `web-portal` (`npm run lint`) to enforce code quality standards.
+7.  **Build and Lint Go Services**: The workflow iterates through each Go microservice (`account-service`, `catalog-service`, `checkout-service`) to:
+    *   Tidy dependencies (`go mod tidy`).
+    *   Build the service into an executable (`go build`).
+    *   Format the code (`go fmt ./...`).
+    *   Vet the code for potential issues (`go vet ./...`).

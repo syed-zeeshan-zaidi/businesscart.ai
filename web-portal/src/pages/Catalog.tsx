@@ -211,7 +211,7 @@ const Catalog: React.FC = () => {
             </select>
           </div>
 
-          <button onClick={() => setIsFilterOpen(true)} className="bg-white p-2 rounded-md border border-gray-300">
+          <button onClick={() => setIsFilterOpen(true)} className="bg-gray-200 p-2 rounded-md border border-gray-300">
             Filters
           </button>
 
