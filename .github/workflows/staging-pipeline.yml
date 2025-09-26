@@ -1,0 +1,29 @@
+name: Staging Pipeline
+
+on:
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  call-build-and-lint:
+    name: Build, Lint, and Test
+    uses: ./.github/workflows/code-quality.yml
+
+  validate-cdk:
+    name: Validate CDK Stack
+    runs-on: ubuntu-latest
+    needs: call-build-and-lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: CDK Synth
+        run: npx cdk synth -c stage=local
