@@ -163,17 +163,10 @@ export class BusinessCartStack extends cdk.Stack {
     const portalBucket = new s3.Bucket(this, 'WebPortalBucket', {
       bucketName: `web-portal-bucket-${props.stage}`,
       websiteIndexDocument: 'index.html',
-      publicReadAccess: true,
       versioned: false,
       intelligentTieringConfigurations: [
         // { name: 'FreeTier', prefix: 'web-portal/' },
       ],
-      blockPublicAccess: new s3.BlockPublicAccess({
-        blockPublicAcls: false,
-        blockPublicPolicy: false,
-        ignorePublicAcls: false,
-        restrictPublicBuckets: false,
-      }),
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
