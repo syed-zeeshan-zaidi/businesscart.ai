@@ -80,7 +80,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: CDK Synth
-        run: npx cpx cdk synth --all --context stage=prod
+        run: npx cdk synth --all --context stage=prod
 
       - name: CDK Deploy
         run: npx cdk deploy --all --context stage=prod --require-approval never
