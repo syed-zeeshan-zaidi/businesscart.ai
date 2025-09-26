@@ -5,59 +5,14 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-lint:
+  call-build-and-lint:
     name: Build and Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache: true
-          cache-dependency-path: '**/go.sum'
-
-      - name: Install root dependencies
-        run: npm install
-
-      - name: Build root
-        run: npm run build
-
-      - name: Install web-portal dependencies
-        working-directory: web-portal
-        run: npm install
-
-      - name: Build web-portal
-        working-directory: web-portal
-        run: npm run build
-
-      - name: Lint web-portal
-        working-directory: web-portal
-        run: npm run lint
-
-      - name: Build and Lint Go Services
-        run: |
-          for service in account-service catalog-service checkout-service; do
-            echo "Building and linting $service"
-            cd $service
-            go mod tidy
-            go build -o main ./cmd/server/main.go
-            go fmt ./...
-            go vet ./...
-            cd ..
-          done
+    uses: ./.github/workflows/code-quality.yml
 
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: build-and-lint
+    needs: call-build-and-lint
     permissions:
       id-token: write
       contents: read
@@ -87,7 +42,7 @@ jobs:
 
       - name: Invalidate CloudFront Cache
         run: |
-          STACK_NAME="BusinessCart-prod"
+          STACK_NAME="BusinessCartStack-prod"
           DISTRIBUTION_ID_OUTPUT_KEY="CloudFrontDistributionId"
           DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='$DISTRIBUTION_ID_OUTPUT_KEY'].OutputValue" --output text)
           if [ -z "$DISTRIBUTION_ID" ]; then
