@@ -39,14 +39,3 @@ jobs:
 
       - name: CDK Deploy
         run: npx cdk deploy --all --context stage=prod --require-approval never
-
-      - name: Invalidate CloudFront Cache
-        run: |
-          STACK_NAME="BusinessCartStack-prod"
-          DISTRIBUTION_ID_OUTPUT_KEY="CloudFrontDistributionId"
-          DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='$DISTRIBUTION_ID_OUTPUT_KEY'].OutputValue" --output text)
-          if [ -z "$DISTRIBUTION_ID" ]; then
-            echo "CloudFront Distribution ID not found in stack outputs."
-            exit 1
-          fi
-          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
