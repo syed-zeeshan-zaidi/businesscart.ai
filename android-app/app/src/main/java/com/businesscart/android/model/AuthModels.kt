@@ -36,7 +36,8 @@ data class CompanyData(
     val companyCode: String,
     val sellingArea: SellingArea,
     val address: Address,
-    val companyLocations: List<CompanyLocation>?
+    val companyLocations: List<CompanyLocation>?,
+    val logoUrl: String?
 )
 
 data class SellingArea(

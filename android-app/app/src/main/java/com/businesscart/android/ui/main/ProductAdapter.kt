@@ -1,5 +1,6 @@
 package com.businesscart.android.ui.main
 
+import android.content.Intent
 import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +15,7 @@ import com.squareup.picasso.Picasso
 
 class ProductAdapter(
     private val products: List<Product>,
-    private val onAddToCartClick: (Product) -> Unit
+    private val onProductClick: (Product) -> Unit
 ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -41,8 +42,8 @@ class ProductAdapter(
             Picasso.get().load(product.image).into(holder.productImage)
         }
 
-        holder.addToCartButton.setOnClickListener {
-            onAddToCartClick(product)
+        holder.itemView.setOnClickListener {
+            onProductClick(product)
         }
     }
 

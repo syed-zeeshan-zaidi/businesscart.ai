@@ -130,9 +130,7 @@ class CartActivity : AppCompatActivity() {
                         companiesMap.clear()
                         it.forEach { company ->
                             val id = company.companyCodeId ?: company.companyCode
-                            if (id != null) {
-                                companiesMap[id] = company
-                            }
+                            companiesMap[id] = company
                         }
                         val companyNames = it.map { company -> company.name }
                         val adapter = ArrayAdapter(this@CartActivity, android.R.layout.simple_spinner_item, companyNames)
