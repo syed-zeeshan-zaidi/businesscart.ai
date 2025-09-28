@@ -15,7 +15,8 @@ import com.squareup.picasso.Picasso
 
 class ProductAdapter(
     private val products: List<Product>,
-    private val onProductClick: (Product) -> Unit
+    private val onProductClick: (Product) -> Unit,
+    private val onAddToCartClick: (Product) -> Unit
 ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -44,6 +45,10 @@ class ProductAdapter(
 
         holder.itemView.setOnClickListener {
             onProductClick(product)
+        }
+
+        holder.addToCartButton.setOnClickListener {
+            onAddToCartClick(product)
         }
     }
 

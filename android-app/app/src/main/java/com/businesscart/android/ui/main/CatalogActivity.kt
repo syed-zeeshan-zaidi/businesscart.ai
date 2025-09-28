@@ -24,6 +24,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.R
 import com.businesscart.android.api.RetrofitClient
+import com.businesscart.android.model.AddItemToCartRequest
+import com.businesscart.android.model.CartItem
 import com.businesscart.android.model.CompanyData
 import com.businesscart.android.model.Product
 import com.businesscart.android.ui.account.AccountActivity
@@ -206,31 +208,35 @@ class CatalogActivity : AppCompatActivity() {
     }
 
     private fun updateCompanyUI() {
-        when {
-            companies.size > 1 -> {
-                companySpinner.visibility = View.VISIBLE
-                singleCompanyDisplay.visibility = View.GONE
-                val companyNames = companies.map { it.name }
-                val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, companyNames)
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                companySpinner.adapter = adapter
-                selectedCompanyId = companies.first().companyCodeId
-            }
-            companies.size == 1 -> {
-                companySpinner.visibility = View.GONE
-                singleCompanyDisplay.visibility = View.VISIBLE
-                val company = companies.first()
-                selectedCompanyId = company.companyCodeId
-                companyNameTextView.text = company.name
-                if (company.logoUrl?.isNotEmpty() == true) {
-                    Picasso.get().load(company.logoUrl).into(companyLogoImageView)
-                }
-            }
-            else -> {
-                companySpinner.visibility = View.GONE
-                singleCompanyDisplay.visibility = View.GONE
-                selectedCompanyId = null
-            }
+        // 1. Make sure we have at least one company
+        if (companies.isEmpty()) {
+            companySpinner.visibility = View.GONE
+            singleCompanyDisplay.visibility = View.GONE
+            selectedCompanyId = null
+            return
+        }
+
+        // 2. Decide which UI element to show
+        if (companies.size > 1) {
+            companySpinner.visibility = View.VISIBLE
+            singleCompanyDisplay.visibility = View.GONE          // spinner is enough
+            val companyNames = companies.map { it.name }
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, companyNames)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            companySpinner.adapter = adapter
+        } else {
+            companySpinner.visibility = View.GONE
+            singleCompanyDisplay.visibility = View.VISIBLE
+        }
+
+        // 3. Always load the logo for the currently-selected company
+        val current = companies.firstOrNull { it.companyCodeId == selectedCompanyId } ?: companies.first()
+        selectedCompanyId = current.companyCodeId          // make sure it is never null here
+        companyNameTextView.text = current.name
+        if (!current.logoUrl.isNullOrEmpty()) {
+            Picasso.get().load(current.logoUrl).into(companyLogoImageView)
+        } else {
+            companyLogoImageView.setImageResource(0)       // or a placeholder
         }
     }
 
@@ -280,7 +286,7 @@ class CatalogActivity : AppCompatActivity() {
 
     private fun filter() {
         if (selectedCompanyId == null) {
-            productAdapter = ProductAdapter(emptyList()) {}
+            productAdapter = ProductAdapter(emptyList(), {}, {})
             recyclerView.adapter = productAdapter
             return
         }
@@ -295,11 +301,36 @@ class CatalogActivity : AppCompatActivity() {
             companyMatch && searchMatch && categoryMatch && attributeMatch
         }
         
-        productAdapter = ProductAdapter(filteredList) { product: Product ->
+        productAdapter = ProductAdapter(filteredList, { product: Product ->
             val intent = Intent(this, ProductDetailActivity::class.java)
             intent.putExtra("PRODUCT_EXTRA", product)
             startActivity(intent)
-        }
+        }, { product: Product ->
+            lifecycleScope.launch {
+                try {
+                    val cartItem = CartItem(
+                        id = null,
+                        productId = product.id,
+                        quantity = 1,
+                        sellerId = product.sellerId,
+                        name = product.name,
+                        price = product.price,
+                        discountedPrice = product.discountedPrice,
+                        lineItemTotal = product.discountedPrice ?: product.price
+                    )
+                    val request = AddItemToCartRequest(entity = cartItem)
+                    val response = RetrofitClient.checkoutApiService.addItemToCart(request)
+                    if (response.isSuccessful) {
+                        Toast.makeText(this@CatalogActivity, "${product.name} added to cart", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@CatalogActivity, "Failed to add item to cart", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to add item to cart", e)
+                    Toast.makeText(this@CatalogActivity, "An error occurred", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
         recyclerView.adapter = productAdapter
     }
 }
