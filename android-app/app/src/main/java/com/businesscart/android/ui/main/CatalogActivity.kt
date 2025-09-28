@@ -12,6 +12,7 @@ import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -38,7 +39,6 @@ class CatalogActivity : AppCompatActivity() {
 
     private val TAG = "CatalogActivity"
     private lateinit var recyclerView: RecyclerView
-    private lateinit var companySpinner: Spinner
     private lateinit var categorySpinner: Spinner
     private lateinit var searchView: SearchView
     private lateinit var filterButton: ImageView
@@ -50,6 +50,7 @@ class CatalogActivity : AppCompatActivity() {
     private lateinit var singleCompanyDisplay: LinearLayout
     private lateinit var companyLogoImageView: ImageView
     private lateinit var companyNameTextView: TextView
+    private lateinit var dropdownArrow: ImageView
     private lateinit var sessionManager: SessionManager
 
     private var productList = listOf<Product>()
@@ -72,7 +73,6 @@ class CatalogActivity : AppCompatActivity() {
 
         sessionManager = SessionManager(this)
         recyclerView = findViewById(R.id.recyclerView)
-        companySpinner = findViewById(R.id.companySpinner)
         categorySpinner = findViewById(R.id.categorySpinner)
         searchView = findViewById(R.id.searchView)
         progressBar = findViewById(R.id.progressBar)
@@ -83,11 +83,13 @@ class CatalogActivity : AppCompatActivity() {
         singleCompanyDisplay = findViewById(R.id.singleCompanyDisplay)
         companyLogoImageView = findViewById(R.id.companyLogoImageView)
         companyNameTextView = findViewById(R.id.companyNameTextView)
+        dropdownArrow = findViewById(R.id.dropdownArrow)
 
         setupRecyclerView()
-        setupSpinners()
+        setupCategorySpinner()
         setupSearchView()
         setupFilterButton()
+        setupCompanySelector()
         fetchData()
     }
 
@@ -113,24 +115,12 @@ class CatalogActivity : AppCompatActivity() {
         recyclerView.layoutManager = GridLayoutManager(this, 2)
     }
 
-    private fun setupSpinners() {
-        companySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (companies.isNotEmpty()) {
-                    selectedCompanyId = companies[position].companyCodeId
-                    filter()
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
+    private fun setupCategorySpinner() {
         categorySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentCategory = categoryList[position]
                 filter()
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
@@ -167,13 +157,37 @@ class CatalogActivity : AppCompatActivity() {
             }
         }
     }
+    
+    private fun setupCompanySelector() {
+        singleCompanyDisplay.setOnClickListener {
+            if (companies.size > 1) {
+                showCompanyPopupMenu()
+            }
+        }
+    }
+
+    private fun showCompanyPopupMenu() {
+        val popupMenu = PopupMenu(this, singleCompanyDisplay)
+        companies.forEach { company ->
+            popupMenu.menu.add(company.name)
+        }
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            val selectedCompany = companies.find { it.name == menuItem.title }
+            if (selectedCompany != null && selectedCompany.companyCodeId != selectedCompanyId) {
+                selectedCompanyId = selectedCompany.companyCodeId
+                updateCompanyUI()
+                filter()
+            }
+            true
+        }
+        popupMenu.show()
+    }
 
     private fun fetchData() {
         Log.d(TAG, "Fetching data...")
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
         findViewById<View>(R.id.searchCard).visibility = View.GONE
-        companySpinner.visibility = View.GONE
         singleCompanyDisplay.visibility = View.GONE
 
         lifecycleScope.launch {
@@ -181,10 +195,12 @@ class CatalogActivity : AppCompatActivity() {
                 val userId = sessionManager.getUserId() ?: return@launch
                 val accountResponse = RetrofitClient.apiService.getAccount(userId)
                 productList = RetrofitClient.productApiService.getProducts()
-                val account = accountResponse.body()          // <- unwrap
+                val account = accountResponse.body()
                 companies = account?.customer?.attachedCompanies ?: emptyList()
 
-
+                if (companies.isNotEmpty()) {
+                    selectedCompanyId = companies.first().companyCodeId
+                }
 
                 updateCompanyUI()
 
@@ -203,41 +219,27 @@ class CatalogActivity : AppCompatActivity() {
                 progressBar.visibility = View.GONE
                 recyclerView.visibility = View.VISIBLE
                 findViewById<View>(R.id.searchCard).visibility = View.VISIBLE
+                singleCompanyDisplay.visibility = View.VISIBLE
             }
         }
     }
 
     private fun updateCompanyUI() {
-        // 1. Make sure we have at least one company
-        if (companies.isEmpty()) {
-            companySpinner.visibility = View.GONE
+        if (selectedCompanyId == null || companies.isEmpty()) {
             singleCompanyDisplay.visibility = View.GONE
-            selectedCompanyId = null
             return
         }
 
-        // 2. Decide which UI element to show
-        if (companies.size > 1) {
-            companySpinner.visibility = View.VISIBLE
-            singleCompanyDisplay.visibility = View.GONE          // spinner is enough
-            val companyNames = companies.map { it.name }
-            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, companyNames)
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            companySpinner.adapter = adapter
+        val currentCompany = companies.find { it.companyCodeId == selectedCompanyId } ?: companies.first()
+        
+        companyNameTextView.text = currentCompany.name
+        if (!currentCompany.logoUrl.isNullOrEmpty()) {
+            Picasso.get().load(currentCompany.logoUrl).into(companyLogoImageView)
         } else {
-            companySpinner.visibility = View.GONE
-            singleCompanyDisplay.visibility = View.VISIBLE
+            companyLogoImageView.setImageResource(0) // or a placeholder
         }
 
-        // 3. Always load the logo for the currently-selected company
-        val current = companies.firstOrNull { it.companyCodeId == selectedCompanyId } ?: companies.first()
-        selectedCompanyId = current.companyCodeId          // make sure it is never null here
-        companyNameTextView.text = current.name
-        if (!current.logoUrl.isNullOrEmpty()) {
-            Picasso.get().load(current.logoUrl).into(companyLogoImageView)
-        } else {
-            companyLogoImageView.setImageResource(0)       // or a placeholder
-        }
+        dropdownArrow.visibility = if (companies.size > 1) View.VISIBLE else View.GONE
     }
 
     private fun populateAdvancedFilters() {
