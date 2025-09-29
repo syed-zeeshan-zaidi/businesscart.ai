@@ -45,7 +45,7 @@ const MultiSelect: React.FC<{
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <div className="mt-1 flex flex-wrap gap-2">
         {options.map((opt) => (
-          <label key={opt} className="inline-flex items-center">
+          <label key={opt} className="inline-flex items-center" onMouseDown={(e) => e.preventDefault()}>
             <input
               type="checkbox"
               checked={value.includes(opt)}
@@ -86,11 +86,38 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     setCompanyData(account.company || {});
   }, [account]);
 
+  useEffect(() => {
+    if (!alwaysOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [alwaysOpen]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-    if (type === 'checkbox') {
+    const nameParts = name.split('.');
+
+    if (nameParts.length > 1) {
+      setCompanyData(prev => {
+        const newState = { ...prev };
+        let currentLevel: any = newState;
+        for (let i = 0; i < nameParts.length - 1; i++) {
+          currentLevel[nameParts[i]] = { ...currentLevel[nameParts[i]] };
+          currentLevel = currentLevel[nameParts[i]];
+        }
+        const finalKey = nameParts[nameParts.length - 1];
+        if (type === 'checkbox') {
+          currentLevel[finalKey] = (e.target as HTMLInputElement).checked;
+        } else {
+          currentLevel[finalKey] = value;
+        }
+        return newState;
+      });
+    } else if (type === 'checkbox') {
       const { checked } = e.target as HTMLInputElement;
       setCompanyData((prev) => ({ ...prev, [name]: checked }));
     } else {
@@ -111,138 +138,175 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     }
   };
 
-  const renderField = (key: keyof CompanyData) => {
-    const value = companyData[key];
-    const isDisabled = key === 'companyCode' || key === 'companyCodeId';
-
-    if (key === 'paymentMethods') {
-      return (
-        <MultiSelect
-          label="Payment Methods"
-          options={PAYMENT_OPTIONS}
-          value={(value as string[]) || []}
-          onChange={(list) =>
-            setCompanyData((prev) => ({ ...prev, paymentMethods: list }))
-          }
-        />
-      );
-    }
-
-    if (key === 'deliveryMethods') {
-      return (
-        <MultiSelect
-          label="Delivery Methods"
-          options={DELIVERY_OPTIONS}
-          value={(value as DeliveryMethod[]) || []}
-          onChange={(list) =>
-            setCompanyData((prev) => ({
-              ...prev,
-              deliveryMethods: list as DeliveryMethod[],
-            }))
-          }
-        />
-      );
-    }
-
-    if (key === 'shippingOutOptions') {
-      return (
-        <MultiSelect
-          label="Shipping-out Options"
-          options={SHIPPING_OPTIONS}
-          value={(value as ShippingOutOption[]) || []}
-          onChange={(list) =>
-            setCompanyData((prev) => ({
-              ...prev,
-              shippingOutOptions: list as ShippingOutOption[],
-            }))
-          }
-        />
-      );
-    }
-
-    if (typeof value === 'boolean') {
-      return (
-        <div key={key} className="flex items-center">
-          <input
-            type="checkbox"
-            name={key}
-            checked={value}
-            onChange={handleChange}
-            disabled={isDisabled}
-            className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-          />
-          <label className="ml-2 block text-sm font-medium text-gray-700">
-            {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-          </label>
-        </div>
-      );
-    }
-
-    if (key === 'logoUrl') {
-      return (
-        <div key={key}>
-          <label className="block text-sm font-medium text-gray-700">Logo URL</label>
-          <input
-            type="text"
-            name={key}
-            value={String(value ?? '')}
-            onChange={handleChange}
-            placeholder="https://example.com/logo.png"
-            className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-          />
-        </div>
-      );
-    }
-
+  const renderInput = (name: string, label: string, placeholder = '', readOnly = false, type = 'text') => {
+    const value = name.split('.').reduce((o: any, i) => o?.[i], companyData);
     return (
-      <div key={key}>
-        <label className="block text-sm font-medium text-gray-700">
-          {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-        </label>
+      <div>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
         <input
-          type="text"
-          name={key}
+          type={type}
+          id={name}
+          name={name}
           value={String(value ?? '')}
           onChange={handleChange}
-          disabled={isDisabled}
-          className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm disabled:bg-gray-200"
+          placeholder={placeholder}
+          disabled={readOnly}
+          className={`mt-1 block w-full px-4 py-2 bg-white border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
         />
       </div>
     );
   };
 
+  const renderCheckbox = (name: keyof CompanyData, label: string) => (
+    <label className="flex items-center space-x-3 bg-white p-3 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer">
+      <input
+        type="checkbox"
+        id={name}
+        name={name}
+        checked={Boolean(companyData[name])}
+        onChange={handleChange}
+        className="h-5 w-5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+      />
+      <span className="text-sm font-medium text-gray-800">{label}</span>
+    </label>
+  );
+
+  const Section: React.FC<{ title: string; icon?: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
+    <div className="bg-white rounded-xl shadow-md border border-gray-200/80 overflow-hidden">
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center space-x-3">
+        {icon}
+        <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
+      </div>
+      <div className="p-6 space-y-6">
+        {children}
+      </div>
+    </div>
+  );
+
+  const ProfileIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+  const AddressIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+  const ConfigIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+  const PaymentIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
+  const SalesIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
+  const LimitsIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+
   const modalContent = (
-    <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
-      <div className="flex justify-between items-center border-b pb-3">
-        <h3 className="text-lg font-medium text-gray-900">
-          Edit Company: {account.company?.name}
-        </h3>
-        {!alwaysOpen && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <span className="text-2xl">&times;</span>
-          </button>
-        )}
-      </div>
+    <div className={`relative mx-auto p-4 sm:p-6 ${alwaysOpen ? 'w-full' : 'top-10 mb-10 max-w-5xl'}`}>
+      <div className="bg-white rounded-xl shadow-lg">
+        <div className="flex justify-between items-center border-b p-5">
+          <h3 className="text-2xl font-bold text-gray-800">
+            {alwaysOpen ? 'Your Company Details' : `Edit Company: ${account.company?.name}`}
+          </h3>
+          {!alwaysOpen && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
 
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {Object.keys(companyData).map((k) => renderField(k as keyof CompanyData))}
-      </div>
+        <div className="p-6 space-y-8 bg-gray-50/50">
+          <Section title="Company Profile" icon={<ProfileIcon />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {renderInput('name', 'Company Name')}
+              {renderInput('logoUrl', 'Logo URL', 'https://example.com/logo.png')}
+              {renderInput('companyCode', 'Company Code', '', true)}
+              {renderInput('companyCodeId', 'Company Code ID', '', true)}
+            </div>
+          </Section>
 
-      <div className="mt-6 flex justify-end space-x-3">
-        {!alwaysOpen && (
+          <Section title="Business Address" icon={<AddressIcon />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {renderInput('address.street', 'Street Address')}
+              {renderInput('address.city', 'City')}
+              {renderInput('address.state', 'State / Province')}
+              {renderInput('address.zip', 'ZIP / Postal Code')}
+            </div>
+          </Section>
+
+          <Section title="Sales & Credit" icon={<SalesIcon />}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+              {renderInput('saleRepresentative', 'Sales Rep')}
+              {renderInput('creditLimit', 'Credit Limit', '', false, 'number')}
+              {renderInput('uniqueIdentifier', 'Unique Identifier')}
+            </div>
+          </Section>
+
+          <Section title="Order Limits" icon={<LimitsIcon />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+              {renderInput('minOrderAmountLimit', 'Min Order Amount', '', false, 'number')}
+              {renderInput('maxOrderAmountLimit', 'Max Order Amount', '', false, 'number')}
+              {renderInput('minOrderQuantityLimit', 'Min Order Quantity', '', false, 'number')}
+              {renderInput('maxOrderQuantityLimit', 'Max Order Quantity', '', false, 'number')}
+              {renderInput('monthlyOrderLimit', 'Monthly Order Limit', '', false, 'number')}
+              {renderInput('yearlyOrderLimit', 'Yearly Order Limit', '', false, 'number')}
+            </div>
+          </Section>
+          
+          <Section title="Configuration" icon={<ConfigIcon />}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              <div>
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select 
+                  name="status" 
+                  id="status"
+                  value={companyData.status || 'active'} 
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+              {renderInput('leadTime', 'Lead Time (days)', '', false, 'number')}
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderCheckbox('taxableGoods', 'Taxable Goods')}
+                {renderCheckbox('quotesAllowed', 'Quotes Allowed')}
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Payment & Delivery Options" icon={<PaymentIcon />}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <MultiSelect
+                label="Payment Methods"
+                options={PAYMENT_OPTIONS}
+                value={(companyData.paymentMethods as string[]) || []}
+                onChange={(list) => setCompanyData((prev) => ({ ...prev, paymentMethods: list }))}
+              />
+              <MultiSelect
+                label="Delivery Methods"
+                options={DELIVERY_OPTIONS}
+                value={(companyData.deliveryMethods as DeliveryMethod[]) || []}
+                onChange={(list) => setCompanyData((prev) => ({ ...prev, deliveryMethods: list as DeliveryMethod[] }))}
+              />
+              <MultiSelect
+                label="Shipping-out Options"
+                options={SHIPPING_OPTIONS}
+                value={(companyData.shippingOutOptions as ShippingOutOption[]) || []}
+                onChange={(list) => setCompanyData((prev) => ({ ...prev, shippingOutOptions: list as ShippingOutOption[] }))}
+              />
+            </div>
+          </Section>
+        </div>
+
+        <div className="mt-4 p-5 border-t flex justify-end space-x-4 bg-white rounded-b-xl">
+          {!alwaysOpen && (
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-semibold text-sm"
+            >
+              Cancel
+            </button>
+          )}
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            onClick={handleSave}
+            className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-sm text-sm flex items-center space-x-2"
           >
-            Cancel
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+            <span>Save Changes</span>
           </button>
-        )}
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
-        >
-          Save Changes
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -250,7 +314,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   return alwaysOpen ? (
     modalContent
   ) : (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-start justify-center">
       {modalContent}
     </div>
   );
