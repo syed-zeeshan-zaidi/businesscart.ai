@@ -70,13 +70,20 @@ const Account: React.FC = () => {
     if (decoded) fetchAccount(decoded.id);
   };
 
+  const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+    <div className="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+      <dt className="text-sm font-medium text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{value}</dd>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Your Account</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Your Account</h1>
           <button
             onClick={handleRefresh}
             className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition"
@@ -94,69 +101,55 @@ const Account: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-800">Account Information</h2>
             </div>
-            <div className="divide-y divide-gray-200">
-              <div className="px-6 py-4">
-                <p><strong>Name:</strong> {account.name}</p>
-                <p><strong>Email:</strong> {account.email}</p>
-                <p><strong>Role:</strong> {account.role}</p>
-                <p><strong>Status:</strong> {account.accountStatus}</p>
-              </div>
-              {account.company && (
+            <div className="px-6 py-4">
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <DetailItem label="Name" value={account.name} />
+                <DetailItem label="Email" value={account.email} />
+                <DetailItem label="Role" value={account.role} />
+                <DetailItem label="Status" value={account.accountStatus} />
+              </dl>
+            </div>
+            {account.company && (
+              <div className="border-t border-gray-200">
                 <div className="px-6 py-4">
                   <h3 className="text-lg font-semibold text-gray-800">Company Details</h3>
-                  <p><strong>Company Name:</strong> {account.company.name}</p>
-                  <p><strong>Company Status:</strong> {account.company.status}</p>
+                  <dl className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <DetailItem label="Company Name" value={account.company.name} />
+                    <DetailItem label="Company Status" value={account.company.status} />
+                  </dl>
                 </div>
-              )}
-              {account.customer?.attachedCompanies && (
+              </div>
+            )}
+            {account.customer?.attachedCompanies && (
+              <div className="border-t border-gray-200">
                 <div className="px-6 py-4">
                   <h3 className="text-lg font-semibold text-gray-800">Associated Companies</h3>
-                  <ul>
+                  <ul className="mt-2 space-y-4">
                     {account.customer.attachedCompanies.map((company) => (
-                      <React.Fragment key={company.companyCode}>
-                        <li>
-                          {company.name} ({company.companyCode})
-                        </li>
-                        {company.paymentMethods?.length && (
-                          <li className="ml-4 text-sm text-gray-600">
-                            Payment Methods: {company.paymentMethods.join(', ')}
-                          </li>
-                        )}
-                        <li className="ml-4 text-sm text-gray-600">
-                          {company.deliveryMethods?.length ? (
-                            <>
-                              Delivery Methods: {company.deliveryMethods.join(', ')}
-                            </>
-                          ) : (
-                            <>No Delivery Methods</>
-                          )}
-                        </li>
-                        <li className="ml-4 text-sm text-gray-600">
-                          Shipping Methods: {company.shippingMethods?.join(', ') || 'N/A'}
-                        </li>
-                        <li className="ml-4 text-sm text-gray-600">
-                          Sale Representative: {company.saleRepresentative || 'N/A'}
-                        </li>
-                        <li className="ml-4 text-sm text-gray-600">
-                          Billing Address:{' '}
-                          {[
-                            company.address?.street,
-                            company.address?.city,
-                            company.address?.state,
-                            company.address?.zip
-                          ]
-                            .filter(Boolean)
-                            .join(', ') || '—'}
-                        </li>
-                        <li className="ml-4 text-sm text-gray-600">
-                          Credit Limit: {company.creditLimit}
-                        </li>
-                      </React.Fragment>
+                      <li key={company.companyCode} className="p-4 border rounded-md">
+                        <h4 className="font-bold text-gray-900">{company.name} ({company.companyCode})</h4>
+                        <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <DetailItem label="Payment Methods" value={company.paymentMethods?.join(', ') || 'N/A'} />
+                          <DetailItem label="Delivery Methods" value={company.deliveryMethods?.join(', ') || 'N/A'} />
+                          <DetailItem label="Shipping Methods" value={company.shippingMethods?.join(', ') || 'N/A'} />
+                          <DetailItem label="Sales Rep" value={company.saleRepresentative || 'N/A'} />
+                          <DetailItem label="Credit Limit" value={company.creditLimit ? `$${company.creditLimit}` : 'N/A'} />
+                          <DetailItem 
+                            label="Billing Address"
+                            value={[
+                              company.address?.street,
+                              company.address?.city,
+                              company.address?.state,
+                              company.address?.zip
+                            ].filter(Boolean).join(', ') || '—'}
+                          />
+                        </dl>
+                      </li>
                     ))}
                   </ul>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">

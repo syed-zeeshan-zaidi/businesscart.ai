@@ -128,7 +128,7 @@ const Checkout: React.FC = () => {
         <Toaster position="top-right" />
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
           <p>Could not load quote details.</p>
         </main>
       </div>
@@ -140,141 +140,153 @@ const Checkout: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Quote Summary</h2>
-          <div className="divide-y divide-gray-200">
-            {quote.items.map(item => (
-              <div key={item.id} className="flex items-center justify-between py-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                  <p className="text-gray-600">Quantity: {item.quantity}</p>
-                </div>
-                <p className="text-lg font-semibold text-gray-800"><span className='text-gray-500 line-through text-sm'>${item.price.toFixed(2)} </span> ${item.lineItemTotal.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 border-t pt-6">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-gray-600">Subtotal:</p>
-              <p className="font-semibold">${quote.subtotal.toFixed(2)}</p>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-gray-600">Shipping:</p>
-              <p className="font-semibold">${quote.shippingCost.toFixed(2)}</p>
-            </div>
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-gray-600">Tax:</p>
-              <p className="font-semibold">${quote.taxAmount.toFixed(2)}</p>
-            </div>
-            <div className="flex justify-between items-center text-xl font-bold text-gray-800">
-              <p>Grand Total:</p>
-              <p>${quote.grandTotal.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className="mt-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column: Delivery and Payment */}
+          <div className="bg-white shadow-lg rounded-lg p-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Delivery & Payment</h2>
             
-            <div className="mb-4">
-              <label htmlFor="delivery-method" className="block text-sm font-medium text-gray-700">Delivery Method</label>
-              <select
-                id="delivery-method"
-                value={selectedDeliveryMethod}
-                onChange={(e) => setSelectedDeliveryMethod(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                {quote.availableDeliveryMethods.map(method => (
-                  <option key={method} value={method}>{method.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
-            </div>
-
-            {selectedDeliveryMethod === 'pickup' && (
-              <div className="mb-4">
-                <label htmlFor="pickup-location" className="block text-sm font-medium text-gray-700">Pickup Location</label>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="delivery-method" className="block text-sm font-medium text-gray-700">Delivery Method</label>
                 <select
-                  id="pickup-location"
-                  value={selectedPickupLocation}
-                  onChange={(e) => setSelectedPickupLocation(e.target.value)}
+                  id="delivery-method"
+                  value={selectedDeliveryMethod}
+                  onChange={(e) => setSelectedDeliveryMethod(e.target.value)}
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
-                  <option value="">Select a location</option>
-                  {quote.companyLocations?.map(location => (
-                    <option key={location.id} value={location.id}>
-                      {location.locationName} - {location.address.street}, {location.address.city}
-                    </option>
+                  {quote.availableDeliveryMethods.map(method => (
+                    <option key={method} value={method}>{method.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {selectedDeliveryMethod !== 'pickup' && (
-              <div className="mb-4">
-                <label htmlFor="delivery-address" className="block text-sm font-medium text-gray-700">Delivery Address</label>
-                <select
-                  id="delivery-address"
-                  value={selectedDeliveryAddress}
-                  onChange={(e) => setSelectedDeliveryAddress(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  <option value="">Select an address</option>
-                  {quote.customerAddresses?.map(address => (
-                    <option key={address.id} value={address.id}>
-                      {address.addressLabel}: {address.address.street}, {address.address.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {selectedDeliveryMethod === 'shipping_out' && (
-              <div className="mb-4">
-                <label htmlFor="shipping-option" className="block text-sm font-medium text-gray-700">Shipping Option</label>
-                <select
-                  id="shipping-option"
-                  value={selectedShippingOption}
-                  onChange={(e) => setSelectedShippingOption(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  {quote.availableShippingOutOptions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-              {filteredPaymentMethods.length > 0 ? (
-                filteredPaymentMethods.map(method => (
-                  <div key={method} className="mt-2 flex items-center">
-                    <input
-                      id={method}
-                      name="payment-method"
-                      type="radio"
-                      value={method}
-                      checked={selectedPaymentMethod === method}
-                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                      className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
-                    />
-                    <label htmlFor={method} className="ml-3 block text-sm font-medium text-gray-700 capitalize">
-                      {method.replace(/_/g, ' ')}
-                    </label>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-600 mt-2">No payment methods available for the selected delivery method.</p>
+              {selectedDeliveryMethod === 'pickup' && (
+                <div>
+                  <label htmlFor="pickup-location" className="block text-sm font-medium text-gray-700">Pickup Location</label>
+                  <select
+                    id="pickup-location"
+                    value={selectedPickupLocation}
+                    onChange={(e) => setSelectedPickupLocation(e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">Select a location</option>
+                    {quote.companyLocations?.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.locationName} - {location.address.street}, {location.address.city}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
+
+              {selectedDeliveryMethod !== 'pickup' && (
+                <div>
+                  <label htmlFor="delivery-address" className="block text-sm font-medium text-gray-700">Delivery Address</label>
+                  <select
+                    id="delivery-address"
+                    value={selectedDeliveryAddress}
+                    onChange={(e) => setSelectedDeliveryAddress(e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  >
+                    <option value="">Select an address</option>
+                    {quote.customerAddresses?.map(address => (
+                      <option key={address.id} value={address.id}>
+                        {address.addressLabel}: {address.address.street}, {address.address.city}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedDeliveryMethod === 'shipping_out' && (
+                <div>
+                  <label htmlFor="shipping-option" className="block text-sm font-medium text-gray-700">Shipping Option</label>
+                  <select
+                    id="shipping-option"
+                    value={selectedShippingOption}
+                    onChange={(e) => setSelectedShippingOption(e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  >
+                    {quote.availableShippingOutOptions.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                {filteredPaymentMethods.length > 0 ? (
+                  <div className="mt-2 space-y-2">
+                    {filteredPaymentMethods.map(method => (
+                      <label key={method} htmlFor={method} className="flex items-center p-3 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          id={method}
+                          name="payment-method"
+                          type="radio"
+                          value={method}
+                          checked={selectedPaymentMethod === method}
+                          onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                          className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                        />
+                        <span className="ml-3 block text-sm font-medium text-gray-700 capitalize">
+                          {method.replace(/_/g, ' ')}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600 mt-2">No payment methods available for the selected delivery method.</p>
+                )}
+              </div>
             </div>
-            
           </div>
-          <div className="mt-8 flex justify-end">
+
+          {/* Right Column: Quote Summary */}
+          <div className="space-y-6">
+            <div className="bg-white shadow-lg rounded-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Quote Summary</h2>
+              <ul className="divide-y divide-gray-200">
+                {quote.items.map(item => (
+                  <li key={item.id} className="py-4 flex flex-col sm:flex-row justify-between sm:items-center">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
+                      <p className="text-gray-600">Quantity: {item.quantity}</p>
+                    </div>
+                    <div className="text-lg font-semibold text-gray-800 mt-2 sm:mt-0 text-left sm:text-right">
+                      <span className='text-gray-500 line-through text-sm'>${item.price.toFixed(2)} </span> 
+                      <span>${item.lineItemTotal.toFixed(2)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 border-t pt-6 space-y-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-600">Subtotal:</p>
+                  <p className="font-semibold">${quote.subtotal.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-600">Shipping:</p>
+                  <p className="font-semibold">${quote.shippingCost.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-600">Tax:</p>
+                  <p className="font-semibold">${quote.taxAmount.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between items-center text-xl font-bold text-gray-800 mt-4">
+                  <p>Grand Total:</p>
+                  <p>${quote.grandTotal.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
             <button
               onClick={handlePlaceOrder}
-              className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold"
-              disabled={!selectedPaymentMethod}
+              className="w-full px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold disabled:opacity-50"
+              disabled={!selectedPaymentMethod || loading}
             >
-              Place Order
+              {loading ? 'Placing Order...' : 'Place Order'}
             </button>
           </div>
         </div>

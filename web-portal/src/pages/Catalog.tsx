@@ -265,7 +265,7 @@ const Catalog: React.FC = () => {
               )}
             </div>
           ) : companies.length === 1 && (
-            <div className="flex items-center p-2 rounded-md bg-white border border-gray-300">
+            <div className="flex items-center">
               {companies[0].logoUrl && (
                 <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-3 rounded-full" />
               )}

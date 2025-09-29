@@ -23,4 +23,5 @@ type Order struct {
 	PickupLocationID  string             `bson:"pickupLocationId,omitempty" json:"pickupLocationId,omitempty"`
 	DeliveryAddressID string             `bson:"deliveryAddressId,omitempty" json:"deliveryAddressId,omitempty"`
 	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
+	Status            string             `bson:"status" json:"status"`
 }

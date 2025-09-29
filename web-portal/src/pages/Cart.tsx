@@ -5,11 +5,12 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, Account } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations } from '../api';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unused-vars
+const Cart: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartType | null>(null);
@@ -18,6 +19,7 @@ const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unus
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
 
   const invalidateCache = (companyId: string) => {
     localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
@@ -43,7 +45,6 @@ const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unus
     }
   }, []);
 
-  // Separate effect for initial data loading
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -63,99 +64,41 @@ const Cart: React.FC = () => { // eslint-disable-line @typescript-eslint/no-unus
       return;
     }
 
-const loadCompanies = async () => {
-  try {
-    const accountData = await getAccount(decodedUser.id);
-    setAccount(accountData);
-    
-    if (accountData.customer?.attachedCompanies && accountData.customer.attachedCompanies.length > 0) {
-      const companies = accountData.customer.attachedCompanies.map(company => ({
-        id: company.companyCodeId || company._id || company.companyCode,
-        name: company.name,
-        companyCode: company.companyCode
-      }));
-      
-      setAvailableCompanies(companies);
-      
-      if (companies.length > 0) {
-        // Find first company with non-empty cart
-        let firstNonEmptyCompany = null;
+    const loadCompanies = async () => {
+      try {
+        const accountData = await getAccount(decodedUser.id);
+        setAccount(accountData);
         
-        for (const company of companies) {
-          try {
-            const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${company.id}`);
-            if (cached) {
-              const { data, timestamp } = JSON.parse(cached);
-              if (Date.now() - timestamp < CACHE_DURATION && data.items && data.items.length > 0) {
-                firstNonEmptyCompany = company.id;
-                setSelectedCompanyId(company.id);
-                setCart(data);
-                setLoading(false);
-                setInitialLoadComplete(true);
-                return;
-              }
-            }
-          } catch (e) { /* Handle error silently */ }
+        if (accountData.customer?.attachedCompanies && accountData.customer.attachedCompanies.length > 0) {
+          const companies = accountData.customer.attachedCompanies.map(company => ({
+            id: company.companyCodeId || company._id || company.companyCode,
+            name: company.name,
+            companyCode: company.companyCode
+          }));
           
-          try {
-            const testCart = await getCart(company.id);
-            if (testCart.items && testCart.items.length > 0) {
-              firstNonEmptyCompany = company.id;
-              setSelectedCompanyId(company.id);
-              setCart(testCart);
-              localStorage.setItem(`${CACHE_KEY_PREFIX}${company.id}`, JSON.stringify({ 
-                data: testCart, 
-                timestamp: Date.now() 
-              }));
-              setLoading(false);
-              setInitialLoadComplete(true);
-              return;
-            }
-          } catch (e) { /* Handle error silently */ }
-        }
-        
-        // If no company has items, select first company but don't load cart
-        if (firstNonEmptyCompany) {
-          setSelectedCompanyId(firstNonEmptyCompany);
-          await fetchCart(firstNonEmptyCompany);
+          setAvailableCompanies(companies);
+          
+          if (companies.length > 0) {
+            setSelectedCompanyId(companies[0].id);
+          }
         } else {
-          setSelectedCompanyId(companies[0].id);
-          // Don't auto-load cart for empty companies
-          setCart(null);
-          setLoading(false);
+          toast.error('No companies available for shopping');
         }
-        setInitialLoadComplete(true);
-      } else {
-        setLoading(false);
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load data');
+      } finally {
         setInitialLoadComplete(true);
       }
-    } else {
-      setLoading(false);
-      setInitialLoadComplete(true);
-      toast.error('No companies available for shopping');
-    }
-  } catch (err: any) {
-    toast.error(err.message || 'Failed to load data');
-    setLoading(false);
-    setInitialLoadComplete(true);
-  }
-};
+    };
 
     loadCompanies();
-  }, [isAuthenticated, navigate, decodeJWT, fetchCart]); // Removed selectedCompanyId from deps
+  }, [isAuthenticated, navigate, decodeJWT]);
 
-  // Separate effect for cart updates when company changes
   useEffect(() => {
     if (selectedCompanyId && initialLoadComplete) {
       fetchCart(selectedCompanyId);
     }
   }, [selectedCompanyId, initialLoadComplete, fetchCart]);
-
-  const handleCompanyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const companyId = event.target.value;
-    setSelectedCompanyId(companyId);
-    // The fetch will happen in the useEffect above
-  };
 
   const handleUpdateQuantity = async (itemId: string, quantity: number) => {
     if (!selectedCompanyId || quantity < 1) return;
@@ -246,34 +189,46 @@ const loadCompanies = async () => {
   };
 
   const totalItems = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const selectedCompany = availableCompanies.find(c => c.id === selectedCompanyId);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Your Shopping Cart</h1>
-
-        {availableCompanies.length > 0 && (
-          <div className="mb-6">
-            <label htmlFor="company-select" className="block text-sm font-medium text-gray-700">
-              Select Company:
-            </label>
-            <select
-              id="company-select"
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
-              value={selectedCompanyId || ''}
-              onChange={handleCompanyChange}
-            >
-              <option value="">-- Select a company --</option>
-              {availableCompanies.map(company => (
-                <option key={company.id} value={company.id}>
-                  {company.name} ({company.companyCode})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Your Shopping Cart</h1>
+          {availableCompanies.length > 0 && (
+            <div className="relative inline-block text-left w-full md:w-auto">
+              <button
+                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              >
+                {selectedCompany?.name || 'Select Company'}
+                <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
+              </button>
+              {isCompanyDropdownOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-full md:w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                    {availableCompanies.map((company) => (
+                      <button
+                        key={company.id}
+                        onClick={() => {
+                          setSelectedCompanyId(company.id);
+                          setIsCompanyDropdownOpen(false);
+                        }}
+                        className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        role="menuitem"
+                      >
+                        {company.name} ({company.companyCode})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {loading && (
           <div className="flex justify-center items-center py-12">
@@ -286,7 +241,7 @@ const loadCompanies = async () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Your cart is empty</h2>
             <p className="text-gray-600 mb-4">
               {selectedCompanyId 
-                ? `No items in cart for ${availableCompanies.find(c => c.id === selectedCompanyId)?.name || 'selected company'}`
+                ? `No items in cart for ${selectedCompany?.name || 'selected company'}`
                 : 'Select a company to view your cart'
               }
             </p>
@@ -302,83 +257,70 @@ const loadCompanies = async () => {
             <div className="bg-white shadow-lg rounded-lg overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  Cart for {availableCompanies.find(c => c.id === selectedCompanyId)?.name || 'selected company'}
+                  Cart for {selectedCompany?.name || 'selected company'}
                 </h2>
                 <p className="text-sm text-gray-600">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
               </div>
 
-              <div className="divide-y divide-gray-200">
+              <ul className="divide-y divide-gray-200">
                 {cart.items.map((item) => (
-                  <div key={item.id} className="px-6 py-4 flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                      {item.discountedPrice && item.discountedPrice < item.price ? (
-                        <>
-                          <p className="text-teal-600 font-bold">
-                            ${item.discountedPrice.toFixed(2)} each
-                          </p>
-                          <p className="text-gray-500 line-through text-sm">
-                            ${item.price.toFixed(2)} each
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-gray-600">${item.price?.toFixed(2) || '0.00'} each</p>
-                      )}
-                    </div>
-                    
+                  <li key={item.id} className="p-4 sm:p-6">
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center">
-                        <label htmlFor={`quantity-${item.id}`} className="sr-only">Quantity</label>
-                        <input
-                          type="number"
-                          id={`quantity-${item.id}`}
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const newQuantity = parseInt(e.target.value);
-                            if (newQuantity >= 1) {
-                              handleUpdateQuantity(item.id, newQuantity);
-                            }
-                          }}
-                          className="w-16 p-2 border border-gray-300 rounded-md text-center"
-                        />
+                      <div className="w-24 h-24 bg-gray-200 rounded-md flex-shrink-0"></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:justify-between">
+                          <h3 className="text-lg font-semibold text-gray-800 truncate pr-2">{item.name}</h3>
+                          <p className="text-lg font-semibold text-gray-800 sm:text-right">
+                            ${item.lineItemTotal.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center">
+                            <label htmlFor={`quantity-${item.id}`} className="sr-only">Quantity</label>
+                            <input
+                              type="number"
+                              id={`quantity-${item.id}`}
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const newQuantity = parseInt(e.target.value);
+                                if (newQuantity >= 1) {
+                                  handleUpdateQuantity(item.id, newQuantity);
+                                }
+                              }}
+                              className="w-16 p-1 border border-gray-300 rounded-md text-center"
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="text-red-600 hover:text-red-800 font-medium text-sm"
+                            disabled={loading}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
-                      
-                      <p className="text-lg font-semibold text-gray-800 w-20 text-right">
-                        ${item.lineItemTotal.toFixed(2)}
-                      </p>
-                      
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
-                        disabled={loading}
-                      >
-                        Remove
-                      </button>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
 
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-lg font-semibold text-gray-800">
-                      Total: ${cart.totalPrice?.toFixed(2) || '0.00'}
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div className="text-lg font-semibold text-gray-800 text-center sm:text-left">
+                    Total: ${cart.totalPrice?.toFixed(2) || '0.00'}
                   </div>
-                  
-                  <div className="flex space-x-3">
+                  <div className="flex flex-col sm:flex-row sm:space-x-3 w-full sm:w-auto gap-2">
                     <button
                       onClick={handleClearCart}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
                       disabled={loading}
                     >
                       Clear Cart
                     </button>
                     <button
                       onClick={handleCheckout}
-                      className="px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition disabled:opacity-50"
                       disabled={loading}
                     >
                       {loading ? 'Processing...' : 'Proceed to Checkout'}

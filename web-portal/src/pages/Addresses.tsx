@@ -117,31 +117,35 @@ const Addresses: React.FC = () => {
             <p className="text-gray-600 mt-2">You have not added any shipping addresses yet.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipient</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Default</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {addresses.map((addr) => (
-                  <tr key={addr.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{addr.recipientName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{addr.phoneNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{addr.addressLabel}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{addr.isDefaultShipping ? 'Yes' : 'No'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {addr.address.street}, {addr.address.city}, {addr.address.state} {addr.address.zip}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {addresses.map((addr) => (
+              <div key={addr.id} className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-start">
+                  <h3 className="text-lg font-semibold text-gray-900">{addr.addressLabel || 'Address'}</h3>
+                  {addr.isDefaultShipping && (
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">
+                      Default
+                    </span>
+                  )}
+                </div>
+                <dl className="mt-4 space-y-2 text-sm text-gray-600">
+                  <div>
+                    <dt className="font-medium text-gray-800">Recipient</dt>
+                    <dd>{addr.recipientName}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-gray-800">Address</dt>
+                    <dd>{`${addr.address.street}, ${addr.address.city}, ${addr.address.state} ${addr.address.zip}`}</dd>
+                  </div>
+                  {addr.phoneNumber && (
+                     <div>
+                       <dt className="font-medium text-gray-800">Phone</dt>
+                       <dd>{addr.phoneNumber}</dd>
+                     </div>
+                  )}
+                </dl>
+              </div>
+            ))}
           </div>
         )}
 

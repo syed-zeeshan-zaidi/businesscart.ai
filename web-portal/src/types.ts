@@ -68,6 +68,7 @@ export interface Order {
     transactionId: string;
   };
   createdAt: string;
+  status: string;
 }
 
 export interface CartItem {
@@ -79,6 +80,7 @@ export interface CartItem {
   price: number;
   discountedPrice?: number;
   lineItemTotal: number;
+  image?: string;
 }
 
 export interface Cart {

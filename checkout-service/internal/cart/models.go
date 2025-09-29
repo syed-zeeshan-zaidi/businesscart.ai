@@ -12,6 +12,7 @@ type CartItem struct {
 	Price           float64            `bson:"price" json:"price"`
 	DiscountedPrice float64            `bson:"discountedPrice" json:"discountedPrice"`
 	LineItemTotal   float64            `bson:"lineItemTotal" json:"lineItemTotal"`
+	Image           string             `bson:"image,omitempty" json:"image,omitempty"`
 }
 
 // Cart represents a shopping cart.

@@ -106,25 +106,36 @@ const OrderHistory: React.FC = () => {
             <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
           </div>
         ) : orders && orders.length > 0 ? (
-          <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+          <div className="shadow-lg rounded-lg overflow-hidden">
             <div className="divide-y divide-gray-200">
               {orders.map((order) => (
-                <div key={order.id} className="px-6 py-4">
-                  <div className="flex justify-between items-center">
+                <div key={order.id} className="bg-gray-200 shadow rounded-lg p-6 mb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                     <div>
-                      <p className="text-lg font-semibold">Order ID: {order.id}</p>
+                      <p className="text-lg font-semibold text-gray-800">Order ID: {order.id}</p>
                       <p className="text-sm text-gray-500">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
                       <p className="text-sm text-gray-500">Company: {getCompanyName(order.sellerId)}</p>
                     </div>
-                    <p className="text-lg font-bold">${order.grandTotal.toFixed(2)}</p>
+                    <div className="mt-2 sm:mt-0 text-left sm:text-right">
+                      Status:
+                      <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {order.status}
+                      </span>
+                      <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <h4 className="font-semibold">Items:</h4>
-                    <ul className="list-disc list-inside">
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h4 className="font-semibold text-gray-700 mb-2">Items:</h4>
+                    <div className="space-y-3">
                       {order.items.map((item) => (
-                        <li key={item.productId}>{item.name} (x{item.quantity})</li>
+                        <div key={item.productId} className="flex items-center justify-between text-sm text-gray-600">
+                          <div className="flex items-center space-x-2">
+                            <span> - {item.name} (x{item.quantity})</span>
+                          </div>
+                          <span className="font-medium text-gray-800">${item.price.toFixed(2)}</span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -133,6 +144,13 @@ const OrderHistory: React.FC = () => {
         ) : (
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">You have no orders.</h2>
+            <p className="text-gray-600 mb-4">Start shopping now to see your order history here!</p>
+            <button
+              onClick={() => navigate('/catalog')}
+              className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700 transition"
+            >
+              Go to Catalog
+            </button>
           </div>
         )}
       </main>
