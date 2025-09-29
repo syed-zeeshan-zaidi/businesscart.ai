@@ -193,10 +193,10 @@ const Catalog: React.FC = () => {
       />
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
-        <div className="mb-6 flex space-x-4">
-          <div className="relative w-1/6">
+        <div className="mb-6 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
+          <div className="relative w-full md:w-1/6">
             <select
               id="category-filter"
               value={categoryFilter}
@@ -228,10 +228,10 @@ const Catalog: React.FC = () => {
           </div>
 
           {companies.length > 1 ? (
-            <div className="relative w-1/3">
+            <div className="relative w-full md:w-1/3">
               <button
                 onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
                 <div className="flex items-center">
                   {selectedCompany?.logoUrl && (

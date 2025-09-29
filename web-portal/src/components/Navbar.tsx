@@ -4,65 +4,23 @@ import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon } from '@her
 import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
-import { getCart } from '../api'; // Import getCart
 import { Logo } from './logo';
 import { Account } from '../types';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, decodeJWT } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const [userInitials, setUserInitials] = useState('');
   const [companyName, setCompanyName] = useState('BusinessCart');
   const [notificationCount] = useState(3); // Placeholder
-  const [cartItemCount, setCartItemCount] = useState(0); // Initialize cartItemCount to 0
   const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
-
-  const fetchCartCount = useCallback(async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      setCartItemCount(0);
-      return;
-    }
-
-    try {
-      const decodedToken = decodeJWT(token);
-      const associatedCompanyIds = decodedToken.associate_company_ids || [];
-
-      let totalItems = 0;
-      for (const companyId of associatedCompanyIds) {
-        const cached = localStorage.getItem(`cart_cache_${companyId}`);
-        if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
-          const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-          if (Date.now() - timestamp < CACHE_DURATION) {
-            totalItems += data.items.length;
-            continue; // Skip API call if cached and valid
-          }
-        }
-        // If not cached or expired, fetch from API
-        try {
-          const cart = await getCart(companyId);
-          totalItems += cart.items.length;
-          localStorage.setItem(`cart_cache_${companyId}`, JSON.stringify({ data: cart, timestamp: Date.now() }));
-        } catch (_error: any) {
-          
-          localStorage.removeItem(`cart_cache_${companyId}`); // Invalidate specific company cart cache on error
-        }
-      }
-      setCartItemCount(totalItems);
-    } catch (_error: any) {
-      
-      setCartItemCount(0);
-    }
-  }, [decodeJWT]);
 
   const updateNavbarState = useCallback(() => {
     if (!isAuthenticated) {
       setUserInitials('');
       setCompanyName('BusinessCart');
       setUserRole(null);
-      setCartItemCount(0); // Clear cart count on logout
       return;
     }
 
@@ -91,27 +49,21 @@ const Navbar: React.FC = () => {
         } else {
           setCompanyName('BusinessCart');
         }
-
-        if (role === 'customer') {
-          fetchCartCount(); // Fetch cart count only for customers
-        }
       } catch (_e) {
         toast.error('Failed to load user data');
         logout();
       }
     }
-  }, [isAuthenticated, logout, fetchCartCount]);
+  }, [isAuthenticated, logout]);
 
   useEffect(() => {
     updateNavbarState();
     window.addEventListener('storageUpdated', updateNavbarState);
-    window.addEventListener('cartUpdated', fetchCartCount);
 
     return () => {
       window.removeEventListener('storageUpdated', updateNavbarState);
-      window.removeEventListener('cartUpdated', fetchCartCount);
     };
-  }, [updateNavbarState, fetchCartCount]);
+  }, [updateNavbarState]);
 
   return (
     <Disclosure as="nav" className="bg-white shadow">
@@ -143,11 +95,6 @@ const Navbar: React.FC = () => {
                     <div className="relative">
                       <Link to="/cart">
                         <ShoppingCartIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
-                        {cartItemCount > 0 && (
-                          <span className="absolute -top-1 -right-1 bg-teal-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                            {cartItemCount}
-                          </span>
-                        )}
                       </Link>
                     </div>
                   </>
@@ -168,7 +115,7 @@ const Navbar: React.FC = () => {
                       leaveFrom="transform opacity-100 scale-100"
                       leaveTo="transform opacity-0 scale-95"
                     >
-                      <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                         {userRole === 'company' && (
                           <Menu.Item>
                             {({ active }) => (

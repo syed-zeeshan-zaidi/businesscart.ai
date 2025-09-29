@@ -22,6 +22,7 @@ func NewService(db *mongo.Database) *Service {
 
 func (s *Service) CreateOrder(order *Order) (*Order, error) {
 	order.CreatedAt = time.Now()
+	order.Status = "pending" // Initialize status to "pending"
 	_, err := s.collection.InsertOne(context.Background(), order)
 	if err != nil {
 		return nil, err

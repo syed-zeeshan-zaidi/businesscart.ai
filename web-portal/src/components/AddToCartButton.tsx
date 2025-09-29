@@ -25,6 +25,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity, va
           name: product.name,
           price: product.price,
           discountedPrice: product.discountedPrice,
+          image: product.image,
         },
       });
       toast.success(`${product.name} added to cart!`);
