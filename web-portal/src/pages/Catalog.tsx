@@ -5,7 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 import FilterSidebar from '../components/FilterSidebar';
 import ProductDetailModal from '../components/ProductDetailModal';
@@ -27,6 +27,7 @@ const Catalog: React.FC = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
 
   const openModal = (product: Product) => {
     setSelectedProduct(product);
@@ -227,30 +228,48 @@ const Catalog: React.FC = () => {
           </div>
 
           {companies.length > 1 ? (
-            <div className="relative w-1/3 flex items-center">
-              {selectedCompany?.logoUrl && (
-                <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-2 rounded-full" />
-              )}
-              <label htmlFor="company-filter" className="mr-2 font-medium text-gray-700">Company:</label>
-              <select
-                id="company-filter"
-                value={companyIdFilter}
-                onChange={(e) => setCompanyIdFilter(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+            <div className="relative w-1/3">
+              <button
+                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center">
+                  {selectedCompany?.logoUrl && (
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-3 rounded-full" />
+                  )}
+                  <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
+                </div>
+                <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
+              </button>
+              {isCompanyDropdownOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                    {companies.map((company) => (
+                      <button
+                        key={company.id}
+                        onClick={() => {
+                          setCompanyIdFilter(company.id);
+                          setIsCompanyDropdownOpen(false);
+                        }}
+                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        role="menuitem"
+                      >
+                        {company.logoUrl && (
+                          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 mr-3 rounded-full" />
+                        )}
+                        {company.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : companies.length === 1 && (
             <div className="flex items-center">
               {companies[0].logoUrl && (
-                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-2 rounded-full" />
+                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-3 rounded-full" />
               )}
-              <span className="text-lg font-semibold text-gray-600">{companies[0].name}</span>
+              <span className="text-lg font-semibold text-gray-800">{companies[0].name}</span>
             </div>
           )}
         </div>
