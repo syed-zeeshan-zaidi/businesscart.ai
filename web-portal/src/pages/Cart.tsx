@@ -8,7 +8,6 @@ import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, ge
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const Cart: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
