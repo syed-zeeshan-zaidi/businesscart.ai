@@ -231,7 +231,7 @@ const Catalog: React.FC = () => {
             <div className="relative w-full md:w-1/3">
               <button
                 onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
                 <div className="flex items-center">
                   {selectedCompany?.logoUrl && (

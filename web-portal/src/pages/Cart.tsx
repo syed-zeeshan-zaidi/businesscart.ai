@@ -15,7 +15,7 @@ const Cart: React.FC = () => {
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState<Account | null>(null);
-  const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string}>>([]);
+  const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string, logoUrl?: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -72,7 +72,8 @@ const Cart: React.FC = () => {
           const companies = accountData.customer.attachedCompanies.map(company => ({
             id: company.companyCodeId || company._id || company.companyCode,
             name: company.name,
-            companyCode: company.companyCode
+            companyCode: company.companyCode,
+            logoUrl: company.logoUrl, // Include logoUrl
           }));
           
           setAvailableCompanies(companies);
@@ -203,7 +204,12 @@ const Cart: React.FC = () => {
                 onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
                 className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
-                {selectedCompany?.name || 'Select Company'}
+                <div className="flex items-center">
+                  {selectedCompany?.logoUrl && (
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-3 rounded-full" />
+                  )}
+                  <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
+                </div>
                 <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
               </button>
               {isCompanyDropdownOpen && (
@@ -216,9 +222,12 @@ const Cart: React.FC = () => {
                           setSelectedCompanyId(company.id);
                           setIsCompanyDropdownOpen(false);
                         }}
-                        className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                         role="menuitem"
                       >
+                        {company.logoUrl && (
+                          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 mr-3 rounded-full" />
+                        )}
                         {company.name} ({company.companyCode})
                       </button>
                     ))}
