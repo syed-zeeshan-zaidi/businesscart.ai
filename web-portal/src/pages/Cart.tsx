@@ -265,7 +265,13 @@ const Cart: React.FC = () => {
                 {cart.items.map((item) => (
                   <li key={item.id} className="p-4 sm:p-6">
                     <div className="flex items-center space-x-4">
-                      <div className="w-24 h-24 bg-gray-200 rounded-md flex-shrink-0"></div>
+                      <div className="w-24 h-24 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden">
+                        <img
+                          src={item.image || 'https://via.placeholder.com/96x96'}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:justify-between">
                           <h3 className="text-lg font-semibold text-gray-800 truncate pr-2">{item.name}</h3>
