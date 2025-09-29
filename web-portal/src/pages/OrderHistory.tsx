@@ -22,8 +22,9 @@ const OrderHistory: React.FC = () => {
     setLoading(true);
     try {
       const fetchedOrders = await getOrders();
-      setOrders(fetchedOrders);
-      localStorage.setItem('orderHistory', JSON.stringify(fetchedOrders));
+      const sortedOrders = fetchedOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setOrders(sortedOrders);
+      localStorage.setItem('orderHistory', JSON.stringify(sortedOrders));
       
       const cachedAccount = localStorage.getItem('account');
       if (cachedAccount) {
@@ -63,9 +64,10 @@ const OrderHistory: React.FC = () => {
     const cachedAccount = localStorage.getItem('account');
 
     if (cachedOrders && cachedAccount) {
-      const parsedAccount = JSON.parse(cachedAccount);
-      setOrders(JSON.parse(cachedOrders));
-      setAccount(parsedAccount);
+      const parsedOrders = JSON.parse(cachedOrders);
+      const sortedOrders = parsedOrders.sort((a: OrderType, b: OrderType) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setOrders(sortedOrders);
+      setAccount(JSON.parse(cachedAccount));
       setLoading(false);
     } else {
       fetchHistory(decodedUser.id);
