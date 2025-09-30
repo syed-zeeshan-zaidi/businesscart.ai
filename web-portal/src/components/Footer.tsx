@@ -16,25 +16,25 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Support</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">User Guide</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">API Status</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Contact Us</a></li>
+              <li><a href="/user-guide" className="text-base text-gray-300 hover:text-white">User Guide</a></li>
+              <li><a href="/api-status" className="text-base text-gray-300 hover:text-white">API Status</a></li>
+              <li><a href="/contact-us" className="text-base text-gray-300 hover:text-white">Contact Us</a></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Company</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">About</a></li>
+              <li><a href="/about" className="text-base text-gray-300 hover:text-white">About</a></li>
               <li><a href="#" className="text-base text-gray-300 hover:text-white">Blog</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Careers</a></li>
+              <li><a href="/careers" className="text-base text-gray-300 hover:text-white">Careers</a></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Legal</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Privacy Policy</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Terms of Service</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Get Business Code</a></li>
+              <li><a href="/privacy-policy" className="text-base text-gray-300 hover:text-white">Privacy Policy</a></li>
+              <li><a href="/terms-of-service" className="text-base text-gray-300 hover:text-white">Terms of Service</a></li>
+              <li><a href="/contact-us" className="text-base text-gray-300 hover:text-white">Request Business Code</a></li>
             </ul>
           </div>
         </div>
