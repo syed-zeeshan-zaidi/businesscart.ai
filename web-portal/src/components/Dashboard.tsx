@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from './Navbar';
+import Sidebar from './Sidebar'; // Import the existing Sidebar component
 import { useAuth } from '../hooks/useAuth';
-import { getProducts } from '../api'; // Import the correct API function
+import { getProducts } from '../api';
+import { 
+  ShoppingCartIcon, 
+  CurrencyDollarIcon, 
+  UsersIcon, 
+  CubeIcon, 
+} from '@heroicons/react/24/outline';
 
 interface User {
   id: string;
@@ -67,7 +74,7 @@ const Dashboard: React.FC = () => {
           }
         }
         
-        const products = await getProducts(); // Use the correct API function
+        const products = await getProducts();
         
         setProductCount(products.length);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ data: products, timestamp: Date.now() }));
@@ -81,42 +88,75 @@ const Dashboard: React.FC = () => {
     loadProducts();
   }, [user]);
 
+  const renderWelcomeMessage = () => {
+    if (!user) return 'Welcome to your Dashboard';
+    const role = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+    return `Welcome, ${user.name || role}`;
+  };
+
+  const renderChart = () => (
+    <div className="bg-white p-6 rounded-lg shadow-lg">
+      <h3 className="text-xl font-semibold text-gray-800 mb-4">Monthly Sales</h3>
+      <div className="flex items-end justify-around h-64">
+        {[3, 5, 8, 9, 9, 7, 8, 4, 6, 9, 8, 5].map((h, i) => (
+          <div key={i} className="w-12 bg-teal-600 rounded-t-lg" style={{ height: `${h * 1.5}rem` }}></div>
+        ))}
+      </div>
+      <div className="flex justify-around mt-2 text-sm text-gray-600">
+        <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex h-screen bg-gray-100">
       <Toaster position="top-right" />
-      <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            {user ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} Dashboard` : 'Dashboard'}
-          </h2>
-          <p className="text-gray-600">
-            {user?.role === 'customer'
-              ? 'View your orders and explore products.'
-              : 'Manage your products and companies from the sidebar navigation.'}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-2">Products Overview</h3>
-            {isLoading ? (
-              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto"></div>
-            ) : (
-              <p className="text-gray-600">
-                You have {productCount ?? '0'} product{productCount !== 1 ? 's' : ''}. View them in the Products section.
-              </p>
-            )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">{renderWelcomeMessage()}</h1>
+            <p className="text-gray-600 mt-1">Here's what's happening with your business today.</p>
           </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-2">Companies Overview</h3>
-            {isLoading ? (
-              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto"></div>
-            ) : (
-              <p className="text-gray-600">Company count coming soon. View them in the Companies section.</p>
-            )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+              <CurrencyDollarIcon className="h-12 w-12 text-teal-600 mr-4" />
+              <div>
+                <p className="text-sm text-gray-600">Total Sales</p>
+                <p className="text-2xl font-bold text-gray-800">$12,345</p>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+              <ShoppingCartIcon className="h-12 w-12 text-teal-600 mr-4" />
+              <div>
+                <p className="text-sm text-gray-600">New Orders</p>
+                <p className="text-2xl font-bold text-gray-800">12</p>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+              <CubeIcon className="h-12 w-12 text-teal-600 mr-4" />
+              <div>
+                <p className="text-sm text-gray-600">Total Products</p>
+                {isLoading ? 
+                  <div className="animate-spin h-6 w-6 border-2 border-teal-600 border-t-transparent rounded-full"></div> : 
+                  <p className="text-2xl font-bold text-gray-800">{productCount ?? 0}</p>
+                }
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+              <UsersIcon className="h-12 w-12 text-teal-600 mr-4" />
+              <div>
+                <p className="text-sm text-gray-600">Total Customers</p>
+                <p className="text-2xl font-bold text-gray-800">56</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </main>
+
+          {renderChart()}
+
+        </main>
+      </div>
     </div>
   );
 };
