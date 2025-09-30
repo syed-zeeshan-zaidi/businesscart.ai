@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   return (
@@ -8,33 +9,33 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Solutions</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">B2B Commerce</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Marketplace</a></li>
-              <li><a href="#" className="text-base text-gray-300 hover:text-white">Integrations</a></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">B2B Commerce</Link></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Marketplace</Link></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Integrations</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Support</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="/user-guide" className="text-base text-gray-300 hover:text-white">User Guide</a></li>
-              <li><a href="/api-status" className="text-base text-gray-300 hover:text-white">API Status</a></li>
-              <li><a href="/contact-us" className="text-base text-gray-300 hover:text-white">Contact Us</a></li>
+              <li><Link to="/user-guide" className="text-base text-gray-300 hover:text-white">User Guide</Link></li>
+              <li><Link to="/api-status" className="text-base text-gray-300 hover:text-white">API Status</Link></li>
+              <li><Link to="/contact-us" className="text-base text-gray-300 hover:text-white">Contact Us</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Company</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="/about" className="text-base text-gray-300 hover:text-white">About</a></li>
-              <li><a href="/faq" className="text-base text-gray-300 hover:text-white">FAQ</a></li>
-              <li><a href="/careers" className="text-base text-gray-300 hover:text-white">Careers</a></li>
+              <li><Link to="/about" className="text-base text-gray-300 hover:text-white">About</Link></li>
+              <li><Link to="/faq" className="text-base text-gray-300 hover:text-white">FAQ</Link></li>
+              <li><Link to="/careers" className="text-base text-gray-300 hover:text-white">Careers</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Legal</h3>
             <ul className="mt-4 space-y-4">
-              <li><a href="/privacy-policy" className="text-base text-gray-300 hover:text-white">Privacy Policy</a></li>
-              <li><a href="/terms-of-service" className="text-base text-gray-300 hover:text-white">Terms of Service</a></li>
-              <li><a href="/contact-us" className="text-base text-gray-300 hover:text-white">Request Business Code</a></li>
+              <li><Link to="/privacy-policy" className="text-base text-gray-300 hover:text-white">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" className="text-base text-gray-300 hover:text-white">Terms of Service</Link></li>
+              <li><Link to="/contact-us" className="text-base text-gray-300 hover:text-white">Request Business Code</Link></li>
             </ul>
           </div>
         </div>

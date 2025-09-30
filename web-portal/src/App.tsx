@@ -1,6 +1,7 @@
-import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import LoadingIndicator from './components/LoadingIndicator';
 
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./components/Login'));
@@ -29,8 +30,16 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 
-const App = () => {
+const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 500); // Simulate loading
+    return () => clearTimeout(timer);
+  }, [location]);
 
   const getRedirectPath = () => {
     const token = localStorage.getItem('accessToken');
@@ -66,7 +75,8 @@ const App = () => {
   ];
 
   return (
-    <Router>
+    <>
+      <LoadingIndicator isLoading={isLoading} />
       <div className="min-h-screen bg-gray-100 flex">
         {isAuthenticated && (
           <Suspense fallback={<div>Loading...</div>}>
@@ -175,8 +185,14 @@ const App = () => {
           </Suspense>
         </div>
       </div>
-    </Router>
+    </>
   );
 };
+
+const App = () => (
+  <Router>
+    <AppContent />
+  </Router>
+);
 
 export default App;
