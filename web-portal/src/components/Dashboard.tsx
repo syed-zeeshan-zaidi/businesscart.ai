@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from './Navbar';
-import Sidebar from './Sidebar'; // Import the existing Sidebar component
 import { useAuth } from '../hooks/useAuth';
 import { getProducts } from '../api';
 import { 
