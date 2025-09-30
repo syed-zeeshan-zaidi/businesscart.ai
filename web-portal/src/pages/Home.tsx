@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Account, Product } from '../types';
 
@@ -270,6 +271,7 @@ const Home: React.FC = () => {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 };

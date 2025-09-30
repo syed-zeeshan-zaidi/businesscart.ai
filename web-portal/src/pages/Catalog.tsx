@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
 import { MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
@@ -195,7 +196,7 @@ const Catalog: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
 
-        <div className="mb-6 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
+        <div className="mb-10 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
           <div className="relative w-full md:w-1/6">
             <select
               id="category-filter"
@@ -341,6 +342,7 @@ const Catalog: React.FC = () => {
           <p className="text-gray-600">No products available in the catalog.</p>
         )}
       </main>
+      <Footer />
     </div>
   );
 };
