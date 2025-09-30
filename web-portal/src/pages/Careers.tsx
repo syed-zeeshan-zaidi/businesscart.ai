@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -66,7 +67,7 @@ const Careers: React.FC = () => {
                       <h3 className="text-xl font-semibold text-gray-800">{position.title}</h3>
                       <p className="text-gray-600">{position.location}</p>
                       <p className="text-gray-600 mt-4">{position.description}</p>
-                      <a href="#" className="text-teal-600 hover:underline mt-4 inline-block">Apply Now</a>
+                      <Link to="/contact-us" className="text-teal-600 hover:underline mt-4 inline-block">Apply Now</Link>
                     </div>
                   ))}
                 </div>
