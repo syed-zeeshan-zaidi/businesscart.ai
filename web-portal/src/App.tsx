@@ -27,6 +27,7 @@ const About = lazy(() => import('./pages/About'));
 const Careers = lazy(() => import('./pages/Careers'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const FAQ = lazy(() => import('./pages/FAQ'));
 
 const App = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -167,6 +168,7 @@ const App = () => {
               <Route path="/careers" element={<Careers />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/" element={<Home />} />
               <Route path="*" element={<div className="p-4 text-center text-gray-600">404 Not Found</div>} />
             </Routes>
