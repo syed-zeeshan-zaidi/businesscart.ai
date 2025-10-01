@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Account as AccountType } from '../types';
 import { getAccount } from '../api';
@@ -157,6 +158,7 @@ const Account: React.FC = () => {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 };

@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 const OrderSuccess: React.FC = () => {
   return (
@@ -32,6 +32,7 @@ const OrderSuccess: React.FC = () => {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 };

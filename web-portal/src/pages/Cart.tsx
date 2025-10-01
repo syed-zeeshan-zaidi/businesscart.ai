@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, Account } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations } from '../api';
@@ -346,6 +347,7 @@ const Cart: React.FC = () => {
           )
         )}
       </main>
+      <Footer />
     </div>
   );
 };

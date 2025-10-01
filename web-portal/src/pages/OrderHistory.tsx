@@ -1,8 +1,8 @@
-
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Order as OrderType, Account as AccountType, CompanyData } from '../types';
 import { getOrders, getAccount } from '../api';
@@ -233,6 +233,7 @@ const OrderHistory: React.FC = () => {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 };

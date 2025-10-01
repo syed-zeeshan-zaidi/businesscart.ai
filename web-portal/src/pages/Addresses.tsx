@@ -3,6 +3,7 @@ import { getCustomerAddresses, upsertCustomerAddress } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
 import { CustomerAddress } from '../types';
@@ -117,7 +118,7 @@ const Addresses: React.FC = () => {
             <p className="text-gray-600 mt-2">You have not added any shipping addresses yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mb-20 grid grid-cols-1 md:grid-cols-2 gap-6">
             {addresses.map((addr) => (
               <div key={addr.id} className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-start">
@@ -273,6 +274,7 @@ const Addresses: React.FC = () => {
           </Dialog>
         </Transition>
       </main>
+      <Footer />
     </div>
   );
 };
