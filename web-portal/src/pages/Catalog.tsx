@@ -238,7 +238,7 @@ const Catalog: React.FC = () => {
               >
                 <div className="flex items-center">
                   {selectedCompany?.logoUrl && (
-                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-3 rounded-full" />
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
                   )}
                   <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
                 </div>
@@ -258,7 +258,7 @@ const Catalog: React.FC = () => {
                         role="menuitem"
                       >
                         {company.logoUrl && (
-                          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 mr-3 rounded-full" />
+                          <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
                         )}
                         {company.name}
                       </button>
