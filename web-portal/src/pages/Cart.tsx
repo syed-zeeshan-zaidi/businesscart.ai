@@ -291,20 +291,21 @@ const Cart: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center">
-                            <label htmlFor={`quantity-${item.id}`} className="sr-only">Quantity</label>
-                            <input
-                              type="number"
-                              id={`quantity-${item.id}`}
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const newQuantity = parseInt(e.target.value);
-                                if (newQuantity >= 1) {
-                                  handleUpdateQuantity(item.id, newQuantity);
-                                }
-                              }}
-                              className="w-16 p-1 border border-gray-300 rounded-md text-center"
-                            />
+                            <button
+                              onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                              className="w-8 h-8 bg-gray-200 text-gray-600 rounded-l-md hover:bg-gray-300 disabled:opacity-50"
+                              disabled={item.quantity <= 1 || loading}
+                            >
+                              -
+                            </button>
+                            <span className="px-4 py-1 border-t border-b border-gray-300 text-center">{item.quantity}</span>
+                            <button
+                              onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                              className="w-8 h-8 bg-gray-200 text-gray-600 rounded-r-md hover:bg-gray-300"
+                              disabled={loading}
+                            >
+                              +
+                            </button>
                           </div>
                           <button
                             onClick={() => handleRemoveItem(item.id)}
