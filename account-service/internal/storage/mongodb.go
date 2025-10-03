@@ -168,6 +168,15 @@ func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, company
 	return err
 }
 
+func (db *DB) AddCustomerAssociation(customerID primitive.ObjectID, entry *CustomerCodeEntry) error {
+	filter := bson.M{"_id": customerID}
+	update := bson.M{
+		"$addToSet": bson.M{"customer.customerConfigs": entry},
+	}
+	_, err := db.accounts.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
 /* ---------- COMPANY LOCATIONS ---------- */
 
 func (db *DB) CreateCompanyLocation(location *CompanyLocation) error {

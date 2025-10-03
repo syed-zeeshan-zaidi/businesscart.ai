@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Account as AccountType } from '../types';
 import { getAccount } from '../api';
+import AssociationModal from '../components/AssociationModal';
 
 const LOCAL_KEY = 'account'; // <-- single key for localStorage
 
@@ -14,6 +15,7 @@ const Account: React.FC = () => {
   const navigate = useNavigate();
   const [account, setAccount] = useState<AccountType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAssociationModalOpen, setIsAssociationModalOpen] = useState(false);
 
   /* fetch only when not cached */
   const fetchAccount = useCallback(async (userId: string) => {
@@ -71,6 +73,10 @@ const Account: React.FC = () => {
     if (decoded) fetchAccount(decoded.id);
   };
 
+  const handleAssociationSuccess = () => {
+    handleRefresh();
+  };
+
   const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
     <div className="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
       <dt className="text-sm font-medium text-gray-500">{label}</dt>
@@ -85,12 +91,22 @@ const Account: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Your Account</h1>
-          <button
-            onClick={handleRefresh}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition"
-          >
-            Refresh
-          </button>
+          <div>
+            {account?.role === 'customer' && (
+              <button
+                onClick={() => setIsAssociationModalOpen(true)}
+                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition mr-2"
+              >
+                Associate with Company
+              </button>
+            )}
+            <button
+              onClick={handleRefresh}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -158,6 +174,11 @@ const Account: React.FC = () => {
           </div>
         )}
       </main>
+      <AssociationModal
+        isOpen={isAssociationModalOpen}
+        onClose={() => setIsAssociationModalOpen(false)}
+        onAssociationSuccess={handleAssociationSuccess}
+      />
       <Footer />
     </div>
   );

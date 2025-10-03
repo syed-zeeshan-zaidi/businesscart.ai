@@ -140,14 +140,16 @@ const Catalog: React.FC = () => {
 
   useEffect(() => {
     if (products.length > 0) {
-      const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean) as string[]));
+      const filtered = companyIdFilter ? products.filter(p => p.sellerID === companyIdFilter) : products;
+      const uniqueCategories = Array.from(new Set(filtered.map(p => p.category).filter(Boolean) as string[]));
       setCategories(uniqueCategories);
     }
-  }, [products]);
+  }, [products, companyIdFilter]);
 
   const filterableAttributes = useMemo(() => {
     const attributes: Record<string, Set<string>> = {};
-    products.forEach(product => {
+    const filtered = companyIdFilter ? products.filter(p => p.sellerID === companyIdFilter) : products;
+    filtered.forEach(product => {
       product.attributes?.forEach(attr => {
         if (attr.type === 'filterable' && attr.key && attr.value) {
           if (!attributes[attr.key]) {
@@ -160,7 +162,7 @@ const Catalog: React.FC = () => {
     return Object.fromEntries(
       Object.entries(attributes).map(([key, valueSet]) => [key, Array.from(valueSet)])
     );
-  }, [products]);
+  }, [products, companyIdFilter]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
@@ -312,6 +314,7 @@ const Catalog: React.FC = () => {
                     src={product.image || 'https://via.placeholder.com/300x200'}
                     alt={product.name}
                     className="max-h-full max-w-full"
+                    loading="lazy"
                   />
                 </div>
                 <div className="p-4">

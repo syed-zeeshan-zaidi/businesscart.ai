@@ -129,6 +129,8 @@ export class BusinessCartStack extends cdk.Stack {
     const customerById = customers.addResource('{customerId}');
     const customerConfig = customerById.addResource('configuration');
     customerConfig.addMethod('PATCH', accountInteg);
+    const customerAssociate = customerById.addResource('associate');
+    customerAssociate.addMethod('PATCH', accountInteg);
 
     const catalogInteg = new apigw.LambdaIntegration(catalogService);
     const products = api.root.addResource('products');
