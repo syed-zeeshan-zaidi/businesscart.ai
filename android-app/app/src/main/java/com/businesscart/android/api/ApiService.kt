@@ -34,4 +34,7 @@ interface ApiService {
 
     @DELETE("accounts/locations/{accountId}/{locationId}")
     suspend fun deleteCustomerAddress(@Path("accountId") accountId: String, @Path("locationId") locationId: String): Response<Unit>
+
+    @POST("customers/{customerId}/associate")
+    suspend fun associateCompany(@Path("customerId") customerId: String, @Body customerCode: Map<String, String>): Response<Unit>
 }

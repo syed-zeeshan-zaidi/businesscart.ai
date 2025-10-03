@@ -176,6 +176,7 @@ class CatalogActivity : AppCompatActivity() {
             if (selectedCompany != null && selectedCompany.companyCodeId != selectedCompanyId) {
                 selectedCompanyId = selectedCompany.companyCodeId
                 updateCompanyUI()
+                updateFilters()
                 filter()
             }
             true
@@ -203,13 +204,7 @@ class CatalogActivity : AppCompatActivity() {
                 }
 
                 updateCompanyUI()
-
-                categoryList = listOf("All Categories") + productList.mapNotNull { it.category }.distinct().sorted()
-                val categoryAdapter = ArrayAdapter(this@CatalogActivity, android.R.layout.simple_spinner_item, categoryList)
-                categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                categorySpinner.adapter = categoryAdapter
-
-                populateAdvancedFilters()
+                updateFilters()
                 filter()
 
             } catch (e: Exception) {
@@ -242,9 +237,20 @@ class CatalogActivity : AppCompatActivity() {
         dropdownArrow.visibility = if (companies.size > 1) View.VISIBLE else View.GONE
     }
 
-    private fun populateAdvancedFilters() {
+    private fun updateFilters() {
+        val companyProducts = if (selectedCompanyId != null) productList.filter { it.sellerId == selectedCompanyId } else productList
+
+        categoryList = listOf("All Categories") + companyProducts.mapNotNull { it.category }.distinct().sorted()
+        val categoryAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categoryList)
+        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        categorySpinner.adapter = categoryAdapter
+
+        populateAdvancedFilters(companyProducts)
+    }
+
+    private fun populateAdvancedFilters(productsToFilter: List<Product>) {
         advancedFiltersContainer.removeAllViews()
-        val filterableAttributes = productList
+        val filterableAttributes = productsToFilter
             .flatMap { it.attributes ?: emptyList() }
             .filter { it.type == "filterable" }
             .groupBy { it.key }
@@ -287,18 +293,12 @@ class CatalogActivity : AppCompatActivity() {
     }
 
     private fun filter() {
-        if (selectedCompanyId == null) {
-            productAdapter = ProductAdapter(emptyList(), {}, {})
-            recyclerView.adapter = productAdapter
-            return
-        }
-
-        val filteredList = productList.filter {
-            val companyMatch = it.sellerId == selectedCompanyId
-            val searchMatch = it.name.contains(currentSearchQuery, ignoreCase = true)
-            val categoryMatch = currentCategory == "All Categories" || it.category == currentCategory
+        val filteredList = productList.filter { product ->
+            val companyMatch = selectedCompanyId == null || product.sellerId == selectedCompanyId
+            val searchMatch = product.name.contains(currentSearchQuery, ignoreCase = true)
+            val categoryMatch = currentCategory == "All Categories" || product.category == currentCategory
             val attributeMatch = attributeFilters.all { (key, value) ->
-                it.attributes?.any { attr -> attr.key == key && attr.value == value } ?: false
+                product.attributes?.any { attr -> attr.key == key && attr.value == value } ?: false
             }
             companyMatch && searchMatch && categoryMatch && attributeMatch
         }

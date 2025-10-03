@@ -320,7 +320,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		PaymentMethods     []string                `json:"paymentMethods"`
 		DeliveryMethods    []string                `json:"deliveryMethods"`
 		ShippingOutOptions []string                `json:"shippingOutOptions"`
-		CompanyLocations   []quote.CompanyLocation   `json:"companyLocations"`
+		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
 		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
