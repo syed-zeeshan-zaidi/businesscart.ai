@@ -73,13 +73,21 @@ const Navbar: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                {userRole !== 'company' && (
-                  <span className="w-10 h-10 mr-2"><Logo /></span>
+                {userRole !== 'company' ? (
+                  <Link to="/" className="flex items-center">
+                    <span className="w-10 h-10 mr-2"><Logo /></span>
+                    <span className="text-lg font-semibold text-gray-600">{companyName}</span>
+                  </Link>
+                ) : (
+                  <Link to="/dashboard" className="flex items-center">
+                    {account?.company?.logoUrl ? (
+                      <img src={account.company.logoUrl} alt="Company Logo" className="w-8 h-8 mr-1" />
+                    ) : (
+                      <span className="w-10 h-10 mr-2"><Logo /></span>
+                    )}
+                    <span className="text-lg font-semibold text-gray-600">{companyName}</span>
+                  </Link>
                 )}
-                {userRole === 'company' && account?.company?.logoUrl && (
-                  <span><img src={account.company.logoUrl} alt="Company Logo" className="w-8 h-8 mr-1" /></span>
-                )}
-                <span className="text-lg font-semibold text-gray-600">{companyName}</span>
               </div>
               <div className="flex items-center space-x-4">
                 {userRole === 'customer' && (
