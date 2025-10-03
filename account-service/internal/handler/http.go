@@ -46,6 +46,7 @@ func (h *Handler) RegisterRoutes(router *chi.Mux) {
 
 		// Customer configuration endpoint
 		r.Patch("/customers/{customerId}/configuration", h.UpdateCustomerConfiguration) // company only
+		r.Patch("/customers/{customerId}/associate", h.AssociateCustomerWithCompany)
 
 		// Location endpoints
 		r.Get("/accounts/locations/{accountID}", h.GetLocations)
@@ -143,6 +144,97 @@ func (h *Handler) GetCodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(codes)
+}
+
+type AssociateCustomerRequest struct {
+	CustomerCode string `json:"customerCode"`
+}
+
+func (h *Handler) AssociateCustomerWithCompany(w http.ResponseWriter, r *http.Request) {
+	// 1. Get customerId from URL
+	customerIDStr := chi.URLParam(r, "customerId")
+	customerID, err := primitive.ObjectIDFromHex(customerIDStr)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Get user claims from JWT
+	userClaims, ok := r.Context().Value("user").(map[string]interface{})
+	if !ok {
+		http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+		return
+	}
+	role, _ := userClaims["role"].(string)
+	actorID, _ := userClaims["id"].(string)
+
+	var entry *storage.CustomerCodeEntry
+
+	// 3. Handle logic based on role
+	switch role {
+	case storage.RoleCustomer:
+		// A customer can only associate themselves
+		if actorID != customerIDStr {
+			http.Error(w, "Forbidden: Customers can only associate their own account", http.StatusForbidden)
+			return
+		}
+
+		var req AssociateCustomerRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if req.CustomerCode == "" {
+			http.Error(w, "customerCode is required", http.StatusBadRequest)
+			return
+		}
+
+		codeDoc, err := h.db.GetCode(bson.M{"customerCode": req.CustomerCode})
+		if err != nil {
+			http.Error(w, "Invalid customer code", http.StatusBadRequest)
+			return
+		}
+		entry = &storage.CustomerCodeEntry{
+			CodeID: codeDoc.ID.Hex(),
+			Code:   codeDoc.CustomerCode,
+		}
+
+	case storage.RoleCompany:
+		companyID, err := primitive.ObjectIDFromHex(actorID)
+		if err != nil {
+			http.Error(w, "Invalid company ID in token", http.StatusInternalServerError)
+			return
+		}
+		companyAccount, err := h.db.GetAccountByID(companyID)
+		if err != nil || companyAccount.CompanyData == nil {
+			http.Error(w, "Could not find company data", http.StatusNotFound)
+			return
+		}
+
+		codeDoc, err := h.db.GetCode(bson.M{"companyCode": companyAccount.CompanyData.CompanyCode})
+		if err != nil {
+			http.Error(w, "Could not find associated customer code for company", http.StatusInternalServerError)
+			return
+		}
+		entry = &storage.CustomerCodeEntry{
+			CodeID: codeDoc.ID.Hex(),
+			Code:   codeDoc.CustomerCode,
+		}
+
+	default:
+		http.Error(w, "Forbidden: Invalid role for this action", http.StatusForbidden)
+		return
+	}
+
+	// 4. Add the association to the customer's account
+	if err := h.db.AddCustomerAssociation(customerID, entry); err != nil {
+		log.Printf("Failed to add customer association: %v", err)
+		http.Error(w, "Failed to update customer associations", http.StatusInternalServerError)
+		return
+	}
+
+	// 5. Success
+	w.WriteHeader(http.StatusOK)
 }
 
 /* ---------- ACCOUNT ENDPOINTS ---------- */

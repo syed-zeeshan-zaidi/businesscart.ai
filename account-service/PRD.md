@@ -160,6 +160,39 @@ The service exposes the following endpoints:
 *   **`POST /codes`** (Admin Only): Creates a new registration code document containing a `CompanyCode` and `CustomerCode`.
 *   **`GET /codes/{code}`** (Admin Only): Retrieves the details of a specific registration code.
 
+### `PATCH /customers/{customerId}/associate`
+
+This endpoint provides a flexible mechanism for associating an existing customer account with a company account after the initial registration. It supports two distinct operational modes based on the role of the authenticated user making the request.
+
+#### Scenario 1: Customer-Initiated Association
+
+A logged-in customer can use this endpoint to associate their own account with a new company by providing that company's specific `customerCode`.
+
+*   **Role:** `customer`
+*   **Authorization:** The customer must be authenticated, and the `{customerId}` in the URL must match the ID in their JWT.
+*   **Request Body:**
+    ```json
+    {
+      "customerCode": "CUST-BETA-202"
+    }
+    ```
+*   **Logic:**
+    1.  The service validates that the `customerCode` exists and is valid.
+    2.  It retrieves the corresponding `companyId` from the `codes` collection.
+    3.  It adds a new `CustomerCodeEntry` to the customer's `customerConfigs` array in their account document.
+
+#### Scenario 2: Company-Initiated Association
+
+A logged-in company can use this endpoint to claim an existing customer and associate them with their own company.
+
+*   **Role:** `company`
+*   **Authorization:** The company must be authenticated. The `{customerId}` in the URL refers to the target customer account.
+*   **Request Body:** (Empty)
+*   **Logic:**
+    1.  The service identifies the calling company from its JWT.
+    2.  It retrieves the company's own `customerCode` from its account data.
+    3.  It adds a new `CustomerCodeEntry` (containing the company's `codeId` and `customerCode`) to the specified customer's `customerConfigs` array.
+
 ### Location and Address Management API Endpoints
 
 New API endpoints will be added to manage `CompanyLocation` and `CustomerAddress` entities. These endpoints will interact with the new `company_locations` and `customer_addresses` collections.

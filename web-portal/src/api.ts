@@ -271,3 +271,9 @@ export const deleteCustomerAddress = async (customerId: string, addressId: strin
 export const updateCustomerConfiguration = async (customerId: string, config: Partial<CustomerConfiguration>): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/configuration`, config);
 };
+
+export const associateCompany = async (customerCode: string): Promise<void> => {
+  const claims = await getUserClaims();
+  const customerId = claims.user.id;
+  await api.patch(`${API_URL}/customers/${customerId}/associate`, { customerCode });
+};
