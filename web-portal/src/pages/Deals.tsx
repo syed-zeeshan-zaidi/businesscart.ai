@@ -54,7 +54,6 @@ const Deals: React.FC = () => {
         getAccount(decodedUser.id),
       ]);
       
-      // Filter for products with dealPrice
       const deals = fetchedProducts.filter(product => product.dealPrice !== undefined && product.dealPrice > 0);
       setProducts(deals);
 
@@ -65,7 +64,6 @@ const Deals: React.FC = () => {
           logoUrl: c.logoUrl,
         }));
         setCompanies(customerCompanies);
-        console.log('Fetched Companies:', customerCompanies); // Debug log
         if (customerCompanies.length > 0) {
           setCompanyIdFilter(customerCompanies[0].id);
         }
@@ -74,7 +72,7 @@ const Deals: React.FC = () => {
       const cacheKey = getCacheKey();
       if (cacheKey) {
         localStorage.setItem(cacheKey, JSON.stringify({
-          products: deals, // Cache only deals
+          products: deals,
           account: fetchedAccount,
           timestamp: Date.now()
         }));
@@ -120,7 +118,6 @@ const Deals: React.FC = () => {
                   logoUrl: c.logoUrl,
                 }));
                 setCompanies(customerCompanies);
-                console.log('Cached Companies:', customerCompanies); // Debug log
                 if (customerCompanies.length > 0) {
                     setCompanyIdFilter(customerCompanies[0].id);
                 }
@@ -136,27 +133,17 @@ const Deals: React.FC = () => {
     loadData();
   }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
-  // Removed useEffect for categories as category filter is removed
-
-  // Removed filterableAttributes useMemo as attribute filters are removed
-
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      // Removed nameMatch as search query is removed
       const companyMatch = companyIdFilter === '' || product.sellerID === companyIdFilter;
-      // Removed categoryMatch as category filter is removed
-      // Removed attributeMatch as attribute filters are removed
       return companyMatch;
     }).map(product => {
-      // Ensure dealPrice is applied for display
       if (product.dealPrice !== undefined && product.dealPrice !== null) {
         return { ...product, discountedPrice: product.price * (1 - product.dealPrice / 100) };
       }
       return product;
     });
-  }, [products, companyIdFilter]); // Removed searchQuery, categoryFilter, attributeFilters from dependencies
-
-  // Removed clearFilters function
+  }, [products, companyIdFilter]);
 
   const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
 
@@ -164,16 +151,15 @@ const Deals: React.FC = () => {
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
-      {/* Removed FilterSidebar component */}
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {selectedCompany && (
-          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-8 rounded-lg shadow-lg mb-8 flex items-center space-x-6">
+          <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
             {selectedCompany.logoUrl && (
-              <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-24 w-24 object-contain rounded-full bg-white p-2 shadow-md" />
+              <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-full bg-white p-2 shadow-md" />
             )}
             <div>
-              <h2 className="text-4xl font-extrabold mb-2 leading-tight">Deals from {selectedCompany.name}</h2>
+              <h2 className="text-3xl md:text-4xl font-extrabold mb-2 leading-tight">Deals from {selectedCompany.name}</h2>
               <p className="text-lg opacity-90">Discover exclusive discounts and special offers tailored just for you!</p>
             </div>
           </div>
@@ -227,9 +213,6 @@ const Deals: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Removed search input field */}
-        {/* Removed attribute filters display */}
 
         {loading ? (
           <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>

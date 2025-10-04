@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProducts, getAccount } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
+import { CubeIcon, TagIcon, ClipboardDocumentListIcon, UserCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
@@ -170,53 +171,95 @@ const Home: React.FC = () => {
             {account.role === 'customer' && (
               <>
                 {/* Hero Section */}
-                <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-12 mb-12 text-center">
-                  <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">Shop Premium Products</h3>
-                  <p className="mt-4 text-base sm:text-lg max-w-2xl mx-auto px-2">Explore our curated selection for your business needs.</p>
+                <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-16 mb-12 text-center">
+                  <h3 className="text-3xl sm:text-4xl font-bold tracking-tight">Shop Premium Products</h3>
+                  <p className="mt-4 text-lg sm:text-xl max-w-3xl mx-auto px-4">Explore our curated selection of high-quality products for your business needs.</p>
                   <button
-                    onClick={() => navigate('/products')}
-                    className="mt-6 inline-block bg-white text-teal-600 font-semibold px-6 py-3 rounded-md shadow hover:bg-gray-50 transition"
+                    onClick={() => navigate('/catalog')}
+                    className="mt-8 inline-block bg-white text-teal-600 font-semibold px-8 py-3 rounded-md shadow-lg hover:bg-gray-100 transition-transform transform hover:scale-105"
                   >
                     Shop Now
                   </button>
                 </div>
 
-                {/* Product Grid */}
+                {/* Quick Actions */}
+                <div className="mb-16">
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 text-center">Quick Actions</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
+                      <CubeIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-800 mb-2">Browse Products</h4>
+                      <p className="text-gray-600 text-sm mb-4">Explore the full product catalog.</p>
+                      <Link to="/catalog" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                        Go to Catalog <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Link>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
+                      <TagIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-800 mb-2">Special Deals</h4>
+                      <p className="text-gray-600 text-sm mb-4">Check out the latest promotions.</p>
+                      <Link to="/deals" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                        View Deals <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Link>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
+                      <ClipboardDocumentListIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Orders</h4>
+                      <p className="text-gray-600 text-sm mb-4">Track your past and current orders.</p>
+                      <Link to="/order-history" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                        My Orders <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Link>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
+                      <UserCircleIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Account</h4>
+                      <p className="text-gray-600 text-sm mb-4">Manage your account details.</p>
+                      <Link to="/account" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                        My Account <ArrowRightIcon className="w-4 h-4 ml-2" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Featured Products */}
                 <div>
-                  <h3 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Featured Products</h3>
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 text-center">Featured Products</h3>
                   {products.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
                       {products.map((product) => (
                         <div
                           key={product._id}
-                          className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
+                          className="bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-300 hover:scale-105 group cursor-pointer"
                           onClick={() => navigate(`/products/${product._id}`)}
                         >
-                          <img
-                            src={product.image || 'https://via.placeholder.com/300x200 '}
-                            alt={product.name}
-                            className="w-full h-48 object-cover"
-                          />
-                          <div className="p-3 sm:p-4">
-                            <h4 className="text-lg sm:text-xl font-semibold text-gray-800">{product.name}</h4>
-                            <p className="text-gray-600 text-sm line-clamp-2">{product.description}</p>
+                          <div className="relative">
+                            <img
+                              src={product.image || 'https://via.placeholder.com/300x200'}
+                              alt={product.name}
+                              className="w-full h-56 object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-50 transition duration-300 flex items-center justify-center">
+                              <p className="text-white text-lg font-semibold opacity-0 group-hover:opacity-100 transition-opacity">View Details</p>
+                            </div>
+                          </div>
+                          <div className="p-4 text-center">
+                            <h4 className="text-lg font-semibold text-gray-800 truncate">{product.name}</h4>
                             <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
-                            <button className="mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition">
-                              Add to Cart
-                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-600 mb-6">No products available.</p>
+                    <p className="text-gray-600 mb-6 text-center">No featured products available at the moment.</p>
                   )}
-                  <Link
-                    to="/products"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
-                  >
-                    View All Products
-                  </Link>
+                  <div className="text-center">
+                    <Link
+                      to="/catalog"
+                      className="inline-block bg-teal-600 text-white px-8 py-3 rounded-lg hover:bg-teal-700 transition-transform transform hover:scale-105"
+                    >
+                      View All Products
+                    </Link>
+                  </div>
                 </div>
               </>
             )}
