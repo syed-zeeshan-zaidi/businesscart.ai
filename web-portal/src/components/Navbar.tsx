@@ -93,12 +93,14 @@ const Navbar: React.FC = () => {
                 {userRole === 'customer' && (
                   <>
                     <div className="relative">
+                      <Link to="/deals">
                       <BellIcon className="h-6 w-6 text-gray-600 cursor-pointer" />
                       {notificationCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-600 text-white text- rounded-full h-4 w-4 flex items-center justify-center">
                           {notificationCount}
                         </span>
                       )}
+                      </Link>
                     </div>
                     <div className="relative">
                       <Link to="/cart">
