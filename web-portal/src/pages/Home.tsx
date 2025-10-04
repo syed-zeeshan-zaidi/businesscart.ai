@@ -229,8 +229,7 @@ const Home: React.FC = () => {
                       {products.map((product) => (
                         <div
                           key={product._id}
-                          className="bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-300 hover:scale-105 group cursor-pointer"
-                          onClick={() => navigate(`/products/${product._id}`)}
+                          className="bg-white rounded-lg shadow-lg overflow-hidden transform transition duration-300 hover:scale-105 group"
                         >
                           <div className="relative">
                             <img
@@ -239,7 +238,7 @@ const Home: React.FC = () => {
                               className="w-full h-56 object-cover"
                             />
                             <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-50 transition duration-300 flex items-center justify-center">
-                              <p className="text-white text-lg font-semibold opacity-0 group-hover:opacity-100 transition-opacity">View Details</p>
+                              <p className="text-white text-lg font-semibold opacity-0 group-hover:opacity-100 transition-opacity"></p>
                             </div>
                           </div>
                           <div className="p-4 text-center">
