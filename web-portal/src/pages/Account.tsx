@@ -91,11 +91,11 @@ const Account: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Your Account</h1>
-          <div>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             {account?.role === 'customer' && (
               <button
                 onClick={() => setIsAssociationModalOpen(true)}
-                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition mr-2"
+                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition"
               >
                 Associate with Company
               </button>

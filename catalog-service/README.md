@@ -31,6 +31,7 @@ Product information is stored in a MongoDB database. The `Product` model include
 -   `name`: The name of the product.
 -   `description`: A detailed description of the product.
 -   `price`: The price of the product.
+-   `dealPrice`: The percentage discount (0-50%) for the product.
 -   `companyId`: The ID of the company that owns the product.
 -- `userId`: The ID of the user (from the company) who created the product.
 

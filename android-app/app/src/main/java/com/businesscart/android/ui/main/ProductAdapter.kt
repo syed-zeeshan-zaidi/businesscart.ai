@@ -40,7 +40,7 @@ class ProductAdapter(
         }
 
         if (!product.image.isNullOrEmpty()) {
-            Picasso.get().load(product.image).into(holder.productImage)
+            Picasso.get().load(product.image).resize(300, 300).centerCrop().into(holder.productImage)
         }
 
         holder.itemView.setOnClickListener {

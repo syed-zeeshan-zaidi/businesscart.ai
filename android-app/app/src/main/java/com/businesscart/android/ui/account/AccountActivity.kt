@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.widget.Button
 import android.widget.LinearLayout
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.cardview.widget.CardView
@@ -35,6 +36,7 @@ class AccountActivity : AppCompatActivity() {
     private lateinit var companyStatusTextView: TextView
     private lateinit var associatedCompaniesCard: CardView
     private lateinit var associatedCompaniesLayout: LinearLayout
+    private lateinit var associateCompanyButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +73,9 @@ class AccountActivity : AppCompatActivity() {
             startActivity(Intent(this, AddressesActivity::class.java))
         }
 
+        associateCompanyButton = findViewById(R.id.associateCompanyButton)
+        associateCompanyButton.setOnClickListener { showAssociateCompanyDialog() }
+
         fetchAccountDetails()
     }
 
@@ -106,6 +111,12 @@ class AccountActivity : AppCompatActivity() {
                         emailTextView.text = "Email: ${it.email}"
                         roleTextView.text = "Role: ${it.role}"
 
+                        if (it.role == "customer") {
+                            associateCompanyButton.visibility = View.VISIBLE
+                        } else {
+                            associateCompanyButton.visibility = View.GONE
+                        }
+
                         if (it.company != null) {
                             companyInfoCard.visibility = View.VISIBLE
                             companyNameTextView.text = "Company Name: ${it.company.name}"
@@ -133,6 +144,43 @@ class AccountActivity : AppCompatActivity() {
                 Toast.makeText(this@AccountActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun showAssociateCompanyDialog() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Associate with Company")
+
+        val input = android.widget.EditText(this)
+        input.hint = "Enter Customer Code"
+        builder.setView(input)
+
+        builder.setPositiveButton("Associate") { dialog, _ ->
+            val customerCode = input.text.toString()
+            if (customerCode.isNotBlank()) {
+                associateCompany(customerCode)
+            }
+            dialog.dismiss()
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+
+        builder.show()
+    }
+
+    private fun associateCompany(customerCode: String) {
+        lifecycleScope.launch {
+            try {
+                val userId = sessionManager.getUserId() ?: return@launch
+                val response = RetrofitClient.apiService.associateCompany(userId, mapOf("customerCode" to customerCode))
+                if (response.isSuccessful) {
+                    Toast.makeText(this@AccountActivity, "Successfully associated with company", Toast.LENGTH_SHORT).show()
+                    fetchAccountDetails()
+                } else {
+                    Toast.makeText(this@AccountActivity, "Failed to associate with company", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@AccountActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }

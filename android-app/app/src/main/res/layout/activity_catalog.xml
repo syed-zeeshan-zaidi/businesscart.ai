@@ -40,7 +40,8 @@
 
         <ImageView
             android:id="@+id/companyLogoImageView"
-            android:layout_width="40dp"
+            android:layout_width="160dp"
+            android:maxWidth="160dp"
             android:layout_height="40dp"
             android:layout_marginEnd="8dp"/>
 

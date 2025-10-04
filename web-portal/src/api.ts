@@ -171,7 +171,7 @@ export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'>
   return response.data;
 };
 
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string } }): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }): Promise<Cart> => {
   const response = await api.post(`${API_URL}/checkout/cart`, data);
   return response.data;
 };
