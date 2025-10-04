@@ -212,7 +212,7 @@ const Home: React.FC = () => {
                     <p className="text-gray-600 mb-6">No products available.</p>
                   )}
                   <Link
-                    to="/products"
+                    to="/catalog"
                     className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
                   >
                     View All Products

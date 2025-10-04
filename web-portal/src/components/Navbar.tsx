@@ -12,7 +12,7 @@ const Navbar: React.FC = () => {
   const { isAuthenticated, logout } = useAuth();
   const [userInitials, setUserInitials] = useState('');
   const [companyName, setCompanyName] = useState('BusinessCart');
-  const [notificationCount] = useState(3); // Placeholder
+    const [notificationCount, setNotificationCount] = useState(0);
   const [userRole, setUserRole] = useState<'customer' | 'company' | 'admin' | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
 
@@ -64,6 +64,41 @@ const Navbar: React.FC = () => {
       window.removeEventListener('storageUpdated', updateNavbarState);
     };
   }, [updateNavbarState]);
+
+  useEffect(() => {
+    const updateNotificationCount = () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const userId = payload.user?.id;
+          if (userId) {
+            const cacheKey = `user_deals_cache_${userId}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+              const { products } = JSON.parse(cached);
+              setNotificationCount(products.length);
+            } else {
+              setNotificationCount(0);
+            }
+          } else {
+            setNotificationCount(0);
+          }
+        } catch (e) {
+          setNotificationCount(0);
+        }
+      } else {
+        setNotificationCount(0);
+      }
+    };
+
+    updateNotificationCount();
+    window.addEventListener('storage', updateNotificationCount);
+
+    return () => {
+      window.removeEventListener('storage', updateNotificationCount);
+    };
+  }, []);
 
   return (
     <Disclosure as="nav" className="bg-white shadow">
