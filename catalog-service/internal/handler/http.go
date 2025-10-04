@@ -8,9 +8,16 @@ import (
 	"business-cart/catalog-service/internal/storage"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
 
 type Handler struct {
 	db        *storage.DB
@@ -43,6 +50,11 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	var product storage.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := validate.Struct(product); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -163,6 +175,18 @@ func (h *Handler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	if dealPrice, ok := updates["dealPrice"]; ok {
+		if dp, ok := dealPrice.(float64); ok {
+			if dp < 0 || dp > 50 {
+				http.Error(w, "DealPrice must be between 0 and 50", http.StatusBadRequest)
+				return
+			}
+		} else {
+			http.Error(w, "Invalid DealPrice format", http.StatusBadRequest)
+			return	
+		}
 	}
 
 	if err := h.db.UpdateProduct(id, updates); err != nil {

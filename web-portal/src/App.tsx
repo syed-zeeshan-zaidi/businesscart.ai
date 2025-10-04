@@ -29,6 +29,7 @@ const Careers = lazy(() => import('./pages/Careers'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const FAQ = lazy(() => import('./pages/FAQ'));
+const Deals = lazy(() => import('./pages/Deals'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -90,6 +91,7 @@ const AppContent = () => {
         <div className="flex-1">
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
+              <Route path="/" element={<Home />} /> {/* Moved to the top */}
               <Route path="/home" element={<Home />} />
               <Route
                 path="/login"
@@ -114,6 +116,10 @@ const AppContent = () => {
               <Route
                 path="/catalog"
                 element={isAuthenticated ? <Catalog /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/deals"
+                element={isAuthenticated ? <Deals /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/cart"
@@ -179,7 +185,6 @@ const AppContent = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/faq" element={<FAQ />} />
-              <Route path="/" element={<Home />} />
               <Route path="*" element={<div className="p-4 text-center text-gray-600">404 Not Found</div>} />
             </Routes>
           </Suspense>

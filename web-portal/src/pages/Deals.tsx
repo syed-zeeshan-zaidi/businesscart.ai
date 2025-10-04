@@ -6,26 +6,20 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Product } from '../types';
-import { MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
-import FilterSidebar from '../components/FilterSidebar';
 import ProductDetailModal from '../components/ProductDetailModal';
 
-const CACHE_KEY_PREFIX = 'user_products_cache';
+const CACHE_KEY_PREFIX = 'user_deals_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-const Catalog: React.FC = () => {
+const Deals: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [companyIdFilter, setCompanyIdFilter] = useState('');
   const [companies, setCompanies] = useState<{ id: string; name: string; logoUrl?: string }[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -60,7 +54,9 @@ const Catalog: React.FC = () => {
         getAccount(decodedUser.id),
       ]);
       
-      setProducts(fetchedProducts);
+      // Filter for products with dealPrice
+      const deals = fetchedProducts.filter(product => product.dealPrice !== undefined && product.dealPrice > 0);
+      setProducts(deals);
 
       if (fetchedAccount.role === 'customer' && fetchedAccount.customer?.attachedCompanies) {
         const customerCompanies = fetchedAccount.customer.attachedCompanies.map((c: any) => ({
@@ -69,6 +65,7 @@ const Catalog: React.FC = () => {
           logoUrl: c.logoUrl,
         }));
         setCompanies(customerCompanies);
+        console.log('Fetched Companies:', customerCompanies); // Debug log
         if (customerCompanies.length > 0) {
           setCompanyIdFilter(customerCompanies[0].id);
         }
@@ -77,13 +74,13 @@ const Catalog: React.FC = () => {
       const cacheKey = getCacheKey();
       if (cacheKey) {
         localStorage.setItem(cacheKey, JSON.stringify({
-          products: fetchedProducts,
+          products: deals, // Cache only deals
           account: fetchedAccount,
           timestamp: Date.now()
         }));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load products');
+      toast.error(err.message || 'Failed to load deals');
     } finally {
       setLoading(false);
     }
@@ -103,7 +100,7 @@ const Catalog: React.FC = () => {
 
     const decoded = decodeJWT(token);
     if (decoded.role !== 'customer') {
-      toast.error('Access denied. Only customers can view the catalog.');
+      toast.error('Access denied. Only customers can view deals.');
       navigate('/home');
       return;
     }
@@ -123,6 +120,7 @@ const Catalog: React.FC = () => {
                   logoUrl: c.logoUrl,
                 }));
                 setCompanies(customerCompanies);
+                console.log('Cached Companies:', customerCompanies); // Debug log
                 if (customerCompanies.length > 0) {
                     setCompanyIdFilter(customerCompanies[0].id);
                 }
@@ -138,53 +136,27 @@ const Catalog: React.FC = () => {
     loadData();
   }, [isAuthenticated, navigate, decodeJWT, fetchProductsAndAccount, getCacheKey]);
 
-  useEffect(() => {
-    if (products.length > 0) {
-      const filtered = companyIdFilter ? products.filter(p => p.sellerID === companyIdFilter) : products;
-      const uniqueCategories = Array.from(new Set(filtered.map(p => p.category).filter(Boolean) as string[]));
-      setCategories(uniqueCategories);
-    }
-  }, [products, companyIdFilter]);
+  // Removed useEffect for categories as category filter is removed
 
-  const filterableAttributes = useMemo(() => {
-    const attributes: Record<string, Set<string>> = {};
-    const filtered = companyIdFilter ? products.filter(p => p.sellerID === companyIdFilter) : products;
-    filtered.forEach(product => {
-      product.attributes?.forEach(attr => {
-        if (attr.type === 'filterable' && attr.key && attr.value) {
-          if (!attributes[attr.key]) {
-            attributes[attr.key] = new Set();
-          }
-          attributes[attr.key].add(attr.value);
-        }
-      });
-    });
-    return Object.fromEntries(
-      Object.entries(attributes).map(([key, valueSet]) => [key, Array.from(valueSet)])
-    );
-  }, [products, companyIdFilter]);
+  // Removed filterableAttributes useMemo as attribute filters are removed
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+      // Removed nameMatch as search query is removed
       const companyMatch = companyIdFilter === '' || product.sellerID === companyIdFilter;
-      const categoryMatch = categoryFilter === '' || product.category === categoryFilter;
-      const attributeMatch = Object.entries(attributeFilters).every(([key, value]) => {
-        if (!value) return true;
-        return product.attributes?.some(attr => attr.key === key && attr.value === value);
-      });
-      return nameMatch && companyMatch && categoryMatch && attributeMatch;
+      // Removed categoryMatch as category filter is removed
+      // Removed attributeMatch as attribute filters are removed
+      return companyMatch;
     }).map(product => {
+      // Ensure dealPrice is applied for display
       if (product.dealPrice !== undefined && product.dealPrice !== null) {
         return { ...product, discountedPrice: product.price * (1 - product.dealPrice / 100) };
       }
       return product;
     });
-  }, [products, searchQuery, companyIdFilter, categoryFilter, attributeFilters]);
+  }, [products, companyIdFilter]); // Removed searchQuery, categoryFilter, attributeFilters from dependencies
 
-  const clearFilters = () => {
-    setAttributeFilters({});
-  };
+  // Removed clearFilters function
 
   const selectedCompany = useMemo(() => companies.find(c => c.id === companyIdFilter), [companies, companyIdFilter]);
 
@@ -192,49 +164,23 @@ const Catalog: React.FC = () => {
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
-      <FilterSidebar 
-        isOpen={isFilterOpen} 
-        onClose={() => setIsFilterOpen(false)}
-        filterableAttributes={filterableAttributes}
-        attributeFilters={attributeFilters}
-        setAttributeFilters={setAttributeFilters}
-      />
+      {/* Removed FilterSidebar component */}
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
-
-        <div className="mb-10 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
-          <div className="relative w-full md:w-1/6">
-            <select
-              id="category-filter"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+        {selectedCompany && (
+          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-8 rounded-lg shadow-lg mb-8 flex items-center space-x-6">
+            {selectedCompany.logoUrl && (
+              <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-24 w-24 object-contain rounded-full bg-white p-2 shadow-md" />
+            )}
+            <div>
+              <h2 className="text-4xl font-extrabold mb-2 leading-tight">Deals from {selectedCompany.name}</h2>
+              <p className="text-lg opacity-90">Discover exclusive discounts and special offers tailored just for you!</p>
+            </div>
           </div>
+        )}
 
-          <button onClick={() => setIsFilterOpen(true)} className="bg-gray-200 p-2 rounded-md border border-gray-300">
-            Filters
-          </button>
-
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by name..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            />
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          </div>
-
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Exclusive Deals</h1>
           {companies.length > 1 ? (
             <div className="relative w-full md:w-1/3">
               <button
@@ -282,27 +228,8 @@ const Catalog: React.FC = () => {
           )}
         </div>
 
-        {Object.values(attributeFilters).some(v => v) && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-            <div className="flex flex-wrap items-center gap-2">
-              {Object.entries(attributeFilters).map(([key, value]) => value ? (
-                <div key={key} className="bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 flex items-center">
-                  <span>{key}: <strong>{value}</strong></span>
-                  <button 
-                    onClick={() => setAttributeFilters(prev => ({ ...prev, [key]: '' }))} 
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                    aria-label={`Remove ${key} filter`}
-                  >
-                    &#10005;
-                  </button>
-                </div>
-              ) : null)}
-              <button onClick={clearFilters} className="text-sm text-teal-600 hover:underline">
-                Clear All
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Removed search input field */}
+        {/* Removed attribute filters display */}
 
         {loading ? (
           <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
@@ -327,6 +254,11 @@ const Catalog: React.FC = () => {
                   <p className="text-gray-500 text-sm">{product.category}</p>
                   <div className="mt-4 flex justify-between items-center">
                     <div>
+                      {product.dealPrice && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-medium text-red-800 mr-2">
+                          {product.dealPrice}% OFF
+                        </span>
+                      )}
                       {product.discountedPrice && product.discountedPrice < product.price ? (
                         <>
                           <p className="text-teal-600 font-bold text-lg">
@@ -337,7 +269,9 @@ const Catalog: React.FC = () => {
                           </p>
                         </>
                       ) : (
-                        <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
+                        <p className="text-teal-600 font-bold text-lg">
+                          ${product.price.toFixed(2)}
+                        </p>
                       )}
                     </div>
                     <AddToCartButton product={product} quantity={1} />
@@ -347,7 +281,7 @@ const Catalog: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-600">No products available in the catalog.</p>
+          <p className="text-gray-600">No exclusive deals available at the moment.</p>
         )}
       </main>
       <Footer />
@@ -355,4 +289,4 @@ const Catalog: React.FC = () => {
   );
 };
 
-export default Catalog;
+export default Deals;

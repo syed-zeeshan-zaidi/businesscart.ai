@@ -24,6 +24,7 @@ const ProductForm = () => {
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     price: 0,
+    dealPrice: undefined,
     description: '',
     sellerID: '',
     image: '',
@@ -92,6 +93,9 @@ const ProductForm = () => {
     const newErrors: string[] = [];
     if (!formData.name) newErrors.push('Product name is required');
     if (formData.price === undefined || formData.price <= 0) newErrors.push('Price must be positive');
+    if (formData.dealPrice !== undefined && (formData.dealPrice < 0 || formData.dealPrice > 50)) {
+      newErrors.push('Deal Price must be between 0 and 50');
+    }
     if (!formData.description) newErrors.push('Description is required');
     return newErrors;
   };
@@ -114,6 +118,7 @@ const ProductForm = () => {
       setFormData({
         name: '',
         price: 0,
+        dealPrice: undefined,
         description: '',
         sellerID: account?._id || '',
         category: '',
@@ -135,7 +140,7 @@ const ProductForm = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'price' ? parseFloat(value) || 0 : value,
+      [name]: (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : value,
     });
   };
 
@@ -162,6 +167,7 @@ const ProductForm = () => {
     setFormData({
       name: product.name,
       price: product.price,
+      dealPrice: product.dealPrice,
       description: product.description,
       sellerID: product.sellerID,
       image: product.image,
@@ -266,6 +272,7 @@ const ProductForm = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Price (%)</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -279,6 +286,7 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.sellerID}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -403,6 +411,20 @@ const ProductForm = () => {
                           value={formData.price}
                           onChange={handleChange}
                           placeholder="19.99"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Deal Price (%)</label>
+                        <input
+                          name="dealPrice"
+                          type="number"
+                          step="1"
+                          min="0"
+                          max="50"
+                          value={formData.dealPrice ?? ''}
+                          onChange={handleChange}
+                          placeholder="e.g., 10 (for 10% off)"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>

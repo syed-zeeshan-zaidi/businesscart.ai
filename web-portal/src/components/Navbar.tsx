@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon, TagIcon, HomeIcon, CubeIcon, UserCircleIcon, ClipboardDocumentListIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
@@ -144,6 +144,7 @@ const Navbar: React.FC = () => {
                                   to="/"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
+                                  <HomeIcon className="h-5 w-5 mr-2" />
                                   Home
                                 </Link>
                               )}
@@ -154,7 +155,20 @@ const Navbar: React.FC = () => {
                                   to="/catalog"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
+                                  <CubeIcon className="h-5 w-5 mr-2" />
                                   Product Catalog
+                                </Link>
+                              )}
+                            </Menu.Item>
+
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/deals"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  <TagIcon className="h-5 w-5 mr-2" />
+                                  Deals
                                 </Link>
                               )}
                             </Menu.Item>
@@ -165,6 +179,7 @@ const Navbar: React.FC = () => {
                                   to="/account"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
+                                  <UserCircleIcon className="h-5 w-5 mr-2" />
                                   My Account
                                 </Link>
                               )}
@@ -176,6 +191,7 @@ const Navbar: React.FC = () => {
                                   to="/order-history"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
+                                  <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
                                   Order History
                                 </Link>
                               )}
@@ -186,6 +202,7 @@ const Navbar: React.FC = () => {
                                   to="/customer/addresses"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
+                                  <MapPinIcon className="h-5 w-5 mr-2" />
                                   My Addresses
                                 </Link>
                               )}

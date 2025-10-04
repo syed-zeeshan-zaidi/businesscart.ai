@@ -45,6 +45,7 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
+  dealPrice?: number;
   discountedPrice?: number;
   sellerID: string;
   image?: string;

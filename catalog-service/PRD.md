@@ -30,6 +30,7 @@ The core entity is the `Product`. The following attributes define a product:
 | `name`        | `string` | The name of the product.                        |    ✅    |
 | `description` | `string` | A detailed description of the product.          |    -     |
 | `price`       | `number` | The price of the product. Must be non-negative. |    ✅    |
+| `dealPrice`   | `number` | The percentage discount (0-50%) for the product. |    -     |
 | `accountID`   | `string` | The ID of the 'company' account that owns this product. |    ✅    |
 | `image`       | `string` | A URL to an image of the product.               |    -     |
 | `createdAt`   | `Date`   | Timestamp of when the product was created.      |    ✅    |
@@ -48,6 +49,7 @@ The service will expose a RESTful API for managing products.
     {
       "name": "string",
       "price": "number",
+      "dealPrice": "number",
       "description": "string",
       "image": "string"
     }
@@ -87,7 +89,7 @@ The service will expose a RESTful API for managing products.
 -   **Description:** Updates an existing product.
 -   **Authorization:** `Company` role required.
 -   **Behavior:** The user can only update a product if their `accountID` matches the product's `accountID`.
--   **Request Body:** A partial product object with fields to update.
+-   **Request Body:** A partial product object with fields to update, including `dealPrice` (0-50%).
 -   **Success Response:** `200 OK` with the updated product object.
 -   **Error Responses:**
     -   `400 Bad Request`: Invalid request body.

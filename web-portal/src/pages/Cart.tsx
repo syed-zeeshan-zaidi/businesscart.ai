@@ -207,14 +207,14 @@ const Cart: React.FC = () => {
               >
                 <div className="flex items-center">
                   {selectedCompany?.logoUrl && (
-                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 w-8 mr-3 rounded-full" />
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
                   )}
                   <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
                 </div>
                 <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
               </button>
               {isCompanyDropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-full md:w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="origin-top-right absolute right-0 mt-1 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                   <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                     {availableCompanies.map((company) => (
                       <button
@@ -227,7 +227,7 @@ const Cart: React.FC = () => {
                         role="menuitem"
                       >
                         {company.logoUrl && (
-                          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 mr-3 rounded-full" />
+                          <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
                         )}
                         {company.name} ({company.companyCode})
                       </button>
