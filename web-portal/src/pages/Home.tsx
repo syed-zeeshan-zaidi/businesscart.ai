@@ -174,7 +174,7 @@ const Home: React.FC = () => {
                   <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">Shop Premium Products</h3>
                   <p className="mt-4 text-base sm:text-lg max-w-2xl mx-auto px-2">Explore our curated selection for your business needs.</p>
                   <button
-                    onClick={() => navigate('/products')}
+                    onClick={() => navigate('/catalog')}
                     className="mt-6 inline-block bg-white text-teal-600 font-semibold px-6 py-3 rounded-md shadow hover:bg-gray-50 transition"
                   >
                     Shop Now
