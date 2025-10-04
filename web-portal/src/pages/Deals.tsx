@@ -154,7 +154,7 @@ const Deals: React.FC = () => {
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {selectedCompany && (
-          <div className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
+          <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
             {selectedCompany.logoUrl && (
               <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-full bg-white p-2 shadow-md" />
             )}
