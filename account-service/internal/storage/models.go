@@ -45,7 +45,7 @@ const (
 	AmazonPay     PaymentMethod = "amazon_pay"
 	GooglePay     PaymentMethod = "google_pay"
 	StripePay     PaymentMethod = "stripe_pay"
-	PickupPay     PaymentMethod = "pickup_pay"
+	PickupPay     PaymentMethod = "pickup_&_pay"
 	DeliverPay    PaymentMethod = "deliver_pay"
 )
 
