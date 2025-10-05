@@ -8,7 +8,8 @@ data class CartItem(
     val name: String,
     val price: Double,
     val discountedPrice: Double?,
-    val lineItemTotal: Double
+    val lineItemTotal: Double,
+    val image: String?
 )
 
 data class AddItemToCartRequest(val entity: CartItem)
