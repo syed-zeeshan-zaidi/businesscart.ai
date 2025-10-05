@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getOrders, deleteOrder } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
-import { TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
 /* ------------------------------------------------------------------ */
@@ -171,6 +171,9 @@ const OrderForm = () => {
                       Order ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Grand Total
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -191,6 +194,9 @@ const OrderForm = () => {
                         {order.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.status}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         ${order.grandTotal.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -200,6 +206,20 @@ const OrderForm = () => {
                         {order.accountId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => console.log('Edit order', order.id)}
+                          className="text-yellow-600 hover:text-yellow-800 mr-4"
+                          aria-label={`Edit order ${order.id}`}
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => console.log('Print order', order.id)}
+                          className="text-teal-600 hover:text-teal-800 mr-4"
+                          aria-label={`Print order ${order.id}`}
+                        >
+                          <PrinterIcon className="h-5 w-5" />
+                        </button>
                         <button
                           onClick={() => openDeleteConfirm(order.id)}
                           className="text-red-600 hover:text-red-800"

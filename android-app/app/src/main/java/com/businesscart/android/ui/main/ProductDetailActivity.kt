@@ -1,5 +1,6 @@
 package com.businesscart.android.ui.main
 
+import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ImageView
@@ -21,7 +22,12 @@ class ProductDetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_product_detail)
 
-        val product = intent.getParcelableExtra<Product>("PRODUCT_EXTRA")
+        val product: Product? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("PRODUCT_EXTRA", Product::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra<Product>("PRODUCT_EXTRA")
+        }
 
         if (product == null) {
             finish()
@@ -58,7 +64,8 @@ class ProductDetailActivity : AppCompatActivity() {
                     name = product.name,
                     price = product.price,
                     discountedPrice = product.discountedPrice,
-                    lineItemTotal = 0.0
+                    lineItemTotal = product.discountedPrice ?: product.price,
+                    image = product.image
                 )
                 val request = AddItemToCartRequest(entity = cartItem)
                 val response = RetrofitClient.checkoutApiService.addItemToCart(request)

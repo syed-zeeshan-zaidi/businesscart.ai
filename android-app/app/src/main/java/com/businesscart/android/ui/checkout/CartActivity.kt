@@ -29,13 +29,20 @@ import com.businesscart.android.model.UpdateCartItemPayload
 import com.businesscart.android.ui.main.CatalogActivity
 import com.businesscart.android.util.SessionManager
 import kotlinx.coroutines.launch
+import android.widget.LinearLayout
+import android.widget.ImageView
+import android.widget.PopupMenu
+import com.squareup.picasso.Picasso
 
 class CartActivity : AppCompatActivity() {
 
+    private lateinit var singleCompanyDisplay: LinearLayout
+    private lateinit var companyLogoImageView: ImageView
+    private lateinit var companyNameTextView: TextView
+    private lateinit var dropdownArrow: ImageView
     private lateinit var recyclerView: RecyclerView
     private lateinit var checkoutButton: Button
     private lateinit var clearCartButton: Button
-    private lateinit var companySpinner: Spinner
     private lateinit var totalTextView: TextView
     private lateinit var cartAdapter: CartAdapter
     private lateinit var sessionManager: SessionManager
@@ -58,30 +65,19 @@ class CartActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.cartRecyclerView)
         checkoutButton = findViewById(R.id.checkoutButton)
         clearCartButton = findViewById(R.id.clearCartButton)
-        companySpinner = findViewById(R.id.companySpinner)
         totalTextView = findViewById(R.id.totalTextView)
         progressBar = findViewById(R.id.progressBar)
         sessionManager = SessionManager(this)
         RetrofitClient.initialize(this)
 
+        singleCompanyDisplay = findViewById(R.id.singleCompanyDisplay)
+        companyLogoImageView = findViewById(R.id.companyLogoImageView)
+        companyNameTextView = findViewById(R.id.companyNameTextView)
+        dropdownArrow = findViewById(R.id.dropdownArrow)
+
         setupRecyclerView()
+        setupCompanySelector() // Call the new setup function
         fetchAccountDetails()
-
-        companySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                if (companies.isNotEmpty()) {
-                    selectedCompanyId = companies[position].let { it.companyCodeId ?: it.companyCode }
-                    fetchCart()
-                } else {
-                    Log.e("CartActivity", "Companies list is empty, cannot select a company.")
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {
-                selectedCompanyId = null
-                clearCartView()
-            }
-        }
 
         checkoutButton.setOnClickListener {
             createQuote()
@@ -117,6 +113,49 @@ class CartActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
     }
 
+    private fun setupCompanySelector() {
+        singleCompanyDisplay.setOnClickListener {
+            if (companies.size > 1) {
+                showCompanyPopupMenu()
+            }
+        }
+    }
+
+    private fun showCompanyPopupMenu() {
+        val popupMenu = PopupMenu(this, singleCompanyDisplay)
+        companies.forEach { company ->
+            popupMenu.menu.add(company.name)
+        }
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            val selectedCompany = companies.find { it.name == menuItem.title }
+            if (selectedCompany != null && selectedCompany.companyCodeId != selectedCompanyId) {
+                selectedCompanyId = selectedCompany.companyCodeId
+                updateCompanyUI() // Update UI after setting selectedCompanyId
+                fetchCart() // Re-fetch cart for the new company
+            }
+            true
+        }
+        popupMenu.show()
+    }
+
+    private fun updateCompanyUI() {
+        if (selectedCompanyId == null || companies.isEmpty()) {
+            singleCompanyDisplay.visibility = View.GONE
+            return
+        }
+
+        val currentCompany = companies.find { it.companyCodeId == selectedCompanyId } ?: companies.first()
+        
+        companyNameTextView.text = currentCompany.name
+        if (!currentCompany.logoUrl.isNullOrEmpty()) {
+            Picasso.get().load(currentCompany.logoUrl).into(companyLogoImageView)
+        } else {
+            companyLogoImageView.setImageResource(0) // or a placeholder
+        }
+
+        dropdownArrow.visibility = if (companies.size > 1) View.VISIBLE else View.GONE
+    }
+
     private fun fetchAccountDetails() {
         lifecycleScope.launch {
             progressBar.visibility = View.VISIBLE
@@ -132,10 +171,11 @@ class CartActivity : AppCompatActivity() {
                             val id = company.companyCodeId ?: company.companyCode
                             companiesMap[id] = company
                         }
-                        val companyNames = it.map { company -> company.name }
-                        val adapter = ArrayAdapter(this@CartActivity, android.R.layout.simple_spinner_item, companyNames)
-                        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                        companySpinner.adapter = adapter
+                        if (companies.isNotEmpty()) {
+                            selectedCompanyId = companies.first().companyCodeId
+                            updateCompanyUI() // Update UI after setting selectedCompanyId
+                            fetchCart() // Fetch cart for the initially selected company
+                        }
                     }
                 } else {
                     showToast(getString(R.string.failed_to_fetch_account_details))

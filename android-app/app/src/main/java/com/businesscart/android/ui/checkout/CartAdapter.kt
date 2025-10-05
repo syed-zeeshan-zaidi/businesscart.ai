@@ -5,11 +5,13 @@ import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.NumberPicker
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.businesscart.android.R
 import com.businesscart.android.model.CartItem
+import com.squareup.picasso.Picasso
 
 class CartAdapter(
     internal val cartItems: MutableList<CartItem>,
@@ -31,6 +33,7 @@ class CartAdapter(
     inner class CartViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val nameTextView:     TextView = itemView.findViewById(R.id.cartItemName)
         private val priceTextView:    TextView = itemView.findViewById(R.id.cartItemPrice)
+        private val cartItemImage:    ImageView = itemView.findViewById(R.id.cartItemImage)
         private val discountedPriceTextView: TextView = itemView.findViewById(R.id.cartItemDiscountedPrice)
         private val lineItemTotalTextView: TextView = itemView.findViewById(R.id.lineItemTotal)
         private val quantityTextView: TextView = itemView.findViewById(R.id.cartItemQuantity)
@@ -51,6 +54,10 @@ class CartAdapter(
                 priceTextView.paintFlags = priceTextView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
                 discountedPriceTextView.visibility = View.GONE
             }
+
+            Picasso.get()
+                .load(cartItem.image)
+                .into(cartItemImage)
 
             quantityTextView.setOnClickListener { showQuantityDialog(cartItem) }
             removeButton.setOnClickListener     { onRemove(cartItem) }

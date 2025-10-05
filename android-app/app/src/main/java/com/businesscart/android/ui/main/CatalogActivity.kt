@@ -318,7 +318,8 @@ class CatalogActivity : AppCompatActivity() {
                         name = product.name,
                         price = product.price,
                         discountedPrice = product.discountedPrice,
-                        lineItemTotal = product.discountedPrice ?: product.price
+                        lineItemTotal = product.discountedPrice ?: product.price,
+                        image = product.image
                     )
                     val request = AddItemToCartRequest(entity = cartItem)
                     val response = RetrofitClient.checkoutApiService.addItemToCart(request)

@@ -16,7 +16,7 @@ const PAYMENT_OPTIONS = [
   'amazon_pay',
   'google_pay',
   'stripe_pay',
-  'pickup_pay',
+  'pickup_&_pay',
   'deliver_pay'
 ] as const;
 
