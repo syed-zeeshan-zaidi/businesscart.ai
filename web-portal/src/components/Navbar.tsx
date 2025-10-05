@@ -25,7 +25,7 @@ const Navbar: React.FC = () => {
     }
 
     const token = localStorage.getItem('accessToken');
-    const accountData = localStorage.getItem('account');
+    const accountData = localStorage.getItem('accounts_cache');
 
     if (token) {
       try {
@@ -43,9 +43,14 @@ const Navbar: React.FC = () => {
         setUserInitials(initials);
 
         if (role === 'company' && accountData) {
-          const parsedAccount: Account = JSON.parse(accountData);
-          setAccount(parsedAccount);
-          setCompanyName(parsedAccount.company?.name || 'Company');
+          const parsedCache = JSON.parse(accountData);
+          if (parsedCache && parsedCache.data && parsedCache.data.length > 0) {
+            const companyAccount = parsedCache.data.find((acc: Account) => acc.role === 'company');
+            if (companyAccount) {
+              setAccount(companyAccount);
+              setCompanyName(companyAccount.company?.name || 'Company');
+            }
+          }
         } else {
           setCompanyName('BusinessCart');
         }
@@ -116,7 +121,7 @@ const Navbar: React.FC = () => {
                 ) : (
                   <Link to="/dashboard" className="flex items-center">
                     {account?.company?.logoUrl ? (
-                      <img src={account.company.logoUrl} alt="Company Logo" className="w-8 h-8 mr-1" />
+                      <img src={account.company.logoUrl} alt="Company Logo" className="max-w-40 h-8 mr-1" />
                     ) : (
                       <span className="w-10 h-10 mr-2"><Logo /></span>
                     )}

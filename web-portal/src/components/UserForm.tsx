@@ -249,7 +249,7 @@ const UserForm = () => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">Accounts</h2>
           <div className="flex space-x-2">
-            <button onClick={handleRefresh} disabled={isLoading} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
+            <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
               <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700">
                 <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account

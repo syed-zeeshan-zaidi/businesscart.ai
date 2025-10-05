@@ -37,3 +37,45 @@ The current Android catalog is functional but lacks the advanced features of the
 3.  **Update `ProductAdapter.kt`:** (Completed)
     *   Modify the `onClickListener` for each product item.
     *   Instead of adding to the cart directly, it should now launch `ProductDetailActivity`, passing the selected product's data in the Intent.
+
+## Deals Page Implementation
+
+### 1. High-Level Plan
+
+Create a new screen dedicated to displaying products with special deals (`dealPrice`). This will provide customers with a centralized location to view and purchase discounted items.
+
+### 2. Task List
+
+1.  **Create `DealsActivity.kt`:**
+    *   Develop a new activity to manage the UI and data for the Deals page.
+2.  **Create `activity_deals.xml`:**
+    *   Design a layout to display a list of deal products, similar to the catalog screen.
+3.  **Create `DealsAdapter.kt`:**
+    *   Implement a `RecyclerView.Adapter` to efficiently display the list of products with deals.
+4.  **Update API Service:**
+    *   Modify the product fetching logic to filter for products with a `dealPrice`.
+5.  **Add Navigation:**
+    *   Add a menu item or button in a relevant location (e.g., the main menu or account page) to navigate to the `DealsActivity`.
+
+## Address Management Feature
+
+### 1. High-Level Plan
+
+Implement a feature that allows customers to add, view, and manage their shipping addresses. This will streamline the checkout process and improve user convenience.
+
+### 2. Task List
+
+1.  **Create `AddressesActivity.kt`:**
+    *   Create a new activity to display a list of the customer's saved addresses.
+2.  **Create `activity_addresses.xml`:**
+    *   Design a layout to show a `RecyclerView` of addresses, with options to add a new address or edit existing ones.
+3.  **Create `AddressAdapter.kt`:**
+    *   Implement a `RecyclerView.Adapter` to display the list of customer addresses.
+4.  **Create `AddAddressActivity.kt`:**
+    *   Create a new activity with a form for users to input and save a new shipping address.
+5.  **Create `activity_add_address.xml`:**
+    *   Design a layout with input fields for all address components (e.g., street, city, state, zip, recipient name).
+6.  **Update API Service:**
+    *   Add API service methods to fetch, add, and update customer addresses.
+7.  **Update `AccountActivity.kt`:**
+    *   Ensure the "Manage Addresses" button correctly launches the `AddressesActivity`.
