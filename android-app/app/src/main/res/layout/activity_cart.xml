@@ -23,26 +23,45 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
-        android:id="@+id/companyLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="48dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="24dp"
-        android:gravity="center_vertical"
-        android:text="@string/select_company"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout" />
-
-    <Spinner
-        android:id="@+id/companySpinner"
+    <LinearLayout
+        android:id="@+id/singleCompanyDisplay"
         android:layout_width="0dp"
         android:layout_height="48dp"
-        android:layout_margin="16dp"
-        app:layout_constraintBottom_toBottomOf="@id/companyLabel"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/companyLabel"
-        app:layout_constraintTop_toTopOf="@id/companyLabel" />
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?attr/selectableItemBackground"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/appBarLayout"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/companyLogoImageView"
+            android:layout_width="160dp"
+            android:maxWidth="160dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"/>
+
+        <TextView
+            android:id="@+id/companyNameTextView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="18sp"
+            android:textStyle="bold"/>
+            
+        <ImageView
+            android:id="@+id/dropdownArrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_dropdown_arrow"
+            android:visibility="gone"/>
+
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/cartRecyclerView"
@@ -52,7 +71,7 @@
         app:layout_constraintBottom_toTopOf="@+id/totalTextView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/companySpinner" />
+        app:layout_constraintTop_toBottomOf="@+id/singleCompanyDisplay" />
 
     <ProgressBar
         android:id="@+id/progressBar"
