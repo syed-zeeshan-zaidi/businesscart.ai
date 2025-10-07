@@ -258,27 +258,6 @@ export class BusinessCartStack extends cdk.Stack {
       ],
     });
 
-    new route53.MxRecord(this, 'PrivateEmailMxRecord2', {
-      zone: hostedZone,
-      values: [
-        {
-          hostName: 'mx2.privateemail.com',
-          priority: 10,
-        },
-      ],
-    });
-
-    new route53.TxtRecord(this, 'PrivateEmailSpfRecord', {
-      zone: hostedZone,
-      values: ['v=spf1 include:spf.privateemail.com ~all'],
-    });
-
-    new route53.TxtRecord(this, 'PrivateEmailDkimRecord', {
-      zone: hostedZone,
-      recordName: 'default._domainkey',
-      values: ['v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvWSM7SzJ9wlTCqocBgCstzJeTbwT0L9pA6fPuf17+YxWVp+O9nmzxJCMZYggr1xR40shzDCZ5s0AuHOGqPkrbXM/Oc2Aj+whdS/h3JeHRWvHhBdOxJuZJfzwPJKSciWBB5/wauBy1fgOfjNmRCuXnn+gCRDvbAsMQn/hYt4L9Rs55mlgg+UAwivIfiahRCW0/dhLSeusT8Qy6Sl6MA1/ISjYRwcMTyHHWJdK/iOy2cfM/mbvcjO0xjXtRLin8oMxG49XgLui4iikGX81Si1uuEYXAlid3Uxb6T+E+N3LEqaUIrWYZ7g0Fk940nRhJGP1WRAFRmWOVl97op74a8K42wIDAQAB'],
-    });
-
     // Output the CloudFront distribution domain name
     new cdk.CfnOutput(this, 'DistributionDomainName', {
       value: distribution.distributionDomainName,
