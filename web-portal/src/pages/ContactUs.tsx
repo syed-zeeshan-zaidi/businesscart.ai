@@ -27,18 +27,15 @@ const ContactUs: React.FC = () => {
                 Please note that onboarding requires additional documentation, which our team will guide you through after receiving your initial request.
               </p>
               <p className="text-gray-600">
-                Please send your email to: <a href="mailto:onboarding@businesscart.com" className="text-teal-600 hover:underline">onboarding@businesscart.com</a>
+                Please send your email to: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a>
               </p>
             </div>
             {/* Contact Information Section */}
             <div className="bg-gray-50 rounded-lg p-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Information</h2>
               <div className="space-y-4">
-                <p className="text-gray-600">Support Email: <a href="mailto:support@businesscart.com" className="text-teal-600 hover:underline">support@businesscart.com</a></p>
-                <p className="text-gray-600">Sales Email: <a href="mailto:sales@businesscart.com" className="text-teal-600 hover:underline">sales@businesscart.com</a></p>
-                <p className="text-gray-600">Technical Support: <a href="mailto:techsupport@businesscart.com" className="text-teal-600 hover:underline">techsupport@businesscart.com</a></p>
-                <p className="text-gray-600">Phone: +1 (555) 123-4567</p>
-                <p className="text-gray-600">Address: 123 Business Rd, Suite 100, Business City, 12345</p>
+                <p className="text-gray-600">Support Email: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a></p>
+                <p className="text-gray-600">Phone: +1 (657) 501-0200</p>
               </div>
             </div>
           </div>
