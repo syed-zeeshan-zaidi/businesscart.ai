@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth';
 import LoadingIndicator from './components/LoadingIndicator';
 
 const Home = lazy(() => import('./pages/Home'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const Login = lazy(() => import('./components/Login'));
 const Register = lazy(() => import('./components/Register'));
 const UserForm = lazy(() => import('./components/UserForm'));
@@ -91,7 +92,7 @@ const AppContent = () => {
         <div className="flex-1">
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
-              <Route path="/" element={<Home />} /> {/* Moved to the top */}
+              <Route path="/" element={<LandingPage />} /> {/* Moved to the top */}
               <Route path="/home" element={<Home />} />
               <Route
                 path="/login"
