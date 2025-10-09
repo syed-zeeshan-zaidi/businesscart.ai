@@ -9,9 +9,9 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Solutions</h3>
             <ul className="mt-4 space-y-4">
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">B2B Commerce</Link></li>
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Marketplace</Link></li>
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Integrations</Link></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Private Commerce</Link></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Data Pipline</Link></li>
+              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Integration Automation</Link></li>
             </ul>
           </div>
           <div>
@@ -41,13 +41,13 @@ const Footer: React.FC = () => {
         </div>
         <div className="mt-8 border-t border-gray-700 pt-8 md:flex md:items-center md:justify-between">
           <div className="flex space-x-6 md:order-2">
-            <a href="#" className="text-gray-400 hover:text-gray-300">
+            <a href="https://www.facebook.com/people/BusinessCart/61581018762021" className="text-gray-400 hover:text-gray-300">
               <span className="sr-only">Facebook</span>
               <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
               </svg>
             </a>
-            <a href="#" className="text-gray-400 hover:text-gray-300">
+            <a href="https://x.com/BusinessCart_ai" className="text-gray-400 hover:text-gray-300">
               <span className="sr-only">X</span>
               <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M14.258 10.152L23.176 0h-2.11l-7.744 8.813L7.13 0H0l9.308 13.324L0 24h2.11l8.178-9.307L16.87 24h7.13L14.258 10.152zM11.5 13.51L3.66 2.4h3.2l7.85 11.18-3.21 4.58h-3.2l8.2-11.7z" />

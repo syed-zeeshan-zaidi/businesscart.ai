@@ -19,7 +19,7 @@ const ContactUs: React.FC = () => {
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-600 mb-4">
                 <li><b>Company Name:</b> Your full legal company name.</li>
-                <li><b>Address:</b> Your company's full street address, city, state, and ZIP code.</li>
+                <li><b>Business Email:</b> Your company's primary business email address.</li>
                 <li><b>EIN:</b> Your company's Employer Identification Number.</li>
                 <li><b>Phone Number:</b> Your company's primary contact phone number.</li>
               </ul>
@@ -30,13 +30,33 @@ const ContactUs: React.FC = () => {
                 Please send your email to: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a>
               </p>
             </div>
-            {/* Contact Information Section */}
-            <div className="bg-gray-50 rounded-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Information</h2>
-              <div className="space-y-4">
-                <p className="text-gray-600">Support Email: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a></p>
-                <p className="text-gray-600">Phone: +1 (657) 501-0200</p>
-              </div>
+
+            {/* Request a Demo Section */}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-4">Request a Demo</h1>
+              <p className="text-gray-600 mb-4">
+                To request a demo, please send an email to our sales team with the following information:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-gray-600 mb-4">
+                <li><b>Company Name:</b> Your full legal company name.</li>
+                <li><b>Business Email:</b> Your company's primary business email address.</li>
+                <li><b>Phone Number:</b> Your company's primary contact phone number.</li>
+                <li><b>Availability:</b> Please provide 3-5 time slots when you are available for a demo.</li>
+              </ul>
+              <p className="text-gray-600 mb-8">
+                Our sales team will get back to you to schedule a demo.
+              </p>
+              <p className="text-gray-600">
+                Please send your email to: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a>
+              </p>
+            </div>
+          </div>
+          {/* Contact Information Section */}
+          <div className="bg-gray-50 rounded-lg p-8 mt-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Information</h2>
+            <div className="space-y-4">
+              <p className="text-gray-600">Support Email: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a></p>
+              <p className="text-gray-600">Phone: +1 (657) 501-0200</p>
             </div>
           </div>
         </div>
