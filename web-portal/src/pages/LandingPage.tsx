@@ -53,16 +53,16 @@ const LandingPage: React.FC = () => {
               <div className="mt-6 grid grid-cols-2 gap-8 md:grid-cols-6 lg:grid-cols-5">
                 {/* Placeholder Logos */}
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">ClientLogo</p>
+                  <p className="text-gray-400 font-bold text-2xl">Manufacturers</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Business Inc</p>
+                  <p className="text-gray-400 font-bold text-2xl">Distributors</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Innovate Co</p>
+                  <p className="text-gray-400 font-bold text-2xl">Retail</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-3 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">YourBrand</p>
+                  <p className="text-gray-400 font-bold text-2xl">Brands</p>
                 </div>
                 <div className="col-span-2 flex justify-center md:col-span-3 lg:col-span-1">
                   <p className="text-gray-400 font-bold text-2xl">Enterprise</p>
