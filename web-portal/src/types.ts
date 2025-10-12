@@ -126,6 +126,9 @@ export interface Quote {
   status: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
   history: QuoteHistory[];
   comments: Comment[];
+  discountPercentage?: number;
+  discountAmount?: number;
+  notes?: string;
 }
 
 export type DeliveryMethod   = 'pickup' | 'dropoff' | 'shipping_out';

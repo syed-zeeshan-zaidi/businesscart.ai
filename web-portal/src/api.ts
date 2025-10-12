@@ -244,13 +244,8 @@ export const getMyQuotes = async (sellerId?: string): Promise<Quote[]> => {
   const response = await api.get(url);
   return response.data;
 };
-export const proposeQuoteChanges = async (quoteId: string, changes: { itemId: string; proposedPrice: number }[]): Promise<Quote> => {
-  const response = await api.put(`${API_URL}/checkout/quotes/${quoteId}/propose`, changes);
-  return response.data;
-};
-
-export const updateQuoteStatus = async (quoteId: string, status: string): Promise<Quote> => {
-  const response = await api.put(`${API_URL}/checkout/quotes/${quoteId}/status`, { status });
+export const patchQuote = async (quoteId: string, operation: string, value: any): Promise<Quote> => {
+  const response = await api.patch(`${API_URL}/checkout/quotes/${quoteId}`, { operation, value });
   return response.data;
 };
 

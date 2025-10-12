@@ -2,6 +2,7 @@ package quote
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -42,6 +43,9 @@ func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
 			"expiresAt":                   time.Now().Add(24 * time.Hour),
 			"quoteType":                   quote.QuoteType,
 			"status":                      quote.Status,
+			"discountPercentage":          quote.DiscountPercentage,
+			"discountAmount":              quote.DiscountAmount,
+			"notes":                       quote.Notes,
 		},
 		"$setOnInsert": bson.M{
 			"_id":       primitive.NewObjectID(),
@@ -117,14 +121,13 @@ func (s *Service) GetQuotesBySellerID(ctx context.Context, sellerID string) ([]Q
 }
 
 // ProposedChange represents a proposed change to a quote item.
-
 type ProposedChange struct {
 	ItemID        string  `json:"itemId"`
 	ProposedPrice float64 `json:"proposedPrice"`
 }
 
-// ProposeChanges updates a quote with proposed changes from the customer.
-func (s *Service) ProposeChanges(quoteID primitive.ObjectID, changes []ProposedChange) (*Quote, error) {
+// CustomerPropose updates a quote with proposed changes from the customer.
+func (s *Service) CustomerPropose(quoteID primitive.ObjectID, changes []ProposedChange) (*Quote, error) {
 	quote, err := s.GetQuote(quoteID)
 	if err != nil {
 		return nil, err
@@ -189,8 +192,147 @@ func (s *Service) UpdateQuoteStatus(quoteID primitive.ObjectID, status string) (
 			subtotal += item.Price * float64(item.Quantity)
 		}
 		quote.Subtotal = subtotal
-		quote.GrandTotal = quote.Subtotal + quote.ShippingCost + quote.TaxAmount
+		quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
 	}
+
+	filter := bson.M{"_id": quoteID}
+	update := bson.M{"$set": quote}
+	_, err = s.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return nil, err
+	}
+
+	return quote, nil
+}
+
+// AddComment adds a comment to a quote.
+func (s *Service) AddComment(quoteID primitive.ObjectID, accountID string, text string) (*Quote, error) {
+	comment := Comment{
+		ID:        primitive.NewObjectID(),
+		AccountID: accountID,
+		Text:      text,
+		CreatedAt: time.Now(),
+	}
+
+	filter := bson.M{"_id": quoteID}
+	update := bson.M{
+		"$push": bson.M{
+			"comments": comment,
+		},
+	}
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	var updatedQuote Quote
+	err := s.collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&updatedQuote)
+	if err != nil {
+		return nil, err
+	}
+
+	return &updatedQuote, nil
+}
+
+// ApplyQuoteDiscount applies a percentage discount to the entire quote.
+func (s *Service) ApplyQuoteDiscount(quoteID primitive.ObjectID, discountPercentage float64, accountID string) (*Quote, error) {
+	quote, err := s.GetQuote(quoteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if discountPercentage < 0 || discountPercentage > 100 {
+		return nil, fmt.Errorf("discount percentage must be between 0 and 100")
+	}
+
+	// Calculate discount amount
+	discountAmount := quote.Subtotal * (discountPercentage / 100)
+
+	// Apply discount and recalculate totals
+	quote.DiscountPercentage = discountPercentage
+	quote.DiscountAmount = discountAmount
+	quote.GrandTotal = quote.Subtotal - discountAmount + quote.ShippingCost + quote.TaxAmount
+
+	// Add to history
+	quote.History = append(quote.History, QuoteHistory{
+		Status:    fmt.Sprintf("discount_applied_%.2f%%", discountPercentage),
+		ChangedAt: time.Now(),
+	})
+
+	filter := bson.M{"_id": quoteID}
+	update := bson.M{"$set": quote}
+	_, err = s.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return nil, err
+	}
+
+	return quote, nil
+}
+
+// UpdateQuoteBySeller updates a quote with changes from the seller.
+type SellerUpdate struct {
+	Items           []ItemUpdate `json:"items,omitempty"`
+	NewShippingCost *float64     `json:"newShippingCost,omitempty"`
+	Notes           *string      `json:"notes,omitempty"`
+}
+
+type ItemUpdate struct {
+	ItemID   string  `json:"itemId"`
+	Quantity *int    `json:"quantity,omitempty"`
+	Price    *float64 `json:"price,omitempty"`
+}
+
+func (s *Service) UpdateQuoteBySeller(quoteID primitive.ObjectID, updates SellerUpdate, accountID string) (*Quote, error) {
+	quote, err := s.GetQuote(quoteID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply item updates
+	for _, itemUpdate := range updates.Items {
+		found := false
+		for i, item := range quote.Items {
+			if item.ID.Hex() == itemUpdate.ItemID {
+				if itemUpdate.Quantity != nil {
+					quote.Items[i].Quantity = *itemUpdate.Quantity
+				}
+				if itemUpdate.Price != nil {
+					quote.Items[i].Price = *itemUpdate.Price
+				}
+				// Recalculate line item total
+				quote.Items[i].LineItemTotal = quote.Items[i].Price * float64(quote.Items[i].Quantity)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("item with ID %s not found in quote", itemUpdate.ItemID)
+		}
+	}
+
+	// Apply new shipping cost
+	if updates.NewShippingCost != nil {
+		quote.ShippingCost = *updates.NewShippingCost
+	}
+
+	// Apply notes
+	if updates.Notes != nil {
+		quote.Notes = *updates.Notes
+	}
+
+	// Recalculate totals
+	var subtotal float64
+	for _, item := range quote.Items {
+		subtotal += item.LineItemTotal
+	}
+	quote.Subtotal = subtotal
+	// Apply discount if any
+	quote.DiscountAmount = quote.Subtotal * (quote.DiscountPercentage / 100)
+	quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
+
+	// Add to history
+	quote.History = append(quote.History, QuoteHistory{
+		Status:    "seller_updated",
+		ChangedAt: time.Now(),
+	})
 
 	filter := bson.M{"_id": quoteID}
 	update := bson.M{"$set": quote}

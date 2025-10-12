@@ -157,10 +157,7 @@ export class BusinessCartStack extends cdk.Stack {
     const quoteId = quotes.addResource('{quoteId}');
     quoteId.addMethod('GET', checkoutInteg);
     quoteId.addMethod('DELETE', checkoutInteg);
-    const propose = quoteId.addResource('propose');
-    propose.addMethod('PUT', checkoutInteg);
-    const status = quoteId.addResource('status');
-    status.addMethod('PUT', checkoutInteg);
+    quoteId.addMethod('PATCH', checkoutInteg);
     const orders = checkoutRoot.addResource('orders');
     orders.addMethod('POST', checkoutInteg);
     orders.addMethod('GET', checkoutInteg);

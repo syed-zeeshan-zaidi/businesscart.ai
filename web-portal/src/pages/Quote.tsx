@@ -4,8 +4,9 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
-import { getQuote, proposeQuoteChanges, updateQuoteStatus } from '../api';
+import { getQuote, patchQuote } from '../api';
 import { Quote, CartItem } from '../types';
+import QuoteComments from '../components/QuoteComments';
 
 const QuoteDetails: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -19,31 +20,37 @@ const QuoteDetails: React.FC = () => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
-    }
+    };
 
     const token = localStorage.getItem('accessToken');
     if (!token) {
       navigate('/login');
       return;
-    }
+    };
 
     const decodedUser = decodeJWT(token);
     if (!decodedUser || decodedUser.role !== 'customer') {
       toast.error('Access denied. Only customers can view quote details.');
       navigate('/home');
       return;
-    }
+    };
 
     const fetchQuote = async () => {
       if (!quoteId) {
         toast.error('Quote ID is missing.');
         setLoading(false);
         return;
-      }
+      };
       setLoading(true);
       try {
         const fetchedQuote = await getQuote(quoteId);
         setQuote(fetchedQuote);
+        // Initialize proposed prices with current item prices
+        const initialProposedPrices: Record<string, number> = {};
+        fetchedQuote.items.forEach(item => {
+          initialProposedPrices[item.id] = item.proposedPrice || item.price;
+        });
+        setProposedPrices(initialProposedPrices);
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Failed to load quote details');
       } finally {
@@ -79,25 +86,17 @@ const QuoteDetails: React.FC = () => {
     }));
 
     try {
-      const updatedQuote = await proposeQuoteChanges(quote.id, changes);
+      const updatedQuote = await patchQuote(quote.id, 'customerPropose', { changes });
       setQuote(updatedQuote);
       toast.success('Proposal submitted successfully!');
-    } catch (error) {
-      console.error('Failed to propose changes:', error);
-      toast.error('Failed to submit proposal.');
+    } catch (err: any) {
+      console.error('Failed to submit proposal:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit proposal.');
     }
   };
 
-  const handleProposeQuote = async () => {
-    if (!quote) return;
-    try {
-      const updatedQuote = await updateQuoteStatus(quote.id, 'proposed');
-      setQuote(updatedQuote);
-      toast.success('Quote proposed successfully!');
-    } catch (error) {
-      console.error('Failed to propose quote:', error);
-      toast.error('Failed to propose quote.');
-    }
+  const handleCommentAdded = (updatedQuote: Quote) => {
+    setQuote(updatedQuote);
   };
 
   if (loading) {
@@ -135,7 +134,7 @@ const QuoteDetails: React.FC = () => {
     );
   }
 
-  const canProposeChanges = quote.quoteType === 'negotiable' && quote.status === 'open';
+  const canCustomerPropose = quote.quoteType === 'negotiable' && quote.status === 'open';
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -158,6 +157,9 @@ const QuoteDetails: React.FC = () => {
               <p className="text-gray-600"><strong>Seller ID:</strong> {quote.sellerId}</p>
               <p className="text-gray-600"><strong>Subtotal:</strong> ${quote.subtotal.toFixed(2)}</p>
               <p className="text-gray-600"><strong>Shipping:</strong> ${quote.shippingCost.toFixed(2)}</p>
+              {quote.discountAmount !== undefined && quote.discountAmount > 0 && (
+                <p className="text-gray-600"><strong>Discount ({quote.discountPercentage}%):</strong> -${quote.discountAmount.toFixed(2)}</p>
+              )}
               <p className="text-gray-600"><strong>Tax:</strong> ${quote.taxAmount.toFixed(2)}</p>
               <p className="text-xl font-bold text-gray-800">Grand Total: ${quote.grandTotal.toFixed(2)}</p>
             </div>
@@ -179,7 +181,7 @@ const QuoteDetails: React.FC = () => {
             ))}
           </ul>
 
-          {canProposeChanges && (
+          {canCustomerPropose && (
             <form onSubmit={handleSubmitProposal} className="mb-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Propose Changes</h2>
               <table className="min-w-full divide-y divide-gray-200">
@@ -232,15 +234,9 @@ const QuoteDetails: React.FC = () => {
             </div>
           )}
 
+          <QuoteComments quote={quote} onCommentAdded={handleCommentAdded} />
+
           <div className="flex justify-end mt-6">
-            {quote.quoteType === 'standard' && quote.status === 'open' && (
-              <button
-                onClick={handleProposeQuote}
-                className="mr-4 px-6 py-2 rounded-md transition bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Propose Quote
-              </button>
-            )}
             <button
               onClick={handleProceedToCheckout}
               className={`px-6 py-2 rounded-md transition ${quote.status === 'approved' ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}

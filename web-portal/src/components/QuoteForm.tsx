@@ -1,6 +1,6 @@
 // src/components/QuoteForm.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getMyQuotes, updateQuoteStatus } from '../api';
+import { getMyQuotes, patchQuote } from '../api';
 import { Quote } from '../types';
 import Navbar from './Navbar';
 import { MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline';
@@ -103,7 +103,7 @@ const QuoteForm = () => {
 
   const handleUpdateStatus = async (quoteId: string, status: string) => {
     try {
-      const updatedQuote = await updateQuoteStatus(quoteId, status);
+      const updatedQuote = await patchQuote(quoteId, 'updateStatus', { status });
       setQuotes((prevQuotes) =>
         prevQuotes.map((q) => (q.id === quoteId ? updatedQuote : q))
       );

@@ -38,6 +38,12 @@ type CustomerConfiguration struct {
 	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
 }
 
+// PatchRequest defines the structure for all PATCH operations
+type PatchRequest struct {
+	Operation string          `json:"operation"`
+	Value     json.RawMessage `json:"value"`
+}
+
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
 	cartService    *cart.Service
@@ -195,17 +201,108 @@ func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest
 			return h.handleGetQuoteRequest(request, accountID, role, quoteId)
 		}
 	}
-	if request.HTTPMethod == "PUT" {
-		if len(parts) == 5 && parts[4] == "propose" { // /checkout/quotes/{quoteId}/propose
+	if request.HTTPMethod == "PATCH" {
+		if len(parts) == 4 { // /checkout/quotes/{quoteId}
 			quoteId := parts[3]
-			return h.handleProposeQuoteChangesRequest(request, accountID, quoteId)
-		}
-		if len(parts) == 5 && parts[4] == "status" { // /checkout/quotes/{quoteId}/status
-			quoteId := parts[3]
-			return h.handleUpdateQuoteStatusRequest(request, accountID, quoteId)
+			return h.handlePatchQuoteRequest(request, accountID, role, quoteId)
 		}
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
+}
+
+// applyDiscountRequest defines the structure for applying a discount to a quote.
+type applyDiscountRequest struct {
+	DiscountPercentage float64 `json:"discountPercentage"`
+}
+
+// sellerUpdateRequest defines the structure for a seller updating a quote.
+type sellerUpdateRequest struct {
+	Items           []quote.ItemUpdate `json:"items,omitempty"`
+	NewShippingCost *float64           `json:"newShippingCost,omitempty"`
+	Notes           *string            `json:"notes,omitempty"`
+}
+
+// customerProposeRequest defines the structure for a customer proposing changes to a quote.
+type customerProposeRequest struct {
+	Changes []quote.ProposedChange `json:"changes"`
+}
+
+// updateStatusRequest defines the structure for updating a quote's status.
+type updateStatusRequest struct {
+	Status string `json:"status"`
+}
+
+func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
+	}
+
+	var patch PatchRequest
+	if err := json.Unmarshal([]byte(request.Body), &patch); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body\n" + err.Error()), nil
+	}
+
+	var updatedQuote *quote.Quote
+
+	switch patch.Operation {
+	case "addComment":
+		var commentData struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(patch.Value, &commentData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid comment data"), nil
+		}
+		updatedQuote, err = h.quoteService.AddComment(quoteID, accountID, commentData.Text)
+	case "applyDiscount":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can apply discounts"), nil
+		}
+		var discountData applyDiscountRequest
+		if err := json.Unmarshal(patch.Value, &discountData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid discount data"), nil
+		}
+		updatedQuote, err = h.quoteService.ApplyQuoteDiscount(quoteID, discountData.DiscountPercentage, accountID)
+	case "sellerUpdate":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can update quote as seller"), nil
+		}
+		var sellerUpdateData sellerUpdateRequest
+		if err := json.Unmarshal(patch.Value, &sellerUpdateData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid seller update data"), nil
+		}
+		updatedQuote, err = h.quoteService.UpdateQuoteBySeller(quoteID, quote.SellerUpdate{
+			Items:           sellerUpdateData.Items,
+			NewShippingCost: sellerUpdateData.NewShippingCost,
+			Notes:           sellerUpdateData.Notes,
+		}, accountID)
+	case "customerPropose":
+		if role != "customer" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only customer or admin can propose changes"), nil
+		}
+		var customerProposeData customerProposeRequest
+		if err := json.Unmarshal(patch.Value, &customerProposeData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid customer propose data"), nil
+		}
+		updatedQuote, err = h.quoteService.CustomerPropose(quoteID, customerProposeData.Changes)
+	case "updateStatus":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can update quote status"), nil
+		}
+		var statusData updateStatusRequest
+		if err := json.Unmarshal(patch.Value, &statusData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid status data"), nil
+		}
+		updatedQuote, err = h.quoteService.UpdateQuoteStatus(quoteID, statusData.Status)
+	default:
+		return h.errorResponse(http.StatusBadRequest, "Invalid patch operation"), nil
+	}
+
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to perform patch operation: "+err.Error()), nil
+	}
+
+	return h.successResponse(updatedQuote), nil
 }
 
 func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
@@ -235,7 +332,7 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -278,67 +375,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
-	}, nil
-}
-
-func (h *LambdaHandler) handleProposeQuoteChangesRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
-	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
-	if err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
-	}
-
-	var changes []quote.ProposedChange
-	if err := json.Unmarshal([]byte(request.Body), &changes); err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
-	}
-
-	updatedQuote, err := h.quoteService.ProposeChanges(quoteID, changes)
-	if err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Failed to propose changes"), nil
-	}
-
-	respBody, _ := json.Marshal(updatedQuote)
-	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
-	}, nil
-}
-
-func (h *LambdaHandler) handleUpdateQuoteStatusRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
-	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
-	if err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
-	}
-
-	var req struct {
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
-	}
-
-	updatedQuote, err := h.quoteService.UpdateQuoteStatus(quoteID, req.Status)
-	if err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Failed to update quote status"), nil
-	}
-
-	respBody, _ := json.Marshal(updatedQuote)
-	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -411,7 +448,7 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -434,7 +471,7 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -519,7 +556,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -530,7 +567,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	}
 	switch request.HTTPMethod {
@@ -731,7 +768,21 @@ func (h *LambdaHandler) errorResponse(statusCode int, message string) events.API
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}
+}
+
+func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxyResponse {
+	respBody, _ := json.Marshal(data)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
