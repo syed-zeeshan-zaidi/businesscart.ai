@@ -10,6 +10,7 @@ type CartItem struct {
 	SellerID        string             `bson:"sellerId" json:"sellerId"`
 	Name            string             `bson:"name" json:"name"`
 	Price           float64            `bson:"price" json:"price"`
+	ProposedPrice   float64            `bson:"proposedPrice,omitempty" json:"proposedPrice,omitempty"`
 	DiscountedPrice float64            `bson:"discountedPrice" json:"discountedPrice"`
 	LineItemTotal   float64            `bson:"lineItemTotal" json:"lineItemTotal"`
 	Image           string             `bson:"image,omitempty" json:"image,omitempty"`

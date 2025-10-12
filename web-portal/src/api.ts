@@ -215,6 +215,7 @@ export const createQuote = async (data: {
   companyLocations: CompanyLocation[];
   customerAddresses: CustomerAddress[];
   configurations?: CustomerConfiguration[];
+  quoteType?: 'standard' | 'negotiable';
 }): Promise<Quote> => {
   const response = await api.post(`${API_URL}/checkout/quotes`, data);
   return response.data;
@@ -238,7 +239,21 @@ export const getQuote = async (quoteId: string): Promise<Quote> => {
   return response.data;
 };
 
-// Company Location specific functions
+export const getMyQuotes = async (sellerId?: string): Promise<Quote[]> => {
+  const url = sellerId ? `${API_URL}/checkout/quotes?sellerId=${sellerId}` : `${API_URL}/checkout/quotes`;
+  const response = await api.get(url);
+  return response.data;
+};
+export const proposeQuoteChanges = async (quoteId: string, changes: { itemId: string; proposedPrice: number }[]): Promise<Quote> => {
+  const response = await api.put(`${API_URL}/checkout/quotes/${quoteId}/propose`, changes);
+  return response.data;
+};
+
+export const updateQuoteStatus = async (quoteId: string, status: string): Promise<Quote> => {
+  const response = await api.put(`${API_URL}/checkout/quotes/${quoteId}/status`, { status });
+  return response.data;
+};
+
 export const getCompanyLocations = async (companyId: string): Promise<CompanyLocation[]> => {
   const response = await api.get(`${API_URL}/accounts/locations/${companyId}`);
   return response.data;

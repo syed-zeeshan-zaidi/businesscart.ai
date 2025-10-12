@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -162,7 +163,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	if strings.HasPrefix(request.Path, "/checkout/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
-		return h.handleQuoteRequest(request, accountID, configurations)
+		return h.handleQuoteRequest(request, accountID, role, configurations)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
 	}
@@ -180,21 +181,68 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "POST" {
 		return h.handleCreateQuoteRequest(request, accountID, configurations)
 	}
 	if request.HTTPMethod == "GET" {
-		parts := strings.Split(request.Path, "/")
-		if len(parts) == 4 {
+		if len(parts) == 3 { // /checkout/quotes
+			return h.handleGetMyQuotesRequest(request, accountID, role)
+		}
+		if len(parts) == 4 { // /checkout/quotes/{quoteId}
 			quoteId := parts[3]
-			return h.handleGetQuoteRequest(request, accountID, quoteId)
+			return h.handleGetQuoteRequest(request, accountID, role, quoteId)
+		}
+	}
+	if request.HTTPMethod == "PUT" {
+		if len(parts) == 5 && parts[4] == "propose" { // /checkout/quotes/{quoteId}/propose
+			quoteId := parts[3]
+			return h.handleProposeQuoteChangesRequest(request, accountID, quoteId)
+		}
+		if len(parts) == 5 && parts[4] == "status" { // /checkout/quotes/{quoteId}/status
+			quoteId := parts[3]
+			return h.handleUpdateQuoteStatusRequest(request, accountID, quoteId)
 		}
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	log.Printf("handleGetMyQuotesRequest: accountID=%s, role=%s", accountID, role)
+	var quotes []quote.Quote
+	var err error
+
+	sellerID := request.QueryStringParameters["sellerId"]
+
+	if role == "customer" {
+		quotes, err = h.quoteService.GetQuotesByAccountID(context.Background(), accountID, sellerID)
+	} else if role == "company" {
+		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), accountID)
+	} else if role == "admin" {
+		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), sellerID)
+	} else {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve quotes"), nil
+	}
+
+	respBody, _ := json.Marshal(quotes)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}, nil
+}
+
+func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
 	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
@@ -205,11 +253,86 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-	if quote.AccountID != accountID {
+	// Authorization logic
+	isOwner := quote.AccountID == accountID
+	isSeller := quote.SellerID == accountID
+
+	switch role {
+	case "customer":
+		if !isOwner {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+	case "company":
+		if !isSeller {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+	case "admin":
+		// Admin can access any quote
+	default:
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
 	respBody, _ := json.Marshal(quote)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}, nil
+}
+
+func (h *LambdaHandler) handleProposeQuoteChangesRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
+	}
+
+	var changes []quote.ProposedChange
+	if err := json.Unmarshal([]byte(request.Body), &changes); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	updatedQuote, err := h.quoteService.ProposeChanges(quoteID, changes)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to propose changes"), nil
+	}
+
+	respBody, _ := json.Marshal(updatedQuote)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}, nil
+}
+
+func (h *LambdaHandler) handleUpdateQuoteStatusRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
+	}
+
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	updatedQuote, err := h.quoteService.UpdateQuoteStatus(quoteID, req.Status)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to update quote status"), nil
+	}
+
+	respBody, _ := json.Marshal(updatedQuote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
@@ -243,6 +366,11 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	quote, err := h.quoteService.GetQuote(quoteID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
+	}
+
+	// Ensure the quote is approved before placing an order
+	if quote.Status != "approved" {
+		return h.errorResponse(http.StatusForbidden, "Quote is not approved for order placement"), nil
 	}
 
 	// Process payment
@@ -322,6 +450,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		ShippingOutOptions []string                `json:"shippingOutOptions"`
 		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
 		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
+		QuoteType          string                  `json:"quoteType"` // New field
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -356,6 +485,11 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	taxAmount := cart.TotalPrice * 0.0825 // 8.25% tax
 	shippingCost := 10.00                 // Flat rate shipping
 
+	initialStatus := "open" // Default for negotiable
+	if req.QuoteType == "standard" {
+		initialStatus = "approved"
+	}
+
 	newQuote := &quote.Quote{
 		CartID:                      cart.ID,
 		AccountID:                   accountID,
@@ -370,6 +504,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		AvailableShippingOutOptions: req.ShippingOutOptions,
 		CompanyLocations:            req.CompanyLocations,
 		CustomerAddresses:           req.CustomerAddresses,
+		QuoteType:                   req.QuoteType,   // Assign the new field
+		Status:                      initialStatus, // Set initial status dynamically
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
@@ -601,3 +737,4 @@ func (h *LambdaHandler) errorResponse(statusCode int, message string) events.API
 		Body: string(respBody),
 	}
 }
+

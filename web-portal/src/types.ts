@@ -82,6 +82,7 @@ export interface CartItem {
   discountedPrice?: number;
   lineItemTotal: number;
   image?: string;
+  proposedPrice?: number;
 }
 
 export interface Cart {
@@ -90,6 +91,18 @@ export interface Cart {
   sellerId: string;
   items: CartItem[];
   totalPrice: number;
+}
+
+export interface QuoteHistory {
+  status: string;
+  changedAt: string;
+}
+
+export interface Comment {
+  id: string;
+  accountId: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface Quote {
@@ -109,6 +122,10 @@ export interface Quote {
   customerAddresses?: CustomerAddress[];
   createdAt: string;
   expiresAt: string;
+  quoteType: 'standard' | 'negotiable';
+  status: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
+  history: QuoteHistory[];
+  comments: Comment[];
 }
 
 export type DeliveryMethod   = 'pickup' | 'dropoff' | 'shipping_out';

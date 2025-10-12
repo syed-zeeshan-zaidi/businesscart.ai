@@ -241,6 +241,17 @@ const Navbar: React.FC = () => {
                             <Menu.Item>
                               {({ active }) => (
                                 <Link
+                                  to="/quote-history"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+                                  Quote History
+                                </Link>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
                                   to="/customer/addresses"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >

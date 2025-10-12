@@ -14,6 +14,7 @@ const Sidebar = () => {
     { name: 'Companies', path: '/companies', icon: BuildingOffice2Icon },
     { name: 'Products', path: '/products', icon: ShoppingBagIcon },
     { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
+    { name: 'Quotes', path: '/quotes', icon: DocumentPlusIcon },
   ];
 
   if (user && user.role === 'admin') {

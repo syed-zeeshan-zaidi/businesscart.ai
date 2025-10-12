@@ -43,6 +43,20 @@ type CustomerAddress struct {
 	UpdatedAt         time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
+// QuoteHistory represents a single entry in the quote's history.
+type QuoteHistory struct {
+	Status    string    `bson:"status" json:"status"`
+	ChangedAt time.Time `bson:"changedAt" json:"changedAt"`
+}
+
+// Comment represents a single comment in the quote's negotiation history.
+type Comment struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	AccountID string             `bson:"accountId" json:"accountId"`
+	Text      string             `bson:"text" json:"text"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+}
+
 // Quote represents a price quote for a cart.
 type Quote struct {
 	ID                          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
@@ -61,4 +75,8 @@ type Quote struct {
 	CustomerAddresses           []CustomerAddress  `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
 	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
 	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
+	QuoteType                   string             `bson:"quoteType" json:"quoteType"` // "standard" or "negotiable"
+	Status                      string             `bson:"status" json:"status"` // "draft", "open", "approved", "rejected", "ordered"
+	History                     []QuoteHistory     `bson:"history,omitempty" json:"history,omitempty"`
+	Comments                    []Comment          `bson:"comments,omitempty" json:"comments,omitempty"` // New field
 }

@@ -4,7 +4,34 @@
 
 The Checkout Service handles the entire checkout process, from cart management to quote creation and order placement. It is responsible for calculating prices, managing carts, quotes, and processing orders.
 
-## 2. Features
+## 2. Checkout Flows
+
+The checkout process is designed as a dual-track system to accommodate both immediate purchases and negotiated deals.
+
+### 2.1. Standard Checkout Flow
+
+This is the traditional e-commerce checkout process. It is designed for customers who are ready to purchase items at the listed price.
+
+1.  **Initiation**: The customer clicks "Proceed to Checkout" from the cart.
+2.  **Quote Creation**: A quote with `quoteType: "standard"` and `status: "approved"` is created.
+3.  **Checkout**: The customer is redirected to the checkout page, where they select delivery and payment options.
+4.  **Order Placement**: The customer places the order.
+
+### 2.2. Negotiable Quote Flow
+
+This flow is for B2B customers who wish to negotiate prices or terms with the seller.
+
+**Customer-Facing Flow:**
+
+1.  **Initiation**: The customer clicks "Request a Quote" from the cart.
+2.  **Quote Creation**: A quote with `quoteType: "negotiable"` and `status: "open"` is created.
+3.  **Quote Review**: The customer is redirected to the quote details page (`/quote/:quoteId`), where they can see the initial quote.
+4.  **Negotiation**: The customer can propose changes to the quote (e.g., suggest a lower price for certain items).
+5.  **Company Review**: The company reviews the customer's proposal and can approve or reject it.
+6.  **Finalization**: Once both parties agree on the terms, the company sets the quote `status` to `"approved"`.
+7.  **Order Placement**: The customer can then proceed to the checkout page from the approved quote and place the order.
+
+## 3. Features
 
 ### Cart Management
 
@@ -31,7 +58,7 @@ The Checkout Service handles the entire checkout process, from cart management t
 - **Discounted Pricing**: The service correctly handles discounted prices. If a `discountedPrice` is available for a product, it is used for all calculations.
 - **Line Item and Cart Totals**: The service calculates the total for each line item (`lineItemTotal`) and the total for the entire cart (`totalPrice`), and these values are carried through to quotes and orders.
 
-## 3. API Endpoints
+## 4. API Endpoints
 
 ### Cart Endpoints
 
@@ -51,9 +78,10 @@ The Checkout Service handles the entire checkout process, from cart management t
 ### Quote Endpoints
 
 *   **`POST /checkout/quotes`**: Creates a new quote or updates an existing one.
-    *   **Request Body**: `{ "sellerId": string, "paymentMethods": string[], "deliveryMethods": string[], "shippingOutOptions": string[], "companyLocations": CompanyLocation[], "customerAddresses": CustomerAddress[] }`
+    *   **Request Body**: `{ "sellerId": string, "paymentMethods": string[], "deliveryMethods": string[], "shippingOutOptions": string[], "companyLocations": CompanyLocation[], "customerAddresses": CustomerAddress[], "quoteType": string }`
     *   **Response Body**: The full `Quote` object.
 *   **`GET /checkout/quotes/{quoteId}`**: Retrieves the details of a specific quote.
+*   **`GET /checkout/quotes`**: Retrieves quotes for the current user. Supports filtering by `sellerId`.
 
 ### Order Endpoints
 
@@ -62,7 +90,7 @@ The Checkout Service handles the entire checkout process, from cart management t
     *   **Response Body**: The full `Order` object.
 *   **`GET /checkout/orders`**: Retrieves orders for the current user. If the user has a "company" role, it retrieves orders for their company.
 
-## 4. Data Models
+## 5. Data Models
 
 ### `Cart`
 
@@ -111,6 +139,8 @@ type Quote struct {
 	AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
 	CompanyLocations            []CompanyLocation  `bson:"companyLocations,omitempty" json:"companyLocations,omitempty"`
 	CustomerAddresses           []CustomerAddress  `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
+	QuoteType                   string             `bson:"quoteType" json:"quoteType"`
+	Status                      string             `bson:"status" json:"status"`
 	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
 	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
 }
@@ -139,7 +169,7 @@ type Order struct {
 }
 ```
 
-## 5. Customer-Specific Configurations
+## 6. Customer-Specific Configurations
 
 This section outlines how customer-specific configurations, passed in the JWT, are used.
 
@@ -153,3 +183,17 @@ This section outlines how customer-specific configurations, passed in the JWT, a
 - [x] **Task 1:** In `internal/handler/http.go`, update the `LambdaHandler` to extract the `configurations` claim from the JWT.
 - [x] **Task 2:** In `internal/handler/http.go`, within the `handleCreateQuoteRequest` function, check for a customer-specific configuration for the given `sellerId`.
 - [x] **Task 3:** If a customer-specific configuration exists, use it to override the default company configurations (payment methods, delivery methods, shipping options, and apply discounts) when creating a quote.
+
+## 7. Architectural Notes
+
+### Data Duplication in Orders
+
+The `Order` schema intentionally duplicates data from the `Quote` schema (e.g., items, prices, totals). This is a deliberate design choice to ensure that each order is an immutable, self-contained record of the transaction at the time of purchase. This prevents changes in product pricing or details from affecting historical order records.
+
+### Quote Endpoint Security
+
+The `GET /checkout/quotes/{quoteId}` endpoint needs its authorization logic to be enhanced. Currently, it only allows the customer who created the quote to view it. This should be expanded to allow access for:
+
+1.  The customer who created the quote.
+2.  The seller to whom the quote was sent.
+3.  Any user with an `admin` role.

@@ -31,6 +31,10 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Deals = lazy(() => import('./pages/Deals'));
+const Quote = lazy(() => import('./pages/Quote'));
+const QuoteForm = lazy(() => import('./components/QuoteForm'));
+const QuoteDetailForm = lazy(() => import('./components/QuoteDetailForm'));
+const QuoteHistory = lazy(() => import('./pages/QuoteHistory'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -67,6 +71,8 @@ const AppContent = () => {
     '/companies',
     '/products',
     '/orders',
+    '/quotes',
+    '/quote-details/:quoteId',
     '/users',
     '/codes',
     '/admin',
@@ -129,6 +135,22 @@ const AppContent = () => {
               <Route
                 path="/checkout/:quoteId"
                 element={isAuthenticated ? <Checkout /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quote/:quoteId"
+                element={isAuthenticated ? <Quote /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quotes"
+                element={isAuthenticated ? <QuoteForm /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quote-details/:quoteId"
+                element={isAuthenticated ? <QuoteDetailForm /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quote-history"
+                element={isAuthenticated ? <QuoteHistory /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/order-success"
