@@ -154,3 +154,13 @@ This endpoint handles all partial updates to a quote. The action is determined b
 
 *   **Description:** Returns a PDF version of the quote.
 *   **Request Body:** None
+
+## 5. Known Issues
+
+### 5.1 Ambiguous Price Display on Checkout Page
+
+**Description:** On the checkout page, when a quote has been negotiated, the item price display in the "Quote Summary" can be ambiguous. Specifically, it shows two prices (e.g., "$17.99 $18.99") where the strikethrough price (`item.price`) does not consistently represent the original MSRP or a clear previous state in the negotiation. This can lead to confusion for the user regarding the actual original price versus the approved negotiated price.
+
+**Impact:** User confusion regarding pricing transparency during checkout.
+
+**To be addressed:** Later.
