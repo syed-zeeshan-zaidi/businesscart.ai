@@ -60,7 +60,7 @@ const QuoteComments: React.FC<QuoteCommentsProps> = ({ quote, onCommentAdded }) 
           placeholder="Type your comment..."
         />
         <button
-          className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600"
+          className="bg-gray-500 text-white px-4 py-2 rounded-r-md hover:bg-gray-600"
           onClick={handleAddComment}
         >
           Send

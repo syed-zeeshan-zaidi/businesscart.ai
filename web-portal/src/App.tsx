@@ -35,6 +35,7 @@ const Quote = lazy(() => import('./pages/Quote'));
 const QuoteForm = lazy(() => import('./components/QuoteForm'));
 const QuoteDetailForm = lazy(() => import('./components/QuoteDetailForm'));
 const QuoteHistory = lazy(() => import('./pages/QuoteHistory'));
+const QuoteCreateForm = lazy(() => import('./components/QuoteCreateForm'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -80,6 +81,7 @@ const AppContent = () => {
     '/admin/products',
     '/admin/orders',
     '/locations',
+    '/quote-create',
   ];
 
   return (
@@ -151,6 +153,10 @@ const AppContent = () => {
               <Route
                 path="/quote-history"
                 element={isAuthenticated ? <QuoteHistory /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quote-create"
+                element={isAuthenticated ? <QuoteCreateForm /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/order-success"

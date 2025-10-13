@@ -91,6 +91,11 @@ const QuoteDetailForm: React.FC = () => {
       if (discountPercentage !== undefined && discountPercentage !== quote.discountPercentage) {
         updatedQuote = await patchQuote(quote.id, 'applyDiscount', { discountPercentage });
       }
+
+      // If the quote was proposed by the customer and the seller makes changes, revert status to 'open'
+      if (quote.status === 'proposed') {
+        updatedQuote = await patchQuote(quote.id, 'updateStatus', { status: 'open' });
+      }
       
       setQuote(updatedQuote);
       setIsEditing(false);
@@ -277,10 +282,10 @@ const QuoteDetailForm: React.FC = () => {
           <QuoteComments quote={quote} onCommentAdded={handleCommentAdded} />
 
           <div className="flex justify-end space-x-4 mt-6">
-            {!isEditing && quote.status === 'open' && (
+            {!isEditing && (quote.status === 'open' || quote.status === 'proposed') && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-6 py-2 rounded-md transition bg-blue-600 text-white hover:bg-blue-700"
+                className="px-6 py-2 rounded-md transition bg-teal-600 text-white hover:bg-teal-700"
               >
                 Edit Quote
               </button>
@@ -303,7 +308,7 @@ const QuoteDetailForm: React.FC = () => {
                 </button>
                 <button
                   onClick={handleSaveChanges}
-                  className="px-6 py-2 rounded-md transition bg-green-600 text-white hover:bg-green-700"
+                  className="px-6 py-2 rounded-md transition bg-teal-600 text-white hover:bg-teal-700"
                   disabled={loading}
                 >
                   {loading ? 'Saving...' : 'Save Changes'}

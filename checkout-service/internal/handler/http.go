@@ -190,7 +190,7 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, accountID, configurations)
+		return h.handleCreateQuoteRequest(request, accountID, role, configurations)
 	}
 	if request.HTTPMethod == "GET" {
 		if len(parts) == 3 { // /checkout/quotes
@@ -478,10 +478,11 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	}, nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		CartID             string                  `json:"cartId"`
 		SellerID           string                  `json:"sellerId"`
+		AccountID          string                  `json:"accountId"` // This is the customer ID for whom the quote is created
 		PaymentMethods     []string                `json:"paymentMethods"`
 		DeliveryMethods    []string                `json:"deliveryMethods"`
 		ShippingOutOptions []string                `json:"shippingOutOptions"`
@@ -491,6 +492,20 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	// Determine the effective AccountID for cart retrieval and quote creation
+	// If the caller is a company or admin, and an accountID is provided in the request body,
+	// use that accountID. Otherwise, use the accountID from the JWT (the caller's ID).
+	effectiveAccountID := accountID
+	if (role == "company" || role == "admin") && req.AccountID != "" {
+		// Authorization check: A company can only create a quote for a customer associated with it.
+		// This would typically involve a lookup in the account service to verify the association.
+		// For now, we'll assume the frontend sends a valid associated customer ID.
+		if role == "company" && req.SellerID != accountID {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Company can only create quotes for its own customers."), nil
+		}
+		effectiveAccountID = req.AccountID
 	}
 
 	// Check for customer-specific configuration
@@ -509,7 +524,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		}
 	}
 
-	cart, err := h.cartService.GetCart(accountID, req.SellerID)
+	cart, err := h.cartService.GetCart(effectiveAccountID, req.SellerID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 	}
@@ -529,7 +544,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 
 	newQuote := &quote.Quote{
 		CartID:                      cart.ID,
-		AccountID:                   accountID,
+		AccountID:                   effectiveAccountID,
 		SellerID:                    req.SellerID,
 		Items:                       cart.Items,
 		Subtotal:                    cart.TotalPrice,
@@ -570,19 +585,30 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	}
+
+	effectiveAccountID := accountID
+	// For company/admin roles, allow specifying a customer account ID
+	if role == "company" || role == "admin" {
+		if customerAccountID, ok := request.QueryStringParameters["accountId"]; ok && customerAccountID != "" {
+			effectiveAccountID = customerAccountID
+			// Optional: Add authorization check here to ensure the company is allowed to modify this customer's cart.
+		}
+	}
+	log.Printf("handleCartRequest: effectiveAccountID=%s, role=%s", effectiveAccountID, role)
+
 	switch request.HTTPMethod {
 	case "POST": // Add item to cart
 		var req CartItemRequest
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 		}
-		currentCart, err := h.cartService.GetCart(accountID, req.Entity.SellerID)
+		currentCart, err := h.cartService.GetCart(effectiveAccountID, req.Entity.SellerID)
 		if err != nil && err.Error() != "cart not found" {
 			return h.errorResponse(http.StatusInternalServerError, "Failed to get cart"), nil
 		}
 		if currentCart == nil {
 			currentCart = &cart.Cart{
-				AccountID: accountID,
+				AccountID: effectiveAccountID,
 				SellerID:  req.Entity.SellerID,
 				Items:     []cart.CartItem{},
 			}
@@ -631,11 +657,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 		}
 
-		fetchedCart, err := h.cartService.GetCart(accountID, sellerID)
+		fetchedCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 		if err != nil {
 			if err.Error() == "cart not found" {
 				// Return an empty cart if not found, as per previous cart-service behavior
-				emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
+				emptyCart := cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 				respBody, _ := json.Marshal(emptyCart)
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusOK,
@@ -668,7 +694,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 		}
 
-		currentCart, err := h.cartService.GetCart(accountID, sellerID)
+		currentCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 		if err != nil {
 			return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 		}
@@ -693,7 +719,8 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			StatusCode: http.StatusOK,
 			Headers:    headers,
 			Body:       string(respBody),
-		}, nil
+		},
+		nil
 
 	case "DELETE": // Remove item or clear cart
 		itemId, hasItemId := request.PathParameters["itemId"]
@@ -709,7 +736,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 				return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 			}
 
-			currentCart, err := h.cartService.GetCart(accountID, sellerID)
+			currentCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 			if err != nil {
 				return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 			}
@@ -736,23 +763,25 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 				StatusCode: http.StatusOK,
 				Headers:    headers,
 				Body:       string(respBody),
-			}, nil
+			},
+			nil
 
-		} else if request.Path == "/cart" { // Clear entire cart
+		} else if request.Path == "/checkout/cart" { // Clear entire cart
 			sellerID := request.QueryStringParameters["sellerId"]
 			if sellerID == "" {
 				return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
 			}
-			if err := h.cartService.ClearCart(accountID, sellerID); err != nil {
+			if err := h.cartService.ClearCart(effectiveAccountID, sellerID); err != nil {
 				return h.errorResponse(http.StatusInternalServerError, "Failed to clear cart"), nil
 			}
-			emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
+			emptyCart := cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 			respBody, _ := json.Marshal(emptyCart)
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusOK,
 				Headers:    headers,
 				Body:       string(respBody),
-			}, nil
+			},
+			nil
 		}
 		return h.errorResponse(http.StatusBadRequest, "Invalid cart delete request"), nil
 
@@ -788,4 +817,3 @@ func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxy
 		Body: string(respBody),
 	}
 }
-

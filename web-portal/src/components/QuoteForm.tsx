@@ -124,6 +124,14 @@ const QuoteForm = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-800">Quotes</h1>
+          {currentUser && (currentUser.role === 'company' || currentUser.role === 'admin') && (
+            <button
+              onClick={() => navigate('/quote-create')}
+              className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+            >
+              Create Quote
+            </button>
+          )}
         </header>
 
         {/* Search */}
