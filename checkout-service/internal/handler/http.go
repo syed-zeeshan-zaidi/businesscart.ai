@@ -537,7 +537,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	taxAmount := cart.TotalPrice * 0.0825 // 8.25% tax
 	shippingCost := 10.00                 // Flat rate shipping
 
-	initialStatus := "open" // Default for negotiable
+	initialStatus := "draft" // Default for negotiable
 	if req.QuoteType == "standard" {
 		initialStatus = "approved"
 	}

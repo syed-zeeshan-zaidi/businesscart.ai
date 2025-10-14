@@ -221,6 +221,7 @@ const Cart: React.FC = () => {
         customerAddresses: customerAddresses,
         configurations,
         quoteType: 'negotiable',
+        status: 'draft', // Set initial status to draft
       });
       toast.success('Quote requested successfully!', { id: toastId });
       navigate(`/quote/${quote.id}`);

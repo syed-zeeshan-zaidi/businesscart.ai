@@ -134,7 +134,7 @@ const QuoteDetails: React.FC = () => {
     );
   }
 
-  const canCustomerPropose = quote.quoteType === 'negotiable' && quote.status === 'open';
+  const canCustomerPropose = quote.quoteType === 'negotiable' && (quote.status === 'open' || quote.status === 'draft');
 
   return (
     <div className="min-h-screen bg-gray-100">

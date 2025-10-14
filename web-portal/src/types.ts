@@ -283,4 +283,8 @@ export interface CreateQuoteRequest {
 
 
 
+  status?: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
+
+
+
 }

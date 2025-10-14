@@ -22,9 +22,23 @@ func NewService(db *mongo.Database) *Service {
 }
 
 func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
-	filter := bson.M{
-		"accountId": quote.AccountID,
-		"sellerId":  quote.SellerID,
+	var filter bson.M
+
+	if quote.QuoteType == "negotiable" {
+		// For negotiable quotes, only update if a 'draft' exists. Otherwise, create a new one.
+		// This protects active quotes (e.g., 'open', 'proposed') from being overwritten.
+		filter = bson.M{
+			"accountId": quote.AccountID,
+			"sellerId":  quote.SellerID,
+			"status":    "draft",
+		}
+	} else {
+		// For standard quotes, find and overwrite any existing quote for the same customer/seller.
+		filter = bson.M{
+			"accountId": quote.AccountID,
+			"sellerId":  quote.SellerID,
+			"quoteType": "standard",
+		}
 	}
 
 	update := bson.M{

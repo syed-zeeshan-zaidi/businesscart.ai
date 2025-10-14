@@ -144,6 +144,7 @@ const QuoteCreateForm: React.FC = () => {
         companyLocations: [],
         customerAddresses: [],
         quoteType: 'negotiable',
+        status: 'draft',
       };
 
       const createdQuote = await createQuote(newQuote);
