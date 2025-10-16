@@ -25,6 +25,7 @@ type CustomerConfiguration struct {
 	PaymentMethods     *[]storage.PaymentMethod     `json:"paymentMethods,omitempty"`
 	DeliveryMethods    *[]storage.DeliveryMethod    `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
+	QuotesAllowed      *bool                        `json:"quotesAllowed,omitempty"`
 }
 
 // UserClaims represents the user-specific data within the JWT.

@@ -36,6 +36,7 @@ type CustomerConfiguration struct {
 	PaymentMethods     []string `json:"paymentMethods,omitempty"`
 	DeliveryMethods    []string `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
+	QuotesAllowed      *bool    `json:"quotesAllowed,omitempty"`
 }
 
 // PatchRequest defines the structure for all PATCH operations
@@ -489,6 +490,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
 		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
 		QuoteType          string                  `json:"quoteType"` // New field
+		QuotesAllowed      bool                    `json:"quotesAllowed"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -509,6 +511,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 
 	// Check for customer-specific configuration
+	effectiveQuotesAllowed := req.QuotesAllowed
 	for _, config := range configurations {
 		if config.CompanyID == req.SellerID {
 			if config.PaymentMethods != nil {
@@ -520,8 +523,15 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 			if config.ShippingOutOptions != nil {
 				req.ShippingOutOptions = config.ShippingOutOptions
 			}
+			if config.QuotesAllowed != nil {
+				effectiveQuotesAllowed = *config.QuotesAllowed
+			}
 			break
 		}
+	}
+
+	if !effectiveQuotesAllowed {
+		return h.errorResponse(http.StatusForbidden, "This company does not allow quote requests."), nil
 	}
 
 	cart, err := h.cartService.GetCart(effectiveAccountID, req.SellerID)

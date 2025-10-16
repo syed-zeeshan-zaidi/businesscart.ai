@@ -385,6 +385,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 					PaymentMethods:     e.Configuration.PaymentMethods,
 					DeliveryMethods:    e.Configuration.DeliveryMethods,
 					ShippingOutOptions: e.Configuration.ShippingOutOptions,
+					QuotesAllowed:      e.Configuration.QuotesAllowed,
 				})
 			}
 		}
@@ -569,6 +570,7 @@ func (h *Handler) GetAccountByID(w http.ResponseWriter, r *http.Request) {
 							SaleRepresentative: c.CompanyData.SaleRepresentative,
 							Address:            c.CompanyData.Address,
 							CreditLimit:        c.CompanyData.CreditLimit,
+							QuotesAllowed:      c.CompanyData.QuotesAllowed,
 							Status:             c.CompanyData.Status,
 							ShippingOutOptions: c.CompanyData.ShippingOutOptions,
 							PaymentMethods:     c.CompanyData.PaymentMethods,

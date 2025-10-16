@@ -16,7 +16,7 @@ const Cart: React.FC = () => {
   const [cart, setCart] = useState<CartType | null>(null);
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState<Account | null>(null);
-  const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string, logoUrl?: string}>>([]);
+  const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string, logoUrl?: string, quotesAllowed?: boolean}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -75,6 +75,7 @@ const Cart: React.FC = () => {
             name: company.name,
             companyCode: company.companyCode,
             logoUrl: company.logoUrl, // Include logoUrl
+            quotesAllowed: company.quotesAllowed,
           }));
           
           setAvailableCompanies(companies);
@@ -164,6 +165,7 @@ const Cart: React.FC = () => {
     const paymentMethods = company?.paymentMethods || [];
     const deliveryMethods = company?.deliveryMethods || [];
     const shippingOutOptions = company?.shippingOutOptions || [];
+    const quotesAllowed = company?.quotesAllowed || false;
     const companyLocations = company?.companyLocations || [];
     const customerAddresses = account?.customer?.customerAddresses || [];
     const configurations = await getCustomerConfigurations();
@@ -176,6 +178,7 @@ const Cart: React.FC = () => {
         paymentMethods: paymentMethods,
         deliveryMethods: deliveryMethods,
         shippingOutOptions: shippingOutOptions,
+        quotesAllowed: quotesAllowed,
         companyLocations: companyLocations,
         customerAddresses: customerAddresses,
         configurations,
@@ -205,6 +208,7 @@ const Cart: React.FC = () => {
     const paymentMethods = company?.paymentMethods || [];
     const deliveryMethods = company?.deliveryMethods || [];
     const shippingOutOptions = company?.shippingOutOptions || [];
+    const quotesAllowed = company?.quotesAllowed || false;
     const companyLocations = company?.companyLocations || [];
     const customerAddresses = account?.customer?.customerAddresses || [];
     const configurations = await getCustomerConfigurations();
@@ -212,7 +216,7 @@ const Cart: React.FC = () => {
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote({ 
+      const quote = await createQuote({
         sellerId: selectedCompanyId,
         paymentMethods: paymentMethods,
         deliveryMethods: deliveryMethods,
@@ -222,6 +226,7 @@ const Cart: React.FC = () => {
         configurations,
         quoteType: 'negotiable',
         status: 'draft', // Set initial status to draft
+        quotesAllowed: quotesAllowed,
       });
       toast.success('Quote requested successfully!', { id: toastId });
       navigate(`/quote/${quote.id}`);
@@ -379,8 +384,9 @@ const Cart: React.FC = () => {
                     </button>
                     <button
                       onClick={handleRequestQuote}
-                      className="w-full sm:w-auto px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition disabled:opacity-50"
-                      disabled={loading}
+                      className="w-full sm:w-auto px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={loading || !selectedCompany?.quotesAllowed}
+                      title={!selectedCompany?.quotesAllowed ? 'This company does not allow quote requests.' : 'Request a negotiable quote'}
                     >
                       {loading ? 'Processing...' : 'Request a Quote'}
                     </button>

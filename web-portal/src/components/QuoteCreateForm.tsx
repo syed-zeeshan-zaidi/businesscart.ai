@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { createQuote, getAccounts, getProducts, addItemToCart, getCart, updateCartItem, removeItemFromCart, getUserClaims } from '../api';
-import { Account, Product, CreateQuoteRequest, Cart } from '../types';
+import { createQuote, getAccounts, getProducts, addItemToCart, getCart, updateCartItem, removeItemFromCart, getAccount, getCompanyLocations } from '../api';
+import { Account, Product, CreateQuoteRequest, Cart, CustomerCodeEntry } from '../types';
 
 const QuoteCreateForm: React.FC = () => {
   const navigate = useNavigate();
@@ -24,13 +24,15 @@ const QuoteCreateForm: React.FC = () => {
         const allProducts = await getProducts();
         setProducts(allProducts);
 
-        const claims = await getUserClaims();
-        if (claims.user?.role === 'company') {
-          setCurrentCompanyId(claims.user.id);
+        // Assuming the logged-in user is a company
+        const companyAccount = accounts.find(acc => acc.role === 'company');
+        if(companyAccount) {
+          setCurrentCompanyId(companyAccount._id);
         } else {
-          toast.error('Only company users can create quotes.');
+          toast.error('Company account not found.');
           navigate('/dashboard');
         }
+
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Failed to fetch initial data.');
       } finally {
@@ -135,14 +137,23 @@ const QuoteCreateForm: React.FC = () => {
     const toastId = toast.loading('Creating quote...');
 
     try {
+      const customerAccount = await getAccount(selectedCustomer);
+      const companyAccount = await getAccount(currentCompanyId);
+      const companyLocations = await getCompanyLocations(currentCompanyId);
+
+      const customerConfig = customerAccount.customer?.customerConfigs?.find((c: CustomerCodeEntry) => c.codeId === currentCompanyId);
+      const configurations = customerConfig?.configuration ? [customerConfig.configuration] : [];
+
       const newQuote: CreateQuoteRequest = {
         sellerId: currentCompanyId,
         accountId: selectedCustomer,
-        paymentMethods: [],
-        deliveryMethods: [],
-        shippingOutOptions: [],
-        companyLocations: [],
-        customerAddresses: [],
+        quotesAllowed: companyAccount.company?.quotesAllowed || true,
+        paymentMethods: companyAccount.company?.paymentMethods || [],
+        deliveryMethods: companyAccount.company?.deliveryMethods || [],
+        shippingOutOptions: companyAccount.company?.shippingOutOptions || [],
+        companyLocations: companyLocations,
+        customerAddresses: customerAccount.customer?.customerAddresses || [],
+        configurations: configurations,
         quoteType: 'negotiable',
         status: 'draft',
       };

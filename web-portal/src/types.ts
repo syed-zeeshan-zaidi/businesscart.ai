@@ -255,6 +255,10 @@ export interface CreateQuoteRequest {
 
 
 
+  quotesAllowed: boolean;
+
+
+
   paymentMethods: string[];
 
 
