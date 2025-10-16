@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { BanknotesIcon, UserGroupIcon, PuzzlePieceIcon, CloudArrowUpIcon, CogIcon, ServerIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, UserGroupIcon, PuzzlePieceIcon, CloudArrowUpIcon, CogIcon, ServerIcon, UserCircleIcon, AdjustmentsHorizontalIcon, CommandLineIcon, CpuChipIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { ShoppingCartIcon } from '@heroicons/react/24/solid';
 
 const LandingPage: React.FC = () => {
@@ -121,12 +121,12 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2">
               {/* Card 1: Local Business */}
-              <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">For Local Businesses & D2C Brands</h3>
                 <p className="mt-4 text-gray-600">
                   Perfect for restaurants, grocery stores, and direct-to-consumer brands who want to provide a modern, app-like ordering experience without the technical overhead.
                 </p>
-                <ul className="mt-6 space-y-4">
+                <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
                       <BanknotesIcon className="h-6 w-6 text-green-500" />
@@ -154,12 +154,12 @@ const LandingPage: React.FC = () => {
                 </ul>
               </div>
               {/* Card 2: Enterprise */}
-              <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">For B2B & Enterprise</h3>
                 <p className="mt-4 text-gray-600">
                   Designed for manufacturers, distributors, and large-scale operations that need to manage complex customer relationships and deep integrations.
                 </p>
-                <ul className="mt-6 space-y-4">
+                <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
                       <ServerIcon className="h-6 w-6 text-green-500" />
@@ -182,6 +182,132 @@ const LandingPage: React.FC = () => {
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Lower TCO:</span> Our modern, serverless architecture reduces infrastructure and maintenance costs.
+                    </p>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* New Per-Customer Personalization Section */}
+        <div className="py-16 bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900">The Power of Per-Customer Personalization</h2>
+              <p className="mt-4 text-lg text-gray-500">
+                Go beyond the one-size-fits-all approach of traditional B2B platforms. With BusinessCart, you can create a unique, personalized experience for every customer.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                  <AdjustmentsHorizontalIcon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Granular Control</h3>
+                <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Pricing & Discounts:</span> Set custom pricing tiers and per-customer discounts.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Payment & Shipping:</span> Offer unique payment methods and shipping options for each customer.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Order Limits:</span> Enforce customer-specific order limits (min/max amount, quantity, monthly/yearly limits).
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Credit Limits:</span> Manage customer credit limits directly within the platform.
+                    </p>
+                  </li>
+                </ul>
+              </div>
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                  <CommandLineIcon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Unmatched Flexibility</h3>
+                <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Custom Catalogs:</span> Assign specific products and categories to each customer.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Negotiable Quotes:</span> Enable a full-featured negotiation workflow for specific customers.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Multi-language & Currency:</span> Support for multiple languages and currencies.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">Headless & API-First:</span> Build any customer experience you can imagine with our flexible API.
+                    </p>
+                  </li>
+                </ul>
+              </div>
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                  <CpuChipIcon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">The AI-Powered Advantage</h3>
+                <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">AI-Driven Integration:</span> Our AI-powered data pipeline makes it easy to integrate with your existing ERP, CRM, and other business systems.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">AI-Driven Observability:</span> Get deep insights into your sales data with our AI-powered analytics and reporting.
+                    </p>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <CheckIcon className="h-6 w-6 text-green-500" />
+                    </div>
+                    <p className="ml-3 text-base">
+                      <span className="font-semibold">AI-Driven Inter-communication:</span> Let our AI handle the back-and-forth of simple negotiations and order updates.
                     </p>
                   </li>
                 </ul>
