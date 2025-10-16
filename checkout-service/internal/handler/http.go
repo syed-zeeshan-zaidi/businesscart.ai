@@ -537,7 +537,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		}
 	}
 
-	if !effectiveQuotesAllowed {
+	if !effectiveQuotesAllowed && req.QuoteType == "negotiable" {
 		return h.errorResponse(http.StatusForbidden, "This company does not allow quote requests."), nil
 	}
 
