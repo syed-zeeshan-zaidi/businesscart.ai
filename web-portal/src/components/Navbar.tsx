@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon, TagIcon, HomeIcon, CubeIcon, UserCircleIcon, ClipboardDocumentListIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon, TagIcon, HomeIcon, CubeIcon, UserCircleIcon, ClipboardDocumentListIcon, MapPinIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
@@ -244,7 +244,7 @@ const Navbar: React.FC = () => {
                                   to="/quote-history"
                                   className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                                 >
-                                  <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+                                  <DocumentPlusIcon className="h-5 w-5 mr-2" />
                                   Quote History
                                 </Link>
                               )}

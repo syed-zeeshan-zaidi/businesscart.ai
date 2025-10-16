@@ -441,7 +441,14 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 
 	// Clean up cart and quote
 	_ = h.cartService.ClearCart(accountID, quote.SellerID)
-	_ = h.quoteService.DeleteQuote(req.QuoteID)
+	if quote.QuoteType == "negotiable" {
+		_, err = h.quoteService.UpdateQuoteStatus(quote.ID, "ordered")
+		if err != nil {
+			log.Printf("Failed to update quote status to ordered: %v", err)
+		}
+	} else {
+		_ = h.quoteService.DeleteQuote(req.QuoteID)
+	}
 
 	respBody, _ := json.Marshal(createdOrder)
 	return events.APIGatewayProxyResponse{

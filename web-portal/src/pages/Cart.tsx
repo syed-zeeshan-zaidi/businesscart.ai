@@ -382,14 +382,15 @@ const Cart: React.FC = () => {
                     >
                       Clear Cart
                     </button>
-                    <button
-                      onClick={handleRequestQuote}
-                      className="w-full sm:w-auto px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={loading || !selectedCompany?.quotesAllowed}
-                      title={!selectedCompany?.quotesAllowed ? 'This company does not allow quote requests.' : 'Request a negotiable quote'}
-                    >
-                      {loading ? 'Processing...' : 'Request a Quote'}
-                    </button>
+                    {selectedCompany?.quotesAllowed && (
+                      <button
+                        onClick={handleRequestQuote}
+                        className="w-full sm:w-auto px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition disabled:opacity-50"
+                        disabled={loading}
+                      >
+                        {loading ? 'Processing...' : 'Request a Quote'}
+                      </button>
+                    )}
                     <button
                       onClick={handleCheckout}
                       className="w-full sm:w-auto px-6 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition disabled:opacity-50"
