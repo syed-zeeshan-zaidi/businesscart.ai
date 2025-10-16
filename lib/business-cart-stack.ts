@@ -153,9 +153,11 @@ export class BusinessCartStack extends cdk.Stack {
     cartItem.addMethod('DELETE', checkoutInteg);
     const quotes = checkoutRoot.addResource('quotes');
     quotes.addMethod('POST', checkoutInteg);
+    quotes.addMethod('GET', checkoutInteg); // Add GET method for listing quotes
     const quoteId = quotes.addResource('{quoteId}');
     quoteId.addMethod('GET', checkoutInteg);
     quoteId.addMethod('DELETE', checkoutInteg);
+    quoteId.addMethod('PATCH', checkoutInteg);
     const orders = checkoutRoot.addResource('orders');
     orders.addMethod('POST', checkoutInteg);
     orders.addMethod('GET', checkoutInteg);

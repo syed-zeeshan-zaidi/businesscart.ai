@@ -43,22 +43,43 @@ type CustomerAddress struct {
 	UpdatedAt         time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
-// Quote represents a price quote for a cart.
-type Quote struct {
-	ID                          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	CartID                      primitive.ObjectID `bson:"cartId" json:"cartId"`
-	AccountID                   string             `bson:"accountId" json:"accountId"`
-	SellerID                    string             `bson:"sellerId" json:"sellerId"`
-	Items                       []cart.CartItem    `bson:"items" json:"items"`
-	Subtotal                    float64            `bson:"subtotal" json:"subtotal"`
-	ShippingCost                float64            `bson:"shippingCost" json:"shippingCost"`
-	TaxAmount                   float64            `bson:"taxAmount" json:"taxAmount"`
-	GrandTotal                  float64            `bson:"grandTotal" json:"grandTotal"`
-	AvailablePaymentMethods     []string           `bson:"availablePaymentMethods" json:"availablePaymentMethods"`
-	AvailableDeliveryMethods    []string           `bson:"availableDeliveryMethods" json:"availableDeliveryMethods"`
-	AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
-	CompanyLocations            []CompanyLocation  `bson:"companyLocations,omitempty" json:"companyLocations,omitempty"`
-	CustomerAddresses           []CustomerAddress  `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
-	CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
-	ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
+// QuoteHistory represents a single entry in the quote's history.
+type QuoteHistory struct {
+	Status    string    `bson:"status" json:"status"`
+	ChangedAt time.Time `bson:"changedAt" json:"changedAt"`
 }
+
+// Comment represents a single comment in the quote's negotiation history.
+type Comment struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	AccountID string             `bson:"accountId" json:"accountId"`
+	Text      string             `bson:"text" json:"text"`
+	CreatedAt time.Time          `bson:"createdAt" json:"createdAt"`
+}
+
+// Quote represents a price quote for a cart.
+	type Quote struct {
+		ID                          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+		CartID                      primitive.ObjectID `bson:"cartId" json:"cartId"`
+		AccountID                   string             `bson:"accountId" json:"accountId"`
+		SellerID                    string             `bson:"sellerId" json:"sellerId"`
+		Items                       []cart.CartItem    `bson:"items" json:"items"`
+		Subtotal                    float64            `bson:"subtotal" json:"subtotal"`
+		ShippingCost                float64            `bson:"shippingCost" json:"shippingCost"`
+		TaxAmount                   float64            `bson:"taxAmount" json:"taxAmount"`
+		GrandTotal                  float64            `bson:"grandTotal" json:"grandTotal"`
+		AvailablePaymentMethods     []string           `bson:"availablePaymentMethods" json:"availablePaymentMethods"`
+		AvailableDeliveryMethods    []string           `bson:"availableDeliveryMethods" json:"availableDeliveryMethods"`
+		AvailableShippingOutOptions []string           `bson:"availableShippingOutOptions" json:"availableShippingOutOptions"`
+		CompanyLocations            []CompanyLocation  `bson:"companyLocations,omitempty" json:"companyLocations,omitempty"`
+		CustomerAddresses           []CustomerAddress  `bson:"customerAddresses,omitempty" json:"customerAddresses,omitempty"`
+		CreatedAt                   time.Time          `bson:"createdAt" json:"createdAt"`
+		ExpiresAt                   time.Time          `bson:"expiresAt" json:"expiresAt"`
+		QuoteType                   string             `bson:"quoteType" json:"quoteType"` // "standard" or "negotiable"
+		Status                      string             `bson:"status" json:"status"` // "draft", "open", "approved", "rejected", "ordered"
+		History                     []QuoteHistory     `bson:"history,omitempty" json:"history,omitempty"`
+		Comments                    []Comment          `bson:"comments,omitempty" json:"comments,omitempty"` // New field
+		DiscountPercentage          float64            `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+		DiscountAmount              float64            `bson:"discountAmount,omitempty" json:"discountAmount,omitempty"`
+		Notes                       string             `bson:"notes,omitempty" json:"notes,omitempty"`
+	}

@@ -132,6 +132,7 @@ type AttachedCompaniesData struct {
 	Address            Address             `json:"address"`
 	CreditLimit        float64             `json:"creditLimit"`
 	Status             string              `json:"status"`
+	QuotesAllowed      bool                `bson:"quotesAllowed" json:"quotesAllowed"`
 	ShippingOutOptions []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
 	PaymentMethods     []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
 	DeliveryMethods    []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
@@ -140,10 +141,11 @@ type AttachedCompaniesData struct {
 
 // CustomerConfiguration defines specific settings that override a company's defaults for a single customer.
 type CustomerConfiguration struct {
-	DiscountPercentage *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
-	PaymentMethods     *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
-	DeliveryMethods    *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
+	DiscountPercentage *float64          `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+	PaymentMethods     *[]PaymentMethod  `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]DeliveryMethod `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
 	ShippingOutOptions *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
+	QuotesAllowed      *bool             `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
 }
 
 type CustomerCodeEntry struct {
@@ -152,7 +154,7 @@ type CustomerCodeEntry struct {
 	Configuration *CustomerConfiguration `bson:"configuration,omitempty" json:"configuration,omitempty"`
 }
 
-// Full customer data sub-docs for Account role customers
+// Final Full customer data sub-docs for Account role customers
 type CustomerData struct {
 	CustomerConfigs   []CustomerCodeEntry     `bson:"customerConfigs" json:"customerConfigs"`
 	AttachedCompanies []AttachedCompaniesData `bson:"attachedCompanies,omitempty" json:"attachedCompanies,omitempty"`

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -35,6 +36,13 @@ type CustomerConfiguration struct {
 	PaymentMethods     []string `json:"paymentMethods,omitempty"`
 	DeliveryMethods    []string `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
+	QuotesAllowed      *bool    `json:"quotesAllowed,omitempty"`
+}
+
+// PatchRequest defines the structure for all PATCH operations
+type PatchRequest struct {
+	Operation string          `json:"operation"`
+	Value     json.RawMessage `json:"value"`
 }
 
 // LambdaHandler handles AWS Lambda requests.
@@ -162,7 +170,7 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	if strings.HasPrefix(request.Path, "/checkout/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
-		return h.handleQuoteRequest(request, accountID, configurations)
+		return h.handleQuoteRequest(request, accountID, role, configurations)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
 	}
@@ -180,21 +188,159 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, accountID, configurations)
+		return h.handleCreateQuoteRequest(request, accountID, role, configurations)
 	}
 	if request.HTTPMethod == "GET" {
-		parts := strings.Split(request.Path, "/")
-		if len(parts) == 4 {
+		if len(parts) == 3 { // /checkout/quotes
+			return h.handleGetMyQuotesRequest(request, accountID, role)
+		}
+		if len(parts) == 4 { // /checkout/quotes/{quoteId}
 			quoteId := parts[3]
-			return h.handleGetQuoteRequest(request, accountID, quoteId)
+			return h.handleGetQuoteRequest(request, accountID, role, quoteId)
+		}
+	}
+	if request.HTTPMethod == "PATCH" {
+		if len(parts) == 4 { // /checkout/quotes/{quoteId}
+			quoteId := parts[3]
+			return h.handlePatchQuoteRequest(request, accountID, role, quoteId)
 		}
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+// applyDiscountRequest defines the structure for applying a discount to a quote.
+type applyDiscountRequest struct {
+	DiscountPercentage float64 `json:"discountPercentage"`
+}
+
+// sellerUpdateRequest defines the structure for a seller updating a quote.
+type sellerUpdateRequest struct {
+	Items           []quote.ItemUpdate `json:"items,omitempty"`
+	NewShippingCost *float64           `json:"newShippingCost,omitempty"`
+	Notes           *string            `json:"notes,omitempty"`
+}
+
+// customerProposeRequest defines the structure for a customer proposing changes to a quote.
+type customerProposeRequest struct {
+	Changes []quote.ProposedChange `json:"changes"`
+}
+
+// updateStatusRequest defines the structure for updating a quote's status.
+type updateStatusRequest struct {
+	Status string `json:"status"`
+}
+
+func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
+	}
+
+	var patch PatchRequest
+	if err := json.Unmarshal([]byte(request.Body), &patch); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body\n" + err.Error()), nil
+	}
+
+	var updatedQuote *quote.Quote
+
+	switch patch.Operation {
+	case "addComment":
+		var commentData struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(patch.Value, &commentData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid comment data"), nil
+		}
+		updatedQuote, err = h.quoteService.AddComment(quoteID, accountID, commentData.Text)
+	case "applyDiscount":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can apply discounts"), nil
+		}
+		var discountData applyDiscountRequest
+		if err := json.Unmarshal(patch.Value, &discountData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid discount data"), nil
+		}
+		updatedQuote, err = h.quoteService.ApplyQuoteDiscount(quoteID, discountData.DiscountPercentage, accountID)
+	case "sellerUpdate":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can update quote as seller"), nil
+		}
+		var sellerUpdateData sellerUpdateRequest
+		if err := json.Unmarshal(patch.Value, &sellerUpdateData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid seller update data"), nil
+		}
+		updatedQuote, err = h.quoteService.UpdateQuoteBySeller(quoteID, quote.SellerUpdate{
+			Items:           sellerUpdateData.Items,
+			NewShippingCost: sellerUpdateData.NewShippingCost,
+			Notes:           sellerUpdateData.Notes,
+		}, accountID)
+	case "customerPropose":
+		if role != "customer" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only customer or admin can propose changes"), nil
+		}
+		var customerProposeData customerProposeRequest
+		if err := json.Unmarshal(patch.Value, &customerProposeData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid customer propose data"), nil
+		}
+		updatedQuote, err = h.quoteService.CustomerPropose(quoteID, customerProposeData.Changes)
+	case "updateStatus":
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can update quote status"), nil
+		}
+		var statusData updateStatusRequest
+		if err := json.Unmarshal(patch.Value, &statusData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid status data"), nil
+		}
+		updatedQuote, err = h.quoteService.UpdateQuoteStatus(quoteID, statusData.Status)
+	default:
+		return h.errorResponse(http.StatusBadRequest, "Invalid patch operation"), nil
+	}
+
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to perform patch operation: "+err.Error()), nil
+	}
+
+	return h.successResponse(updatedQuote), nil
+}
+
+func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	log.Printf("handleGetMyQuotesRequest: accountID=%s, role=%s", accountID, role)
+	var quotes []quote.Quote
+	var err error
+
+	sellerID := request.QueryStringParameters["sellerId"]
+
+	if role == "customer" {
+		quotes, err = h.quoteService.GetQuotesByAccountID(context.Background(), accountID, sellerID)
+	} else if role == "company" {
+		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), accountID)
+	} else if role == "admin" {
+		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), sellerID)
+	} else {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve quotes"), nil
+	}
+
+	respBody, _ := json.Marshal(quotes)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}, nil
+}
+
+func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
 	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
@@ -205,7 +351,22 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-	if quote.AccountID != accountID {
+	// Authorization logic
+	isOwner := quote.AccountID == accountID
+	isSeller := quote.SellerID == accountID
+
+	switch role {
+	case "customer":
+		if !isOwner {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+	case "company":
+		if !isSeller {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+	case "admin":
+		// Admin can access any quote
+	default:
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
@@ -215,7 +376,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -243,6 +404,11 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	quote, err := h.quoteService.GetQuote(quoteID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
+	}
+
+	// Ensure the quote is approved before placing an order
+	if quote.Status != "approved" {
+		return h.errorResponse(http.StatusForbidden, "Quote is not approved for order placement"), nil
 	}
 
 	// Process payment
@@ -275,7 +441,14 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 
 	// Clean up cart and quote
 	_ = h.cartService.ClearCart(accountID, quote.SellerID)
-	_ = h.quoteService.DeleteQuote(req.QuoteID)
+	if quote.QuoteType == "negotiable" {
+		_, err = h.quoteService.UpdateQuoteStatus(quote.ID, "ordered")
+		if err != nil {
+			log.Printf("Failed to update quote status to ordered: %v", err)
+		}
+	} else {
+		_ = h.quoteService.DeleteQuote(req.QuoteID)
+	}
 
 	respBody, _ := json.Marshal(createdOrder)
 	return events.APIGatewayProxyResponse{
@@ -283,7 +456,7 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -306,28 +479,46 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
 	}, nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		CartID             string                  `json:"cartId"`
 		SellerID           string                  `json:"sellerId"`
+		AccountID          string                  `json:"accountId"` // This is the customer ID for whom the quote is created
 		PaymentMethods     []string                `json:"paymentMethods"`
 		DeliveryMethods    []string                `json:"deliveryMethods"`
 		ShippingOutOptions []string                `json:"shippingOutOptions"`
 		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
 		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
+		QuoteType          string                  `json:"quoteType"` // New field
+		QuotesAllowed      bool                    `json:"quotesAllowed"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
+	// Determine the effective AccountID for cart retrieval and quote creation
+	// If the caller is a company or admin, and an accountID is provided in the request body,
+	// use that accountID. Otherwise, use the accountID from the JWT (the caller's ID).
+	effectiveAccountID := accountID
+	if (role == "company" || role == "admin") && req.AccountID != "" {
+		// Authorization check: A company can only create a quote for a customer associated with it.
+		// This would typically involve a lookup in the account service to verify the association.
+		// For now, we'll assume the frontend sends a valid associated customer ID.
+		if role == "company" && req.SellerID != accountID {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Company can only create quotes for its own customers."), nil
+		}
+		effectiveAccountID = req.AccountID
+	}
+
 	// Check for customer-specific configuration
+	effectiveQuotesAllowed := req.QuotesAllowed
 	for _, config := range configurations {
 		if config.CompanyID == req.SellerID {
 			if config.PaymentMethods != nil {
@@ -339,11 +530,18 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 			if config.ShippingOutOptions != nil {
 				req.ShippingOutOptions = config.ShippingOutOptions
 			}
+			if config.QuotesAllowed != nil {
+				effectiveQuotesAllowed = *config.QuotesAllowed
+			}
 			break
 		}
 	}
 
-	cart, err := h.cartService.GetCart(accountID, req.SellerID)
+	if !effectiveQuotesAllowed && req.QuoteType == "negotiable" {
+		return h.errorResponse(http.StatusForbidden, "This company does not allow quote requests."), nil
+	}
+
+	cart, err := h.cartService.GetCart(effectiveAccountID, req.SellerID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 	}
@@ -356,9 +554,14 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	taxAmount := cart.TotalPrice * 0.0825 // 8.25% tax
 	shippingCost := 10.00                 // Flat rate shipping
 
+	initialStatus := "draft" // Default for negotiable
+	if req.QuoteType == "standard" {
+		initialStatus = "approved"
+	}
+
 	newQuote := &quote.Quote{
 		CartID:                      cart.ID,
-		AccountID:                   accountID,
+		AccountID:                   effectiveAccountID,
 		SellerID:                    req.SellerID,
 		Items:                       cart.Items,
 		Subtotal:                    cart.TotalPrice,
@@ -370,6 +573,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		AvailableShippingOutOptions: req.ShippingOutOptions,
 		CompanyLocations:            req.CompanyLocations,
 		CustomerAddresses:           req.CustomerAddresses,
+		QuoteType:                   req.QuoteType,   // Assign the new field
+		Status:                      initialStatus, // Set initial status dynamically
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
@@ -383,7 +588,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),
@@ -394,22 +599,33 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 	}
+
+	effectiveAccountID := accountID
+	// For company/admin roles, allow specifying a customer account ID
+	if role == "company" || role == "admin" {
+		if customerAccountID, ok := request.QueryStringParameters["accountId"]; ok && customerAccountID != "" {
+			effectiveAccountID = customerAccountID
+			// Optional: Add authorization check here to ensure the company is allowed to modify this customer's cart.
+		}
+	}
+	log.Printf("handleCartRequest: effectiveAccountID=%s, role=%s", effectiveAccountID, role)
+
 	switch request.HTTPMethod {
 	case "POST": // Add item to cart
 		var req CartItemRequest
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 		}
-		currentCart, err := h.cartService.GetCart(accountID, req.Entity.SellerID)
+		currentCart, err := h.cartService.GetCart(effectiveAccountID, req.Entity.SellerID)
 		if err != nil && err.Error() != "cart not found" {
 			return h.errorResponse(http.StatusInternalServerError, "Failed to get cart"), nil
 		}
 		if currentCart == nil {
 			currentCart = &cart.Cart{
-				AccountID: accountID,
+				AccountID: effectiveAccountID,
 				SellerID:  req.Entity.SellerID,
 				Items:     []cart.CartItem{},
 			}
@@ -458,11 +674,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 		}
 
-		fetchedCart, err := h.cartService.GetCart(accountID, sellerID)
+		fetchedCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 		if err != nil {
 			if err.Error() == "cart not found" {
 				// Return an empty cart if not found, as per previous cart-service behavior
-				emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
+				emptyCart := cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 				respBody, _ := json.Marshal(emptyCart)
 				return events.APIGatewayProxyResponse{
 					StatusCode: http.StatusOK,
@@ -495,7 +711,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 		}
 
-		currentCart, err := h.cartService.GetCart(accountID, sellerID)
+		currentCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 		if err != nil {
 			return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 		}
@@ -520,7 +736,8 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			StatusCode: http.StatusOK,
 			Headers:    headers,
 			Body:       string(respBody),
-		}, nil
+		},
+		nil
 
 	case "DELETE": // Remove item or clear cart
 		itemId, hasItemId := request.PathParameters["itemId"]
@@ -536,7 +753,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 				return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 			}
 
-			currentCart, err := h.cartService.GetCart(accountID, sellerID)
+			currentCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 			if err != nil {
 				return h.errorResponse(http.StatusNotFound, "Cart not found"), nil
 			}
@@ -563,23 +780,25 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 				StatusCode: http.StatusOK,
 				Headers:    headers,
 				Body:       string(respBody),
-			}, nil
+			},
+			nil
 
-		} else if request.Path == "/cart" { // Clear entire cart
+		} else if request.Path == "/checkout/cart" { // Clear entire cart
 			sellerID := request.QueryStringParameters["sellerId"]
 			if sellerID == "" {
 				return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
 			}
-			if err := h.cartService.ClearCart(accountID, sellerID); err != nil {
+			if err := h.cartService.ClearCart(effectiveAccountID, sellerID); err != nil {
 				return h.errorResponse(http.StatusInternalServerError, "Failed to clear cart"), nil
 			}
-			emptyCart := cart.Cart{AccountID: accountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
+			emptyCart := cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 			respBody, _ := json.Marshal(emptyCart)
 			return events.APIGatewayProxyResponse{
 				StatusCode: http.StatusOK,
 				Headers:    headers,
 				Body:       string(respBody),
-			}, nil
+			},
+			nil
 		}
 		return h.errorResponse(http.StatusBadRequest, "Invalid cart delete request"), nil
 
@@ -595,7 +814,21 @@ func (h *LambdaHandler) errorResponse(statusCode int, message string) events.API
 		Headers: map[string]string{
 			"Content-Type":                 "application/json",
 			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+			"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		},
+		Body: string(respBody),
+	}
+}
+
+func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxyResponse {
+	respBody, _ := json.Marshal(data)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
 			"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		},
 		Body: string(respBody),

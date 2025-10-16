@@ -127,6 +127,12 @@ A suite of bash scripts is available for end-to-end testing of the running appli
 *   **CI/CD**: Add a `staging` environment to the CD pipeline to test changes before deploying to production. Automate the production deployment step in the `production-pipeline.yml` workflow.
 *   **Monitoring**: Implement comprehensive monitoring and alarming for all production Lambda functions and the API Gateway (e.g., error rates, latency, invocation metrics).
 *   **Testing**: Increase unit and integration test coverage across all services.
+*   **Quote Functionality**:
+    *   **Authorization**: Implement a check to ensure a company is creating a quote for a customer that is actually associated with them.
+    *   **Tax and Shipping**: Replace the placeholder tax and shipping calculations with a real implementation.
+    *   **Standard Quotes UI**: Create a UI for company users to view and manage standard quotes.
+    *   **Input Validation**: Add backend input validation for creating and updating quotes.
+
 ## 8. Production Pipeline Workflow
 
 The production pipeline is defined in `.github/workflows/production-pipeline.yml` and is crucial for maintaining the integrity of the `main` branch.

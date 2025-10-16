@@ -72,6 +72,17 @@ export interface Order {
   status: string;
 }
 
+export interface NewCartItem {
+  productId: string;
+  quantity: number;
+  sellerId: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  image?: string;
+  dealPrice?: number;
+}
+
 export interface CartItem {
   id: string;
   productId: string;
@@ -82,6 +93,7 @@ export interface CartItem {
   discountedPrice?: number;
   lineItemTotal: number;
   image?: string;
+  proposedPrice?: number;
 }
 
 export interface Cart {
@@ -90,6 +102,18 @@ export interface Cart {
   sellerId: string;
   items: CartItem[];
   totalPrice: number;
+}
+
+export interface QuoteHistory {
+  status: string;
+  changedAt: string;
+}
+
+export interface Comment {
+  id: string;
+  accountId: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface Quote {
@@ -109,6 +133,13 @@ export interface Quote {
   customerAddresses?: CustomerAddress[];
   createdAt: string;
   expiresAt: string;
+  quoteType: 'standard' | 'negotiable';
+  status: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
+  history: QuoteHistory[];
+  comments: Comment[];
+  discountPercentage?: number;
+  discountAmount?: number;
+  notes?: string;
 }
 
 export type DeliveryMethod   = 'pickup' | 'dropoff' | 'shipping_out';
@@ -181,17 +212,83 @@ export interface CustomerAddress {
 export type PaymentMethod = 'credit_card' | 'purchase_order' | 'on_account' | 'stripe_pay';
 
 export interface CustomerConfiguration {
+
   company_id: string;
+
   discountPercentage?: number;
+
   paymentMethods?: PaymentMethod[];
+
   deliveryMethods?: DeliveryMethod[];
+
   shippingOutOptions?: ShippingOutOption[];
+
 }
 
+
+
 export interface DecodedUser {
+
   id: string;
+
   email: string;
+
   role: 'admin' | 'company' | 'customer' | 'partner';
+
   associate_company_ids: string[];
+
   configurations?: CustomerConfiguration[];
+
+}
+
+
+
+export interface CreateQuoteRequest {
+
+
+
+  sellerId: string;
+
+
+
+  accountId?: string; // Made optional
+
+
+
+  quotesAllowed: boolean;
+
+
+
+  paymentMethods: string[];
+
+
+
+  deliveryMethods: string[];
+
+
+
+  shippingOutOptions: string[];
+
+
+
+  companyLocations: CompanyLocation[];
+
+
+
+  customerAddresses: CustomerAddress[];
+
+
+
+  configurations?: CustomerConfiguration[];
+
+
+
+  quoteType?: 'standard' | 'negotiable';
+
+
+
+  status?: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
+
+
+
 }

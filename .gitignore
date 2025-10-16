@@ -18,3 +18,5 @@ coverage/
 web-portal/dist/
 .gemini/
 local.env.json
+/checkout-service/main
+/checkout-service/server
