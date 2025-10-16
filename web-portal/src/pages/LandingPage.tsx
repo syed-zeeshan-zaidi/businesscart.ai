@@ -19,7 +19,7 @@ const LandingPage: React.FC = () => {
                 <div className="sm:text-center lg:text-left">
                   <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
                     <span className="block xl:inline">Your Commerce,</span>{' '}
-                    <span className="block text-teal-500 xl:inline">Your Rules.</span>
+                    <span className="block text-teal-600 xl:inline">Your Rules.</span>
                   </h1>
                   <p className="mt-3 text-base text-gray-300 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                     Finally, a private B2B & D2C e-commerce platform that adapts to your business. Stop paying marketplace fees and start owning your customer experience.
@@ -83,7 +83,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <BanknotesIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">High Commissions</h3>
@@ -92,7 +92,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <UserGroupIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">No Customer Data</h3>
@@ -101,7 +101,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <PuzzlePieceIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">One-Size-Fits-All</h3>
@@ -129,7 +129,7 @@ const LandingPage: React.FC = () => {
                 <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <BanknotesIcon className="h-6 w-6 text-green-500" />
+                      <BanknotesIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Escape High Fees:</span> Move away from commission-heavy delivery apps.
@@ -137,7 +137,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CogIcon className="h-6 w-6 text-green-500" />
+                      <CogIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Simple Setup:</span> Launch your private store with our easy-to-use default settings.
@@ -145,7 +145,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <UserCircleIcon className="h-6 w-6 text-green-500" />
+                      <UserCircleIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Own Your Customer List:</span> Build direct relationships and remarket to your loyal customers.
@@ -162,7 +162,7 @@ const LandingPage: React.FC = () => {
                 <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <ServerIcon className="h-6 w-6 text-green-500" />
+                      <ServerIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Deep ERP/CRM Integration:</span> Automate everything. Sync orders, inventory, and customer data seamlessly.
@@ -170,7 +170,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <UserGroupIcon className="h-6 w-6 text-green-500" />
+                      <UserGroupIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Per-Customer Portals:</span> Create unique e-commerce experiences for each client with custom catalogs and pricing.
@@ -178,7 +178,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CloudArrowUpIcon className="h-6 w-6 text-green-500" />
+                      <CloudArrowUpIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base text-gray-700">
                       <span className="font-semibold">Lower TCO:</span> Our modern, serverless architecture reduces infrastructure and maintenance costs.
@@ -201,14 +201,14 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <AdjustmentsHorizontalIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Granular Control</h3>
                 <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Pricing & Discounts:</span> Set custom pricing tiers and per-customer discounts.
@@ -216,7 +216,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Payment & Shipping:</span> Offer unique payment methods and shipping options for each customer.
@@ -224,7 +224,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Order Limits:</span> Enforce customer-specific order limits (min/max amount, quantity, monthly/yearly limits).
@@ -232,7 +232,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Credit Limits:</span> Manage customer credit limits directly within the platform.
@@ -241,14 +241,14 @@ const LandingPage: React.FC = () => {
                 </ul>
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <CommandLineIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Unmatched Flexibility</h3>
                 <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Custom Catalogs:</span> Assign specific products and categories to each customer.
@@ -256,7 +256,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Negotiable Quotes:</span> Enable a full-featured negotiation workflow for specific customers.
@@ -264,7 +264,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Multi-language & Currency:</span> Support for multiple languages and currencies.
@@ -272,7 +272,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">Headless & API-First:</span> Build any customer experience you can imagine with our flexible API.
@@ -281,14 +281,14 @@ const LandingPage: React.FC = () => {
                 </ul>
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-500 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <CpuChipIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">The AI-Powered Advantage</h3>
                 <ul className="mt-4 space-y-4 text-gray-600 flex-grow">
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">AI-Driven Integration:</span> Our AI-powered data pipeline makes it easy to integrate with your existing ERP, CRM, and other business systems.
@@ -296,7 +296,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">AI-Driven Observability:</span> Get deep insights into your sales data with our AI-powered analytics and reporting.
@@ -304,7 +304,7 @@ const LandingPage: React.FC = () => {
                   </li>
                   <li className="flex items-start">
                     <div className="flex-shrink-0">
-                      <CheckIcon className="h-6 w-6 text-green-500" />
+                      <CheckIcon className="h-6 w-6 text-teal-600" />
                     </div>
                     <p className="ml-3 text-base">
                       <span className="font-semibold">AI-Driven Inter-communication:</span> Let our AI handle the back-and-forth of simple negotiations and order updates.

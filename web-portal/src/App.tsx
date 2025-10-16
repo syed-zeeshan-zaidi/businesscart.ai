@@ -101,7 +101,10 @@ const AppContent = () => {
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
               <Route path="/" element={<LandingPage />} /> {/* Moved to the top */}
-              <Route path="/home" element={<Home />} />
+              <Route
+                path="/home"
+                element={isAuthenticated ? <Home /> : <Navigate to="/login" replace />}
+              />
               <Route
                 path="/login"
                 element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <Login />}
