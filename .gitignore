@@ -20,3 +20,6 @@ web-portal/dist/
 local.env.json
 /checkout-service/main
 /checkout-service/server
+
+# Marketing content
+marketing/

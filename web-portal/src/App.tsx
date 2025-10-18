@@ -36,6 +36,10 @@ const QuoteForm = lazy(() => import('./components/QuoteForm'));
 const QuoteDetailForm = lazy(() => import('./components/QuoteDetailForm'));
 const QuoteHistory = lazy(() => import('./pages/QuoteHistory'));
 const QuoteCreateForm = lazy(() => import('./components/QuoteCreateForm'));
+const Compare = lazy(() => import('./pages/Compare'));
+const Industries = lazy(() => import('./pages/Industries'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -217,6 +221,10 @@ const AppContent = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/compare" element={<Compare />} />
+              <Route path="/industries" element={<Industries />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="*" element={<div className="p-4 text-center text-gray-600">404 Not Found</div>} />
             </Routes>
           </Suspense>
