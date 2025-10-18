@@ -164,3 +164,31 @@ This endpoint handles all partial updates to a quote. The action is determined b
 **Impact:** User confusion regarding pricing transparency during checkout.
 
 **To be addressed:** Later.
+
+---
+
+## 6. Marketing & LLM Optimization
+
+### Phase 1: Content & Page Creation
+
+**Goal:** Create the necessary marketing and content pages within the React application to improve SEO and provide material for LLM training.
+
+**Tasks:**
+
+- [x] Create `web-portal/src/pages/Compare.tsx` based on `marketing/competitor_comparison.md`.
+- [x] Create `web-portal/src/pages/Industries.tsx` based on `marketing/use_cases.md`.
+- [x] Create `web-portal/src/pages/Blog.tsx` to serve as a listing page for all blog articles.
+- [x] Create `web-portal/src/pages/BlogPost.tsx` as a template for individual articles, using `marketing/The_True_Cost_of_Marketplaces.md` for the initial content.
+- [x] Update `web-portal/src/App.tsx` to include the new routes for `/compare`, `/industries`, `/blog`, and `/blog/:slug`.
+
+### Phase 2: Performance & SEO Optimization
+
+**Goal:** Pre-render the static marketing pages to ensure fast load times and optimal crawlability for search engines and LLMs.
+
+**Tasks:**
+
+- [x] Install and configure `react-snap` as a dev dependency.
+- [x] Update the `package.json` file with a `postbuild` script and a `reactSnap` configuration that specifically includes the marketing pages (`/`, `/contact-us`, `/compare`, `/industries`, `/blog`).
+- [x] Modify `src/index.tsx` to use `ReactDOM.hydrateRoot` to properly hydrate the pre-rendered HTML.
+- [x] Embed `businesscart-schema.jsonld` into `web-portal/public/index.html`.
+- [ ] Run `npm run build` and verify that the marketing pages are generated as static HTML files in the `build` directory.

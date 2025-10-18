@@ -7,11 +7,11 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Solutions</h3>
+            <h3 className="text-sm font-semibold text-gray-400 tracking-wider uppercase">Resources</h3>
             <ul className="mt-4 space-y-4">
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Private Commerce</Link></li>
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Data Pipline</Link></li>
-              <li><Link to="#" className="text-base text-gray-300 hover:text-white">Integration Automation</Link></li>
+              <li><Link to="/blog" className="text-base text-gray-300 hover:text-white">Blog</Link></li>
+              <li><Link to="/compare" className="text-base text-gray-300 hover:text-white">Compare</Link></li>
+              <li><Link to="/industries" className="text-base text-gray-300 hover:text-white">Industries</Link></li>
             </ul>
           </div>
           <div>
