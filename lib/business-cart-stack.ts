@@ -186,7 +186,7 @@ export class BusinessCartStack extends cdk.Stack {
       sources: [
         s3deploy.Source.asset(join(__dirname, '..', 'web-portal'), {
           bundling: {
-            image: cdk.DockerImage.fromRegistry('public.ecr.aws/bitnami/node:18'),
+            image: cdk.DockerImage.fromRegistry('node:18'),
             command: [
               'bash',
               '-c',
