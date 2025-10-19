@@ -29,7 +29,6 @@ func NewHandler(db *storage.DB, jwtSecret string) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
-	router.Use(middleware.CorsMiddleware)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(h.jwtSecret))
 		r.Post("/products", h.CreateProduct)
