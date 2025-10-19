@@ -27,7 +27,6 @@ func NewHandler(db *storage.DB, jwtSecret, jwtRefreshSecret string) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
-	router.Use(middleware.CorsMiddleware)
 	router.Post("/accounts/register", h.Register)
 	router.Post("/accounts/login", h.Login)
 	router.Post("/accounts/refresh", h.RefreshToken)
