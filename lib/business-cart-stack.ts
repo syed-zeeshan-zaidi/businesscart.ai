@@ -88,9 +88,7 @@ export class BusinessCartStack extends cdk.Stack {
     });
 
     /* =====  CORS – 2xx/4xx/5xx must carry header  ===== */
-    const corsOrigin = props.stage === 'local'
-      ? '*'
-      : ssm.StringParameter.valueFromLookup(this, `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`);
+    const corsOrigin = '*';
 
     api.addGatewayResponse('Cors4XX', {
       type: apigw.ResponseType.DEFAULT_4XX,
