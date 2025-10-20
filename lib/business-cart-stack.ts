@@ -92,11 +92,16 @@ export class BusinessCartStack extends cdk.Stack {
 
     api.addGatewayResponse('Cors4XX', {
       type: apigw.ResponseType.DEFAULT_4XX,
-      responseHeaders: { 'Access-Control-Allow-Origin': corsOrigin },
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'origin'",
+      },
     });
+
     api.addGatewayResponse('Cors5XX', {
       type: apigw.ResponseType.DEFAULT_5XX,
-      responseHeaders: { 'Access-Control-Allow-Origin': corsOrigin },
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'origin'",
+      },
     });
 
     const accountInteg = new apigw.LambdaIntegration(accountService);
