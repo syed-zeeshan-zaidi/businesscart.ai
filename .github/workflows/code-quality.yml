@@ -43,15 +43,29 @@ jobs:
 
       - name: Build and Lint Go Services
         run: |
-          for service in account-service catalog-service checkout-service; do
-            echo "Building and linting $service"
-            cd $service
-            go mod tidy
-            go build -o main ./cmd/server/main.go
-            go fmt ./...
-            go vet ./...
-            cd ..
-          done
+          # Build account-service
+          cd account-service
+          go mod tidy
+          go build -o bootstrap ./cmd/server/main.go
+          go fmt ./...
+          go vet ./...
+          cd ..
+
+          # Build catalog-service
+          cd catalog-service
+          go mod tidy
+          go build -o bootstrap ./cmd/server/main.go
+          go fmt ./...
+          go vet ./...
+          cd ..
+
+          # Build checkout-service
+          cd checkout-service
+          go mod tidy
+          go build -o server ./cmd/server
+          go fmt ./...
+          go vet ./...
+          cd ..
 
   # sonarcloud:
   #   name: SonarQube Analysis
