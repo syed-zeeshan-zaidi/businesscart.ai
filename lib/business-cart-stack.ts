@@ -217,7 +217,6 @@ export class BusinessCartStack extends cdk.Stack {
     // Create an SSL/TLS certificate in ACM (must be in us-east-1 for CloudFront)
     const certificate = new acm.Certificate(this, 'SiteCertificate', {
       domainName: domainName,
-      subjectAlternativeNames: [`www.${domainName}`],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
@@ -227,7 +226,7 @@ export class BusinessCartStack extends cdk.Stack {
         origin: origins.S3BucketOrigin.withOriginAccessControl(portalBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
-      domainNames: [domainName, `www.${domainName}`],
+      domainNames: [domainName],
       certificate: certificate,
       defaultRootObject: 'index.html',
     });
@@ -239,11 +238,7 @@ export class BusinessCartStack extends cdk.Stack {
       zone: hostedZone,
     });
 
-    new route53.ARecord(this, 'WwwSiteAliasRecord', {
-      recordName: `www.${domainName}`,
-      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
-      zone: hostedZone,
-    });
+
 
     // --- Namecheap Private Email DNS Records ---
 
