@@ -54,20 +54,14 @@ export class BusinessCartStack extends cdk.Stack {
       ...sharedGoFunctionProps,
       functionName: `AccountHandler-${props.stage}`,
       entry: join(__dirname, '..', 'account-service', 'cmd', 'server'),
-      environment: {
-        ...sharedGoFunctionProps.environment,
-        CORS_ALLOWED_ORIGINS: allowedOrigins.join(','),
-      },
+      environment: sharedGoFunctionProps.environment,
     });
 
     const catalogService = new GoFunction(this, 'CatalogHandler', {
       ...sharedGoFunctionProps,
       functionName: `CatalogHandler-${props.stage}`,
       entry: join(__dirname, '..', 'catalog-service', 'cmd', 'server'),
-      environment: {
-        ...sharedGoFunctionProps.environment,
-        CORS_ALLOWED_ORIGINS: allowedOrigins.join(','),
-      },
+      environment: sharedGoFunctionProps.environment,
     });
 
     const checkoutService = new GoFunction(this, 'CheckoutHandler', {
