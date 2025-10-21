@@ -74,11 +74,6 @@ export class BusinessCartStack extends cdk.Stack {
       restApiName: `BusinessCart-API-${props.stage}`,
       description: 'Consolidated API for all BusinessCart services.',
       deployOptions: { stageName: props.stage },
-      defaultCorsPreflightOptions: {
-        allowOrigins: allowedOrigins,
-        allowMethods: apigw.Cors.ALL_METHODS,
-        allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-      },
     });
 
     /* =====  CORS – 2xx/4xx/5xx must carry header  ===== */
