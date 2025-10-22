@@ -70,9 +70,6 @@ func adapter(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	// Serve the request
 	chiRouter.ServeHTTP(w, httpRequest)
 
-	// Explicitly set Access-Control-Allow-Origin to a single value
-	w.Header().Set("Access-Control-Allow-Origin", "https://businesscart.ai")
-
 	// Return the response
 	return events.APIGatewayProxyResponse{
 		StatusCode:        w.code,
