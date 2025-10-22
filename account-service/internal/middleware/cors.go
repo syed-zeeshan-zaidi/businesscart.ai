@@ -14,7 +14,7 @@ func CORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
-			http.StatusNoContent)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
