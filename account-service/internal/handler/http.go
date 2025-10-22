@@ -14,6 +14,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	corsMiddleware "business-cart/account-service/internal/middleware"
 )
 
 type Handler struct {
@@ -27,6 +29,7 @@ func NewHandler(db *storage.DB, jwtSecret, jwtRefreshSecret string) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
+	router.Use(corsMiddleware.CORS)
 	router.Post("/accounts/register", h.Register)
 	router.Post("/accounts/login", h.Login)
 	router.Post("/accounts/refresh", h.RefreshToken)
@@ -401,7 +404,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"accessToken":  accessToken,

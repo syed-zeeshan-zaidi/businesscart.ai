@@ -11,6 +11,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	corsMiddleware "business-cart/catalog-service/internal/middleware"
 )
 
 var validate *validator.Validate
@@ -29,6 +31,7 @@ func NewHandler(db *storage.DB, jwtSecret string) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *chi.Mux) {
+	router.Use(corsMiddleware.CORS)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(h.jwtSecret))
 		r.Post("/products", h.CreateProduct)
@@ -167,7 +170,7 @@ func (h *Handler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	userClaims := r.Context().Value("user").(map[string]interface{})
 	if product.SellerID != userClaims["id"].(string) {
 		http.Error(w, "Unauthorized access to product", http.StatusForbidden)
-		return
+		return	
 	}
 
 	var updates bson.M
@@ -222,3 +225,4 @@ func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
