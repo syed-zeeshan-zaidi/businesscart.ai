@@ -401,12 +401,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"accessToken":  accessToken,
-		"refreshToken": refreshToken,
-	})
-}
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"accessToken":  accessToken,
+			"refreshToken": refreshToken,
+		})}
 
 // makeRefreshToken uses the already-loaded account – no extra DB call.
 func (h *Handler) makeRefreshToken(ctx context.Context, user *storage.Account) (string, error) {
