@@ -23,3 +23,9 @@ local.env.json
 
 # Marketing content
 marketing/
+
+# Go binaries
+/catalog-service/bootstrap
+/account-service/bootstrap
+*.test
+*.prof

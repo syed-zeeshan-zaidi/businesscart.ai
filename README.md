@@ -10,13 +10,23 @@ BusinessCart is a serverless e-commerce platform built with AWS CDK, enabling co
 - **Secure Authorization**: Custom Lambda authorizer with JWT-based authentication.
 
 ## Prerequisites
-- **Node.js**: v18.x or later
-- **Go**: v1.20.x or later
-- **AWS CLI**: v2.x, configured with credentials
-- **AWS SAM CLI**: v1.123.0 or later
-- **Docker**: v28.1.1 or later, running
-- **MongoDB Atlas**: Connection string for database
-- **Ubuntu**: 24.04.2 LTS (or compatible OS)
+
+This project requires the following tools to be installed and configured on your system.
+
+### Core Infrastructure
+*   **AWS CLI:** `1.40.32`
+*   **AWS CDK:** `2.1029.2`
+*   **AWS SAM CLI:** `1.139.0`
+*   **Docker:** `28.5.0`
+
+### Service & Application Runtimes
+*   **Go:** `1.22.2` (for backend services)
+*   **Node.js:** `v22.15.0` (for web portal and CDK)
+*   **npm:** `11.6.0` (for web portal and CDK)
+
+### Android Development
+*   **Gradle:** `8.13`
+*   **Kotlin:** `2.2.10`
 
 ## Setup
 1. **Clone the Repository**:
