@@ -205,3 +205,29 @@ type BlacklistedToken struct {
 	Token     string             `bson:"token"`
 	ExpiresAt primitive.DateTime `bson:"expiresAt"`
 }
+
+// ---------- Handler Request Structs ----------
+
+type CreateCodeRequest struct {
+	CompanyCode  string `json:"companyCode"`
+	CustomerCode string `json:"customerCode"`
+	PartnerCode  string `json:"partnerCode,omitempty"`
+}
+
+type RegisterRequest struct {
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	Password      string   `json:"password"`
+	Role          string   `json:"role"`
+	Code          string   `json:"code"`
+	CustomerCodes []string `json:"customerCodes"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AssociateCustomerRequest struct {
+	CustomerCode string `json:"customerCode"`
+}

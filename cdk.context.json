@@ -1,4 +1,0 @@
-{
-  "ssm:account=750495979823:parameterName=/BusinessCart/prod/CORS_ALLOWED_ORIGINS:region=us-east-1": "https://businesscart.ai",
-  "ssm:account=750495979823:parameterName=/BusinessCart/prod/ApiUrl:region=us-east-1": "https://6bmsab76m1.execute-api.us-east-1.amazonaws.com/prod"
-}

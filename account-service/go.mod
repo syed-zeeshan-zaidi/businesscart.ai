@@ -6,7 +6,6 @@ toolchain go1.23.11
 
 require (
 	github.com/aws/aws-lambda-go v1.49.0
-	github.com/go-chi/chi/v5 v5.2.2
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/crypto v0.40.0

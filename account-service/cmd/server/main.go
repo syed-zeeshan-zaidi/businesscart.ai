@@ -1,105 +1,30 @@
 package main
 
 import (
-	"context"
 	"log"
-	"net/http"
-	"strings"
+	"os"
 
-	"business-cart/account-service/internal/config"
 	"business-cart/account-service/internal/handler"
 	"business-cart/account-service/internal/storage"
-
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
-var chiRouter *chi.Mux
-
-func init() {
-	// Reading config from environment variables
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	// Setup database
-	db, err := storage.NewDB(cfg.MongoURI)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	// Setup handler
-	h := handler.NewHandler(db, cfg.JWTSecret, cfg.JWTRefreshSecret)
-
-	// Setup router
-	chiRouter = chi.NewRouter()
-	chiRouter.Use(middleware.Logger)
-	h.RegisterRoutes(chiRouter)
-}
-
-// Adapter to convert API Gateway request to http.Request
-func adapter(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("Received headers: %+v", req.Headers)
-	log.Printf("Received request: %+v", req)
-
-	requestPath := req.Path
-	for key, value := range req.PathParameters {
-		requestPath = strings.Replace(requestPath, "{"+key+"}", value, -1)
-	}
-	log.Printf("Reconstructed requestPath: %s", requestPath)
-
-	// Create a new http.Request
-	httpRequest, err := http.NewRequest(req.HTTPMethod, requestPath, strings.NewReader(req.Body))
-	if err != nil {
-		log.Printf("Error creating http.Request: %v", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
-	}
-	log.Printf("Created httpRequest URL: %s", httpRequest.URL.String())
-
-	// Copy headers from the API Gateway request to the http.Request
-	for key, value := range req.Headers {
-		httpRequest.Header.Set(key, value)
-	}
-
-	// Use a response writer to capture the response
-	w := &responseRecorder{}
-
-	// Serve the request
-	chiRouter.ServeHTTP(w, httpRequest)
-
-	// Return the response
-	return events.APIGatewayProxyResponse{
-		StatusCode:        w.code,
-		Body:              w.body.String(),
-		MultiValueHeaders: w.Header(),
-	}, nil
-}
-
 func main() {
-	lambda.Start(adapter)
-}
-
-// responseRecorder is a custom http.ResponseWriter to capture the response
-type responseRecorder struct {
-	code   int
-	body   strings.Builder
-	header http.Header
-}
-
-func (r *responseRecorder) Header() http.Header {
-	if r.header == nil {
-		r.header = make(http.Header)
+	db, err := storage.NewDB(os.Getenv("MONGO_URI"))
+	if err != nil {
+		log.Fatalf("failed to connect to db: %v", err)
 	}
-	return r.header
-}
 
-func (r *responseRecorder) Write(b []byte) (int, error) {
-	return r.body.Write(b)
-}
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be set")
+	}
+    
+    jwtRefreshSecret := os.Getenv("JWT_REFRESH_SECRET")
+	if jwtRefreshSecret == "" {
+		log.Fatal("JWT_REFRESH_SECRET must be set")
+	}
 
-func (r *responseRecorder) WriteHeader(statusCode int) {
-	r.code = statusCode
+	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret)
+	lambda.Start(h.HandleRequest)
 }
