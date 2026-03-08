@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[[.Category]] | [[.Company.Name]]</title>
+    <meta name="description" content="Browse [[.Category]] products from [[.Company.Name]].">
+    <style>
+        :root {
+            --primary: [[.Config.PrimaryColor]];
+            --secondary: [[.Config.SecondaryColor]];
+            --bg: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.7);
+            --text: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+
+
+        /* Products Grid */
+        main {
+            padding: 4rem 5% 8rem 5%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            margin-bottom: 1rem;
+            text-transform: capitalize;
+        }
+
+        .breadcrumb {
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.25rem;
+            }
+        }
+
+        [[template "global_css" .]]
+    </style>
+    <script>
+        window.D2C_CONFIG = {
+            sellerId: "[[.AccountID]]",
+            primaryColor: "[[.Config.PrimaryColor]]",
+            companyName: "[[.Company.Name]]",
+            companyCode: "[[.Company.CompanyCode]]",
+            apiBase: "[[.ApiBase]]"
+        };
+    </script>
+    <!-- Adjust path since category files are in /category/ -->
+    <script src="../cart.js"></script>
+    <script src="../customer.js"></script>
+</head>
+
+<body>
+    [[template "nav" .]]
+
+    <main>
+        <header class="page-header">
+            <div class="breadcrumb">
+                <a href="../index.html">Home</a> / <a href="../products.html">Products</a> / [[.Category]]
+            </div>
+            <h1>[[.Category]]</h1>
+            <p>Showing [[len .Products]] products in this category.</p>
+        </header>
+
+        <section class="product-grid">
+            [[range .Products]]
+            <a href="../products/[[if .Slug]][[.Slug]][[else]]product[[end]][[if gt (len .ID) 6]]-[[slice .ID (subtract (len .ID) 6)]][[end]].html"
+                class="product-card">
+                [[if and .DealPrice (gt .DealPrice 0.0)]]
+                <div class="sale-badge">SALE</div>
+                [[end]]
+
+                <div class="image-wrapper">
+                    [[if .Image]]
+                    <img src="[[.Image]]" alt="[[.Name]]" class="product-image" loading="lazy">
+                    [[else]]
+                    <div style="opacity:0.2; transform:scale(2)">📦</div>
+                    [[end]]
+                </div>
+
+                <div class="category-tag">[[.Category]]</div>
+                <h3 class="product-name">[[.Name]]</h3>
+
+                <div class="price-row">
+                    [[if and .DealPrice (gt .DealPrice 0.0)]]
+                    <span class="price">$[[printf "%.2f" .DiscountedPrice]]</span>
+                    <span class="original-price">$[[printf "%.2f" .Price]]</span>
+                    [[else]]
+                    <span class="price">$[[printf "%.2f" .Price]]</span>
+                    [[end]]
+                </div>
+
+                <button class="cta-btn"
+                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]'})">
+                    Add to Cart
+                </button>
+            </a>
+            [[end]]
+        </section>
+    </main>
+
+    [[template "footer" .]]
+</body>
+
+</html>

@@ -241,7 +241,7 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 
 	var patch PatchRequest
 	if err := json.Unmarshal([]byte(request.Body), &patch); err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid request body\n" + err.Error()), nil
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body\n"+err.Error()), nil
 	}
 
 	var updatedQuote *quote.Quote
@@ -278,7 +278,7 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 			Notes:           sellerUpdateData.Notes,
 		}, accountID)
 	case "customerPropose":
-		if role != "customer" && role != "admin" {
+		if role != "customer" && role != "b2c" && role != "admin" {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Only customer or admin can propose changes"), nil
 		}
 		var customerProposeData customerProposeRequest
@@ -313,7 +313,7 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 
 	sellerID := request.QueryStringParameters["sellerId"]
 
-	if role == "customer" {
+	if role == "customer" || role == "b2c" {
 		quotes, err = h.quoteService.GetQuotesByAccountID(context.Background(), accountID, sellerID)
 	} else if role == "company" {
 		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), accountID)
@@ -356,7 +356,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 	isSeller := quote.SellerID == accountID
 
 	switch role {
-	case "customer":
+	case "customer", "b2c":
 		if !isOwner {
 			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 		}
@@ -573,7 +573,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		AvailableShippingOutOptions: req.ShippingOutOptions,
 		CompanyLocations:            req.CompanyLocations,
 		CustomerAddresses:           req.CustomerAddresses,
-		QuoteType:                   req.QuoteType,   // Assign the new field
+		QuoteType:                   req.QuoteType, // Assign the new field
 		Status:                      initialStatus, // Set initial status dynamically
 	}
 
@@ -661,7 +661,7 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		}
 
 		// Authorization check for customer role
-		if role == "customer" {
+		if role == "customer" || role == "b2c" {
 			can_access := false
 			for _, id := range associateCompanyIDs {
 				if id == sellerID {
@@ -733,11 +733,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		}
 		respBody, _ := json.Marshal(currentCart)
 		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusOK,
-			Headers:    headers,
-			Body:       string(respBody),
-		},
-		nil
+				StatusCode: http.StatusOK,
+				Headers:    headers,
+				Body:       string(respBody),
+			},
+			nil
 
 	case "DELETE": // Remove item or clear cart
 		itemId, hasItemId := request.PathParameters["itemId"]
@@ -777,11 +777,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			}
 			respBody, _ := json.Marshal(currentCart)
 			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusOK,
-				Headers:    headers,
-				Body:       string(respBody),
-			},
-			nil
+					StatusCode: http.StatusOK,
+					Headers:    headers,
+					Body:       string(respBody),
+				},
+				nil
 
 		} else if request.Path == "/checkout/cart" { // Clear entire cart
 			sellerID := request.QueryStringParameters["sellerId"]
@@ -794,11 +794,11 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			emptyCart := cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}, TotalPrice: 0}
 			respBody, _ := json.Marshal(emptyCart)
 			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusOK,
-				Headers:    headers,
-				Body:       string(respBody),
-			},
-			nil
+					StatusCode: http.StatusOK,
+					Headers:    headers,
+					Body:       string(respBody),
+				},
+				nil
 		}
 		return h.errorResponse(http.StatusBadRequest, "Invalid cart delete request"), nil
 

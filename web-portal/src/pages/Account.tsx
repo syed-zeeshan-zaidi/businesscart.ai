@@ -151,7 +151,7 @@ const Account: React.FC = () => {
                           <DetailItem label="Shipping Methods" value={company.shippingMethods?.join(', ') || 'N/A'} />
                           <DetailItem label="Sales Rep" value={company.saleRepresentative || 'N/A'} />
                           <DetailItem label="Credit Limit" value={company.creditLimit ? `$${company.creditLimit}` : 'N/A'} />
-                          <DetailItem 
+                          <DetailItem
                             label="Billing Address"
                             value={[
                               company.address?.street,
