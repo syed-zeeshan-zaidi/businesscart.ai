@@ -11,6 +11,7 @@ const (
 	RoleAdmin    = "admin"
 	RoleCompany  = "company"
 	RoleCustomer = "customer"
+	RoleB2C      = "b2c"
 	RolePartner  = "partner"
 )
 
@@ -63,6 +64,21 @@ const (
 	StandardShippingOut ShippingOutOption = "standard"
 	ExpressShippingOut  ShippingOutOption = "express"
 )
+
+// D2CConfig defines the branding and configuration for a company's B2C/D2C storefront.
+type D2CConfig struct {
+	Enabled        bool   `bson:"enabled" json:"enabled"`
+	PrimaryColor   string `bson:"primaryColor" json:"primaryColor"`     // e.g., "#000000"
+	SecondaryColor string `bson:"secondaryColor" json:"secondaryColor"` // e.g., "#FFFFFF"
+	PreviewDomain  string `bson:"previewDomain" json:"previewDomain"`   // e.g., "alpha.businesscart.ai"
+	CustomDomain   string `bson:"customDomain" json:"customDomain"`     // e.g., "shop.alphacorp.com"
+	ContactEmail   string `bson:"contactEmail" json:"contactEmail"`
+	ContactPhone   string `bson:"contactPhone" json:"contactPhone"`
+	HeroTitle      string `bson:"heroTitle" json:"heroTitle"`
+	HeroSlogan     string `bson:"heroSlogan" json:"heroSlogan"`
+	HeroTextColor  string `bson:"heroTextColor" json:"heroTextColor"`
+	HeroBgColor    string `bson:"heroBgColor" json:"heroBgColor"`
+}
 
 // Multiple locations/addresses for Account role companies
 type CompanyLocation struct {
@@ -119,7 +135,8 @@ type CompanyData struct {
 		Radius float64 `bson:"radius" json:"radius"`
 		Center Coords  `bson:"center" json:"center"`
 	} `bson:"sellingArea" json:"sellingArea"`
-	Address Address `bson:"address" json:"address"` // Company's primary address
+	Address Address    `bson:"address" json:"address"` // Company's primary address
+	D2C     *D2CConfig `bson:"d2c,omitempty" json:"d2c,omitempty"`
 }
 
 // GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.
@@ -141,11 +158,11 @@ type AttachedCompaniesData struct {
 
 // CustomerConfiguration defines specific settings that override a company's defaults for a single customer.
 type CustomerConfiguration struct {
-	DiscountPercentage *float64          `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
-	PaymentMethods     *[]PaymentMethod  `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
-	DeliveryMethods    *[]DeliveryMethod `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
+	DiscountPercentage *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+	PaymentMethods     *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
+	DeliveryMethods    *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
 	ShippingOutOptions *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
-	QuotesAllowed      *bool             `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
+	QuotesAllowed      *bool                `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
 }
 
 type CustomerCodeEntry struct {

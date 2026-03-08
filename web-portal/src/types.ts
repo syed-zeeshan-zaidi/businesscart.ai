@@ -23,7 +23,7 @@ export interface PartnerData {
 
 export interface Account {
   _id: string;
-  name:string;
+  name: string;
   email: string;
   role: 'admin' | 'company' | 'customer' | 'partner';
   accountStatus: 'active' | 'pending' | 'suspended' | 'inactive';
@@ -50,6 +50,7 @@ export interface Product {
   sellerID: string;
   image?: string;
   category?: string;
+  slug?: string;
   attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
@@ -142,7 +143,7 @@ export interface Quote {
   notes?: string;
 }
 
-export type DeliveryMethod   = 'pickup' | 'dropoff' | 'shipping_out';
+export type DeliveryMethod = 'pickup' | 'dropoff' | 'shipping_out';
 export type ShippingOutOption = 'standard' | 'express';
 
 export interface CompanyData {
@@ -174,6 +175,21 @@ export interface CompanyData {
     center: { lat: number; lng: number };
   };
   address: Address;
+  d2c?: D2CConfig;
+}
+
+export interface D2CConfig {
+  enabled: boolean;
+  primaryColor: string;
+  secondaryColor: string;
+  contactEmail: string;
+  contactPhone?: string;
+  previewDomain?: string;
+  customDomain?: string;
+  heroTitle?: string;
+  heroSlogan?: string;
+  heroTextColor?: string;
+  heroBgColor?: string;
 }
 
 export interface CustomerCodeEntry {

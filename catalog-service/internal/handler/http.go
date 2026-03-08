@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -55,15 +56,26 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Invalid token claims"), nil
 	}
 
-    // CORRECTLY PARSE NESTED USER CLAIM
+	// CORRECTLY PARSE NESTED USER CLAIM
 	userClaim, ok := claims["user"].(map[string]interface{})
 	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim is not a map"), nil
 	}
 
 	// Route the request
-	if strings.HasPrefix(request.Path, "/products") {
-		id, hasID := request.PathParameters["id"]
+	log.Printf("DEBUG [catalog-service]: Path=%s Method=%s", request.Path, request.HTTPMethod)
+	if strings.Contains(request.Path, "/products") {
+		// Manually parse ID from path since template.yaml uses {proxy+}
+		id := ""
+		hasID := false
+		pathParts := strings.Split(strings.Trim(request.Path, "/"), "/")
+		for i, part := range pathParts {
+			if part == "products" && i+1 < len(pathParts) {
+				id = pathParts[i+1]
+				hasID = true
+				break
+			}
+		}
 		switch request.HTTPMethod {
 		case "POST":
 			return h.createProduct(userClaim, request.Body)
@@ -119,11 +131,11 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		filter = bson.M{}
 	case "company":
 		filter = bson.M{"sellerID": accountID}
-	case "customer":
+	case "customer", "b2c":
 		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
 		if !ok {
 			// If associate_company_ids is not present, this customer can't see any products.
-            return h.successResponse([]*storage.Product{}), nil
+			return h.successResponse([]*storage.Product{}), nil
 		}
 		var companyIDs []string
 		for _, id := range associateCompanyIDs {
@@ -140,10 +152,10 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 	}
 
 	if len(products) == 0 {
-        return h.successResponse([]*storage.Product{}), nil
+		return h.successResponse([]*storage.Product{}), nil
 	}
 
-	if role == "customer" {
+	if role == "customer" || role == "b2c" {
 		if customerConfigs, ok := userClaim["configurations"].([]interface{}); ok {
 			discountMap := make(map[string]float64)
 			for _, config := range customerConfigs {
@@ -179,24 +191,24 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 
 	// Authorization check for non-admin roles
 	if userClaim["role"] != "admin" {
-        isOwner := product.SellerID == userClaim["id"].(string)
-        
-        isAssociatedCustomer := false
-        if userClaim["role"] == "customer" {
-            if assocCompanies, ok := userClaim["associate_company_ids"].([]interface{}); ok {
-                for _, companyID := range assocCompanies {
-                    if companyID.(string) == product.SellerID {
-                        isAssociatedCustomer = true
-                        break
-                    }
-                }
-            }
-        }
+		isOwner := product.SellerID == userClaim["id"].(string)
 
-        if !isOwner && !isAssociatedCustomer {
-            return h.errorResponse(http.StatusForbidden, "Unauthorized to access this product"), nil
-        }
-    }
+		isAssociatedCustomer := false
+		if userClaim["role"] == "customer" || userClaim["role"] == "b2c" {
+			if assocCompanies, ok := userClaim["associate_company_ids"].([]interface{}); ok {
+				for _, companyID := range assocCompanies {
+					if companyID.(string) == product.SellerID {
+						isAssociatedCustomer = true
+						break
+					}
+				}
+			}
+		}
+
+		if !isOwner && !isAssociatedCustomer {
+			return h.errorResponse(http.StatusForbidden, "Unauthorized to access this product"), nil
+		}
+	}
 
 	return h.successResponse(product), nil
 }
@@ -221,8 +233,8 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-    // Prevent updating SellerID
-    delete(updates, "sellerID")
+	// Prevent updating SellerID
+	delete(updates, "sellerID")
 
 	if err := h.db.UpdateProduct(id, updates); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update product"), nil

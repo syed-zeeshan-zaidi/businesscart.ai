@@ -22,6 +22,7 @@ type Product struct {
 	SellerID        string             `bson:"sellerID" json:"sellerID"`
 	Image           string             `bson:"image,omitempty" json:"image,omitempty"`
 	Category        string             `bson:"category,omitempty" json:"category,omitempty"`
+	Slug            string             `bson:"slug,omitempty" json:"slug,omitempty"`
 	Attributes      []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt       time.Time          `bson:"updatedAt" json:"updatedAt"`

@@ -32,10 +32,16 @@ export class BusinessCartStack extends cdk.Stack {
       props.stage === 'local'
         ? '*' // local dev – allow all
         : ssm.StringParameter.valueForStringParameter(
-            this,
-            `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`
-          );
+          this,
+          `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`
+        );
     const allowedOrigins = rawOrigins.split(',').map((o: string) => o.trim());
+
+    // Retrieve the API Gateway URL from SSM Parameter Store for deployed environments
+    const catalogServiceUrlFromSsm = ssm.StringParameter.valueForStringParameter(
+      this,
+      `/BusinessCart/${props.stage}/ApiUrl`
+    );
 
     const sharedGoFunctionProps = {
       runtime: lambda.Runtime.PROVIDED_AL2023,
@@ -47,6 +53,9 @@ export class BusinessCartStack extends cdk.Stack {
         JWT_SECRET: jwtSecret,
         JWT_REFRESH_SECRET: jwtRefreshSecret,
         NODE_ENV: props.stage,
+        // Define CATALOG_SERVICE_URL based on the stage
+        CATALOG_SERVICE_URL: props.stage === 'local' ? 'http://host.docker.internal:3000' : catalogServiceUrlFromSsm,
+        API_BASE_URL: props.stage === 'local' ? 'http://localhost:3000' : catalogServiceUrlFromSsm,
       },
     };
 
@@ -111,6 +120,8 @@ export class BusinessCartStack extends cdk.Stack {
     accountById.addMethod('PATCH', accountInteg);
     accountById.addMethod('DELETE', accountInteg);
     accountById.addMethod('PUT', accountInteg);
+    const regenerateStorefront = accountById.addResource('regenerate');
+    regenerateStorefront.addMethod('POST', accountInteg);
     const locations = accountsRoot.addResource('locations');
     const locationByAccount = locations.addResource('{accountID}');
     locationByAccount.addMethod('GET', accountInteg);
@@ -173,12 +184,12 @@ export class BusinessCartStack extends cdk.Stack {
     });
 
     const viteApiUrl = props.stage === 'local'
-      ? 'http://127.0.0.1:3000 '
+      ? 'http://127.0.0.1:3000'
       : ssm.StringParameter.valueFromLookup(
-          this,
-          `/BusinessCart/${props.stage}/ApiUrl`
-        );
-    
+        this,
+        `/BusinessCart/${props.stage}/ApiUrl`
+      );
+
     new s3deploy.BucketDeployment(this, 'DeployWebPortal', {
       sources: [
         s3deploy.Source.asset(join(__dirname, '..', 'web-portal'), {
@@ -217,6 +228,7 @@ export class BusinessCartStack extends cdk.Stack {
     // Create an SSL/TLS certificate in ACM (must be in us-east-1 for CloudFront)
     const certificate = new acm.Certificate(this, 'SiteCertificate', {
       domainName: domainName,
+      subjectAlternativeNames: [`*.${domainName}`],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
@@ -271,5 +283,98 @@ export class BusinessCartStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DistributionDomainName', {
       value: distribution.distributionDomainName,
     });
+
+    // --- D2C Storefronts Infrastructure ---
+
+    const d2cStorefrontBucket = new s3.Bucket(this, 'D2CStorefrontBucket', {
+      bucketName: `businesscart-d2c-storefronts-${props.stage}`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
+    // Grant accountService permission to write to this bucket
+    d2cStorefrontBucket.grantReadWrite(accountService);
+    accountService.addEnvironment('D2C_BUCKET_NAME', d2cStorefrontBucket.bucketName);
+
+    // CloudFront Function for subdomain routing
+    const routingFunction = new cloudfront.Function(this, 'D2CRoutingFunction', {
+      code: cloudfront.FunctionCode.fromInline(`
+        function handler(event) {
+          var request = event.request;
+          var host = request.headers.host.value;
+
+          // Manual Custom Domain Mapping Table
+          // Populate this manually for clients who bring their own domains
+          var domainMap = {
+            // 'shop.clientbrand.com': 'client-unique-id'
+          };
+
+          // Reverse Mapping (For Redirection Logic)
+          var reverseMap = {
+            // 'client-unique-id': 'shop.clientbrand.com'
+          };
+
+          var companyId = '';
+
+          // 1. Direct hit on a Custom Domain
+          if (domainMap[host]) {
+            companyId = domainMap[host];
+          } 
+          // 2. Hit on a Preview Subdomain (*.businesscart.ai)
+          else if (host.endsWith('.businesscart.ai') && host !== 'businesscart.ai' && !host.startsWith('api.')) {
+            companyId = host.split('.')[0];
+
+            // SEO: Redirect to Custom Domain if one exists
+            if (reverseMap[companyId]) {
+              return {
+                statusCode: 301,
+                statusDescription: 'Moved Permanently',
+                headers: {
+                  'location': { value: 'https://' + reverseMap[companyId] + request.uri }
+                }
+              };
+            }
+          }
+
+          // If we found a companyId, rewrite to the S3 folder
+          if (companyId) {
+            request.uri = '/storefronts/' + companyId + request.uri;
+            if (request.uri.endsWith('/')) {
+              request.uri += 'index.html';
+            }
+          }
+
+          return request;
+        }
+      `),
+    });
+
+    // CloudFront Distribution for D2C Storefronts
+    const d2cDistribution = new cloudfront.Distribution(this, 'D2CDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(d2cStorefrontBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        functionAssociations: [
+          {
+            function: routingFunction,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
+      },
+      domainNames: ['*.businesscart.ai'], // Wildcard for all company storefronts
+      certificate: certificate,
+    });
+
+    // Create a Wildcard A record to point all subdomains to CloudFront
+    new route53.ARecord(this, 'WildcardD2CRecord', {
+      recordName: '*.businesscart.ai',
+      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(d2cDistribution)),
+      zone: hostedZone,
+    });
+
+    // Outputs
+    new cdk.CfnOutput(this, 'D2CBucketName', { value: d2cStorefrontBucket.bucketName });
+    new cdk.CfnOutput(this, 'D2CDistributionDomain', { value: d2cDistribution.distributionDomainName });
   }
 }

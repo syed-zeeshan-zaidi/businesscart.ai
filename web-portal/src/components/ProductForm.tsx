@@ -29,6 +29,7 @@ const ProductForm = () => {
     sellerID: '',
     image: '',
     category: '',
+    slug: '',
     attributes: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -122,6 +123,7 @@ const ProductForm = () => {
         description: '',
         sellerID: account?._id || '',
         category: '',
+        slug: '',
         attributes: [],
       });
       setEditingId(null);
@@ -172,6 +174,7 @@ const ProductForm = () => {
       sellerID: product.sellerID,
       image: product.image,
       category: product.category,
+      slug: product.slug || '',
       attributes: product.attributes || [],
     });
     setEditingId(product._id);
@@ -208,6 +211,7 @@ const ProductForm = () => {
       sellerID: account?._id || '',
       image: '',
       category: '',
+      slug: '',
       attributes: [],
     });
     setEditingId(null);
@@ -267,13 +271,14 @@ const ProductForm = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    
+
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Price (%)</th>
-                    
+
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -281,13 +286,14 @@ const ProductForm = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentProducts.map((product) => (
                     <tr key={product._id} className="hover:bg-gray-50">
-                      
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.slug || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
-                      
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
+
                       <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -327,9 +333,8 @@ const ProductForm = () => {
               <button
                 key={i + 1}
                 onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 {i + 1}
               </button>
@@ -399,6 +404,16 @@ const ProductForm = () => {
                           value={formData.category}
                           onChange={handleChange}
                           placeholder="Category"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Slug</label>
+                        <input
+                          name="slug"
+                          value={formData.slug}
+                          onChange={handleChange}
+                          placeholder="product-slug"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>

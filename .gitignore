@@ -29,3 +29,6 @@ marketing/
 /account-service/bootstrap
 *.test
 *.prof
+
+# Go vendor dependencies
+vendor/

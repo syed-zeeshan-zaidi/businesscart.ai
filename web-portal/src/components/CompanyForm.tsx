@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAccounts, updateAccount, getAccount } from '../api';
+import { getAccounts, updateAccount, getAccount, regenerateStorefront } from '../api';
 import { Account, CompanyData } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
@@ -70,17 +70,20 @@ interface EditCompanyModalProps {
   onClose: () => void;
   onSave: (updatedAccount: Account) => void;
   alwaysOpen?: boolean;
+  userRole: string | null;
 }
 
 const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   account,
   onClose,
   onSave,
-  alwaysOpen = false
+  alwaysOpen = false,
+  userRole
 }) => {
   const [companyData, setCompanyData] = useState<Partial<CompanyData>>(
     account.company || {}
   );
+  const [isGenerating, setIsGenerating] = useState(false); // New state for regeneration loading
 
   useEffect(() => {
     setCompanyData(account.company || {});
@@ -138,6 +141,29 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     }
   };
 
+  const handleRegenerateStorefront = async () => {
+    if (!account._id) {
+      toast.error('Account ID is missing.');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      await regenerateStorefront(account._id);
+      toast.success('Storefront generation triggered successfully!');
+      // It's a background process, so we might want to refresh the account data later
+      // or just let the user know it's in progress.
+      // For now, let's just refresh the account data after a short delay
+      // to potentially get the updated previewDomain or status.
+      setTimeout(() => {
+        onSave(account); // This triggers a refetch of the account in the parent CompanyForm
+      }, 3000); // Give some time for the generation process to start
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to trigger storefront generation.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const renderInput = (name: string, label: string, placeholder = '', readOnly = false, type = 'text') => {
     const value = name.split('.').reduce((o: any, i) => o?.[i], companyData);
     return (
@@ -189,6 +215,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   const PaymentIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
   const SalesIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
   const LimitsIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+  const StorefrontIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>;
 
   const modalContent = (
     <div className={`relative mx-auto p-4 sm:p-6 ${alwaysOpen ? 'w-full' : 'top-10 mb-10 max-w-5xl'}`}>
@@ -241,15 +268,15 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {renderInput('yearlyOrderLimit', 'Yearly Order Limit', '', false, 'number')}
             </div>
           </Section>
-          
+
           <Section title="Configuration" icon={<ConfigIcon />}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
               <div>
                 <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select 
-                  name="status" 
+                <select
+                  name="status"
                   id="status"
-                  value={companyData.status || 'active'} 
+                  value={companyData.status || 'active'}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
                 >
@@ -263,6 +290,150 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                 {renderCheckbox('taxableGoods', 'Taxable Goods')}
                 {renderCheckbox('quotesAllowed', 'Quotes Allowed')}
               </div>
+            </div>
+          </Section>
+
+          <Section title="D2C Storefront" icon={<StorefrontIcon />}>
+            <div className="space-y-6">
+              <div className="flex items-center">
+                <label className="flex items-center space-x-3 bg-white p-3 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer w-full">
+                  <input
+                    type="checkbox"
+                    name="d2c.enabled"
+                    checked={Boolean(companyData.d2c?.enabled)}
+                    onChange={handleChange}
+                    disabled={userRole !== 'admin'}
+                    className={`h-5 w-5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded ${userRole !== 'admin' ? 'cursor-not-allowed opacity-50' : ''}`}
+                  />
+                  <span className="text-sm font-medium text-gray-800">Enable Storefront</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Primary Color</label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <input
+                      type="color"
+                      name="d2c.primaryColor"
+                      value={companyData.d2c?.primaryColor || '#000000'}
+                      onChange={handleChange}
+                      className="h-9 w-9 rounded overflow-hidden cursor-pointer border-0 p-0"
+                    />
+                    <input
+                      type="text"
+                      name="d2c.primaryColor"
+                      value={companyData.d2c?.primaryColor || '#000000'}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Secondary Color</label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <input
+                      type="color"
+                      name="d2c.secondaryColor"
+                      value={companyData.d2c?.secondaryColor || '#ffffff'}
+                      onChange={handleChange}
+                      className="h-9 w-9 rounded overflow-hidden cursor-pointer border-0 p-0"
+                    />
+                    <input
+                      type="text"
+                      name="d2c.secondaryColor"
+                      value={companyData.d2c?.secondaryColor || '#ffffff'}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                {renderInput('d2c.contactEmail', 'Contact Email', 'support@example.com', false, 'email')}
+                {renderInput('d2c.contactPhone', 'Contact Phone', '+1 234 567 890')}
+                {renderInput('d2c.customDomain', 'Custom Domain', 'shop.example.com', userRole !== 'admin')}
+                {renderInput('d2c.heroTitle', 'Hero Title', 'e.g., Premium Collection')}
+                {renderInput('d2c.heroSlogan', 'Hero Slogan', 'e.g., Direct from origin...')}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Hero Text Color</label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <input
+                      type="color"
+                      name="d2c.heroTextColor"
+                      value={companyData.d2c?.heroTextColor || '#ffffff'}
+                      onChange={handleChange}
+                      className="h-9 w-9 rounded overflow-hidden cursor-pointer border-0 p-0"
+                    />
+                    <input
+                      type="text"
+                      name="d2c.heroTextColor"
+                      value={companyData.d2c?.heroTextColor || '#ffffff'}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Hero Bg Color</label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <input
+                      type="color"
+                      name="d2c.heroBgColor"
+                      value={companyData.d2c?.heroBgColor || companyData.d2c?.primaryColor || '#000000'}
+                      onChange={handleChange}
+                      className="h-9 w-9 rounded overflow-hidden cursor-pointer border-0 p-0"
+                    />
+                    <input
+                      type="text"
+                      name="d2c.heroBgColor"
+                      value={companyData.d2c?.heroBgColor || companyData.d2c?.primaryColor || '#000000'}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Preview Domain</label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                      https://
+                    </span>
+                    <input
+                      type="text"
+                      disabled
+                      value={companyData.d2c?.previewDomain || 'Generated after save...'}
+                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border-gray-300 bg-gray-100 text-gray-500 sm:text-sm"
+                    />
+                  </div>
+                  {companyData.d2c?.previewDomain && (
+                    <a href={`https://${companyData.d2c.previewDomain}`} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:text-teal-500 mt-1 inline-block font-medium">
+                      Open Storefront &rarr;
+                    </a>
+                  )}
+                </div>
+              </div>
+              {companyData.d2c?.enabled && (
+                <button
+                  onClick={handleRegenerateStorefront}
+                  disabled={isGenerating}
+                  className={`px-4 py-2 mt-4 rounded-md text-sm font-medium transition flex items-center justify-center space-x-2
+                    ${isGenerating ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                >
+                  {isGenerating ? (
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356-2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15" /></svg>
+                  )}
+                  <span>{isGenerating ? 'Generating...' : 'Regenerate Storefront'}</span>
+                </button>
+              )}
             </div>
           </Section>
 
@@ -420,10 +591,10 @@ const CompanyForm = () => {
 
         {userRole === 'admin' && <AdminView accounts={accounts} onEdit={setEditingAccount} />}
         {userRole === 'company' && selfAccount && (
-          <EditCompanyModal account={selfAccount} onSave={handleSave} onClose={() => {}} alwaysOpen />
+          <EditCompanyModal account={selfAccount} onSave={handleSave} onClose={() => { }} alwaysOpen userRole={userRole} />
         )}
         {editingAccount && userRole === 'admin' && (
-          <EditCompanyModal account={editingAccount} onClose={() => setEditingAccount(null)} onSave={handleSave} />
+          <EditCompanyModal account={editingAccount} onClose={() => setEditingAccount(null)} onSave={handleSave} userRole={userRole} />
         )}
       </div>
     </div>

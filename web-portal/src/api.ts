@@ -105,6 +105,10 @@ export const updateAccount = async (id: string, data: Partial<Omit<Account, '_id
   return response.data;
 };
 
+export const regenerateStorefront = async (accountId: string): Promise<void> => {
+  await api.post(`${API_URL}/accounts/${accountId}/regenerate`);
+};
+
 export const deleteAccount = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/accounts/${id}`);
 };
@@ -147,9 +151,9 @@ export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/checkout/orders/${id}`);
 };
 
-export const createOrder = async (data: { 
-  quoteId: string; 
-  paymentMethod: string; 
+export const createOrder = async (data: {
+  quoteId: string;
+  paymentMethod: string;
   paymentToken: string;
   deliveryMethod: string;
   pickupLocationId?: string;
@@ -297,4 +301,12 @@ export const associateCompany = async (customerCode: string): Promise<void> => {
   const claims = await getUserClaims();
   const customerId = claims.user.id;
   await api.patch(`${API_URL}/customers/${customerId}/associate`, { customerCode });
+};
+
+export const updateD2CConfig = async (accountId: string, config: any): Promise<void> => {
+  await api.patch(`${API_URL}/accounts/${accountId}`, {
+    company: {
+      d2c: config
+    }
+  });
 };

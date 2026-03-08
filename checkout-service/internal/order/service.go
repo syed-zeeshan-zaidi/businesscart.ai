@@ -38,7 +38,7 @@ func (s *Service) GetOrders(userId string, role string, companyId string) ([]*Or
 		// No filter needed for admin, they see all orders
 	case "company":
 		filter = bson.M{"sellerId": companyId}
-	case "customer":
+	case "customer", "b2c":
 		filter = bson.M{"accountId": userId}
 	default:
 		// For any other role, or if role is not set, return no orders
