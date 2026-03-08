@@ -318,8 +318,8 @@ func (g *Generator) DeleteStorefront(companyUID string) error {
 }
 
 func (g *Generator) syncToS3(localDir, companyUID string) error {
-	if g.S3Client == nil || g.BucketName == "" {
-		return nil // Skip if not configured
+	if g.S3Client == nil || g.BucketName == "" || os.Getenv("NODE_ENV") == "local" {
+		return nil // Skip if not configured or local
 	}
 
 	return filepath.Walk(localDir, func(path string, info os.FileInfo, err error) error {

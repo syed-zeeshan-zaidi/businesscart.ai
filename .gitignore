@@ -1,5 +1,6 @@
 *.js
 !eslint.config.js
+!account-service/internal/generator/templates/*.js
 *.log
 !jest.config.js
 *.d.ts
@@ -20,6 +21,7 @@ web-portal/dist/
 local.env.json
 /checkout-service/main
 /checkout-service/server
+/storefronts/
 
 # Marketing content
 marketing/
