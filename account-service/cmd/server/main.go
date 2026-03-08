@@ -6,7 +6,20 @@ import (
 
 	"business-cart/account-service/internal/handler"
 	"business-cart/account-service/internal/storage"
-<<<<<<< HEAD
+
+	"github.com/aws/aws-lambda-go/lambda"
+)
+
+func main() {
+	db, err := storage.NewDB(os.Getenv("MONGO_URI"))
+	if err != nil {
+		log.Fatalf("failed to connect to db: %v", err)
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be set")
+	}
 
 	jwtRefreshSecret := os.Getenv("JWT_REFRESH_SECRET")
 	if jwtRefreshSecret == "" {
