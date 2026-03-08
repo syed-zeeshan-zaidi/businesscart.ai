@@ -23,6 +23,9 @@ start_services() {
   docker network inspect businesscart-network >/dev/null 2>&1 || \
     docker network create businesscart-network
 
+  echo "Installing root NPM dependencies..."
+  npm install || { echo "NPM install failed. Exiting."; exit 1; }
+
   echo "Clearing CDK output directory..."
   rm -rf cdk.out
   echo "Synthesizing all CDK stacks..."
