@@ -22,8 +22,9 @@ func init() {
 }
 
 type LambdaHandler struct {
-	db        *storage.DB
-	jwtSecret string
+	db            *storage.DB
+	jwtSecret     string
+	requestOrigin string
 }
 
 func NewLambdaHandler(db *storage.DB, jwtSecret string) *LambdaHandler {
@@ -31,6 +32,11 @@ func NewLambdaHandler(db *storage.DB, jwtSecret string) *LambdaHandler {
 }
 
 func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	h.requestOrigin = request.Headers["origin"]
+	if h.requestOrigin == "" {
+		h.requestOrigin = request.Headers["Origin"]
+	}
+
 	// Handle preflight OPTIONS requests
 	if request.HTTPMethod == "OPTIONS" {
 		return h.successResponse(nil), nil
@@ -269,13 +275,8 @@ func (h *LambdaHandler) errorResponse(statusCode int, message string) events.API
 	body, _ := json.Marshal(map[string]string{"message": message})
 	return events.APIGatewayProxyResponse{
 		StatusCode: statusCode,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(body),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(body),
 	}
 }
 
@@ -291,12 +292,7 @@ func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxy
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: body,
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       body,
 	}
 }
