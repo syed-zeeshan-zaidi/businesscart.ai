@@ -28,14 +28,13 @@ export class BusinessCartStack extends cdk.Stack {
     const jwtSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_SECRET`);
     const jwtRefreshSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_REFRESH_SECRET`);
 
-    const rawOrigins =
+    const corsAllowedOrigins =
       props.stage === 'local'
-        ? '*' // local dev – allow all
+        ? '*'
         : ssm.StringParameter.valueForStringParameter(
           this,
           `/BusinessCart/${props.stage}/CORS_ALLOWED_ORIGINS`
         );
-    const allowedOrigins = rawOrigins.split(',').map((o: string) => o.trim());
 
     // Retrieve the API Gateway URL from SSM Parameter Store for deployed environments
     const catalogServiceUrlFromSsm = ssm.StringParameter.valueForStringParameter(
@@ -53,6 +52,7 @@ export class BusinessCartStack extends cdk.Stack {
         JWT_SECRET: jwtSecret,
         JWT_REFRESH_SECRET: jwtRefreshSecret,
         NODE_ENV: props.stage,
+        CORS_ALLOWED_ORIGINS: corsAllowedOrigins,
         // Define CATALOG_SERVICE_URL based on the stage
         CATALOG_SERVICE_URL: props.stage === 'local' ? 'http://host.docker.internal:3000' : catalogServiceUrlFromSsm,
         API_BASE_URL: props.stage === 'local' ? 'http://localhost:3000' : catalogServiceUrlFromSsm,
@@ -79,31 +79,32 @@ export class BusinessCartStack extends cdk.Stack {
       entry: join(__dirname, '..', 'checkout-service', 'cmd', 'server'),
     });
 
+    // OPTIONS preflight: handled by API Gateway mock with '*' (cheap, no Lambda hit).
+    // Actual requests: Lambda dynamically matches Origin against CORS_ALLOWED_ORIGINS.
     const api = new apigw.RestApi(this, 'UnifiedApi', {
       restApiName: `BusinessCart-API-${props.stage}`,
       description: 'Consolidated API for all BusinessCart services.',
       deployOptions: { stageName: props.stage },
       defaultCorsPreflightOptions: {
-        allowOrigins: allowedOrigins,
+        allowOrigins: apigw.Cors.ALL_ORIGINS,
         allowMethods: apigw.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
       },
     });
 
-    /* =====  CORS – 2xx/4xx/5xx must carry header  ===== */
-    const corsOrigin = '*';
-
     api.addGatewayResponse('Cors4XX', {
       type: apigw.ResponseType.DEFAULT_4XX,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'origin'",
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,Authorization,Cookie'",
       },
     });
 
     api.addGatewayResponse('Cors5XX', {
       type: apigw.ResponseType.DEFAULT_5XX,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'origin'",
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,Authorization,Cookie'",
       },
     });
 

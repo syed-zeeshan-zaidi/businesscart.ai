@@ -47,6 +47,7 @@ type PatchRequest struct {
 
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
+	requestOrigin  string
 	cartService    *cart.Service
 	quoteService   *quote.Service
 	orderService   *order.Service
@@ -67,16 +68,16 @@ func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, or
 
 // HandleRequest processes an API Gateway Proxy Request.
 func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	h.requestOrigin = request.Headers["origin"]
+	if h.requestOrigin == "" {
+		h.requestOrigin = request.Headers["Origin"]
+	}
+
 	// Handle preflight OPTIONS requests
 	if request.HTTPMethod == "OPTIONS" {
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusOK,
-			Headers: map[string]string{
-				"Content-Type":                 "application/json",
-				"Access-Control-Allow-Origin":  "*",
-				"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-				"Access-Control-Allow-Headers": "Content-Type, Authorization",
-			},
+			Headers:    corsHeaders(h.requestOrigin),
 		}, nil
 	}
 
@@ -330,13 +331,8 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 	respBody, _ := json.Marshal(quotes)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}, nil
 }
 
@@ -373,13 +369,8 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 	respBody, _ := json.Marshal(quote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}, nil
 }
 
@@ -453,13 +444,8 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	respBody, _ := json.Marshal(createdOrder)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}, nil
 }
 
@@ -476,13 +462,8 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	respBody, _ := json.Marshal(orders)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}, nil
 }
 
@@ -585,23 +566,13 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	respBody, _ := json.Marshal(createdQuote)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}, nil
 }
 
 func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest, accountID string, role string, associateCompanyIDs []string) (events.APIGatewayProxyResponse, error) {
-	headers := map[string]string{
-		"Content-Type":                 "application/json",
-		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-		"Access-Control-Allow-Headers": "Content-Type, Authorization",
-	}
+	headers := corsHeaders(h.requestOrigin)
 
 	effectiveAccountID := accountID
 	// For company/admin roles, allow specifying a customer account ID
@@ -811,13 +782,8 @@ func (h *LambdaHandler) errorResponse(statusCode int, message string) events.API
 	respBody, _ := json.Marshal(map[string]string{"message": message})
 	return events.APIGatewayProxyResponse{
 		StatusCode: statusCode,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}
 }
 
@@ -825,12 +791,7 @@ func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxy
 	respBody, _ := json.Marshal(data)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Headers: map[string]string{
-			"Content-Type":                 "application/json",
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-		},
-		Body: string(respBody),
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
 	}
 }
