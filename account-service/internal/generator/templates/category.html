@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[[.Category]] | [[.Company.Name]]</title>
     <meta name="description" content="Browse [[.Category]] products from [[.Company.Name]].">
+    <link rel="canonical" href="https://[[.Domain]]/category/[[slugify .Category]].html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="[[.Category]] | [[.Company.Name]]">
+    <meta property="og:description" content="Browse [[.Category]] products from [[.Company.Name]].">
+    <meta property="og:url" content="https://[[.Domain]]/category/[[slugify .Category]].html">
+    [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
     <style>
         :root {
             --primary: [[.Config.PrimaryColor]];
@@ -70,6 +76,10 @@
             h1 {
                 font-size: 2.25rem;
             }
+
+            main {
+                padding: 2rem 5% 4rem 5%;
+            }
         }
 
         [[template "global_css" .]]
@@ -86,6 +96,7 @@
     <!-- Adjust path since category files are in /category/ -->
     <script src="../cart.js"></script>
     <script src="../customer.js"></script>
+    <script src="../nav.js"></script>
 </head>
 
 <body>
@@ -102,7 +113,7 @@
 
         <section class="product-grid">
             [[range .Products]]
-            <a href="../products/[[if .Slug]][[.Slug]][[else]]product[[end]][[if gt (len .ID) 6]]-[[slice .ID (subtract (len .ID) 6)]][[end]].html"
+            <a href="../products/[[.Filename]].html"
                 class="product-card">
                 [[if and .DealPrice (gt .DealPrice 0.0)]]
                 <div class="sale-badge">SALE</div>

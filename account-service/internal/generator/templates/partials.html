@@ -240,9 +240,52 @@ gap: 4rem;
 font-size: 0.9rem;
 }
 
+/* Hamburger — hidden on desktop, shown on mobile */
+.hamburger {
+display: none;
+cursor: pointer;
+padding: 0.5rem;
+border-radius: 50%;
+background: rgba(0, 0, 0, 0.03);
+align-items: center;
+justify-content: center;
+}
+
+.hamburger svg {
+display: block;
+}
+
 @media (max-width: 768px) {
 .nav-links {
 display: none;
+}
+
+.hamburger {
+display: flex;
+}
+
+.product-grid {
+grid-template-columns: 1fr;
+gap: 1.5rem;
+}
+
+.footer-links {
+flex-wrap: wrap;
+gap: 1rem;
+}
+
+.meta-links {
+flex-wrap: wrap;
+gap: 1.5rem;
+padding-top: 2rem;
+}
+
+.nav-brand span {
+font-size: 1.1rem;
+}
+
+.nav-logo {
+height: 32px;
 }
 }
 
@@ -286,7 +329,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
             <a href="#">Categories ▾</a>
             <div class="dropdown-content">
                 [[range .Categories]]
-                <a href="[[$.BasePath]]category/[[.]].html">[[.]]</a>
+                <a href="[[$.BasePath]]category/[[slugify .]].html">[[.]]</a>
                 [[end]]
             </div>
         </div>
@@ -310,6 +353,14 @@ box-shadow: 0 20px 40px -8px var(--primary);
             <span id="cart-count"
                 style="position:absolute; top:-5px; right:-5px; background:var(--primary); color:white; font-size:0.7rem; font-weight:bold; border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; display:none;">0</span>
         </div>
+        <!-- Hamburger (mobile only) -->
+        <div class="hamburger" onclick="D2C_NAV.toggle()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </div>
     </div>
 </nav>
 [[end]]
@@ -328,7 +379,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
         <span>[[.Config.ContactPhone]]</span>
     </div>
     <p style="margin-top: 4rem; opacity: 0.5; font-size: 0.85rem; font-weight: 600;">
-        © [[.Year]] [[.Company.Name]]. authorized D2C Access.
+        &copy; [[.Year]] [[.Company.Name]]. authorized D2C Access.
     </p>
 </footer>
 [[end]]

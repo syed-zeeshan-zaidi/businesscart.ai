@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[[.Product.Name]] | [[.Company.Name]]</title>
+    <meta name="description" content="[[.Product.Name]] — $[[printf "%.2f" .Product.Price]]. [[.Product.Description]]">
+    <link rel="canonical" href="https://[[.Domain]]/products/[[.Product.Filename]].html">
+    <link rel="alternate" type="text/markdown" href="[[.Product.Filename]].md">
+    <meta property="og:type" content="product">
+    <meta property="og:title" content="[[.Product.Name]] | [[.Company.Name]]">
+    <meta property="og:description" content="[[.Product.Description]]">
+    <meta property="og:url" content="https://[[.Domain]]/products/[[.Product.Filename]].html">
+    [[if .Product.Image]]<meta property="og:image" content="[[.Product.Image]]">[[end]]
     <style>
         :root {
             --primary: [[.Config.PrimaryColor]];
@@ -181,9 +189,29 @@
                 position: relative;
                 top: 0;
             }
+        }
 
-            .nav-links {
-                display: none;
+        @media (max-width: 768px) {
+            main {
+                padding: 2rem 5%;
+                gap: 2rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .price {
+                font-size: 2rem;
+            }
+
+            .spec-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 1rem;
+            }
+
+            .image-card {
+                border-radius: 24px;
             }
         }
 
@@ -194,7 +222,7 @@
       "@context": "https://schema.org/",
       "@type": "Product",
       "name": "[[.Product.Name]]",
-      "image": "[[.Product.Image]]",
+      [[if .Product.Image]]"image": "[[.Product.Image]]",[[end]]
       "description": "[[.Product.Description]]",
       "brand": {
         "@type": "Brand",
@@ -202,9 +230,9 @@
       },
       "offers": {
         "@type": "Offer",
-        "url": "https://[[.Config.PreviewDomain]]/products/[[if .Product.Slug]][[.Product.Slug]][[else]]product[[end]][[if gt (len .Product.ID) 6]]-[[slice .Product.ID (subtract (len .Product.ID) 6)]][[end]].html",
+        "url": "https://[[.Domain]]/products/[[.Product.Filename]].html",
         "priceCurrency": "USD",
-        "price": "[[.Product.Price]]",
+        "price": "[[if .Product.DealPrice]][[printf "%.2f" .Product.DiscountedPrice]][[else]][[printf "%.2f" .Product.Price]][[end]]",
         "availability": "https://schema.org/InStock"
       }
     }
@@ -220,6 +248,7 @@
     </script>
     <script src="../cart.js"></script>
     <script src="../customer.js"></script>
+    <script src="../nav.js"></script>
 </head>
 
 <body>
@@ -291,12 +320,6 @@
                 Add to Cart
             </button>
 
-            <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #e2e8f0;">
-                <a href="../index.md"
-                    style="color: #94a3b8; text-decoration: none; font-size: 0.85rem; font-weight: 600;">
-                    AI Agent Protocol Access
-                </a>
-            </div>
         </section>
     </main>
 
