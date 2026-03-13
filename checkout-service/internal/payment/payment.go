@@ -20,7 +20,7 @@ func (s *PaymentService) ProcessPayment(amount float64, method string, token str
 	// For now, we'll use a simple mock implementation.
 
 	switch strings.ToLower(method) {
-	case "stripe":
+	case "stripe", "stripe_pay":
 		if token == "tok_stripe_valid" {
 			transactionID := fmt.Sprintf("stripe_tx_%d", time.Now().UnixNano())
 			fmt.Printf("Processing Stripe payment of $%.2f. Success. TxID: %s\n", amount, transactionID)
@@ -36,9 +36,24 @@ func (s *PaymentService) ProcessPayment(amount float64, method string, token str
 		}
 		fmt.Printf("Amazon Pay payment of $%.2f failed. Invalid token.\n", amount)
 		return "", false
-	case "pickup_&_pay":
+	case "pickup_&_pay", "deliver_pay":
 		transactionID := fmt.Sprintf("offline_tx_%d", time.Now().UnixNano())
-		fmt.Printf("Processing Pickup Pay of $%.2f. Marked as pending offline payment. TxID: %s\n", amount, transactionID)
+		fmt.Printf("Processing offline payment of $%.2f. Marked as pending. TxID: %s\n", amount, transactionID)
+		return transactionID, true
+	case "credit_card":
+		if token == "tok_stripe_valid" || token == "tok_placeholder" {
+			transactionID := fmt.Sprintf("cc_tx_%d", time.Now().UnixNano())
+			fmt.Printf("Processing credit card payment of $%.2f. Success. TxID: %s\n", amount, transactionID)
+			return transactionID, true
+		}
+		return "", false
+	case "google_pay":
+		transactionID := fmt.Sprintf("gpay_tx_%d", time.Now().UnixNano())
+		fmt.Printf("Processing Google Pay payment of $%.2f. Success. TxID: %s\n", amount, transactionID)
+		return transactionID, true
+	case "purchase_order":
+		transactionID := fmt.Sprintf("po_tx_%d", time.Now().UnixNano())
+		fmt.Printf("Processing Purchase Order payment of $%.2f. Marked as pending. TxID: %s\n", amount, transactionID)
 		return transactionID, true
 	default:
 		fmt.Printf("Unsupported payment method: %s\n", method)

@@ -90,7 +90,10 @@
             primaryColor: "[[.Config.PrimaryColor]]",
             companyName: "[[.Company.Name]]",
             companyCode: "[[.Company.CompanyCode]]",
-            apiBase: "[[.ApiBase]]"
+            apiBase: "[[.ApiBase]]",
+            paymentMethods: [[jsArray .Company.PaymentMethods]],
+            deliveryMethods: [[jsArray .Company.DeliveryMethods]],
+            shippingOutOptions: [[jsArray .Company.ShippingOutOptions]]
         };
     </script>
     <!-- Adjust path since category files are in /category/ -->

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -448,6 +449,10 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 		"subtract": func(a, b int) int { return a - b },
 		"printf":   fmt.Sprintf,
 		"slugify":  slugify,
+		"jsArray": func(v interface{}) template.JS {
+			b, _ := json.Marshal(v)
+			return template.JS(b)
+		},
 	}
 
 	if isHTML {
