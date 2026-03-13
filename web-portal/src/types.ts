@@ -48,7 +48,7 @@ export interface Product {
   dealPrice?: number;
   discountedPrice?: number;
   sellerID: string;
-  image?: string;
+  images?: string[];
   category?: string;
   slug?: string;
   attributes?: Attribute[];

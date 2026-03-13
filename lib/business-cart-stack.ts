@@ -66,12 +66,43 @@ export class BusinessCartStack extends cdk.Stack {
       environment: sharedGoFunctionProps.environment,
     });
 
+    // --- Product Images Infrastructure ---
+    const productImagesBucket = new s3.Bucket(this, 'ProductImagesBucket', {
+      bucketName: `businesscart-product-images-${props.stage}`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: ['*'],
+          allowedHeaders: ['*'],
+          maxAge: 3600,
+        },
+      ],
+    });
+
+    const productImagesCdn = new cloudfront.Distribution(this, 'ProductImagesCdn', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(productImagesBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+    });
+
     const catalogService = new GoFunction(this, 'CatalogHandler', {
       ...sharedGoFunctionProps,
       functionName: `CatalogHandler-${props.stage}`,
       entry: join(__dirname, '..', 'catalog-service', 'cmd', 'server'),
-      environment: sharedGoFunctionProps.environment,
+      memorySize: 512,
+      environment: {
+        ...sharedGoFunctionProps.environment,
+        PRODUCT_IMAGES_BUCKET: productImagesBucket.bucketName,
+        PRODUCT_IMAGES_CDN: productImagesCdn.distributionDomainName,
+      },
     });
+
+    productImagesBucket.grantReadWrite(catalogService);
+    productImagesBucket.grantDelete(catalogService);
 
     const checkoutService = new GoFunction(this, 'CheckoutHandler', {
       ...sharedGoFunctionProps,
@@ -145,6 +176,10 @@ export class BusinessCartStack extends cdk.Stack {
     const products = api.root.addResource('products');
     products.addMethod('POST', catalogInteg);
     products.addMethod('GET', catalogInteg);
+    const uploadUrl = products.addResource('upload-url');
+    uploadUrl.addMethod('POST', catalogInteg);
+    const processImage = products.addResource('process-image');
+    processImage.addMethod('POST', catalogInteg);
     const productId = products.addResource('{productId}');
     productId.addMethod('GET', catalogInteg);
     productId.addMethod('PUT', catalogInteg);
@@ -377,5 +412,7 @@ export class BusinessCartStack extends cdk.Stack {
     // Outputs
     new cdk.CfnOutput(this, 'D2CBucketName', { value: d2cStorefrontBucket.bucketName });
     new cdk.CfnOutput(this, 'D2CDistributionDomain', { value: d2cDistribution.distributionDomainName });
+    new cdk.CfnOutput(this, 'ProductImagesBucketName', { value: productImagesBucket.bucketName });
+    new cdk.CfnOutput(this, 'ProductImagesCdnDomain', { value: productImagesCdn.distributionDomainName });
   }
 }

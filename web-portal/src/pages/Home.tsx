@@ -57,11 +57,7 @@ const Home: React.FC = () => {
       setLoading(true);
       try {
         const fetchedProducts = await getProducts();
-        const productsWithImages = fetchedProducts.slice(0, 3).map((product: Product) => ({
-          ...product,
-          image: product.image || 'https://via.placeholder.com/300x200 ',
-        }));
-        setProducts(productsWithImages);
+        setProducts(fetchedProducts.slice(0, 3));
       } catch (err: any) {
         toast.error(err.message || 'Failed to load products');
       } finally {
@@ -157,7 +153,7 @@ const Home: React.FC = () => {
                         >
                           <div className="relative">
                             <img
-                              src={product.image || 'https://via.placeholder.com/300x200'}
+                              src={product.images?.[0] || 'https://via.placeholder.com/300x200'}
                               alt={product.name}
                               className="w-full h-56 object-cover"
                             />

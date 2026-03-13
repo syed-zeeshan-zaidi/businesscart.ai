@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { createProduct, getProducts, updateProduct, deleteProduct, getAccount } from '../api';
+import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3, processImage } from '../api';
 import { Product, Account, Attribute } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -27,7 +27,7 @@ const ProductForm = () => {
     dealPrice: undefined,
     description: '',
     sellerID: '',
-    image: '',
+    images: [],
     category: '',
     slug: '',
     attributes: [],
@@ -35,6 +35,7 @@ const ProductForm = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -122,6 +123,7 @@ const ProductForm = () => {
         dealPrice: undefined,
         description: '',
         sellerID: account?._id || '',
+        images: [],
         category: '',
         slug: '',
         attributes: [],
@@ -172,7 +174,7 @@ const ProductForm = () => {
       dealPrice: product.dealPrice,
       description: product.description,
       sellerID: product.sellerID,
-      image: product.image,
+      images: product.images || [],
       category: product.category,
       slug: product.slug || '',
       attributes: product.attributes || [],
@@ -203,13 +205,44 @@ const ProductForm = () => {
     setIsDeleteConfirmOpen(true);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    setIsUploading(true);
+    try {
+      const { uploadUrl, imageUrl, key } = await getUploadUrl(file.type, ext);
+      await uploadFileToS3(uploadUrl, file);
+      await processImage(key);
+      setFormData(prev => ({
+        ...prev,
+        images: [...(prev.images || []), imageUrl],
+      }));
+      toast.success('Image uploaded');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Image upload failed';
+      toast.error(msg === 'Image upload not configured' ? 'Upload not available locally — use URL paste instead' : msg);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: (prev.images || []).filter((_, i) => i !== index),
+    }));
+  };
+
   const openModal = () => {
     setFormData({
       name: '',
       price: 0,
       description: '',
       sellerID: account?._id || '',
-      image: '',
+      images: [],
       category: '',
       slug: '',
       attributes: [],
@@ -455,14 +488,81 @@ const ProductForm = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Image URL</label>
-                        <input
-                          name="image"
-                          value={formData.image}
-                          onChange={handleChange}
-                          placeholder="Image URL"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
+                        <label className="block text-sm font-medium text-gray-700">Images</label>
+                        {(formData.images || []).length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {formData.images!.map((url, i) => (
+                              <div key={i} className="relative group w-20 h-20">
+                                <img src={url} alt={`Product ${i + 1}`} className="w-20 h-20 object-cover rounded-md border" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(i)}
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <XMarkIcon className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <label className="mt-2 flex items-center justify-center w-full h-16 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-teal-500 transition-colors">
+                          <input
+                            type="file"
+                            accept="image/webp,image/jpeg,image/png"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            disabled={isUploading}
+                          />
+                          {isUploading ? (
+                            <div className="flex items-center space-x-2 text-sm text-gray-500">
+                              <div className="animate-spin h-4 w-4 border-2 border-teal-600 border-t-transparent rounded-full"></div>
+                              <span>Uploading...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 text-sm text-gray-500">
+                              <PhotoIcon className="h-5 w-5" />
+                              <span>Upload image (WebP recommended)</span>
+                            </div>
+                          )}
+                        </label>
+                        <div className="mt-2 flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Or paste image URLs (comma-separated)"
+                            className="flex-1 p-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const input = e.currentTarget;
+                                const urls = input.value.split(',').map(u => u.trim()).filter(Boolean);
+                                if (urls.length > 0) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    images: [...(prev.images || []), ...urls],
+                                  }));
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm hover:bg-gray-200"
+                            onClick={(e) => {
+                              const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                              const urls = input.value.split(',').map(u => u.trim()).filter(Boolean);
+                              if (urls.length > 0) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  images: [...(prev.images || []), ...urls],
+                                }));
+                                input.value = '';
+                              }
+                            }}
+                          >
+                            Add
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Description</label>
