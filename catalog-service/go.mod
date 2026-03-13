@@ -11,7 +11,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	go.mongodb.org/mongo-driver v1.17.4
-	golang.org/x/image v0.37.0
 )
 
 require (
