@@ -20,7 +20,7 @@ type Product struct {
 	DealPrice       float64            `bson:"dealPrice,omitempty" json:"dealPrice,omitempty" validate:"gte=0,lte=50"`
 	DiscountedPrice float64            `bson:"-" json:"discountedPrice,omitempty"`
 	SellerID        string             `bson:"sellerID" json:"sellerID"`
-	Image           string             `bson:"image,omitempty" json:"image,omitempty"`
+	Images          []string           `bson:"images,omitempty" json:"images,omitempty"`
 	Category        string             `bson:"category,omitempty" json:"category,omitempty"`
 	Slug            string             `bson:"slug,omitempty" json:"slug,omitempty"`
 	Attributes      []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`

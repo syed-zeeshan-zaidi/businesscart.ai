@@ -78,7 +78,7 @@ const QuoteCreateForm: React.FC = () => {
           name: product.name,
           price: product.price,
           discountedPrice: product.discountedPrice,
-          image: product.image,
+          image: product.images?.[0],
           dealPrice: product.dealPrice,
         };
         await addItemToCart({ entity: newItem }, selectedCustomer);

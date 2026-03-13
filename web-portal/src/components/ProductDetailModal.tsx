@@ -23,7 +23,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
         </div>
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <img src={product.image || 'https://via.placeholder.com/300x200'} alt={product.name} className="w-full h-auto rounded-lg" />
+            <img src={product.images?.[0] || 'https://via.placeholder.com/300x200'} alt={product.name} className="w-full h-auto rounded-lg" />
           </div>
           <div>
             <p className="text-gray-500 text-sm">{product.category}</p>

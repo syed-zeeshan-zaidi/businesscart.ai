@@ -51,6 +51,7 @@ type ProductData struct {
 	Price           float64     `json:"price"`
 	DealPrice       float64     `json:"dealPrice,omitempty"`
 	DiscountedPrice float64     `json:"discountedPrice,omitempty"`
+	Images          []string    `json:"images,omitempty"`
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`
 	Slug            string      `json:"slug"`
@@ -116,6 +117,13 @@ func (g *Generator) Generate(data StorefrontData) error {
 		data.Domain = data.Config.CustomDomain
 	} else {
 		data.Domain = data.Config.PreviewDomain
+	}
+
+	// Pre-compute first image from Images array (if Image not already set)
+	for i := range data.Products {
+		if data.Products[i].Image == "" && len(data.Products[i].Images) > 0 {
+			data.Products[i].Image = data.Products[i].Images[0]
+		}
 	}
 
 	// Pre-compute product filenames

@@ -127,6 +127,26 @@ export const getCodes = async (): Promise<any[]> => {
   return response.data;
 };
 
+export const getUploadUrl = async (contentType: string, fileExtension: string): Promise<{
+  uploadUrl: string;
+  imageUrl: string;
+  thumbUrl: string;
+  key: string;
+}> => {
+  const response = await api.post(`${API_URL}/products/upload-url`, { contentType, fileExtension });
+  return response.data;
+};
+
+export const uploadFileToS3 = async (uploadUrl: string, file: File): Promise<void> => {
+  await axios.put(uploadUrl, file, {
+    headers: { 'Content-Type': file.type },
+  });
+};
+
+export const processImage = async (key: string): Promise<void> => {
+  await api.post(`${API_URL}/products/process-image`, { key });
+};
+
 export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product> => {
   const response = await api.post(`${API_URL}/products`, data);
   return response.data;

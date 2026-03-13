@@ -316,7 +316,7 @@ const Catalog: React.FC = () => {
               >
                 <div className="h-48 bg-gray-200 flex items-center justify-center">
                   <img
-                    src={product.image || 'https://via.placeholder.com/300x200'}
+                    src={product.images?.[0] || 'https://via.placeholder.com/300x200'}
                     alt={product.name}
                     className="max-h-full max-w-full"
                     loading="lazy"
