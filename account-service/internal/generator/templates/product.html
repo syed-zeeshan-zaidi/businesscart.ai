@@ -83,7 +83,7 @@
         .main-img {
             width: 100%;
             aspect-ratio: 1;
-            object-fit: cover;
+            object-fit: contain;
             display: block;
         }
 
@@ -258,11 +258,21 @@
         <section class="image-section">
             <div class="image-card">
                 [[if .Product.Image]]
-                <img src="[[.Product.Image]]" alt="[[.Product.Name]]" class="main-img" itemprop="image">
+                <img id="main-product-img" src="[[.Product.Image]]" alt="[[.Product.Name]]" class="main-img" itemprop="image">
                 [[else]]
                 <div class="no-img">IMAGE PENDING</div>
                 [[end]]
             </div>
+            [[if gt (len .Product.Images) 1]]
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem;overflow-x:auto;padding-bottom:0.25rem">
+                [[range $i, $url := .Product.Images]]
+                <img src="[[$url]]" alt="[[$.Product.Name]] [[printf "%d" $i]]"
+                    onclick="document.getElementById('main-product-img').src=this.src;document.querySelectorAll('.thumb-img').forEach(function(t){t.style.borderColor='#e5e7eb'});this.style.borderColor='var(--primary)'"
+                    class="thumb-img"
+                    style="width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid [[if eq $i 0]]var(--primary)[[else]]#e5e7eb[[end]]">
+                [[end]]
+            </div>
+            [[end]]
         </section>
 
         <section class="content">
