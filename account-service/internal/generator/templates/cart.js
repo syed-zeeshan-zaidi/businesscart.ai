@@ -61,7 +61,7 @@ class D2CCart {
             const drawer = document.createElement('div');
             drawer.id = 'cart-drawer';
             drawer.style = `
-                position: fixed; top: 0; right: -450px; width: 450px; height: 100vh;
+                position: fixed; top: 0; right: -450px; width: 450px; max-width: 90vw; height: 100vh;
                 background: white; box-shadow: -10px 0 30px rgba(0,0,0,0.1);
                 z-index: 2000; transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 display: flex; flex-direction: column;

@@ -15,6 +15,7 @@ CRUSH.md
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+cdk.context.json
 coverage/
 web-portal/dist/
 .gemini/

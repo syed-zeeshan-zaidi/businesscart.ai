@@ -559,7 +559,9 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	// Trigger D2C generation if enabled (this will also generate PreviewDomain if missing)
-	h.triggerD2CGeneration(targetID, jwtToken)
+	if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
+	}
 
 	// Return the updated account to the frontend so it sees the generated PreviewDomain
 	updatedAcc, err := h.db.GetAccountByID(targetID)
@@ -584,16 +586,18 @@ func (h *LambdaHandler) regenerateStorefront(userClaim map[string]interface{}, i
 	}
 
 	// Trigger generation synchronously
-	h.triggerD2CGeneration(targetID, jwtToken)
+	if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
+	}
 
 	return h.successResponse(map[string]string{"message": "Storefront generation has completed."}, http.StatusOK), nil
 }
 
-func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtToken string) {
+func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtToken string) error {
 	acc, err := h.db.GetAccountByID(accountID)
 	if err != nil || acc.CompanyData == nil || acc.CompanyData.D2C == nil {
 		log.Printf("D2C Generation Skip: account or D2C config not found for %s", accountID.Hex())
-		return
+		return nil
 	}
 
 	// 1. Initialize Generator and S3 Client (needed for both Enable and Disable)
@@ -619,7 +623,7 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 		if err := gen.DeleteStorefront(acc.CompanyData.UniqueIdentifier); err != nil {
 			log.Printf("ERROR: Failed to delete storefront assets for %s: %v", acc.ID.Hex(), err)
 		}
-		return
+		return nil
 	}
 
 	log.Printf("D2C Storefront generating for %s...", acc.CompanyData.Name)
@@ -648,10 +652,11 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 
 	if err := gen.Generate(genData); err != nil {
 		log.Printf("D2C Generation Failed for %s: %v", acc.ID.Hex(), err)
-		return
+		return err
 	}
 
 	log.Printf("D2C Storefront successfully generated for %s at https://%s", acc.CompanyData.Name, acc.CompanyData.D2C.PreviewDomain)
+	return nil
 }
 
 func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) []generator.ProductData {

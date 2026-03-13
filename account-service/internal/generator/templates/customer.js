@@ -94,7 +94,7 @@
             const drawer = document.createElement('div');
             drawer.id = 'customer-dashboard';
             drawer.style = `
-                position: fixed; top: 0; right: -450px; width: 450px; height: 100vh;
+                position: fixed; top: 0; right: -450px; width: 450px; max-width: 90vw; height: 100vh;
                 background: white; box-shadow: -10px 0 30px rgba(0,0,0,0.1);
                 z-index: 2001; transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 display: flex; flex-direction: column; overflow: hidden;
@@ -345,7 +345,7 @@
                 status.textContent = 'Adding items to cart...';
                 for (const item of cartItems) {
                     await this.addToCart({
-                        productId: item.productId,
+                        productId: item._id,
                         quantity: item.quantity || 1,
                         sellerId: sellerId,
                         name: item.name || 'Product',
@@ -378,7 +378,7 @@
                 setTimeout(() => {
                     document.getElementById('d2c-checkout-overlay')?.remove();
                     // Refresh orders in dashboard
-                    this.fetchOrders();
+                    this.getOrders();
                 }, 2000);
 
             } catch (err) {

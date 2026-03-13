@@ -12,8 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	texttemplate "text/template"
 	"time"
+	"unicode"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -34,6 +36,7 @@ type StorefrontData struct {
 	Timestamp        string
 	BasePath         string
 	ApiBase          string // Public-facing API URL for browser JS calls
+	Domain           string // Pre-computed: CustomDomain if set, else PreviewDomain
 }
 
 type Attribute struct {
@@ -52,6 +55,7 @@ type ProductData struct {
 	Category        string      `json:"category"`
 	Slug            string      `json:"slug"`
 	Attributes      []Attribute `json:"attributes"`
+	Filename        string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
 type Generator struct {
@@ -107,6 +111,26 @@ func (g *Generator) Generate(data StorefrontData) error {
 	data.Year = time.Now().Year()
 	data.Timestamp = time.Now().Format(time.RFC3339)
 
+	// Pre-compute domain for templates
+	if data.Config.CustomDomain != "" {
+		data.Domain = data.Config.CustomDomain
+	} else {
+		data.Domain = data.Config.PreviewDomain
+	}
+
+	// Pre-compute product filenames
+	for i := range data.Products {
+		slug := data.Products[i].Slug
+		if slug == "" {
+			slug = "product"
+		}
+		suffix := ""
+		if len(data.Products[i].ID) > 6 {
+			suffix = "-" + data.Products[i].ID[len(data.Products[i].ID)-6:]
+		}
+		data.Products[i].Filename = slug + suffix
+	}
+
 	// Extract Categories and Featured Products
 	categoryMap := make(map[string]bool)
 	for _, p := range data.Products {
@@ -152,7 +176,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 		data,
 		true,
 	); err != nil {
-		log.Printf("Warning: products.html template may be missing: %v", err)
+		return fmt.Errorf("products.html: %w", err)
 	}
 
 	// Generate Category Pages
@@ -176,6 +200,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories []string
 			BasePath   string
 			ApiBase    string
+			Domain     string
 		}{
 			AccountID:  data.AccountID,
 			Company:    data.Company,
@@ -187,14 +212,10 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories: data.Categories,
 			BasePath:   "../",
 			ApiBase:    data.ApiBase,
+			Domain:     data.Domain,
 		}
 
-		// Basic slugification for the filename
-		catSlug := cat
-		// Just a simple clean-up for the filename, ideally should use a proper slugifier
-		// But for now, we'll just use the raw string or a very basic regex if needed.
-		// A safe fallback
-		catFilename := fmt.Sprintf("%s.html", catSlug)
+		catFilename := fmt.Sprintf("%s.html", slugify(cat))
 
 		if err := g.renderTemplate(
 			"category.html",
@@ -202,25 +223,13 @@ func (g *Generator) Generate(data StorefrontData) error {
 			catData,
 			true,
 		); err != nil {
-			log.Printf("Warning: category.html template may be missing: %v", err)
+			return fmt.Errorf("category %s: %w", cat, err)
 		}
 	}
 
 	// Generate individual Product pages
 	for _, product := range data.Products {
-		// Calculate unique SEO-friendly filename: slug + last 6 chars of ID
-		suffix := ""
-		if len(product.ID) > 6 {
-			suffix = "-" + product.ID[len(product.ID)-6:]
-		}
-
-		safeSlug := product.Slug
-		if safeSlug == "" {
-			// Fallback to ID if slug is missing
-			safeSlug = "product"
-		}
-
-		filenameBase := safeSlug + suffix
+		filenameBase := product.Filename
 
 		productPageData := struct {
 			AccountID  string
@@ -232,6 +241,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories []string
 			BasePath   string
 			ApiBase    string
+			Domain     string
 		}{
 			AccountID:  data.AccountID,
 			Company:    data.Company,
@@ -242,6 +252,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories: data.Categories,
 			BasePath:   "../",
 			ApiBase:    data.ApiBase,
+			Domain:     data.Domain,
 		}
 
 		// Product HTML
@@ -265,15 +276,60 @@ func (g *Generator) Generate(data StorefrontData) error {
 		}
 	}
 
-	// Copy Static Files (cart.js, customer.js)
-	cartJS, err := fs.ReadFile(g.TemplateFS, "cart.js")
-	if err == nil {
-		os.WriteFile(filepath.Join(companyDir, "cart.js"), cartJS, 0644)
+	// Generate Products MD (full catalog)
+	if err := g.renderTemplate(
+		"products.md",
+		filepath.Join(companyDir, "products.md"),
+		data,
+		false,
+	); err != nil {
+		return fmt.Errorf("products.md: %w", err)
 	}
 
-	customerJS, err := fs.ReadFile(g.TemplateFS, "customer.js")
-	if err == nil {
-		os.WriteFile(filepath.Join(companyDir, "customer.js"), customerJS, 0644)
+	// Generate robots.txt
+	if err := g.renderTemplate(
+		"robots.txt",
+		filepath.Join(companyDir, "robots.txt"),
+		data,
+		false,
+	); err != nil {
+		return fmt.Errorf("robots.txt: %w", err)
+	}
+
+	// Generate sitemap.xml
+	if err := g.renderTemplate(
+		"sitemap.xml",
+		filepath.Join(companyDir, "sitemap.xml"),
+		data,
+		false,
+	); err != nil {
+		return fmt.Errorf("sitemap.xml: %w", err)
+	}
+
+	// Generate llms.txt
+	if err := g.renderTemplate(
+		"llms.txt",
+		filepath.Join(companyDir, "llms.txt"),
+		data,
+		false,
+	); err != nil {
+		return fmt.Errorf("llms.txt: %w", err)
+	}
+
+	// Copy Static Files
+	for _, jsFile := range []string{"cart.js", "customer.js", "nav.js"} {
+		jsData, err := fs.ReadFile(g.TemplateFS, jsFile)
+		if err != nil {
+			return fmt.Errorf("%s read: %w", jsFile, err)
+		}
+		if err := os.WriteFile(filepath.Join(companyDir, jsFile), jsData, 0644); err != nil {
+			return fmt.Errorf("%s write: %w", jsFile, err)
+		}
+	}
+
+	// Delete old S3 files before uploading fresh set
+	if err := g.DeleteStorefront(data.Company.UniqueIdentifier); err != nil {
+		log.Printf("WARN: failed to clean old S3 files: %v", err)
 	}
 
 	return g.syncToS3(companyDir, data.Company.UniqueIdentifier)
@@ -348,13 +404,20 @@ func (g *Generator) syncToS3(localDir, companyUID string) error {
 }
 
 func (g *Generator) getContentType(path string) string {
-	if filepath.Ext(path) == ".html" {
-		return "text/html"
+	switch filepath.Ext(path) {
+	case ".html":
+		return "text/html; charset=utf-8"
+	case ".md":
+		return "text/markdown; charset=utf-8"
+	case ".js":
+		return "application/javascript"
+	case ".xml":
+		return "application/xml"
+	case ".txt":
+		return "text/plain; charset=utf-8"
+	default:
+		return "application/octet-stream"
 	}
-	if filepath.Ext(path) == ".md" {
-		return "text/markdown"
-	}
-	return "application/octet-stream"
 }
 
 func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}, isHTML bool) error {
@@ -376,6 +439,7 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	funcMap := template.FuncMap{
 		"subtract": func(a, b int) int { return a - b },
 		"printf":   fmt.Sprintf,
+		"slugify":  slugify,
 	}
 
 	if isHTML {
@@ -393,6 +457,7 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 		tmpl, err := texttemplate.New(tmplName).Delims("[[", "]]").Funcs(texttemplate.FuncMap{
 			"subtract": func(a, b int) int { return a - b },
 			"printf":   fmt.Sprintf,
+			"slugify":  slugify,
 		}).Parse(sanitizedContent)
 		if err != nil {
 			log.Printf("ERROR: Failed to parse Text template %s: %v", tmplName, err)
@@ -406,6 +471,22 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	return os.WriteFile(outputPath, buf.Bytes(), 0644)
 }
 
+// slugify converts a string to a URL-safe lowercase slug.
+func slugify(s string) string {
+	var b strings.Builder
+	prev := false
+	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+			prev = false
+		} else if !prev && b.Len() > 0 {
+			b.WriteByte('-')
+			prev = true
+		}
+	}
+	return strings.TrimRight(b.String(), "-")
+}
+
 // sanitizeTemplate uses regex to fix common "mangling" by auto-formatters.
 func (g *Generator) sanitizeTemplate(content string) string {
 	// Fix broken [[ tags: "[ [" or "[  [" -> "[["
@@ -415,14 +496,6 @@ func (g *Generator) sanitizeTemplate(content string) string {
 	// Fix broken ]] tags: "] ]" or "]  ]" -> "]]"
 	reCloseBracket := regexp.MustCompile(`\]\s+\]`)
 	content = reCloseBracket.ReplaceAllString(content, "]]")
-
-	// Fix broken {{ tags: "{ {" -> "{{"
-	reOpenBrace := regexp.MustCompile(`\{\s+\{`)
-	content = reOpenBrace.ReplaceAllString(content, "{{")
-
-	// Fix broken }} tags: "} }" -> "}}"
-	reCloseBrace := regexp.MustCompile(`\}\s+\}`)
-	content = reCloseBrace.ReplaceAllString(content, "}}")
 
 	return content
 }

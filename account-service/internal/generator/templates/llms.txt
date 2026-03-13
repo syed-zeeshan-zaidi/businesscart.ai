@@ -1,0 +1,16 @@
+# [[.Company.Name]]
+
+> [[if .Config.HeroSlogan]][[.Config.HeroSlogan]][[end]]
+
+Official D2C storefront for [[.Company.Name]].
+
+## Contact
+- Email: [[.Config.ContactEmail]]
+- Phone: [[.Config.ContactPhone]]
+
+## Docs
+- Storefront Overview: index.md
+- Full Product Catalog: products.md ([[len .Products]] products)
+[[range .Products]]
+- [[.Name]]: products/[[.Filename]].md ($[[printf "%.2f" .Price]], [[.Category]])
+[[end]]
