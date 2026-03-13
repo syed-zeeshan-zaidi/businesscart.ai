@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3, processImage } from '../api';
+import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3 } from '../api';
 import { Product, Account, Attribute } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
@@ -212,9 +212,8 @@ const ProductForm = () => {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     setIsUploading(true);
     try {
-      const { uploadUrl, imageUrl, key } = await getUploadUrl(file.type, ext);
+      const { uploadUrl, imageUrl } = await getUploadUrl(file.type, ext);
       await uploadFileToS3(uploadUrl, file);
-      await processImage(key);
       setFormData(prev => ({
         ...prev,
         images: [...(prev.images || []), imageUrl],

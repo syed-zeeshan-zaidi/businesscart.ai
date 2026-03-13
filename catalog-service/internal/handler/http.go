@@ -1,18 +1,11 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/jpeg"
-	_ "image/png"
-
-	_ "golang.org/x/image/webp" // register WebP decoder
 	"log"
 	"net/http"
-	"path"
 	"strings"
 	"time"
 
@@ -26,8 +19,6 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"golang.org/x/image/draw"
-	_ "golang.org/x/image/webp"
 )
 
 var validate *validator.Validate
@@ -99,10 +90,6 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		if request.Path == "/products/upload-url" && request.HTTPMethod == "POST" {
 			return h.getUploadURL(userClaim, request.Body)
 		}
-		if request.Path == "/products/process-image" && request.HTTPMethod == "POST" {
-			return h.processImage(userClaim, request.Body)
-		}
-
 		// Manually parse ID from path since template.yaml uses {proxy+}
 		id := ""
 		hasID := false
@@ -342,87 +329,13 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 		return h.errorResponse(http.StatusInternalServerError, "Failed to generate upload URL"), nil
 	}
 
-	prefix := fmt.Sprintf("%s/%s", sellerID, imageID)
+	imageUrl := fmt.Sprintf("https://%s/%s/%s/image.%s", h.cdnDomain, sellerID, imageID, ext)
 	resp := map[string]string{
 		"uploadUrl": presignReq.URL,
-		"imageUrl":  fmt.Sprintf("https://%s/%s/image.%s", h.cdnDomain, prefix, ext),
-		"thumbUrl":  fmt.Sprintf("https://%s/%s/thumb.jpg", h.cdnDomain, prefix),
-		"key":       key,
+		"imageUrl":  imageUrl,
 	}
 
 	return h.successResponse(resp), nil
-}
-
-func (h *LambdaHandler) processImage(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
-	if userClaim["role"] != "company" && userClaim["role"] != "admin" {
-		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
-	}
-
-	if h.s3Client == nil || h.s3Bucket == "" {
-		return h.errorResponse(http.StatusServiceUnavailable, "Image processing not configured"), nil
-	}
-
-	var req struct {
-		Key string `json:"key"`
-	}
-	if err := json.Unmarshal([]byte(body), &req); err != nil {
-		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
-	}
-
-	if req.Key == "" {
-		return h.errorResponse(http.StatusBadRequest, "key is required"), nil
-	}
-
-	// Validate key belongs to the seller
-	sellerID := userClaim["id"].(string)
-	if !strings.HasPrefix(req.Key, sellerID+"/") {
-		return h.errorResponse(http.StatusForbidden, "Unauthorized: Key does not belong to this seller"), nil
-	}
-
-	// Download uploaded image from S3
-	getResult, err := h.s3Client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(h.s3Bucket),
-		Key:    aws.String(req.Key),
-	})
-	if err != nil {
-		log.Printf("ERROR: Failed to download image from S3: %v", err)
-		return h.errorResponse(http.StatusInternalServerError, "Failed to download image"), nil
-	}
-	defer getResult.Body.Close()
-
-	// Decode image (supports JPEG, PNG, WebP via registered decoders)
-	img, _, err := image.Decode(getResult.Body)
-	if err != nil {
-		log.Printf("ERROR: Failed to decode image: %v", err)
-		return h.errorResponse(http.StatusBadRequest, "Failed to decode image — supported formats: JPEG, PNG, WebP"), nil
-	}
-
-	// Resize to 200x200 thumbnail
-	thumbRect := image.Rect(0, 0, 200, 200)
-	thumbImg := image.NewRGBA(thumbRect)
-	draw.CatmullRom.Scale(thumbImg, thumbRect, img, img.Bounds(), draw.Over, nil)
-
-	var thumbBuf bytes.Buffer
-	if err := jpeg.Encode(&thumbBuf, thumbImg, &jpeg.Options{Quality: 80}); err != nil {
-		log.Printf("ERROR: Failed to encode thumbnail: %v", err)
-		return h.errorResponse(http.StatusInternalServerError, "Failed to encode thumbnail"), nil
-	}
-
-	// Upload thumb.jpg next to the original
-	prefix := path.Dir(req.Key) // {sellerID}/{uuid}
-
-	_, err = h.s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      aws.String(h.s3Bucket),
-		Key:         aws.String(prefix + "/thumb.jpg"),
-		Body:        bytes.NewReader(thumbBuf.Bytes()),
-		ContentType: aws.String("image/jpeg"),
-	})
-	if err != nil {
-		log.Printf("ERROR: Failed to upload thumb.jpg: %v", err)
-		return h.errorResponse(http.StatusInternalServerError, "Failed to upload thumbnail"), nil
-	}
-
-	return h.successResponse(map[string]string{"message": "Thumbnail generated successfully"}), nil
 }
 
 func (h *LambdaHandler) errorResponse(statusCode int, message string) events.APIGatewayProxyResponse {

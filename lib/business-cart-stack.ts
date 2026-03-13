@@ -101,8 +101,7 @@ export class BusinessCartStack extends cdk.Stack {
       },
     });
 
-    productImagesBucket.grantReadWrite(catalogService);
-    productImagesBucket.grantDelete(catalogService);
+    productImagesBucket.grantWrite(catalogService);
 
     const checkoutService = new GoFunction(this, 'CheckoutHandler', {
       ...sharedGoFunctionProps,
@@ -178,8 +177,6 @@ export class BusinessCartStack extends cdk.Stack {
     products.addMethod('GET', catalogInteg);
     const uploadUrl = products.addResource('upload-url');
     uploadUrl.addMethod('POST', catalogInteg);
-    const processImage = products.addResource('process-image');
-    processImage.addMethod('POST', catalogInteg);
     const productId = products.addResource('{productId}');
     productId.addMethod('GET', catalogInteg);
     productId.addMethod('PUT', catalogInteg);
