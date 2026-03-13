@@ -177,19 +177,20 @@
             return response.ok ? await response.json() : null;
         },
 
-        async createQuote(sellerId) {
+        async createQuote(sellerId, addresses) {
             if (!this.token) return null;
+            const cfg = window.D2C_CONFIG || {};
             const response = await fetch(`${API_BASE}/checkout/quotes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                 body: JSON.stringify({
                     sellerId: sellerId,
-                    paymentMethods: ['pickup_&_pay'],
-                    deliveryMethods: ['shipping_out'],
-                    shippingOutOptions: ['Standard'],
+                    paymentMethods: cfg.paymentMethods || ['pickup_&_pay'],
+                    deliveryMethods: cfg.deliveryMethods || ['shipping_out'],
+                    shippingOutOptions: cfg.shippingOutOptions || ['standard'],
                     quotesAllowed: false,
                     companyLocations: [],
-                    customerAddresses: [],
+                    customerAddresses: addresses || [],
                     configurations: [],
                     quoteType: 'standard'
                 })
@@ -197,17 +198,38 @@
             return response.ok ? await response.json() : null;
         },
 
-        async placeOrder(quoteId, paymentMethod, deliveryMethod) {
+        async getQuote(quoteId) {
             if (!this.token) return null;
+            const response = await fetch(`${API_BASE}/checkout/quotes/${quoteId}`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            return response.ok ? await response.json() : null;
+        },
+
+        _getPaymentToken(method) {
+            switch (method) {
+                case 'stripe': case 'stripe_pay': return 'tok_stripe_valid';
+                case 'amazon_pay': return 'amz_pay_valid';
+                case 'pickup_&_pay': return 'offline_payment';
+                case 'deliver_pay': return 'offline_payment';
+                default: return 'tok_placeholder';
+            }
+        },
+
+        async placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId) {
+            if (!this.token) return null;
+            const body = {
+                quoteId: quoteId,
+                paymentMethod: paymentMethod || 'pickup_&_pay',
+                paymentToken: this._getPaymentToken(paymentMethod),
+                deliveryMethod: deliveryMethod || 'shipping_out'
+            };
+            if (pickupLocationId) body.pickupLocationId = pickupLocationId;
+            if (deliveryAddressId) body.deliveryAddressId = deliveryAddressId;
             const response = await fetch(`${API_BASE}/checkout/orders`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-                body: JSON.stringify({
-                    quoteId: quoteId,
-                    paymentMethod: paymentMethod || 'pickup_&_pay',
-                    paymentToken: 'tok_offline',
-                    deliveryMethod: deliveryMethod || 'shipping_out'
-                })
+                body: JSON.stringify(body)
             });
             return response.ok ? await response.json() : null;
         },
@@ -223,19 +245,67 @@
             const sellerId = window.D2C_CONFIG?.sellerId;
             if (!sellerId || !cartItems || cartItems.length === 0) return;
 
-            // Show checkout overlay
-            this._showCheckoutOverlay(cartItems, sellerId);
+            // Show loading overlay
+            this._showCheckoutLoading();
+
+            try {
+                // Step 1: Sync local cart to server
+                await this.clearCart(sellerId);
+                for (const item of cartItems) {
+                    const result = await this.addToCart({
+                        productId: item._id,
+                        quantity: item.quantity || 1,
+                        sellerId: sellerId,
+                        name: item.name || 'Product',
+                        price: item.price || 0,
+                        discountedPrice: item.discountedPrice,
+                        image: item.image
+                    });
+                    if (!result) throw new Error('Failed to add item to server cart');
+                }
+
+                // Step 2: Get customer addresses
+                const addresses = await this.getAddresses();
+
+                // Step 3: Create quote
+                const customerAddresses = (addresses || []).map(a => ({
+                    id: a._id || a.id,
+                    addressLabel: a.addressLabel || 'Address',
+                    recipientName: a.recipientName || '',
+                    address: a.address || {}
+                }));
+                const quote = await this.createQuote(sellerId, customerAddresses);
+                if (!quote) throw new Error('Failed to create quote');
+
+                // Step 4: Show checkout modal with quote data
+                this._showCheckoutOverlay(quote);
+            } catch (err) {
+                console.error('Checkout failed:', err);
+                document.getElementById('d2c-checkout-overlay')?.remove();
+                if (window.D2C_CART) window.D2C_CART.showToast(err.message || 'Checkout failed. Please try again.');
+            }
         },
 
-        _showCheckoutOverlay(cartItems, sellerId) {
-            // Remove if exists
+        _showCheckoutLoading() {
+            const existing = document.getElementById('d2c-checkout-overlay');
+            if (existing) existing.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'd2c-checkout-overlay';
+            overlay.style = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)';
+            overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:3rem;text-align:center;font-weight:700;color:#374151">Preparing checkout...</div>';
+            document.body.appendChild(overlay);
+        },
+
+        _showCheckoutOverlay(quote) {
             const existing = document.getElementById('d2c-checkout-overlay');
             if (existing) existing.remove();
 
-            const total = cartItems.reduce((sum, item) => {
-                const price = item.discountedPrice || item.price || 0;
-                return sum + (price * (item.quantity || 1));
-            }, 0);
+            const primaryColor = window.D2C_CONFIG?.primaryColor || '#0d9488';
+            const deliveryMethods = quote.availableDeliveryMethods || ['shipping_out'];
+            const paymentMethods = quote.availablePaymentMethods || ['pickup_&_pay'];
+            const shippingOptions = quote.availableShippingOutOptions || [];
+            const customerAddresses = quote.customerAddresses || [];
+            const companyLocations = quote.companyLocations || [];
 
             const overlay = document.createElement('div');
             overlay.id = 'd2c-checkout-overlay';
@@ -246,7 +316,7 @@
                         background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
                     }
                     .checkout-modal {
-                        background: #fff; border-radius: 16px; max-width: 500px; width: 90%; max-height: 85vh; overflow-y: auto;
+                        background: #fff; border-radius: 16px; max-width: 520px; width: 90%; max-height: 85vh; overflow-y: auto;
                         box-shadow: 0 25px 50px rgba(0,0,0,0.25); padding: 0;
                     }
                     .checkout-header {
@@ -258,18 +328,32 @@
                     .checkout-body { padding: 20px 24px; }
                     .checkout-item {
                         display: flex; justify-content: space-between; align-items: center;
-                        padding: 12px 0; border-bottom: 1px solid #f3f4f6;
+                        padding: 10px 0; border-bottom: 1px solid #f3f4f6;
                     }
                     .checkout-item-name { font-weight: 500; color: #374151; }
                     .checkout-item-detail { color: #6b7280; font-size: 14px; }
                     .checkout-item-price { font-weight: 600; color: #111; }
-                    .checkout-total {
-                        display: flex; justify-content: space-between; padding: 16px 0;
-                        border-top: 2px solid #111; margin-top: 8px; font-size: 18px; font-weight: 700;
+                    .checkout-summary-row {
+                        display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #6b7280;
+                    }
+                    .checkout-summary-row.total {
+                        border-top: 2px solid #111; margin-top: 8px; padding-top: 12px;
+                        font-size: 18px; font-weight: 700; color: #111;
                     }
                     .checkout-section { margin-top: 20px; }
-                    .checkout-section h3 { font-size: 14px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-                    .checkout-info { background: #f9fafb; border-radius: 8px; padding: 12px; font-size: 14px; color: #374151; }
+                    .checkout-section h3 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+                    .checkout-select {
+                        width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
+                        font-size: 14px; color: #374151; background: #f9fafb; appearance: auto;
+                    }
+                    .checkout-radio-group { display: flex; flex-direction: column; gap: 8px; }
+                    .checkout-radio {
+                        display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+                        border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; background: #f9fafb;
+                    }
+                    .checkout-radio:hover { border-color: #d1d5db; }
+                    .checkout-radio input { margin: 0; }
+                    .checkout-radio label { font-size: 14px; color: #374151; cursor: pointer; font-weight: 500; }
                     .checkout-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; }
                     .checkout-btn {
                         width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
@@ -285,99 +369,135 @@
                         <button class="checkout-close" onclick="document.getElementById('d2c-checkout-overlay').remove()">&times;</button>
                     </div>
                     <div class="checkout-body">
-                        <div id="checkout-items">
-                            ${cartItems.map(item => `
-                                <div class="checkout-item">
-                                    <div>
-                                        <div class="checkout-item-name">${item.name || 'Product'}</div>
-                                        <div class="checkout-item-detail">Qty: ${item.quantity || 1}</div>
-                                    </div>
-                                    <div class="checkout-item-price">$${((item.discountedPrice || item.price || 0) * (item.quantity || 1)).toFixed(2)}</div>
+                        ${quote.items.map(item => `
+                            <div class="checkout-item">
+                                <div>
+                                    <div class="checkout-item-name">${item.name || 'Product'}</div>
+                                    <div class="checkout-item-detail">Qty: ${item.quantity || 1}</div>
                                 </div>
-                            `).join('')}
-                            <div class="checkout-total">
-                                <span>Total</span>
-                                <span>$${total.toFixed(2)}</span>
+                                <div class="checkout-item-price">$${(item.lineItemTotal || ((item.discountedPrice || item.price || 0) * (item.quantity || 1))).toFixed(2)}</div>
                             </div>
+                        `).join('')}
+                        <div style="margin-top:12px">
+                            <div class="checkout-summary-row"><span>Subtotal</span><span>$${(quote.subtotal || 0).toFixed(2)}</span></div>
+                            <div class="checkout-summary-row"><span>Shipping</span><span>$${(quote.shippingCost || 0).toFixed(2)}</span></div>
+                            <div class="checkout-summary-row"><span>Tax</span><span>$${(quote.taxAmount || 0).toFixed(2)}</span></div>
+                            <div class="checkout-summary-row total"><span>Grand Total</span><span>$${(quote.grandTotal || 0).toFixed(2)}</span></div>
                         </div>
+
+                        <div class="checkout-section">
+                            <h3>Delivery Method</h3>
+                            <select id="checkout-delivery" class="checkout-select">
+                                ${deliveryMethods.map(m => `<option value="${m}">${m.replace(/_/g, ' ')}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div class="checkout-section" id="checkout-address-section" style="display:${deliveryMethods[0] !== 'pickup' ? 'block' : 'none'}">
+                            <h3>Delivery Address</h3>
+                            ${customerAddresses.length > 0 ? `
+                                <select id="checkout-address" class="checkout-select">
+                                    <option value="">Select an address</option>
+                                    ${customerAddresses.map(a => `<option value="${a.id}">${a.addressLabel || 'Address'}: ${a.address?.street || ''}, ${a.address?.city || ''}</option>`).join('')}
+                                </select>
+                            ` : '<div style="font-size:13px;color:#9ca3af;padding:8px 0">No saved addresses. You can add one from your profile.</div>'}
+                        </div>
+
+                        <div class="checkout-section" id="checkout-pickup-section" style="display:${deliveryMethods[0] === 'pickup' ? 'block' : 'none'}">
+                            <h3>Pickup Location</h3>
+                            ${companyLocations.length > 0 ? `
+                                <select id="checkout-pickup" class="checkout-select">
+                                    <option value="">Select a location</option>
+                                    ${companyLocations.map(l => `<option value="${l.id}">${l.locationName} - ${l.address?.street || ''}, ${l.address?.city || ''}</option>`).join('')}
+                                </select>
+                            ` : '<div style="font-size:13px;color:#9ca3af;padding:8px 0">No pickup locations available.</div>'}
+                        </div>
+
+                        ${shippingOptions.length > 0 ? `
+                        <div class="checkout-section" id="checkout-shipping-section" style="display:${deliveryMethods[0] === 'shipping_out' ? 'block' : 'none'}">
+                            <h3>Shipping Option</h3>
+                            <select id="checkout-shipping" class="checkout-select">
+                                ${shippingOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+                            </select>
+                        </div>
+                        ` : ''}
+
                         <div class="checkout-section">
                             <h3>Payment Method</h3>
-                            <div class="checkout-info">Pay on Pickup / Delivery</div>
+                            <div class="checkout-radio-group">
+                                ${paymentMethods.map((m, i) => `
+                                    <div class="checkout-radio">
+                                        <input type="radio" name="checkout-payment" id="pay-${m}" value="${m}" ${i === 0 ? 'checked' : ''}>
+                                        <label for="pay-${m}">${m.replace(/_/g, ' ')}</label>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                        <div class="checkout-section">
-                            <h3>Delivery</h3>
-                            <div class="checkout-info">Standard Shipping</div>
-                        </div>
+
                         <div id="checkout-status" class="checkout-status" style="display:none;"></div>
                     </div>
                     <div class="checkout-footer">
-                        <button id="checkout-place-order-btn" class="checkout-btn" style="background-color: ${window.D2C_CONFIG?.primaryColor || '#0d9488'};">
-                            Place Order
+                        <button id="checkout-place-order-btn" class="checkout-btn" style="background-color: ${primaryColor};">
+                            Place Order — $${(quote.grandTotal || 0).toFixed(2)}
                         </button>
                     </div>
                 </div>
             `;
             document.body.appendChild(overlay);
 
-            // Close on overlay click (outside modal)
+            // Close on overlay click
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.remove();
             });
 
+            // Toggle address/pickup/shipping sections based on delivery method
+            const deliverySelect = document.getElementById('checkout-delivery');
+            if (deliverySelect) {
+                deliverySelect.addEventListener('change', () => {
+                    const val = deliverySelect.value;
+                    const addrSec = document.getElementById('checkout-address-section');
+                    const pickupSec = document.getElementById('checkout-pickup-section');
+                    const shipSec = document.getElementById('checkout-shipping-section');
+                    if (addrSec) addrSec.style.display = val !== 'pickup' ? 'block' : 'none';
+                    if (pickupSec) pickupSec.style.display = val === 'pickup' ? 'block' : 'none';
+                    if (shipSec) shipSec.style.display = val === 'shipping_out' ? 'block' : 'none';
+                });
+            }
+
             document.getElementById('checkout-place-order-btn').addEventListener('click', () => {
-                this._processCheckout(cartItems, sellerId);
+                this._processCheckout(quote);
             });
         },
 
-        async _processCheckout(cartItems, sellerId) {
+        async _processCheckout(quote) {
             const btn = document.getElementById('checkout-place-order-btn');
             const status = document.getElementById('checkout-status');
+
+            // Gather selections
+            const deliveryMethod = document.getElementById('checkout-delivery')?.value || 'shipping_out';
+            const paymentMethod = document.querySelector('input[name="checkout-payment"]:checked')?.value || 'pickup_&_pay';
+            const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
+            const deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
+
             btn.disabled = true;
-            btn.textContent = 'Processing...';
+            btn.textContent = 'Placing order...';
             status.style.display = 'block';
+            status.textContent = 'Processing your order...';
 
             try {
-                // Step 1: Clear cart
-                status.textContent = 'Preparing cart...';
-                await this.clearCart(sellerId);
-
-                // Step 2: Add items
-                status.textContent = 'Adding items to cart...';
-                for (const item of cartItems) {
-                    await this.addToCart({
-                        productId: item._id,
-                        quantity: item.quantity || 1,
-                        sellerId: sellerId,
-                        name: item.name || 'Product',
-                        price: item.price || 0,
-                        discountedPrice: item.discountedPrice,
-                        image: item.image
-                    });
-                }
-
-                // Step 3: Create quote
-                status.textContent = 'Creating order quote...';
-                const quote = await this.createQuote(sellerId);
-                if (!quote) throw new Error('Failed to create quote');
-
-                // Step 4: Place order
-                status.textContent = 'Placing your order...';
-                const order = await this.placeOrder(quote._id || quote.id, 'pickup_&_pay', 'shipping_out');
+                const quoteId = quote._id || quote.id;
+                const order = await this.placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId);
                 if (!order) throw new Error('Failed to place order');
 
-                // Success!
                 status.textContent = '';
                 btn.textContent = 'Order Placed!';
                 btn.style.backgroundColor = '#16a34a';
 
-                // Clear the storefront cart
                 if (window.D2C_CART) {
                     window.D2C_CART.clear();
                 }
 
                 setTimeout(() => {
                     document.getElementById('d2c-checkout-overlay')?.remove();
-                    // Refresh orders in dashboard
                     this.getOrders();
                 }, 2000);
 
