@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Product } from '../types';
 import AddToCartButton from './AddToCartButton';
@@ -10,7 +10,11 @@ interface ProductDetailModalProps {
 }
 
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose, product }) => {
+  const [selectedImage, setSelectedImage] = useState(0);
+
   if (!isOpen || !product) return null;
+
+  const images = product.images?.length ? product.images : ['https://via.placeholder.com/300x200'];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center" onClick={onClose}>
@@ -23,7 +27,22 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
         </div>
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <img src={product.images?.[0] || 'https://via.placeholder.com/300x200'} alt={product.name} className="w-full h-auto rounded-lg" />
+            <img src={images[selectedImage]} alt={product.name} className="w-full h-80 object-contain rounded-lg bg-gray-50" />
+            {images.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto">
+                {images.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`${product.name} ${i + 1}`}
+                    onClick={() => setSelectedImage(i)}
+                    className={`w-16 h-16 object-cover rounded-md cursor-pointer border-2 ${
+                      i === selectedImage ? 'border-teal-500' : 'border-gray-200 hover:border-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <p className="text-gray-500 text-sm">{product.category}</p>
