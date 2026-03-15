@@ -26,24 +26,95 @@
             const params = new URLSearchParams(window.location.search);
             const status = params.get('status');
             if (!status) return;
+            const orderId = params.get('orderId');
 
-            // Clean URL without reloading
             window.history.replaceState({}, '', window.location.pathname);
 
-            // Clear cart on successful payment
-            if (status === 'success' && window.D2C_CART) {
-                window.D2C_CART.clear();
+            if (status === 'success') {
+                if (window.D2C_CART) window.D2C_CART.clear();
+                this._showOrderConfirmation(orderId);
+            } else {
+                const messages = {
+                    cancelled: 'Payment was cancelled. Your cart has been preserved.',
+                    failed: 'Payment failed. Please try again.',
+                    expired: 'Payment session expired. Please try again.',
+                    error: 'Something went wrong. Please try again.'
+                };
+                const banner = document.createElement('div');
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;padding:16px 24px;text-align:center;font-weight:600;font-size:15px;color:#fff;background:#dc2626;box-shadow:0 2px 8px rgba(0,0,0,0.15);cursor:pointer;';
+                banner.textContent = messages[status] || messages.error;
+                banner.onclick = () => banner.remove();
+                document.body.prepend(banner);
+                setTimeout(() => banner.remove(), 8000);
             }
+        },
 
-            // Show confirmation banner
-            const banner = document.createElement('div');
-            const isSuccess = status === 'success';
-            banner.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:10000;padding:16px 24px;text-align:center;font-weight:600;font-size:15px;color:#fff;background:${isSuccess ? '#16a34a' : '#dc2626'};box-shadow:0 2px 8px rgba(0,0,0,0.15);`;
-            banner.textContent = isSuccess
-                ? 'Payment successful! Your order has been placed.'
-                : 'Payment failed. Please try again.';
-            document.body.prepend(banner);
-            setTimeout(() => banner.remove(), 6000);
+        async _showOrderConfirmation(orderId) {
+            const primaryColor = window.D2C_CONFIG?.primaryColor || '#121212';
+            const overlay = document.createElement('div');
+            overlay.id = 'order-confirm-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.2);">
+                    <div style="text-align:center;padding:2.5rem 2rem 1.5rem;">
+                        <div style="width:64px;height:64px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <h2 style="margin:0 0 0.5rem;font-size:1.5rem;font-weight:900;color:#0f172a;">Order Confirmed!</h2>
+                        <p style="margin:0;color:#64748b;font-size:0.95rem;">Thank you for your purchase.</p>
+                    </div>
+                    <div id="order-confirm-details" style="padding:0 2rem;">
+                        <div style="text-align:center;padding:1rem;color:#94a3b8;font-size:0.9rem;">Loading order details...</div>
+                    </div>
+                    <div style="padding:1.5rem 2rem 2rem;display:flex;flex-direction:column;gap:0.75rem;">
+                        <button onclick="D2C_CUSTOMER.showDashboard();document.getElementById('order-confirm-overlay')?.remove();" style="width:100%;padding:0.875rem;border:1px solid ${primaryColor};background:transparent;color:${primaryColor};border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">View My Orders</button>
+                        <button onclick="document.getElementById('order-confirm-overlay')?.remove();" style="width:100%;padding:0.875rem;border:none;background:${primaryColor};color:#fff;border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">Continue Shopping</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            if (orderId && this.token) {
+                try {
+                    const orders = await this.getOrders();
+                    const order = orders?.find(o => (o._id || o.id) === orderId);
+                    const details = document.getElementById('order-confirm-details');
+                    if (order && details) {
+                        const shortId = (order._id || order.id || '').slice(-6).toUpperCase();
+                        details.innerHTML = `
+                            <div style="background:#f8fafc;border-radius:12px;padding:1.25rem;margin-bottom:0.5rem;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                                    <span style="font-size:0.8rem;color:#64748b;font-weight:600;">ORDER #${shortId}</span>
+                                    <span style="font-size:0.8rem;color:#64748b;">${new Date(order.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                ${order.items.map(item => `
+                                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-top:1px solid #e2e8f0;">
+                                        <div>
+                                            <div style="font-weight:600;font-size:0.9rem;color:#0f172a;">${item.name}</div>
+                                            <div style="font-size:0.8rem;color:#94a3b8;">Qty: ${item.quantity}</div>
+                                        </div>
+                                        <span style="font-weight:700;color:#0f172a;">$${((item.discountedPrice || item.price) * item.quantity).toFixed(2)}</span>
+                                    </div>
+                                `).join('')}
+                                <div style="border-top:2px solid #e2e8f0;margin-top:0.75rem;padding-top:0.75rem;">
+                                    ${order.shippingCost ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.25rem;"><span>Shipping</span><span>$${order.shippingCost.toFixed(2)}</span></div>` : ''}
+                                    ${order.taxAmount ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;"><span>Tax</span><span>$${order.taxAmount.toFixed(2)}</span></div>` : ''}
+                                    <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:#0f172a;">
+                                        <span>Total</span>
+                                        <span>$${(order.grandTotal || 0).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>`;
+                    } else if (details) {
+                        details.innerHTML = '';
+                    }
+                } catch {
+                    const details = document.getElementById('order-confirm-details');
+                    if (details) details.innerHTML = '';
+                }
+            } else {
+                const details = document.getElementById('order-confirm-details');
+                if (details) details.innerHTML = '';
+            }
         },
 
         async fetchProfile() {
@@ -552,10 +623,11 @@
                     window.D2C_CART.clear();
                 }
 
+                const placedOrderId = result._id || result.id || '';
                 setTimeout(() => {
                     document.getElementById('d2c-checkout-overlay')?.remove();
-                    this.getOrders();
-                }, 2000);
+                    this._showOrderConfirmation(placedOrderId);
+                }, 1000);
 
             } catch (err) {
                 console.error('Checkout failed:', err);
