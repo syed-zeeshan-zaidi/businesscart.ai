@@ -67,13 +67,14 @@ const GatewayConfigPanel: React.FC<{
   onDeleted: () => void;
 }> = ({ gateway, sellerId, existingConfig, onSaved, onDeleted }) => {
   const fieldDef = GATEWAY_FIELDS[gateway];
-  if (!fieldDef) return null;
 
   const [sandbox, setSandbox] = useState(existingConfig?.sandbox ?? true);
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [sandboxCredentials, setSandboxCredentials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(!existingConfig);
+
+  if (!fieldDef) return null;
 
   const isConfigured = !!existingConfig;
 
