@@ -8,9 +8,9 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/syed/businesscart/checkout-service/internal/cart"
 	"github.com/syed/businesscart/checkout-service/internal/config"
+	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/handler"
 	"github.com/syed/businesscart/checkout-service/internal/order"
-	"github.com/syed/businesscart/checkout-service/internal/payment"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -30,9 +30,29 @@ func main() {
 	cartService := cart.NewService(db)
 	quoteService := quote.NewService(db)
 	orderService := order.NewService(db)
-	paymentService := payment.NewPaymentService()
 
-	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, paymentService, cfg.JWTSecret)
+	// Initialize gateway system
+	var gatewayStore *gateway.Store
+	gatewayRegistry := gateway.NewRegistry()
+	gatewayRegistry.Register("amazon_pay", gateway.NewAmazonPayGateway())
+	gatewayRegistry.Register("stripe_pay", gateway.NewStripeGateway())
+	gatewayRegistry.Register("credit_card", gateway.NewAuthorizeNetGateway())
+	gatewayRegistry.Register("pickup_&_pay", gateway.NewOfflineGateway())
+	gatewayRegistry.Register("deliver_pay", gateway.NewOfflineGateway())
+	gatewayRegistry.Register("purchase_order", gateway.NewOfflineGateway())
+
+	if cfg.GatewayEncryptionKey != "" {
+		var err error
+		gatewayStore, err = gateway.NewStore(db, cfg.GatewayEncryptionKey)
+		if err != nil {
+			log.Fatalf("Gateway store init failed: %v", err)
+		}
+		log.Println("Gateway store initialized successfully.")
+	} else {
+		log.Println("WARNING: GATEWAY_ENCRYPTION_KEY not set. Payment gateway features will be unavailable.")
+	}
+
+	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, gatewayStore, gatewayRegistry, cfg.JWTSecret, cfg.APIBaseURL)
 
 	log.Println("Starting Lambda handler...")
 	lambda.Start(func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

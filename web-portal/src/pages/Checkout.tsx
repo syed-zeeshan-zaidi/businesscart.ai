@@ -6,6 +6,10 @@ import { useAuth } from '../hooks/useAuth';
 import { Quote } from '../types';
 import { createOrder, getQuote } from '../api';
 
+declare global {
+  interface Window { amazon?: any; }
+}
+
 const Checkout: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -52,7 +56,7 @@ const Checkout: React.FC = () => {
     if (!quote) return [];
 
     if (selectedDeliveryMethod !== 'pickup') {
-      return quote.availablePaymentMethods.filter(p => p !== 'pickup_pay');
+      return quote.availablePaymentMethods.filter(p => p !== 'pickup_&_pay');
     }
     return quote.availablePaymentMethods;
   }, [quote, selectedDeliveryMethod]);
@@ -67,6 +71,85 @@ const Checkout: React.FC = () => {
     }
   }, [filteredPaymentMethods, selectedPaymentMethod]);
 
+  const [amazonPayConfig, setAmazonPayConfig] = useState<any>(null);
+  const [amazonPayLoading, setAmazonPayLoading] = useState(false);
+
+  // Check if all required delivery selections are complete
+  const isDeliveryComplete = useMemo(() => {
+    if (!selectedDeliveryMethod) return false;
+    if (selectedDeliveryMethod === 'pickup' && !selectedPickupLocation) return false;
+    if (selectedDeliveryMethod !== 'pickup' && !selectedDeliveryAddress) return false;
+    return true;
+  }, [selectedDeliveryMethod, selectedPickupLocation, selectedDeliveryAddress]);
+
+  // When Amazon Pay is selected and delivery is complete, fetch button config
+  useEffect(() => {
+    if (selectedPaymentMethod !== 'amazon_pay' || !isDeliveryComplete || !quote) {
+      setAmazonPayConfig(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchConfig = async () => {
+      setAmazonPayLoading(true);
+      try {
+        const result = await createOrder({
+          quoteId: quote.id,
+          paymentMethod: 'amazon_pay',
+          deliveryMethod: selectedDeliveryMethod,
+          pickupLocationId: selectedDeliveryMethod === 'pickup' ? selectedPickupLocation : undefined,
+          deliveryAddressId: selectedDeliveryMethod !== 'pickup' ? selectedDeliveryAddress : undefined,
+          returnUrl: window.location.origin + '/order-success',
+        }) as any;
+
+        if (!cancelled && result.buttonConfig) {
+          setAmazonPayConfig(result.buttonConfig);
+        }
+      } catch {
+        if (!cancelled) setAmazonPayConfig(null);
+      } finally {
+        if (!cancelled) setAmazonPayLoading(false);
+      }
+    };
+    fetchConfig();
+    return () => { cancelled = true; };
+  }, [selectedPaymentMethod, selectedDeliveryMethod, selectedPickupLocation, selectedDeliveryAddress, quote, isDeliveryComplete]);
+
+  // Render Amazon Pay button when config is available
+  useEffect(() => {
+    if (!amazonPayConfig) return;
+
+    const initButton = () => {
+      const container = document.getElementById('AmazonPayButton');
+      if (!container || !window.amazon) return;
+      container.innerHTML = '';
+      window.amazon.Pay.renderButton('#AmazonPayButton', {
+        merchantId: amazonPayConfig.merchantId,
+        publicKeyId: amazonPayConfig.publicKeyId,
+        ledgerCurrency: amazonPayConfig.ledgerCurrency || 'USD',
+        sandbox: amazonPayConfig.sandbox === 'true',
+        checkoutLanguage: 'en_US',
+        productType: 'PayOnly',
+        placement: 'Checkout',
+        createCheckoutSessionConfig: {
+          payloadJSON: amazonPayConfig.payloadJSON,
+          signature: amazonPayConfig.signature,
+          algorithm: 'AMZN-PAY-RSASSA-PSS-V2',
+        },
+      });
+    };
+
+    if (window.amazon) {
+      setTimeout(initButton, 50);
+    } else if (!document.getElementById('amazon-pay-script')) {
+      const script = document.createElement('script');
+      script.id = 'amazon-pay-script';
+      script.src = 'https://static-na.payments-amazon.com/checkout.js';
+      script.onload = () => setTimeout(initButton, 50);
+      document.head.appendChild(script);
+    }
+  }, [amazonPayConfig]);
+
   const handlePlaceOrder = async () => {
     if (!quote) {
       toast.error('No quote available to place an order.');
@@ -76,37 +159,30 @@ const Checkout: React.FC = () => {
       toast.error('Please select a payment method.');
       return;
     }
-    if (selectedDeliveryMethod === 'pickup' && !selectedPickupLocation) {
-      toast.error('Please select a pickup location.');
+    if (!isDeliveryComplete) {
+      toast.error('Please complete delivery selections.');
       return;
-    }
-    if (selectedDeliveryMethod !== 'pickup' && !selectedDeliveryAddress) {
-      toast.error('Please select a delivery address.');
-      return;
-    }
-    
-    let token = 'tok_placeholder';
-    if (selectedPaymentMethod === 'stripe') {
-        token = 'tok_stripe_valid';
-    } else if (selectedPaymentMethod === 'amazon_pay') {
-        token = 'amz_pay_valid';
-    } else if (selectedPaymentMethod === 'pickup_pay') {
-        token = 'offline_payment';
     }
 
     setLoading(true);
     const toastId = toast.loading('Placing your order...');
     try {
-      await createOrder({ 
-        quoteId: quote.id, 
-        paymentMethod: selectedPaymentMethod, 
-        paymentToken: token,
+      const result = await createOrder({
+        quoteId: quote.id,
+        paymentMethod: selectedPaymentMethod,
         deliveryMethod: selectedDeliveryMethod,
         pickupLocationId: selectedDeliveryMethod === 'pickup' ? selectedPickupLocation : undefined,
         deliveryAddressId: selectedDeliveryMethod !== 'pickup' ? selectedDeliveryAddress : undefined,
-      });
-      toast.success('Order placed successfully!', { id: toastId });
-      navigate('/order-success');
+        returnUrl: window.location.origin + '/order-success',
+      }) as any;
+
+      if (result.redirectUrl) {
+        toast.success('Redirecting to payment provider...', { id: toastId });
+        window.location.href = result.redirectUrl;
+      } else {
+        toast.success('Order placed successfully!', { id: toastId });
+        navigate('/order-success');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to place order.', { id: toastId });
     } finally {
@@ -281,13 +357,26 @@ const Checkout: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={handlePlaceOrder}
-              className="w-full px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold disabled:opacity-50"
-              disabled={!selectedPaymentMethod || loading}
-            >
-              {loading ? 'Placing Order...' : 'Place Order'}
-            </button>
+            {selectedPaymentMethod === 'amazon_pay' ? (
+              <div className="bg-white shadow-lg rounded-lg p-6 text-center">
+                {amazonPayLoading && <p className="text-sm text-gray-500">Loading Amazon Pay...</p>}
+                {!amazonPayLoading && !amazonPayConfig && isDeliveryComplete && (
+                  <p className="text-sm text-red-500">Failed to load Amazon Pay. Please try again.</p>
+                )}
+                {!isDeliveryComplete && (
+                  <p className="text-sm text-gray-500">Complete delivery selections above to pay with Amazon Pay</p>
+                )}
+                <div id="AmazonPayButton"></div>
+              </div>
+            ) : (
+              <button
+                onClick={handlePlaceOrder}
+                className="w-full px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold disabled:opacity-50"
+                disabled={!selectedPaymentMethod || !isDeliveryComplete || loading}
+              >
+                {loading ? 'Placing Order...' : 'Place Order'}
+              </button>
+            )}
           </div>
         </div>
       </main>
