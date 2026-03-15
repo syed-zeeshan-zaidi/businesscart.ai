@@ -3,15 +3,19 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/syed/businesscart/checkout-service/internal/cart"
+	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/order"
-	"github.com/syed/businesscart/checkout-service/internal/payment"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -47,22 +51,26 @@ type PatchRequest struct {
 
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
-	requestOrigin  string
-	cartService    *cart.Service
-	quoteService   *quote.Service
-	orderService   *order.Service
-	paymentService *payment.PaymentService
-	jwtSecret      string
+	requestOrigin   string
+	cartService     *cart.Service
+	quoteService    *quote.Service
+	orderService    *order.Service
+	gatewayStore    *gateway.Store
+	gatewayRegistry *gateway.Registry
+	jwtSecret       string
+	apiBaseURL      string
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, paymentService *payment.PaymentService, jwtSecret string) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string) *LambdaHandler {
 	return &LambdaHandler{
-		cartService:    cartService,
-		quoteService:   quoteService,
-		orderService:   orderService,
-		paymentService: paymentService,
-		jwtSecret:      jwtSecret,
+		cartService:     cartService,
+		quoteService:    quoteService,
+		orderService:    orderService,
+		gatewayStore:    gatewayStore,
+		gatewayRegistry: gatewayRegistry,
+		jwtSecret:       jwtSecret,
+		apiBaseURL:      apiBaseURL,
 	}
 }
 
@@ -82,6 +90,11 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	}
 
 	log.Printf("Received event: %+v", request)
+
+	// Handle payment endpoints BEFORE JWT validation (browser redirects, no auth)
+	if strings.HasPrefix(request.Path, "/checkout/payment-return") {
+		return h.handlePaymentReturnRequest(request)
+	}
 
 	// Validate JWT token
 	authHeader, ok := request.Headers["Authorization"]
@@ -174,6 +187,8 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.handleQuoteRequest(request, accountID, role, configurations)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
+	} else if strings.HasPrefix(request.Path, "/checkout/gateways") {
+		return h.handleGatewayRequest(request, accountID, role)
 	}
 
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
@@ -378,10 +393,10 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 	var req struct {
 		QuoteID           string `json:"quoteId"`
 		PaymentMethod     string `json:"paymentMethod"`
-		PaymentToken      string `json:"paymentToken"`
 		PickupLocationID  string `json:"pickupLocationId,omitempty"`
 		DeliveryAddressID string `json:"deliveryAddressId,omitempty"`
 		DeliveryMethod    string `json:"deliveryMethod"`
+		ReturnURL         string `json:"returnUrl,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -392,37 +407,139 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
 	}
 
-	quote, err := h.quoteService.GetQuote(quoteID)
+	q, err := h.quoteService.GetQuote(quoteID)
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
 	}
 
-	// Ensure the quote is approved before placing an order
-	if quote.Status != "approved" {
+	if q.AccountID != accountID {
+		return h.errorResponse(http.StatusForbidden, "You do not own this quote"), nil
+	}
+
+	if q.Status != "approved" {
 		return h.errorResponse(http.StatusForbidden, "Quote is not approved for order placement"), nil
 	}
 
-	// Process payment
-	transactionID, ok := h.paymentService.ProcessPayment(quote.GrandTotal, req.PaymentMethod, req.PaymentToken)
-	if !ok {
-		return h.errorResponse(http.StatusPaymentRequired, "Payment failed"), nil
+	if h.gatewayStore == nil {
+		return h.errorResponse(http.StatusServiceUnavailable, "Payment gateway service not configured"), nil
 	}
 
+	ctx := context.Background()
+
+	// Look up gateway — first check seller-specific config, then fall back to registry (offline methods)
+	gatewayConfig, gwErr := h.gatewayStore.GetConfig(ctx, q.SellerID, req.PaymentMethod)
+
+	gw, gwRegistered := h.gatewayRegistry.Get(req.PaymentMethod)
+	if !gwRegistered {
+		return h.errorResponse(http.StatusBadRequest, "Unsupported payment method: "+req.PaymentMethod), nil
+	}
+
+	// Determine which credentials to use (sandbox vs production)
+	var credentials map[string]string
+	var sandbox bool
+	if gwErr == nil && gatewayConfig != nil {
+		sandbox = gatewayConfig.Sandbox
+		if sandbox {
+			credentials = gatewayConfig.SandboxCredentials
+			if len(credentials) == 0 {
+				return h.errorResponse(http.StatusBadRequest, "Sandbox credentials not configured for "+req.PaymentMethod), nil
+			}
+		} else {
+			credentials = gatewayConfig.Credentials
+			if len(credentials) == 0 {
+				return h.errorResponse(http.StatusBadRequest, "Production credentials not configured for "+req.PaymentMethod), nil
+			}
+		}
+	}
+
+	callbackURL := h.apiBaseURL + "/checkout/payment-return"
+	sessionReq := gateway.SessionRequest{
+		Amount:      q.GrandTotal,
+		Currency:    "USD",
+		CallbackURL: callbackURL,
+		Credentials: credentials,
+		MerchantRef: q.ID.Hex(),
+		Sandbox:     sandbox,
+	}
+
+	sessionResp, err := gw.CreateSession(ctx, sessionReq)
+	if err != nil {
+		log.Printf("Gateway CreateSession failed for %s: %v", req.PaymentMethod, err)
+		return h.errorResponse(http.StatusInternalServerError, "Payment processing failed. Please try again."), nil
+	}
+
+	if sessionResp.RedirectURL != "" || sessionResp.ButtonConfig != nil {
+		// Redirect-based or button-based payment
+		returnURL := req.ReturnURL
+		if returnURL == "" {
+			returnURL = h.requestOrigin
+		}
+		if !isAllowedReturnURL(returnURL) {
+			returnURL = h.requestOrigin
+		}
+
+		paymentSession := &gateway.PaymentSession{
+			QuoteID:           req.QuoteID,
+			AccountID:         accountID,
+			SellerID:          q.SellerID,
+			PaymentMethod:     req.PaymentMethod,
+			DeliveryMethod:    req.DeliveryMethod,
+			PickupLocationID:  req.PickupLocationID,
+			DeliveryAddressID: req.DeliveryAddressID,
+			Amount:            q.GrandTotal,
+			Currency:          "USD",
+			ProviderSessionID: sessionResp.ProviderSessionID,
+			InvoiceRef:        sessionResp.InvoiceRef,
+			RedirectURL:       sessionResp.RedirectURL,
+			ReturnURL:         returnURL,
+		}
+		if err := h.gatewayStore.CreateSession(ctx, paymentSession); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to create payment session"), nil
+		}
+
+		response := map[string]interface{}{
+			"paymentSessionId": paymentSession.ID.Hex(),
+		}
+		if sessionResp.RedirectURL != "" {
+			response["redirectUrl"] = sessionResp.RedirectURL
+		}
+		if sessionResp.ButtonConfig != nil {
+			response["buttonConfig"] = sessionResp.ButtonConfig
+		}
+
+		respBody, _ := json.Marshal(response)
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusAccepted,
+			Headers:    corsHeaders(h.requestOrigin),
+			Body:       string(respBody),
+		}, nil
+	}
+
+	// Direct payment (offline: pickup_&_pay, deliver_pay, purchase_order)
+	completion, err := gw.CompleteSession(ctx, sessionResp.ProviderSessionID, sessionResp.InvoiceRef, q.GrandTotal, "USD", credentials, sandbox)
+	if err != nil {
+		return h.errorResponse(http.StatusPaymentRequired, "Payment processing failed"), nil
+	}
+
+	return h.createOrderFromQuote(q, accountID, req.PaymentMethod, req.DeliveryMethod, completion.TransactionID, req.PickupLocationID, req.DeliveryAddressID)
+}
+
+func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentMethod, deliveryMethod, transactionID, pickupLocationID, deliveryAddressID string) (events.APIGatewayProxyResponse, error) {
 	newOrder := &order.Order{
 		ID:                primitive.NewObjectID(),
-		QuoteID:           quote.ID,
+		QuoteID:           q.ID,
 		AccountID:         accountID,
-		SellerID:          quote.SellerID,
-		Items:             quote.Items,
-		Subtotal:          quote.Subtotal,
-		ShippingCost:      quote.ShippingCost,
-		TaxAmount:         quote.TaxAmount,
-		GrandTotal:        quote.GrandTotal,
-		PaymentMethod:     req.PaymentMethod,
-		DeliveryMethod:    req.DeliveryMethod,
+		SellerID:          q.SellerID,
+		Items:             q.Items,
+		Subtotal:          q.Subtotal,
+		ShippingCost:      q.ShippingCost,
+		TaxAmount:         q.TaxAmount,
+		GrandTotal:        q.GrandTotal,
+		PaymentMethod:     paymentMethod,
+		DeliveryMethod:    deliveryMethod,
 		TransactionID:     transactionID,
-		PickupLocationID:  req.PickupLocationID,
-		DeliveryAddressID: req.DeliveryAddressID,
+		PickupLocationID:  pickupLocationID,
+		DeliveryAddressID: deliveryAddressID,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -430,23 +547,17 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create order"), nil
 	}
 
-	// Clean up cart and quote
-	_ = h.cartService.ClearCart(accountID, quote.SellerID)
-	if quote.QuoteType == "negotiable" {
-		_, err = h.quoteService.UpdateQuoteStatus(quote.ID, "ordered")
+	_ = h.cartService.ClearCart(accountID, q.SellerID)
+	if q.QuoteType == "negotiable" {
+		_, err = h.quoteService.UpdateQuoteStatus(q.ID, "ordered")
 		if err != nil {
 			log.Printf("Failed to update quote status to ordered: %v", err)
 		}
 	} else {
-		_ = h.quoteService.DeleteQuote(req.QuoteID)
+		_ = h.quoteService.DeleteQuote(q.ID.Hex())
 	}
 
-	respBody, _ := json.Marshal(createdOrder)
-	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusOK,
-		Headers:    corsHeaders(h.requestOrigin),
-		Body:       string(respBody),
-	}, nil
+	return h.successResponse(createdOrder), nil
 }
 
 func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
@@ -794,4 +905,317 @@ func (h *LambdaHandler) successResponse(data interface{}) events.APIGatewayProxy
 		Headers:    corsHeaders(h.requestOrigin),
 		Body:       string(respBody),
 	}
+}
+
+func (h *LambdaHandler) redirectResponse(redirectURL string) (events.APIGatewayProxyResponse, error) {
+	return events.APIGatewayProxyResponse{
+		StatusCode: 302,
+		Headers: map[string]string{
+			"Location": redirectURL,
+		},
+	}, nil
+}
+
+func isAllowedReturnURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := parsed.Hostname()
+	// Allow businesscart.ai and all subdomains
+	if host == "businesscart.ai" || strings.HasSuffix(host, ".businesscart.ai") {
+		return true
+	}
+	// Allow localhost for development
+	if host == "localhost" || host == "127.0.0.1" {
+		return true
+	}
+	return false
+}
+
+func (h *LambdaHandler) handleAmazonPayInitRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	checkoutSessionID := request.QueryStringParameters["checkoutSessionId"]
+	merchantID := request.QueryStringParameters["merchantId"]
+	sandbox := request.QueryStringParameters["sandbox"] == "true"
+	currency := request.QueryStringParameters["currency"]
+	if currency == "" {
+		currency = "USD"
+	}
+
+	if checkoutSessionID == "" || merchantID == "" {
+		return h.errorResponse(http.StatusBadRequest, "Missing required parameters"), nil
+	}
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redirecting to Amazon Pay</title>
+<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}
+.c{text-align:center;padding:2rem}.sp{width:40px;height:40px;border:4px solid #ddd;border-top:4px solid #f90;border-radius:50%%;animation:s 1s linear infinite;margin:0 auto 1rem}
+@keyframes s{to{transform:rotate(360deg)}}</style></head>
+<body><div class="c"><div class="sp"></div><p>Redirecting to Amazon Pay...</p></div>
+<script src="https://static-na.payments-amazon.com/checkout.js"></script>
+<script>
+amazon.Pay.initCheckout({merchantId:'%s',ledgerCurrency:'%s',sandbox:%t,
+checkoutSessionId:'%s',productType:'PayOnly',placement:'Checkout'});
+</script></body></html>`, merchantID, currency, sandbox, checkoutSessionID)
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers:    map[string]string{"Content-Type": "text/html; charset=utf-8"},
+		Body:       html,
+	}, nil
+}
+
+func buildRedirectURL(base, status, orderID string) string {
+	u, err := url.Parse(base)
+	if err != nil {
+		return base + "?status=" + status
+	}
+	q := u.Query()
+	q.Set("status", status)
+	if orderID != "" {
+		q.Set("orderId", orderID)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// --- Gateway Config CRUD (company/admin only) ---
+
+func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "company" && role != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Only company or admin can manage gateways"), nil
+	}
+	if h.gatewayStore == nil {
+		return h.errorResponse(http.StatusServiceUnavailable, "Gateway service not configured"), nil
+	}
+
+	parts := strings.Split(request.Path, "/")
+	if len(parts) < 4 {
+		return h.errorResponse(http.StatusBadRequest, "Seller ID required"), nil
+	}
+	sellerID := parts[3]
+
+	if role == "company" && sellerID != accountID {
+		return h.errorResponse(http.StatusForbidden, "Cannot manage gateways for another company"), nil
+	}
+
+	ctx := context.Background()
+
+	switch request.HTTPMethod {
+	case "PUT":
+		var req struct {
+			Gateway            string            `json:"gateway"`
+			DisplayName        string            `json:"displayName"`
+			Credentials        map[string]string `json:"credentials"`
+			SandboxCredentials map[string]string `json:"sandboxCredentials"`
+			Sandbox            bool              `json:"sandbox"`
+		}
+		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+		}
+
+		if req.Gateway == "" {
+			return h.errorResponse(http.StatusBadRequest, "gateway is required"), nil
+		}
+
+		// Validate credentials with the gateway implementation
+		gw, ok := h.gatewayRegistry.Get(req.Gateway)
+		if ok {
+			if len(req.Credentials) > 0 {
+				if err := gw.ValidateCredentials(req.Credentials); err != nil {
+					return h.errorResponse(http.StatusBadRequest, "Invalid production credentials: "+err.Error()), nil
+				}
+			}
+			if len(req.SandboxCredentials) > 0 {
+				if err := gw.ValidateCredentials(req.SandboxCredentials); err != nil {
+					return h.errorResponse(http.StatusBadRequest, "Invalid sandbox credentials: "+err.Error()), nil
+				}
+			}
+		}
+
+		config := &gateway.GatewayConfig{
+			SellerID:           sellerID,
+			Gateway:            req.Gateway,
+			DisplayName:        req.DisplayName,
+			Credentials:        req.Credentials,
+			SandboxCredentials: req.SandboxCredentials,
+			Sandbox:            req.Sandbox,
+		}
+		if err := h.gatewayStore.SaveConfig(ctx, config); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to save gateway config"), nil
+		}
+
+		return h.successResponse(map[string]string{"message": "Gateway configured successfully"}), nil
+
+	case "GET":
+		configs, err := h.gatewayStore.ListConfigs(ctx, sellerID)
+		if err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to list gateway configs"), nil
+		}
+		return h.successResponse(configs), nil
+
+	case "DELETE":
+		if len(parts) < 5 {
+			return h.errorResponse(http.StatusBadRequest, "Gateway name required in path"), nil
+		}
+		gatewayName := parts[4]
+		if err := h.gatewayStore.DeleteConfig(ctx, sellerID, gatewayName); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to delete gateway config"), nil
+		}
+		return h.successResponse(map[string]string{"message": "Gateway removed"}), nil
+	}
+
+	return h.errorResponse(http.StatusMethodNotAllowed, "Method not allowed"), nil
+}
+
+// --- Payment Return (browser redirect from payment provider, NO JWT) ---
+
+func (h *LambdaHandler) handlePaymentReturnRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	if h.gatewayStore == nil {
+		return h.errorResponse(http.StatusServiceUnavailable, "Gateway service not configured"), nil
+	}
+
+	ctx := context.Background()
+
+	// Amazon Pay button flow uses "psid" (our session ID) + "amazonCheckoutSessionId" (Amazon's ID)
+	// Stripe/Authorize.net use "sessionId" (provider's session ID which is also our providerSessionId)
+	providerSessionID := request.QueryStringParameters["psid"]
+	amazonCheckoutSessionID := request.QueryStringParameters["amazonCheckoutSessionId"]
+	if providerSessionID == "" {
+		providerSessionID = request.QueryStringParameters["amazonCheckoutSessionId"]
+	}
+	if providerSessionID == "" {
+		providerSessionID = request.QueryStringParameters["sessionId"]
+	}
+	if providerSessionID == "" {
+		return h.errorResponse(http.StatusBadRequest, "Missing payment session ID"), nil
+	}
+
+	// Handle user-cancelled payments (e.g., Stripe cancel button)
+	if request.QueryStringParameters["cancelled"] == "true" {
+		session, err := h.gatewayStore.GetSessionByProviderID(ctx, providerSessionID)
+		if err == nil && session.Status == "pending" {
+			_ = h.gatewayStore.UpdateSessionStatus(ctx, session.ID, "cancelled")
+		}
+		cancelURL := ""
+		if session != nil && session.ReturnURL != "" {
+			cancelURL = session.ReturnURL
+		}
+		if cancelURL == "" && session != nil && session.RedirectURL != "" {
+			cancelURL = session.RedirectURL
+		}
+		if cancelURL == "" {
+			return h.errorResponse(http.StatusBadRequest, "Payment cancelled but no return URL available"), nil
+		}
+		return h.redirectResponse(buildRedirectURL(cancelURL, "cancelled", ""))
+	}
+
+	// First check if session exists and get returnURL for error redirects
+	existingSession, err := h.gatewayStore.GetSessionByProviderID(ctx, providerSessionID)
+	if err != nil {
+		log.Printf("Payment session not found for provider ID %s: %v", providerSessionID, err)
+		return h.errorResponse(http.StatusNotFound, "Payment session not found"), nil
+	}
+
+	// Already processed — redirect to result (idempotent)
+	if existingSession.Status != "pending" {
+		return h.redirectResponse(buildRedirectURL(existingSession.ReturnURL, existingSession.Status, ""))
+	}
+
+	// Check expiry before processing
+	if time.Now().After(existingSession.ExpiresAt) {
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, existingSession.ID, "expired")
+		return h.redirectResponse(buildRedirectURL(existingSession.ReturnURL, "expired", ""))
+	}
+
+	// Atomically claim the session (pending → processing) to prevent duplicate orders
+	paymentSession, err := h.gatewayStore.ClaimSession(ctx, providerSessionID)
+	if err != nil {
+		// Another request already claimed it — redirect as already processed
+		return h.redirectResponse(buildRedirectURL(existingSession.ReturnURL, "completed", ""))
+	}
+
+	// Get seller's gateway config
+	gatewayConfig, err := h.gatewayStore.GetConfig(ctx, paymentSession.SellerID, paymentSession.PaymentMethod)
+	if err != nil {
+		log.Printf("Gateway config not found for seller %s, method %s: %v", paymentSession.SellerID, paymentSession.PaymentMethod, err)
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "failed", ""))
+	}
+
+	gw, ok := h.gatewayRegistry.Get(paymentSession.PaymentMethod)
+	if !ok {
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "failed", ""))
+	}
+
+	// Select credentials without mutating the original map
+	credentials := gatewayConfig.Credentials
+	sandbox := gatewayConfig.Sandbox
+	if sandbox {
+		credentials = gatewayConfig.SandboxCredentials
+	}
+
+	// Complete the payment with the provider
+	// For Amazon Pay button flow, use Amazon's checkout session ID for the API call
+	completeSessionID := providerSessionID
+	if amazonCheckoutSessionID != "" {
+		completeSessionID = amazonCheckoutSessionID
+	}
+	completion, err := gw.CompleteSession(ctx, completeSessionID, paymentSession.InvoiceRef, paymentSession.Amount, paymentSession.Currency, credentials, sandbox)
+	if err != nil {
+		log.Printf("Gateway CompleteSession failed: %v", err)
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "failed", ""))
+	}
+
+	if completion.Status != "completed" {
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "failed", ""))
+	}
+
+	// Payment successful — create order from quote
+	quoteID, err := primitive.ObjectIDFromHex(paymentSession.QuoteID)
+	if err != nil {
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
+	}
+
+	q, err := h.quoteService.GetQuote(quoteID)
+	if err != nil {
+		log.Printf("Quote %s not found during payment return: %v", paymentSession.QuoteID, err)
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
+	}
+
+	// Verify quote amount matches what was charged (compare as cents to avoid float precision issues)
+	if int(math.Round(q.GrandTotal*100)) != int(math.Round(paymentSession.Amount*100)) {
+		log.Printf("Amount mismatch: quote=%.2f, charged=%.2f for session %s", q.GrandTotal, paymentSession.Amount, providerSessionID)
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
+	}
+
+	resp, _ := h.createOrderFromQuote(q, paymentSession.AccountID, paymentSession.PaymentMethod, paymentSession.DeliveryMethod, completion.TransactionID, paymentSession.PickupLocationID, paymentSession.DeliveryAddressID)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Order creation failed after successful payment for session %s: %s", providerSessionID, resp.Body)
+		_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "failed")
+		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
+	}
+
+	_ = h.gatewayStore.UpdateSessionStatus(ctx, paymentSession.ID, "completed")
+
+	var orderResult map[string]interface{}
+	orderID := ""
+	if err := json.Unmarshal([]byte(resp.Body), &orderResult); err == nil {
+		if id, ok := orderResult["id"].(string); ok {
+			orderID = id
+		}
+	}
+
+	return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "success", orderID))
 }

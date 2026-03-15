@@ -168,13 +168,46 @@ export const deleteOrder = async (id: string): Promise<void> => {
 export const createOrder = async (data: {
   quoteId: string;
   paymentMethod: string;
-  paymentToken: string;
   deliveryMethod: string;
   pickupLocationId?: string;
   deliveryAddressId?: string;
-}): Promise<Order> => {
+  returnUrl?: string;
+}): Promise<Order | { redirectUrl: string; paymentSessionId: string }> => {
   const response = await api.post(`${API_URL}/checkout/orders`, data);
   return response.data;
+};
+
+// --- Payment Gateway Config ---
+
+export interface GatewayConfigResponse {
+  id: string;
+  sellerId: string;
+  gateway: string;
+  displayName: string;
+  sandbox: boolean;
+  credentialKeys: string[];
+  sandboxCredentialKeys: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getGatewayConfigs = async (sellerId: string): Promise<GatewayConfigResponse[]> => {
+  const response = await api.get(`${API_URL}/checkout/gateways/${sellerId}`);
+  return response.data;
+};
+
+export const saveGatewayConfig = async (sellerId: string, data: {
+  gateway: string;
+  displayName: string;
+  credentials?: Record<string, string>;
+  sandboxCredentials?: Record<string, string>;
+  sandbox: boolean;
+}): Promise<void> => {
+  await api.put(`${API_URL}/checkout/gateways/${sellerId}`, data);
+};
+
+export const deleteGatewayConfig = async (sellerId: string, gateway: string): Promise<void> => {
+  await api.delete(`${API_URL}/checkout/gateways/${sellerId}/${gateway}`);
 };
 
 export const getOrders = async (sellerId?: string): Promise<Order[]> => {

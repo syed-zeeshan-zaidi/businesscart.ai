@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAccounts, updateAccount, getAccount, regenerateStorefront } from '../api';
+import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, GatewayConfigResponse } from '../api';
 import { Account, CompanyData } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
@@ -14,7 +14,6 @@ const PAYMENT_OPTIONS = [
   'credit_card',
   'purchase_order',
   'amazon_pay',
-  'google_pay',
   'stripe_pay',
   'pickup_&_pay',
   'deliver_pay'
@@ -25,6 +24,189 @@ const SHIPPING_OPTIONS = ['standard', 'express'] as const;
 
 type DeliveryMethod = typeof DELIVERY_OPTIONS[number];
 type ShippingOutOption = typeof SHIPPING_OPTIONS[number];
+
+/* ---------- gateway credential field definitions ---------- */
+const GATEWAY_FIELDS: Record<string, {
+  displayName: string;
+  fields: Array<{ key: string; label: string; type: 'text' | 'textarea' | 'select'; options?: string[] }>;
+}> = {
+  amazon_pay: {
+    displayName: 'Amazon Pay',
+    fields: [
+      { key: 'merchantId', label: 'Merchant ID', type: 'text' },
+      { key: 'storeId', label: 'Store ID', type: 'text' },
+      { key: 'publicKeyId', label: 'Public Key ID', type: 'text' },
+      { key: 'privateKey', label: 'Private Key (PEM)', type: 'textarea' },
+      { key: 'region', label: 'Region', type: 'select', options: ['na', 'eu', 'jp'] },
+    ],
+  },
+  stripe_pay: {
+    displayName: 'Stripe',
+    fields: [
+      { key: 'secretKey', label: 'Secret Key', type: 'text' },
+    ],
+  },
+  credit_card: {
+    displayName: 'Authorize.net (Credit Card)',
+    fields: [
+      { key: 'apiLoginId', label: 'API Login ID', type: 'text' },
+      { key: 'transactionKey', label: 'Transaction Key', type: 'text' },
+    ],
+  },
+};
+
+// Payment methods that need gateway credentials (others are offline and just work)
+const METHODS_NEEDING_CREDENTIALS = Object.keys(GATEWAY_FIELDS);
+
+/* ---------- gateway config panel per payment method ---------- */
+const GatewayConfigPanel: React.FC<{
+  gateway: string;
+  sellerId: string;
+  existingConfig?: GatewayConfigResponse;
+  onSaved: () => void;
+  onDeleted: () => void;
+}> = ({ gateway, sellerId, existingConfig, onSaved, onDeleted }) => {
+  const fieldDef = GATEWAY_FIELDS[gateway];
+  if (!fieldDef) return null;
+
+  const [sandbox, setSandbox] = useState(existingConfig?.sandbox ?? true);
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
+  const [sandboxCredentials, setSandboxCredentials] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(!existingConfig);
+
+  const isConfigured = !!existingConfig;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload: any = {
+        gateway,
+        displayName: fieldDef.displayName,
+        sandbox,
+      };
+      if (Object.values(credentials).some(v => v)) payload.credentials = credentials;
+      if (Object.values(sandboxCredentials).some(v => v)) payload.sandboxCredentials = sandboxCredentials;
+
+      await saveGatewayConfig(sellerId, payload);
+      toast.success(`${fieldDef.displayName} gateway saved`);
+      setCredentials({});
+      setSandboxCredentials({});
+      onSaved();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || `Failed to save ${fieldDef.displayName}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Remove ${fieldDef.displayName} gateway configuration?`)) return;
+    try {
+      await deleteGatewayConfig(sellerId, gateway);
+      toast.success(`${fieldDef.displayName} gateway removed`);
+      onDeleted();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to remove gateway');
+    }
+  };
+
+  const renderFields = (values: Record<string, string>, setValues: (v: Record<string, string>) => void, label: string) => (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-gray-600">{label}</p>
+      {fieldDef.fields.map(field => (
+        <div key={field.key}>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
+          {field.type === 'textarea' ? (
+            <textarea
+              rows={3}
+              value={values[field.key] || ''}
+              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+            />
+          ) : field.type === 'select' ? (
+            <select
+              value={values[field.key] || field.options?.[0] || ''}
+              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+            >
+              {field.options?.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={values[field.key] || ''}
+              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition"
+      >
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-semibold text-gray-800">{fieldDef.displayName}</span>
+          {isConfigured && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${existingConfig.sandbox ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+              {existingConfig.sandbox ? 'Sandbox' : 'Live'}
+            </span>
+          )}
+          {!isConfigured && <span className="text-xs text-gray-400">Not configured</span>}
+        </div>
+        <svg className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="p-4 space-y-4">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={sandbox}
+              onChange={e => setSandbox(e.target.checked)}
+              className="h-4 w-4 text-yellow-500 focus:ring-yellow-400 border-gray-300 rounded"
+            />
+            <span className="text-sm text-gray-700">Sandbox mode (use test credentials)</span>
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {renderFields(credentials, setCredentials, 'Production Credentials')}
+            {renderFields(sandboxCredentials, setSandboxCredentials, 'Sandbox Credentials')}
+          </div>
+
+          <div className="flex items-center space-x-3 pt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 disabled:opacity-50 transition"
+            >
+              {saving ? 'Saving...' : isConfigured ? 'Update Gateway' : 'Save Gateway'}
+            </button>
+            {isConfigured && (
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-md hover:bg-red-100 transition"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ---------- reusable multi-select ---------- */
 const MultiSelect: React.FC<{
@@ -83,11 +265,26 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   const [companyData, setCompanyData] = useState<Partial<CompanyData>>(
     account.company || {}
   );
-  const [isGenerating, setIsGenerating] = useState(false); // New state for regeneration loading
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [gatewayConfigs, setGatewayConfigs] = useState<GatewayConfigResponse[]>([]);
 
   useEffect(() => {
     setCompanyData(account.company || {});
   }, [account]);
+
+  const fetchGatewayConfigs = useCallback(async () => {
+    try {
+      const configs = await getGatewayConfigs(account._id);
+      setGatewayConfigs(configs || []);
+    } catch {
+      // No configs yet — that's fine
+      setGatewayConfigs([]);
+    }
+  }, [account._id]);
+
+  useEffect(() => {
+    fetchGatewayConfigs();
+  }, [fetchGatewayConfigs]);
 
   useEffect(() => {
     if (!alwaysOpen) {
@@ -459,6 +656,27 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               />
             </div>
           </Section>
+
+          {/* Gateway credentials for payment methods that need them */}
+          {((companyData.paymentMethods as string[]) || []).some(m => METHODS_NEEDING_CREDENTIALS.includes(m)) && (
+            <Section title="Payment Gateway Configuration" icon={<PaymentIcon />}>
+              <p className="text-sm text-gray-500 mb-4">Configure credentials for each payment provider. Each gateway saves independently.</p>
+              <div className="space-y-3">
+                {((companyData.paymentMethods as string[]) || [])
+                  .filter(m => METHODS_NEEDING_CREDENTIALS.includes(m))
+                  .map(method => (
+                    <GatewayConfigPanel
+                      key={method}
+                      gateway={method}
+                      sellerId={account._id}
+                      existingConfig={gatewayConfigs.find(c => c.gateway === method)}
+                      onSaved={fetchGatewayConfigs}
+                      onDeleted={fetchGatewayConfigs}
+                    />
+                  ))}
+              </div>
+            </Section>
+          )}
         </div>
 
         <div className="mt-4 p-5 border-t flex justify-end space-x-4 bg-white rounded-b-xl">

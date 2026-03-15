@@ -19,6 +19,31 @@
             this.createDashboardUI();
             this.createLoginUI();
             this.updateHeaderUI();
+            this._handlePaymentReturn();
+        },
+
+        _handlePaymentReturn() {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('status');
+            if (!status) return;
+
+            // Clean URL without reloading
+            window.history.replaceState({}, '', window.location.pathname);
+
+            // Clear cart on successful payment
+            if (status === 'success' && window.D2C_CART) {
+                window.D2C_CART.clear();
+            }
+
+            // Show confirmation banner
+            const banner = document.createElement('div');
+            const isSuccess = status === 'success';
+            banner.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:10000;padding:16px 24px;text-align:center;font-weight:600;font-size:15px;color:#fff;background:${isSuccess ? '#16a34a' : '#dc2626'};box-shadow:0 2px 8px rgba(0,0,0,0.15);`;
+            banner.textContent = isSuccess
+                ? 'Payment successful! Your order has been placed.'
+                : 'Payment failed. Please try again.';
+            document.body.prepend(banner);
+            setTimeout(() => banner.remove(), 6000);
         },
 
         async fetchProfile() {
@@ -206,23 +231,13 @@
             return response.ok ? await response.json() : null;
         },
 
-        _getPaymentToken(method) {
-            switch (method) {
-                case 'stripe': case 'stripe_pay': return 'tok_stripe_valid';
-                case 'amazon_pay': return 'amz_pay_valid';
-                case 'pickup_&_pay': return 'offline_payment';
-                case 'deliver_pay': return 'offline_payment';
-                default: return 'tok_placeholder';
-            }
-        },
-
         async placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId) {
             if (!this.token) return null;
             const body = {
                 quoteId: quoteId,
                 paymentMethod: paymentMethod || 'pickup_&_pay',
-                paymentToken: this._getPaymentToken(paymentMethod),
-                deliveryMethod: deliveryMethod || 'shipping_out'
+                deliveryMethod: deliveryMethod || 'shipping_out',
+                returnUrl: window.location.protocol === 'file:' ? (document.querySelector('link[rel="canonical"]')?.href || window.D2C_CONFIG.apiBase) : window.location.origin + window.location.pathname
             };
             if (pickupLocationId) body.pickupLocationId = pickupLocationId;
             if (deliveryAddressId) body.deliveryAddressId = deliveryAddressId;
@@ -231,7 +246,16 @@
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                 body: JSON.stringify(body)
             });
-            return response.ok ? await response.json() : null;
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (data.redirectUrl) {
+                window.location.href = data.redirectUrl;
+                return { redirect: true };
+            }
+            if (data.buttonConfig) {
+                return { buttonConfig: data.buttonConfig };
+            }
+            return data;
         },
 
         // --- Headless Checkout UI ---
@@ -436,6 +460,7 @@
                         <div id="checkout-status" class="checkout-status" style="display:none;"></div>
                     </div>
                     <div class="checkout-footer">
+                        <div id="d2c-pay-button" style="display:none;margin:0 auto 0.5rem;max-width:300px;"></div>
                         <button id="checkout-place-order-btn" class="checkout-btn" style="background-color: ${primaryColor};">
                             Place Order — $${(quote.grandTotal || 0).toFixed(2)}
                         </button>
@@ -466,13 +491,39 @@
             document.getElementById('checkout-place-order-btn').addEventListener('click', () => {
                 this._processCheckout(quote);
             });
+
+            // When Amazon Pay is selected, show button instead of Place Order
+            const paymentRadios = document.querySelectorAll('input[name="checkout-payment"]');
+            paymentRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const method = document.querySelector('input[name="checkout-payment"]:checked')?.value;
+                    const placeBtn = document.getElementById('checkout-place-order-btn');
+                    const payBtnContainer = document.getElementById('d2c-pay-button');
+                    if (method === 'amazon_pay') {
+                        placeBtn.style.display = 'none';
+                        payBtnContainer.style.display = 'block';
+                        this._fetchAndRenderPayButton(quote);
+                    } else {
+                        placeBtn.style.display = '';
+                        payBtnContainer.style.display = 'none';
+                        payBtnContainer.innerHTML = '';
+                    }
+                });
+            });
+
+            // If amazon_pay is pre-selected (first option), trigger immediately
+            const initialMethod = document.querySelector('input[name="checkout-payment"]:checked')?.value;
+            if (initialMethod === 'amazon_pay') {
+                document.getElementById('checkout-place-order-btn').style.display = 'none';
+                document.getElementById('d2c-pay-button').style.display = 'block';
+                this._fetchAndRenderPayButton(quote);
+            }
         },
 
         async _processCheckout(quote) {
             const btn = document.getElementById('checkout-place-order-btn');
             const status = document.getElementById('checkout-status');
 
-            // Gather selections
             const deliveryMethod = document.getElementById('checkout-delivery')?.value || 'shipping_out';
             const paymentMethod = document.querySelector('input[name="checkout-payment"]:checked')?.value || 'pickup_&_pay';
             const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
@@ -485,8 +536,13 @@
 
             try {
                 const quoteId = quote._id || quote.id;
-                const order = await this.placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId);
-                if (!order) throw new Error('Failed to place order');
+                const result = await this.placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId);
+                if (!result) throw new Error('Failed to place order');
+
+                if (result.redirect) {
+                    status.textContent = 'Redirecting to payment provider...';
+                    return;
+                }
 
                 status.textContent = '';
                 btn.textContent = 'Order Placed!';
@@ -507,6 +563,53 @@
                 btn.disabled = false;
                 btn.textContent = 'Try Again';
                 btn.style.backgroundColor = window.D2C_CONFIG?.primaryColor || '#0d9488';
+            }
+        },
+
+        async _fetchAndRenderPayButton(quote) {
+            const container = document.getElementById('d2c-pay-button');
+            if (!container) return;
+            container.innerHTML = '<p style="text-align:center;color:#888;font-size:14px;">Loading Amazon Pay...</p>';
+
+            const deliveryMethod = document.getElementById('checkout-delivery')?.value || 'shipping_out';
+            const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
+            const deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
+            const quoteId = quote._id || quote.id;
+
+            const result = await this.placeOrder(quoteId, 'amazon_pay', deliveryMethod, pickupLocationId, deliveryAddressId);
+            if (!result || !result.buttonConfig) {
+                container.innerHTML = '<p style="text-align:center;color:#e53e3e;font-size:14px;">Failed to load Amazon Pay</p>';
+                return;
+            }
+
+            const config = result.buttonConfig;
+            container.innerHTML = '';
+
+            const initBtn = () => {
+                if (!window.amazon) return;
+                window.amazon.Pay.renderButton('#d2c-pay-button', {
+                    merchantId: config.merchantId,
+                    publicKeyId: config.publicKeyId,
+                    ledgerCurrency: config.ledgerCurrency || 'USD',
+                    sandbox: config.sandbox === 'true',
+                    checkoutLanguage: 'en_US',
+                    productType: 'PayOnly',
+                    placement: 'Checkout',
+                    createCheckoutSessionConfig: {
+                        payloadJSON: config.payloadJSON,
+                        signature: config.signature,
+                        algorithm: 'AMZN-PAY-RSASSA-PSS-V2'
+                    }
+                });
+            };
+
+            if (window.amazon) {
+                initBtn();
+            } else {
+                const s = document.createElement('script');
+                s.src = 'https://static-na.payments-amazon.com/checkout.js';
+                s.onload = initBtn;
+                document.head.appendChild(s);
             }
         },
 

@@ -103,10 +103,19 @@ export class BusinessCartStack extends cdk.Stack {
 
     productImagesBucket.grantWrite(catalogService);
 
+    const gatewayEncryptionKey = ssm.StringParameter.valueForStringParameter(
+      this,
+      `/BusinessCart/${props.stage}/GATEWAY_ENCRYPTION_KEY`
+    );
+
     const checkoutService = new GoFunction(this, 'CheckoutHandler', {
       ...sharedGoFunctionProps,
       functionName: `CheckoutHandler-${props.stage}`,
       entry: join(__dirname, '..', 'checkout-service', 'cmd', 'server'),
+      environment: {
+        ...sharedGoFunctionProps.environment,
+        GATEWAY_ENCRYPTION_KEY: gatewayEncryptionKey,
+      },
     });
 
     // OPTIONS preflight: handled by API Gateway mock with '*' (cheap, no Lambda hit).
@@ -202,6 +211,19 @@ export class BusinessCartStack extends cdk.Stack {
     const orders = checkoutRoot.addResource('orders');
     orders.addMethod('POST', checkoutInteg);
     orders.addMethod('GET', checkoutInteg);
+
+    // Gateway config management (company/admin)
+    const gateways = checkoutRoot.addResource('gateways');
+    const gatewayBySeller = gateways.addResource('{sellerId}');
+    gatewayBySeller.addMethod('PUT', checkoutInteg);
+    gatewayBySeller.addMethod('GET', checkoutInteg);
+    const gatewayByName = gatewayBySeller.addResource('{gateway}');
+    gatewayByName.addMethod('DELETE', checkoutInteg);
+
+    // Payment return callback (browser redirect from payment providers, no auth)
+    const paymentReturn = checkoutRoot.addResource('payment-return');
+    paymentReturn.addMethod('GET', checkoutInteg);
+
 
     new cdk.CfnOutput(this, 'UnifiedApiUrl', { value: api.url });
 
