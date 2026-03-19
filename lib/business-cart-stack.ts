@@ -280,12 +280,11 @@ export class BusinessCartStack extends cdk.Stack {
       zoneName: zoneName,
     });
 
-    // Create an SSL/TLS certificate in ACM (must be in us-east-1 for CloudFront)
-    const certificate = new acm.Certificate(this, 'SiteCertificate', {
-      domainName: domainName,
-      subjectAlternativeNames: [`*.${domainName}`],
-      validation: acm.CertificateValidation.fromDns(hostedZone),
-    });
+    // Combined ACM certificate covering businesscart.ai + *.businesscart.ai + custom domains
+    // Managed via CLI (not CDK) — see memory/process_custom_domain.md
+    const certificate = acm.Certificate.fromCertificateArn(this, 'SiteCertificate',
+      'arn:aws:acm:us-east-1:750495979823:certificate/79a2ca84-2749-4784-9a6e-5e1c000f275d'
+    );
 
     // Create a CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
@@ -362,12 +361,12 @@ export class BusinessCartStack extends cdk.Stack {
           // Manual Custom Domain Mapping Table
           // Populate this manually for clients who bring their own domains
           var domainMap = {
-            // 'shop.clientbrand.com': 'client-unique-id'
+            'www.usetgo.com': 'ui-sid-888'
           };
 
           // Reverse Mapping (For Redirection Logic)
           var reverseMap = {
-            // 'client-unique-id': 'shop.clientbrand.com'
+            'ui-sid-888': 'www.usetgo.com'
           };
 
           var companyId = '';
@@ -417,7 +416,7 @@ export class BusinessCartStack extends cdk.Stack {
           },
         ],
       },
-      domainNames: ['*.businesscart.ai'], // Wildcard for all company storefronts
+      domainNames: ['*.businesscart.ai', 'www.usetgo.com'],
       certificate: certificate,
     });
 
