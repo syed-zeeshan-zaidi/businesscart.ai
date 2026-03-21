@@ -66,7 +66,7 @@ const Footer: React.FC = () => {
               </svg>
             </a>
           </div>
-          <p className="mt-8 text-base text-gray-400 md:mt-0 md:order-1">&copy; 2025 BusinessCart, Inc. All rights reserved.</p>
+          <p className="mt-8 text-base text-gray-400 md:mt-0 md:order-1">&copy; 2026 BusinessCart, Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>
