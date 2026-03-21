@@ -22,7 +22,7 @@ const LandingPage: React.FC = () => {
                     <span className="block text-teal-600 xl:inline">Start Owning Your Commerce.</span>
                   </h1>
                   <p className="mt-3 text-base text-gray-300 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                    BusinessCart gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
+                    BusinessCart.ai gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
                   </p>
                   <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                     <div className="rounded-md shadow">
@@ -86,7 +86,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900">The Platforms You Rely On Weren't Built for Your Business</h2>
               <p className="mt-4 text-lg text-gray-500">
-                Marketplace fees eating your margins. B2B platforms that treat every customer the same. Storefronts too slow to convert. BusinessCart replaces all of it.
+                Marketplace fees eating your margins. B2B platforms that treat every customer the same. Storefronts too slow to convert. BusinessCart.ai replaces all of it.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -130,7 +130,7 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* D2C Section */}
+        {/* Private Commerce Section */}
         <div className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
@@ -144,18 +144,18 @@ const LandingPage: React.FC = () => {
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <CogIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Branded Storefront</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Private, Code-Gated Access</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Your company name, your colors, your hero message. Auto-generated and live in minutes — no developer needed.
+                  Your catalog is private. Customers can only see your products when you share your company code. No public listing, no competitors sitting next to you.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <CloudArrowUpIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Your Own Domain</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Web Portal & Mobile App</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Run your store on your own domain or use a free subdomain — both with SSL included.
+                  Your customers use the BusinessCart.ai portal or Android app to browse your catalog, place orders, and track deliveries — just like DoorDash, but exclusively yours.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
@@ -171,27 +171,27 @@ const LandingPage: React.FC = () => {
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <ClipboardDocumentListIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Real Checkout Flow</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Cart, Quotes & Checkout</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Shopping cart, delivery selection, payment processing, order confirmation — a complete checkout, not a contact form.
+                  Full shopping cart, quote-based checkout, payment processing, and order confirmation. Standard orders or negotiable quotes — your choice per customer.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <ServerIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Flexible Delivery</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Pickup, Dropoff, or Shipping</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Offer customer pickup at your locations, company dropoff, or carrier shipping with standard and express options.
+                  Let customers pick up at your locations, have your team drop off, or ship via carrier with standard and express options. You control what each customer gets.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
                   <UserCircleIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Customer Accounts</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">Customer Accounts & Company Switching</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Your customers create accounts on your store. Login, order history, saved addresses — all under your brand.
+                  Each customer gets their own account with order history, saved addresses, and the ability to switch between multiple suppliers — all from one login.
                 </p>
               </div>
             </div>
@@ -301,7 +301,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900">The Fastest Storefront Your Customers Will Ever Use</h2>
               <p className="mt-4 text-lg text-gray-500">
-                Most e-commerce platforms sacrifice speed for features. We built both — your store loads instantly, ranks higher, and costs less to run.
+                Every company gets an auto-generated storefront with your branding, custom domain, and built-in checkout. And unlike other platforms, it loads in under a second, ranks higher on Google, and costs almost nothing to run.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -369,7 +369,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900">Your AI-Powered Operations Team</h2>
               <p className="mt-4 text-lg text-gray-500">
-                Most businesses need developers and consultants to connect systems, analyze data, and automate communication. BusinessCart's AI handles it for you — across your entire commerce operation.
+                Most businesses need developers and consultants to connect systems, analyze data, and automate communication. BusinessCart.ai's AI handles it for you — across your entire commerce operation.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
