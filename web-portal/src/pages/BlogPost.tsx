@@ -48,7 +48,7 @@ const BlogPost: React.FC = () => {
 
               <h2>The Best of Both Worlds: It's Time to Take Back Control</h2>
               <p>What if there was a different way? What if you could have the convenience of online ordering without sacrificing your brand, your customer relationships, and your profits?</p>
-              <p>This is why we're building BusinessCart. We believe that you should own your commerce, not rent it. We provide the tools to create your own private, commission-free e-commerce platform, with all the power of a marketplace but with none of the compromises.</p>
+              <p>This is why we're building BusinessCart.ai. We believe that you should own your commerce, not rent it. We provide the tools to create your own private, commission-free e-commerce platform, with all the power of a marketplace but with none of the compromises.</p>
               <ul>
                 <li><strong>Own your data:</strong> Every customer, every order, every piece of data is yours.</li>
                 <li><strong>Build your brand:</strong> Create a fully customized, branded experience from start to finish.</li>

@@ -31,22 +31,22 @@ const About: React.FC = () => {
               <section id="our-story">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Our Story</h2>
                 <p className="text-gray-600">
-                  Founded in 2023, BusinessCart was born out of a simple observation: B2B e-commerce is unnecessarily complex. We saw businesses struggling with outdated systems, manual processes, and a lack of tools to effectively manage their relationships with their customers. We knew there had to be a better way.
+                  BusinessCart.ai was founded in 2023 with a clear conviction: businesses shouldn't have to choose between marketplace reach and owning their commerce. We watched manufacturers pay 15-30% commissions to platforms that kept their customer data. We saw distributors managing per-customer pricing in spreadsheets. We saw local brands lose their identity inside generic storefronts.
                 </p>
                 <p className="text-gray-600 mt-4">
-                  We started with a small team of passionate developers and business experts, and we set out to build a platform that would revolutionize the B2B e-commerce landscape. Our goal was to create a solution that was powerful, flexible, and easy to use, a platform that would empower businesses to connect with their customers in a whole new way.
+                  So we built BusinessCart.ai — a serverless, API-first platform that gives every business its own private commerce operation. Per-customer B2B configuration, auto-generated D2C storefronts, and direct payment collection. No marketplace fees, no compromises.
                 </p>
               </section>
               <section id="our-mission">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Our Mission</h2>
                 <p className="text-gray-600">
-                  Our mission is to empower businesses to thrive in the digital age. We believe that every business, regardless of size, deserves access to the best tools and technology to help them succeed. We are committed to providing a platform that is not only powerful and feature-rich, but also affordable and accessible to all.
+                  Your commerce, your rules. BusinessCart.ai exists so that businesses of any size — from a local bakery to a national distributor — can sell directly to their customers without middlemen taking a cut. We believe you should own your customers, your data, and your revenue. Our platform makes that possible with zero monthly fees and enterprise-grade infrastructure.
                 </p>
               </section>
               <section id="our-team">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Our Team</h2>
                 <p className="text-gray-600">
-                  We are a team of innovators, problem-solvers, and collaborators. We are passionate about what we do, and we are dedicated to helping our customers succeed. We believe in the power of teamwork, and we work together to create a culture of excellence and continuous improvement.
+                  We are a small, focused team of engineers and commerce experts building on AWS serverless infrastructure. We ship fast, stay lean, and obsess over the details that matter — page speed, per-customer flexibility, and keeping costs low for the businesses we serve. Everything we build is designed to run at scale without passing infrastructure costs to our customers.
                 </p>
               </section>
             </div>

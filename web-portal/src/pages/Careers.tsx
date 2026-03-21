@@ -50,7 +50,7 @@ const Careers: React.FC = () => {
               <section id="why-join-us">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Why Join Us?</h2>
                 <p className="text-gray-600">
-                  At BusinessCart, we are on a mission to revolutionize the B2B e-commerce industry. We are a team of passionate and talented individuals who are dedicated to building a platform that is powerful, flexible, and easy to use. We are looking for people who are excited about our mission and who want to be a part of a team that is making a real impact.
+                  At BusinessCart.ai, we are building the commerce platform we wish existed — serverless, API-first, and designed for businesses that need per-customer flexibility. We are a small, focused team looking for people who ship fast, think clearly, and care about the businesses we serve.
                 </p>
               </section>
               <section id="our-culture">

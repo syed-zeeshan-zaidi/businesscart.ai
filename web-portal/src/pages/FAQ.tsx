@@ -22,7 +22,7 @@ const FAQ: React.FC = () => {
   };
 
   const sections = [
-    { id: 'welcome', title: 'Welcome to BusinessCart' },
+    { id: 'welcome', title: 'Welcome to BusinessCart.ai' },
     { id: 'getting-started-company', title: 'Getting Started: Company Role' },
     { id: 'getting-started-customer', title: 'Getting Started: Customer Role' },
     { id: 'product-management-company', title: 'Product Management: Company Role' },
@@ -35,13 +35,13 @@ const FAQ: React.FC = () => {
       questions: [
         {
           id: 'what-is-businesscart',
-          question: 'What is BusinessCart?',
-          answer: 'BusinessCart is a cloud-native, serverless B2B e-commerce platform designed to streamline transactions between companies and their customers. It empowers businesses to manage products, orders, and customer relationships efficiently.',
+          question: 'What is BusinessCart.ai?',
+          answer: 'BusinessCart.ai is a serverless, API-first B2B and D2C e-commerce platform. It gives businesses their own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms.',
         },
         {
           id: 'how-businesscart-solves-needs',
-          question: 'How does BusinessCart solve my business needs?',
-          answer: 'BusinessCart simplifies the complex world of B2B e-commerce by providing a unified platform for product management, customer-specific pricing, streamlined ordering, and comprehensive order tracking. It reduces manual processes, improves order accuracy, and enhances customer satisfaction. It allows companies to separate their B2B operations from their B2C, offering a dedicated SAAS solution.',
+          question: 'How does BusinessCart.ai solve my business needs?',
+          answer: 'BusinessCart.ai replaces marketplace commissions, spreadsheet pricing, and generic storefronts with one platform. Per-customer pricing, payment methods, and delivery options — all enforced automatically at checkout. Plus an auto-generated D2C storefront with your branding and custom domain.',
         },
         {
           id: 'benefits-for-companies',
@@ -60,13 +60,13 @@ const FAQ: React.FC = () => {
         {
           id: 'register-as-company',
           question: 'How do I register as a Company?',
-          answer: 'To register as a company, you need a unique CompanyCode provided by a BusinessCart administrator. During registration, you will provide your company details and the CompanyCode.',
+          answer: 'To register as a company, you need a unique CompanyCode provided by a BusinessCart.ai administrator. During registration, you will provide your company details and the CompanyCode.',
           video: '[Video: Company Registration Process]',
         },
         {
           id: 'get-business-code',
           question: 'How do I get a Business Code (CompanyCode)?',
-          answer: 'CompanyCodes are generated and distributed by BusinessCart administrators. Please contact our onboarding team at onboarding@businesscart.com to request a CompanyCode and initiate your onboarding process. Additional documentation may be required.',
+          answer: 'CompanyCodes are generated and distributed by BusinessCart.ai administrators. Please contact our onboarding team at help@businesscart.ai to request a CompanyCode and initiate your onboarding process. Additional documentation may be required.',
         },
         {
           id: 'invite-customers',
@@ -126,7 +126,7 @@ const FAQ: React.FC = () => {
         {
           id: 'set-custom-pricing',
           question: 'How do I set custom pricing or discounts for specific customers?',
-          answer: 'BusinessCart supports customer-specific configurations. You can define custom pricing, discounts, and even available payment/delivery methods for individual customers or customer groups. If a customer does not have a custom configuration for a specific setting, it will automatically fall back to the company\'s default configuration.',
+          answer: 'BusinessCart.ai supports customer-specific configurations. You can define custom pricing, discounts, and even available payment/delivery methods for individual customers or customer groups. If a customer does not have a custom configuration for a specific setting, it will automatically fall back to the company\'s default configuration.',
           video: '[Video: Configuring Customer-Specific Pricing and Discounts]',
         },
       ],
@@ -169,7 +169,7 @@ const FAQ: React.FC = () => {
         {
           id: 'contact-support',
           question: 'How can I contact support?',
-          answer: 'You can reach our support team by emailing support@businesscart.com or by using the contact form on our website. We aim to respond within 24 business hours.',
+          answer: 'You can reach our support team by emailing help@businesscart.ai or by using the contact form on our website. We aim to respond within 24 business hours.',
         },
         {
           id: 'data-security',

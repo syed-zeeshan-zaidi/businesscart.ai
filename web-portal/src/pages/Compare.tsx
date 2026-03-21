@@ -36,7 +36,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Commission Fees</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-600">None</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-600">No commission — small per-order fee</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">None (but requires Shopify Payments)</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">None (but requires 3rd party payment gateway)</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15-30%</td>
