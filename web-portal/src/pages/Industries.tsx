@@ -59,7 +59,7 @@ const Industries: React.FC = () => {
           <div className="text-center mb-12">
             <h1 className="text-4xl font-extrabold text-gray-900">Use Cases & Target Industries</h1>
             <p className="mt-4 text-lg text-gray-500">
-              BusinessCart is a flexible platform that can be adapted to a wide range of B2B and D2C use cases.
+              BusinessCart.ai is a flexible platform that can be adapted to a wide range of B2B and D2C use cases.
             </p>
           </div>
 

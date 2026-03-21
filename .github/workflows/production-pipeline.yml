@@ -45,3 +45,17 @@ jobs:
 
       - name: CDK Deploy
         run: npx cdk deploy --all --context stage=prod --require-approval never
+
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id E320H11TG5CQKM \
+            --paths "/*" \
+            --query 'Invalidation.Id' --output text)
+          echo "Invalidation started: $INVALIDATION_ID"
+          sleep 30
+          STATUS=$(aws cloudfront get-invalidation \
+            --distribution-id E320H11TG5CQKM \
+            --id "$INVALIDATION_ID" \
+            --query 'Invalidation.Status' --output text)
+          echo "Invalidation status: $STATUS"

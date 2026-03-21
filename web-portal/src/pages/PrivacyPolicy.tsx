@@ -35,7 +35,7 @@ const PrivacyPolicy: React.FC = () => {
               <section id="introduction">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Introduction</h2>
                 <p className="text-gray-600">
-                  Welcome to BusinessCart. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our SaaS B2B e-commerce platform. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the service.
+                  Welcome to BusinessCart.ai. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our SaaS B2B e-commerce platform. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the service.
                 </p>
               </section>
               <section id="information-we-collect">
@@ -83,7 +83,7 @@ const PrivacyPolicy: React.FC = () => {
               <section id="contact-us">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Us</h2>
                 <p className="text-gray-600">
-                  If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:privacy@businesscart.com" className="text-teal-600 hover:underline">privacy@businesscart.com</a>
+                  If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a>
                 </p>
               </section>
             </div>

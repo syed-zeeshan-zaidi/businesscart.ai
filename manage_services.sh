@@ -36,7 +36,7 @@ start_services() {
   # Build Go services before starting
   build_go_service "account-service" "bootstrap" "./cmd/server/main.go"
   build_go_service "catalog-service" "bootstrap" "./cmd/server/main.go"
-  build_go_service "checkout-service" "server" "./cmd/server"
+  build_go_service "checkout-service" "bootstrap" "./cmd/server/main.go"
 
   echo "Starting unified API Gateway in a new terminal tab..."
 

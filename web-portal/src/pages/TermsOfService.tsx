@@ -35,7 +35,7 @@ const TermsOfService: React.FC = () => {
               <section id="acceptance-of-terms">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">1. Acceptance of Terms</h2>
                 <p className="text-gray-600">
-                  By accessing and using the BusinessCart platform, you accept and agree to be bound by the terms and provision of this agreement. In addition, when using these particular services, you shall be subject to any posted guidelines or rules applicable to such services. Any participation in this service will constitute acceptance of this agreement. If you do not agree to abide by the above, please do not use this service.
+                  By accessing and using the BusinessCart.ai platform, you accept and agree to be bound by the terms and provision of this agreement. In addition, when using these particular services, you shall be subject to any posted guidelines or rules applicable to such services. Any participation in this service will constitute acceptance of this agreement. If you do not agree to abide by the above, please do not use this service.
                 </p>
               </section>
               <section id="description-of-service">
@@ -70,7 +70,7 @@ const TermsOfService: React.FC = () => {
               <section id="limitation-of-liability">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">7. Limitation of Liability</h2>
                 <p className="text-gray-600">
-                  In no event shall BusinessCart, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.
+                  In no event shall BusinessCart.ai, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.
                 </p>
               </section>
             </div>
