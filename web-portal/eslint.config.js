@@ -12,7 +12,8 @@ export default [
       'coverage/**',
       'build/**',
       '**/*.d.ts',
-      'vite.config.ts'
+      'vite.config.ts',
+      'src/entry-prerender.tsx'
     ],
   },
   js.configs.recommended,

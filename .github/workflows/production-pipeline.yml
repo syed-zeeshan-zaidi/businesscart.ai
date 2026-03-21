@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   call-build-and-lint:
     name: Build and Lint
@@ -12,6 +16,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: call-build-and-lint
     permissions:
       id-token: write
@@ -23,7 +28,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
 
       - name: Install root dependencies
         run: npm install
