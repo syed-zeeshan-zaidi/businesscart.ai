@@ -286,11 +286,33 @@ export class BusinessCartStack extends cdk.Stack {
       'arn:aws:acm:us-east-1:750495979823:certificate/79a2ca84-2749-4784-9a6e-5e1c000f275d'
     );
 
+    // Rewrite /path → /path/index.html for pre-rendered pages
+    const portalRoutingFunction = new cloudfront.Function(this, 'PortalRoutingFunction', {
+      code: cloudfront.FunctionCode.fromInline(`
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          if (uri.endsWith('/')) {
+            request.uri += 'index.html';
+          } else if (!uri.includes('.')) {
+            request.uri += '/index.html';
+          }
+          return request;
+        }
+      `),
+    });
+
     // Create a CloudFront distribution
     const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(portalBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        functionAssociations: [
+          {
+            function: portalRoutingFunction,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
       },
       domainNames: [domainName],
       certificate: certificate,
