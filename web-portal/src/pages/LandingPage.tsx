@@ -136,7 +136,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900">Your Own Private Commerce — Like DoorDash, But You Own Everything</h2>
               <p className="mt-4 text-lg text-gray-500">
-                Get a fully branded online store where customers order directly from you. You collect the payment. You keep the data. You control the experience.
+                Your products, your customers, your rules. Share your company code and customers access your private catalog through our portal or Android app. You collect the payment. You keep the data.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -182,7 +182,7 @@ const LandingPage: React.FC = () => {
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Pickup, Dropoff, or Shipping</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Let customers pick up at your locations, have your team drop off, or ship via carrier with standard and express options. You control what each customer gets.
+                  Manage multiple locations — warehouses, storefronts, pickup points — each with operating hours and capacity. Customers pick up, your team drops off, or you ship via carrier.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
@@ -443,15 +443,133 @@ const LandingPage: React.FC = () => {
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Launch Your Store</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Your branded storefront goes live instantly — share your link or connect your own domain.
+                  Your storefront goes live and your portal catalog is ready. Share your company code with customers or your storefront link with the world.
                 </p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Pricing Section */}
+        <div className="py-16 bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900">Simple Pricing. No Monthly Fees.</h2>
+              <p className="mt-4 text-lg font-semibold text-gray-900">
+                You only pay a small percentage per order.
+              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-3">
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Subscriptions</span>
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Setup Costs</span>
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Hidden Charges</span>
+              </div>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
+                <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-600">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-4 flex-grow">
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Private commerce portal access</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Storefront with custom domain</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Standard checkout</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Basic B2B configuration</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Stripe + offline payments</span>
+                  </li>
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order</p>
+                <Link
+                  to="/register"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                >
+                  Get Started
+                </Link>
+              </div>
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-600">
+                <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-600">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-4 flex-grow">
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Everything in Starter</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Negotiable quotes</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Multiple locations</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">All payment gateways</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Full B2B configuration</span>
+                  </li>
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">5% + $1 per order</p>
+                <Link
+                  to="/contact-us"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                >
+                  Contact Us
+                </Link>
+              </div>
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
+                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-600">Custom</p>
+                <ul className="mt-6 space-y-4 flex-grow">
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Everything in Growth</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">AI-powered integration</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">AI observability & analytics</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">AI inter-communication</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <span className="ml-3 text-base text-gray-700">Dedicated support & SLA</span>
+                  </li>
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">Volume pricing</p>
+                <Link
+                  to="/contact-us"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                >
+                  Contact Us
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Final CTA */}
-        <div className="bg-white">
+        <div className="bg-gray-50">
           <div className="max-w-4xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
               <span className="block">Ready to Own Your Commerce?</span>
@@ -463,7 +581,7 @@ const LandingPage: React.FC = () => {
               <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Store</span>
             </div>
             <p className="mt-4 text-lg leading-6 text-gray-500">
-              Private D2C storefronts, per-customer B2B commerce, and the fastest pages on the web — all in one platform. No monthly fees — you only pay per order.
+              Private commerce portal, per-customer B2B configuration, and the fastest storefronts on the web — all in one platform. No monthly fees — you only pay per order.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
               <Link
