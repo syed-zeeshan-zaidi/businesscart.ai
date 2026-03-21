@@ -7,22 +7,34 @@ import { renderToString } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom/server';
 import React from 'react';
 import LandingPage from './pages/LandingPage';
+import Compare from './pages/Compare';
+import Industries from './pages/Industries';
 import fs from 'fs';
 import path from 'path';
 
-const html = renderToString(
-  <StaticRouter location="/">
-    <LandingPage />
-  </StaticRouter>
-);
+const distDir = path.resolve(process.cwd(), 'dist');
+const template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
 
-const distPath = path.resolve(process.cwd(), 'dist/index.html');
-const indexHtml = fs.readFileSync(distPath, 'utf-8');
+const pages: { route: string; component: React.ReactElement; output: string }[] = [
+  { route: '/', component: <LandingPage />, output: 'index.html' },
+  { route: '/compare', component: <Compare />, output: 'compare/index.html' },
+  { route: '/industries', component: <Industries />, output: 'industries/index.html' },
+];
 
-const prerendered = indexHtml.replace(
-  '<div id="root"></div>',
-  `<div id="root">${html}</div>`
-);
+for (const page of pages) {
+  const html = renderToString(
+    <StaticRouter location={page.route}>
+      {page.component}
+    </StaticRouter>
+  );
 
-fs.writeFileSync(distPath, prerendered);
-console.log('Pre-rendered landing page into dist/index.html');
+  const rendered = template.replace(
+    '<div id="root"></div>',
+    `<div id="root">${html}</div>`
+  );
+
+  const outputPath = path.join(distDir, page.output);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, rendered);
+  console.log(`Pre-rendered ${page.route} → dist/${page.output}`);
+}

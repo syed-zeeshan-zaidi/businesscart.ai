@@ -295,6 +295,18 @@ export class BusinessCartStack extends cdk.Stack {
       domainNames: [domainName],
       certificate: certificate,
       defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+      ],
     });
 
     // Create a Route 53 'A' record to point the domain to the CloudFront distribution
