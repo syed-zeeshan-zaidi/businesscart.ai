@@ -20,16 +20,17 @@ coverage/
 web-portal/dist/
 .gemini/
 local.env.json
-/checkout-service/main
-/checkout-service/server
 /storefronts/
 
 # Marketing content
 marketing/
 
 # Go binaries
-/catalog-service/bootstrap
-/account-service/bootstrap
+*-service/**/bootstrap
+*-service/**/server
+*-service/**/main
+!*-service/**/main.go
+*-service/bin/
 *.test
 *.prof
 

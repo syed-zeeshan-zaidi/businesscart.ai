@@ -1,0 +1,71 @@
+# BusinessCart.ai
+
+> Your Commerce, Your Rules.
+
+BusinessCart.ai is a serverless, API-first B2B and D2C e-commerce platform. It gives businesses their own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms.
+
+## What It Does
+
+### Private Commerce (B2B)
+- **Private, code-gated access**: Your catalog is private. Customers access it only with your company code.
+- **Web portal & Android app**: Customers browse your catalog, place orders, and track deliveries — like DoorDash, but exclusively yours.
+- **Direct payment collection**: Connect Stripe, Amazon Pay, or Authorize.net. Customers pay you directly — we never touch your money.
+- **Cart, quotes & checkout**: Full shopping cart, quote-based checkout, payment processing, and order confirmation.
+- **Pickup, dropoff, or shipping**: Manage multiple locations with operating hours. Customers pick up, your team drops off, or you ship via carrier.
+- **Customer accounts**: Each customer gets their own account with order history, saved addresses, and multi-supplier switching.
+
+### Per-Customer B2B Configuration
+- **Per-customer pricing**: Assign a specific discount percentage to each customer, applied automatically.
+- **Per-customer payment methods**: Customer A pays via Stripe, Customer B uses purchase orders, Customer C pays cash on pickup.
+- **Per-customer delivery options**: Restrict delivery methods per customer — some get shipping, some get pickup only.
+- **Order limits & credit**: Set min/max order amounts, quantity limits, monthly/yearly spending caps, and credit limits per customer.
+- **Quote negotiation**: Full negotiation workflow — propose, counter-offer, add comments, apply discounts, approve. Complete history preserved.
+- **Multi-company customers**: A single buyer can be associated with multiple suppliers, each with independent configurations.
+- **API-first**: Every operation available via REST API. Build your own interface or use ours.
+- **Custom catalogs** (coming soon): Assign specific products and categories to each customer.
+- **Multi-language & currency** (coming soon): Support for multiple languages and currencies.
+
+### D2C Storefronts
+- Every company gets an auto-generated storefront with their branding and custom domain support.
+- **Sub-second page load**: Static HTML served from 200+ CDN locations worldwide.
+- **SEO out of the box**: Sitemap, meta tags, OpenGraph, schema.org markup — all generated automatically.
+- **AI & LLM ready**: Product catalogs structured for AI tools and voice assistants to understand.
+- **99.99% uptime**: Globally distributed, no server to crash.
+- **Lower ad costs**: Fast pages and clean code mean higher Google Quality Scores and lower cost-per-click.
+- **Accessible & standards-compliant**: Semantic HTML, proper heading structure, mobile-optimized, screen-reader friendly.
+
+### AI-Powered Operations (Premium)
+- **AI-driven integration**: Connect your ERP, CRM, and business systems without writing code.
+- **AI-driven observability**: Sales, customer, and operations insights without building dashboards.
+- **AI-driven inter-communication**: Automated order updates, quote follow-ups, and status notifications.
+
+## How It Works
+
+1. **Create your company account** — Sign up, set your company name, upload your logo, choose brand colors.
+2. **Add your products** — Upload your catalog with images, prices, categories, and deal pricing. Connect your payment gateway.
+3. **Launch your store** — Your storefront goes live and your portal catalog is ready. Share your company code with customers or your storefront link with the world.
+
+## Pricing
+
+No monthly fees. You only pay a small percentage per order.
+
+- **Starter** ($0/mo): Private commerce portal, storefront with custom domain, standard checkout, basic B2B configuration, Stripe + offline payments. 6% per order.
+- **Growth** ($0/mo): Everything in Starter + negotiable quotes, multiple locations, all payment gateways, full B2B configuration. 5% + $1 per order.
+- **Enterprise** (Custom): Everything in Growth + AI-powered integration, AI observability & analytics, AI inter-communication, dedicated support & SLA. Volume pricing.
+
+## Target Audiences
+
+- **B2B**: Manufacturers, distributors, wholesalers who need per-customer pricing, payment terms, and delivery configuration.
+- **D2C**: Brands and local businesses who want their own storefront without marketplace commissions.
+
+## Technology
+
+- Serverless architecture on AWS (Lambda, API Gateway, S3, CloudFront)
+- Go microservices, React frontend, MongoDB Atlas
+- Static HTML storefronts (not JavaScript-rendered) for maximum performance and AI accessibility
+
+## Links
+
+- Website: https://businesscart.ai
+- Contact: https://businesscart.ai/contact-us
+- Register: https://businesscart.ai/register

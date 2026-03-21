@@ -7,6 +7,7 @@ jobs:
   build-and-lint:
     name: Build and Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,12 +15,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            web-portal/package-lock.json
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.26'
           cache: true
           cache-dependency-path: '**/go.sum'
 
@@ -43,67 +48,22 @@ jobs:
 
       - name: Build and Lint Go Services
         run: |
-          # Build account-service
-          cd account-service
-          go mod tidy
-          go build -o bootstrap ./cmd/server/main.go
-          go fmt ./...
-          go vet ./...
-          cd ..
+          for service in account-service catalog-service checkout-service; do
+            echo "=== $service ==="
+            cd $service
+            go mod tidy
+            git diff --exit-code go.mod go.sum || (echo "FAIL: go.mod/go.sum not tidy in $service" && exit 1)
+            go build -o bootstrap ./cmd/server/...
+            test -z "$(gofmt -l ./...)" || (echo "FAIL: unformatted files in $service" && gofmt -l ./... && exit 1)
+            go vet ./...
+            cd ..
+          done
 
-          # Build catalog-service
-          cd catalog-service
-          go mod tidy
-          go build -o bootstrap ./cmd/server/main.go
-          go fmt ./...
-          go vet ./...
-          cd ..
-
-          # Build checkout-service
-          cd checkout-service
-          go mod tidy
-          go build -o server ./cmd/server
-          go fmt ./...
-          go vet ./...
-          cd ..
-
-  # sonarcloud:
-  #   name: SonarQube Analysis
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-  #
-  #     - name: Setup Java
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         distribution: 'temurin'
-  #         java-version: '21'
-  #
-  #     - name: Cache SonarQube packages
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: ~/.sonar/cache
-  #         key: ${{ runner.os }}-sonar
-  #         restore-keys: ${{ runner.os }}-sonar
-  #
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '18'
-  #
-  #     - name: Install dependencies
-  #       working-directory: web-portal
-  #       run: npm install
-  #
-  #     - name: Run SonarQube Scan
-  #       working-directory: web-portal
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  #       run: |
-  #         npm install -g sonarqube-scanner
-  #         sonar-scanner \
-  #           -Dsonar.projectKey=<your_project_key> \
-  #           -Dsonar.sources=. \
-  #           -Dsonar.host.url=https://<your-sonarqube-url> \
-  #           -Dsonar.login=$SONAR_TOKEN
+      - name: Test Go Services
+        run: |
+          for service in account-service catalog-service checkout-service; do
+            echo "=== Testing $service ==="
+            cd $service
+            go test ./...
+            cd ..
+          done
