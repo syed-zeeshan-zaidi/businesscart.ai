@@ -21,7 +21,7 @@ const LandingPage: React.FC = () => {
                     <span className="block xl:inline">Stop Paying Middlemen.</span>{' '}
                     <span className="block text-teal-600 xl:inline">Start Owning Your Commerce.</span>
                   </h1>
-                  <p className="mt-3 text-base text-gray-300 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                  <p className="mt-3 text-base text-gray-200 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                     BusinessCart.ai gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
                   </p>
                   <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
@@ -36,7 +36,7 @@ const LandingPage: React.FC = () => {
                     <div className="mt-3 sm:mt-0 sm:ml-3">
                       <a
                         href="#how-it-works"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-300 hover:text-white hover:border-white md:py-4 md:text-lg md:px-10"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-gray-200 text-base font-medium rounded-md text-gray-200 hover:text-white hover:border-white md:py-4 md:text-lg md:px-10"
                       >
                         See How It Works
                       </a>
@@ -61,19 +61,19 @@ const LandingPage: React.FC = () => {
               <div className="mt-6 grid grid-cols-2 gap-8 md:grid-cols-6 lg:grid-cols-5">
                 {/* Placeholder Logos */}
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Manufacturers</p>
+                  <p className="text-gray-500 font-bold text-2xl">Manufacturers</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Distributors</p>
+                  <p className="text-gray-500 font-bold text-2xl">Distributors</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Retail</p>
+                  <p className="text-gray-500 font-bold text-2xl">Retail</p>
                 </div>
                 <div className="col-span-1 flex justify-center md:col-span-3 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Brands</p>
+                  <p className="text-gray-500 font-bold text-2xl">Brands</p>
                 </div>
                 <div className="col-span-2 flex justify-center md:col-span-3 lg:col-span-1">
-                  <p className="text-gray-400 font-bold text-2xl">Enterprise</p>
+                  <p className="text-gray-500 font-bold text-2xl">Enterprise</p>
                 </div>
               </div>
             </div>

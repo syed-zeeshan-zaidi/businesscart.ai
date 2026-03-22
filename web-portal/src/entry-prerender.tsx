@@ -40,15 +40,43 @@ const blogSchema = (post: typeof blogPosts[0]) => JSON.stringify({
 });
 
 const pages: PageEntry[] = [
-  { route: '/', component: <LandingPage />, output: 'index.html' },
-  { route: '/compare', component: <Compare />, output: 'compare/index.html' },
-  { route: '/industries', component: <Industries />, output: 'industries/index.html' },
+  {
+    route: '/',
+    component: <LandingPage />,
+    output: 'index.html',
+    title: 'BusinessCart.ai: Your Commerce, Your Rules.',
+    description: 'Zero monthly fees. Your own branded online store with sub-1-second loads, auto SEO, AI-ready product catalogs, and built-in B2B features. Pay only when you sell.',
+  },
+  {
+    route: '/compare',
+    component: <Compare />,
+    output: 'compare/index.html',
+    title: 'BusinessCart.ai vs. The Competition',
+    description: 'Compare BusinessCart.ai with Shopify, WooCommerce, and marketplaces. See pricing, features, and performance side by side.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'BusinessCart.ai vs. The Competition', url: `${baseUrl}/compare` }),
+  },
+  {
+    route: '/industries',
+    component: <Industries />,
+    output: 'industries/index.html',
+    title: 'Industries — BusinessCart.ai',
+    description: 'See how BusinessCart.ai serves restaurants, retail, wholesale, manufacturing, and more with zero monthly fees.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Industries', url: `${baseUrl}/industries` }),
+  },
   {
     route: '/blog',
     component: <Blog />,
     output: 'blog/index.html',
     title: 'Blog — BusinessCart.ai',
     description: 'Insights on e-commerce, AI, and growing your business online.',
+    schema: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Blog',
+      name: 'BusinessCart.ai Blog',
+      description: 'Insights on e-commerce, AI, and growing your business online.',
+      url: `${baseUrl}/blog`,
+      publisher: { '@type': 'Organization', name: 'BusinessCart.ai', url: baseUrl },
+    }),
   },
   ...blogPosts.map((post) => ({
     route: `/blog/${post.slug}`,
