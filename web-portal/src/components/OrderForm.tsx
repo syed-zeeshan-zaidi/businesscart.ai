@@ -215,7 +215,7 @@ const OrderForm = () => {
                         </button>
                         <button
                           onClick={() => console.log('Print order', order.id)}
-                          className="text-teal-600 hover:text-teal-800 mr-4"
+                          className="text-teal-700 hover:text-teal-800 mr-4"
                           aria-label={`Print order ${order.id}`}
                         >
                           <PrinterIcon className="h-5 w-5" />
@@ -253,7 +253,7 @@ const OrderForm = () => {
                 onClick={() => setCurrentPage(i + 1)}
                 className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
                   currentPage === i + 1
-                    ? 'bg-teal-600 text-white'
+                    ? 'bg-teal-700 text-white'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >

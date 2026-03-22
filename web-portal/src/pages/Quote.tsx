@@ -105,7 +105,7 @@ const QuoteDetails: React.FC = () => {
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
           </div>
         </main>
         <Footer />
@@ -123,7 +123,7 @@ const QuoteDetails: React.FC = () => {
             <p className="text-gray-600 mb-4">The quote you are looking for does not exist or you do not have access.</p>
             <button
               onClick={() => navigate('/my-quotes')}
-              className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700 transition"
+              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
             >
               Back to My Quotes
             </button>
@@ -213,7 +213,7 @@ const QuoteDetails: React.FC = () => {
               <div className="mt-4">
                 <button
                   type="submit"
-                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                 >
                   Submit Proposal
                 </button>
@@ -239,7 +239,7 @@ const QuoteDetails: React.FC = () => {
           <div className="flex justify-end mt-6">
             <button
               onClick={handleProceedToCheckout}
-              className={`px-6 py-2 rounded-md transition ${quote.status === 'approved' ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+              className={`px-6 py-2 rounded-md transition ${quote.status === 'approved' ? 'bg-teal-700 text-white hover:bg-teal-800' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
               disabled={quote.status !== 'approved'}
             >
               Proceed to Checkout

@@ -56,7 +56,7 @@ const ApiStatus: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800">API Status</h1>
             <button
               onClick={fetchStatus}
-              className="flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              className="flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-teal-700 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               disabled={loading}
             >
               <ArrowPathIcon className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -68,7 +68,7 @@ const ApiStatus: React.FC = () => {
           )}
           {loading ? (
             <div className="flex justify-center items-center h-48">
-              <div className="w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-12 h-12 border-4 border-teal-700 border-t-transparent rounded-full animate-spin"></div>
               <p className="ml-4 text-xl text-gray-600">Loading API Status...</p>
             </div>
           ) : (

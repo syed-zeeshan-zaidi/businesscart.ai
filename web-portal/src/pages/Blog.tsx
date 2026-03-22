@@ -20,14 +20,14 @@ const Blog: React.FC = () => {
           <div className="space-y-8">
             {blogPosts.map((post) => (
               <article key={post.slug} className="bg-white shadow-lg rounded-lg p-8">
-                <time dateTime={post.date} className="text-sm text-gray-400">{post.date}</time>
+                <time dateTime={post.date} className="text-sm text-gray-500">{post.date}</time>
                 <h2 className="text-2xl font-bold text-gray-800 mt-1 mb-2">
-                  <Link to={`/blog/${post.slug}`} className="hover:text-teal-600">
+                  <Link to={`/blog/${post.slug}`} className="hover:text-teal-800">
                     {post.title}
                   </Link>
                 </h2>
                 <p className="text-gray-600 mb-4">{post.excerpt}</p>
-                <Link to={`/blog/${post.slug}`} className="text-teal-600 font-semibold hover:underline">
+                <Link to={`/blog/${post.slug}`} className="text-teal-700 font-semibold hover:underline">
                   Read more &rarr;
                 </Link>
               </article>

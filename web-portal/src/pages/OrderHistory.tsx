@@ -131,7 +131,7 @@ const OrderHistory: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={handleRefresh}
-              className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition"
+              className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition"
             >
               Refresh
             </button>
@@ -178,7 +178,7 @@ const OrderHistory: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
           </div>
         ) : filteredOrders && filteredOrders.length > 0 ? (
           <div className="shadow-lg rounded-lg overflow-hidden">
@@ -226,7 +226,7 @@ const OrderHistory: React.FC = () => {
             </p>
             <button
               onClick={() => navigate('/catalog')}
-              className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700 transition"
+              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
             >
               Go to Catalog
             </button>

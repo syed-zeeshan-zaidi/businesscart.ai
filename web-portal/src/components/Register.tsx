@@ -150,14 +150,14 @@ const Register = () => {
             </div>
             <button
               type="submit"
-              className="w-full bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors"
+              className="w-full bg-teal-700 text-white p-2 rounded-md hover:bg-teal-800 transition-colors"
             >
               Register
             </button>
           </form>
           <p className="mt-4 text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <a href="/login" className="text-teal-600 hover:underline">
+            <a href="/login" className="text-teal-700 hover:underline">
               Log in
             </a>
           </p>

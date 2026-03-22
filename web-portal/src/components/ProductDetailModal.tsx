@@ -49,7 +49,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
             <div className="mt-2">
               {product.discountedPrice && product.discountedPrice < product.price ? (
                 <>
-                  <p className="text-2xl font-bold text-teal-600">
+                  <p className="text-2xl font-bold text-teal-700">
                     ${product.discountedPrice.toFixed(2)}
                   </p>
                   <p className="text-gray-500 line-through text-lg">
@@ -57,7 +57,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
                   </p>
                 </>
               ) : (
-                <p className="text-2xl font-bold text-teal-600">${product.price.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-teal-700">${product.price.toFixed(2)}</p>
               )}
             </div>
             <p className="text-gray-600 mt-4">{product.description}</p>

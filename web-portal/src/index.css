@@ -15,7 +15,7 @@
 .loading-bar {
   height: 100%;
   width: 100%;
-  background-color: #0d9488; /* teal-600 */
+  background-color: #0f766e; /* teal-700 */
   animation: loading-animation 1s infinite;
 }
 
@@ -36,8 +36,8 @@
 .blog-content ul { list-style: disc; }
 .blog-content ol { list-style: decimal; }
 .blog-content li { margin: 0.25rem 0; }
-.blog-content a { color: #0d9488; text-decoration: underline; }
-.blog-content a:hover { color: #0f766e; }
+.blog-content a { color: #0f766e; text-decoration: underline; }
+.blog-content a:hover { color: #115e59; }
 .blog-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
 .blog-content th { background: #f3f4f6; font-weight: 600; text-align: left; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; }
 .blog-content td { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; }

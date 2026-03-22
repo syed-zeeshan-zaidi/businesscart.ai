@@ -40,7 +40,7 @@ const Careers: React.FC = () => {
                 <ul className="space-y-2">
                   {sections.map((section) => (
                     <li key={section.id}>
-                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-600">{section.title}</a>
+                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-800">{section.title}</a>
                     </li>
                   ))}
                 </ul>
@@ -67,7 +67,7 @@ const Careers: React.FC = () => {
                       <h3 className="text-xl font-semibold text-gray-800">{position.title}</h3>
                       <p className="text-gray-600">{position.location}</p>
                       <p className="text-gray-600 mt-4">{position.description}</p>
-                      <Link to="/contact-us" className="text-teal-600 hover:underline mt-4 inline-block">Apply Now</Link>
+                      <Link to="/contact-us" className="text-teal-700 hover:underline mt-4 inline-block">Apply Now</Link>
                     </div>
                   ))}
                 </div>

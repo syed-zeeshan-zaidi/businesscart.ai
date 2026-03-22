@@ -95,7 +95,7 @@ const Account: React.FC = () => {
             {account?.role === 'customer' && (
               <button
                 onClick={() => setIsAssociationModalOpen(true)}
-                className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition"
+                className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition"
               >
                 Associate with Company
               </button>
@@ -111,7 +111,7 @@ const Account: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
           </div>
         ) : account ? (
           <div className="bg-white shadow-lg rounded-lg overflow-hidden">

@@ -13,18 +13,18 @@ const OrderSuccess: React.FC = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-teal-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h1 className="text-3xl font-bold text-teal-600 mb-4">Order Placed Successfully!</h1>
+            <h1 className="text-3xl font-bold text-teal-700 mb-4">Order Placed Successfully!</h1>
             <p className="text-gray-700 mb-6">Thank you for your purchase. You will receive an email confirmation shortly.</p>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
               <Link
                 to="/catalog"
-                className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold"
+                className="px-6 py-3 bg-teal-700 text-white rounded-md hover:bg-teal-800 transition text-lg font-semibold"
               >
                 Continue Shopping
               </Link>
               <Link
                 to="/order-history"
-                className="px-6 py-3 border border-teal-600 text-teal-600 rounded-md hover:bg-teal-50 transition text-lg font-semibold"
+                className="px-6 py-3 border border-teal-700 text-teal-700 rounded-md hover:bg-teal-50 transition text-lg font-semibold"
               >
                 View Order History
               </Link>

@@ -98,14 +98,14 @@ const handleSubmit = async (e: React.FormEvent) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-teal-600 text-white p-2 rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50"
+            className="w-full bg-teal-700 text-white p-2 rounded-md hover:bg-teal-800 transition-colors disabled:opacity-50"
           >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <p className="text-center text-gray-600 mt-4">
           Don’t have an account?{' '}
-          <Link to="/register" className="text-teal-600 hover:underline">
+          <Link to="/register" className="text-teal-700 hover:underline">
             Register
           </Link>
         </p>

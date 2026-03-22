@@ -154,7 +154,7 @@ const Deals: React.FC = () => {
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {selectedCompany && (
-          <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
+          <div className="bg-gradient-to-r from-teal-700 to-teal-800 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
             {selectedCompany.logoUrl && (
               <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-full bg-white p-2 shadow-md" />
             )}
@@ -215,7 +215,7 @@ const Deals: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
+          <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full mx-auto my-12"></div>
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
@@ -244,7 +244,7 @@ const Deals: React.FC = () => {
                       )}
                       {product.discountedPrice && product.discountedPrice < product.price ? (
                         <>
-                          <p className="text-teal-600 font-bold text-lg">
+                          <p className="text-teal-700 font-bold text-lg">
                             ${product.discountedPrice.toFixed(2)}
                           </p>
                           <p className="text-gray-500 line-through text-sm">
@@ -252,7 +252,7 @@ const Deals: React.FC = () => {
                           </p>
                         </>
                       ) : (
-                        <p className="text-teal-600 font-bold text-lg">
+                        <p className="text-teal-700 font-bold text-lg">
                           ${product.price.toFixed(2)}
                         </p>
                       )}

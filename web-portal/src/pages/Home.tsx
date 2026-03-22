@@ -75,7 +75,7 @@ const Home: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-teal-700 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -91,12 +91,12 @@ const Home: React.FC = () => {
             {account.role === 'customer' && (
               <>
                 {/* Hero Section */}
-                <div className="bg-gradient-to-r from-teal-600 to-teal-800 text-white rounded-lg shadow-lg py-16 mb-12 text-center">
+                <div className="bg-gradient-to-r from-teal-700 to-teal-800 text-white rounded-lg shadow-lg py-16 mb-12 text-center">
                   <h3 className="text-3xl sm:text-4xl font-bold tracking-tight">Shop Premium Products</h3>
                   <p className="mt-4 text-lg sm:text-xl max-w-3xl mx-auto px-4">Explore our curated selection of high-quality products for your business needs.</p>
                   <button
                     onClick={() => navigate('/catalog')}
-                    className="mt-8 inline-block bg-white text-teal-600 font-semibold px-8 py-3 rounded-md shadow-lg hover:bg-gray-100 transition-transform transform hover:scale-105"
+                    className="mt-8 inline-block bg-white text-teal-700 font-semibold px-8 py-3 rounded-md shadow-lg hover:bg-gray-100 transition-transform transform hover:scale-105"
                   >
                     Shop Now
                   </button>
@@ -107,34 +107,34 @@ const Home: React.FC = () => {
                   <h3 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-6 text-center">Quick Actions</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
-                      <CubeIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <CubeIcon className="w-12 h-12 text-teal-700 mb-4" />
                       <h4 className="text-lg font-semibold text-gray-800 mb-2">Browse Products</h4>
                       <p className="text-gray-600 text-sm mb-4">Explore the full product catalog.</p>
-                      <Link to="/catalog" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                      <Link to="/catalog" className="text-teal-700 hover:text-teal-800 font-semibold flex items-center">
                         Go to Catalog <ArrowRightIcon className="w-4 h-4 ml-2" />
                       </Link>
                     </div>
                     <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
-                      <TagIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <TagIcon className="w-12 h-12 text-teal-700 mb-4" />
                       <h4 className="text-lg font-semibold text-gray-800 mb-2">Special Deals</h4>
                       <p className="text-gray-600 text-sm mb-4">Check out the latest promotions.</p>
-                      <Link to="/deals" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                      <Link to="/deals" className="text-teal-700 hover:text-teal-800 font-semibold flex items-center">
                         View Deals <ArrowRightIcon className="w-4 h-4 ml-2" />
                       </Link>
                     </div>
                     <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
-                      <ClipboardDocumentListIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <ClipboardDocumentListIcon className="w-12 h-12 text-teal-700 mb-4" />
                       <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Orders</h4>
                       <p className="text-gray-600 text-sm mb-4">Track your past and current orders.</p>
-                      <Link to="/order-history" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                      <Link to="/order-history" className="text-teal-700 hover:text-teal-800 font-semibold flex items-center">
                         My Orders <ArrowRightIcon className="w-4 h-4 ml-2" />
                       </Link>
                     </div>
                     <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center text-center hover:shadow-xl transition-shadow duration-300">
-                      <UserCircleIcon className="w-12 h-12 text-teal-600 mb-4" />
+                      <UserCircleIcon className="w-12 h-12 text-teal-700 mb-4" />
                       <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Account</h4>
                       <p className="text-gray-600 text-sm mb-4">Manage your account details.</p>
-                      <Link to="/account" className="text-teal-600 hover:text-teal-800 font-semibold flex items-center">
+                      <Link to="/account" className="text-teal-700 hover:text-teal-800 font-semibold flex items-center">
                         My Account <ArrowRightIcon className="w-4 h-4 ml-2" />
                       </Link>
                     </div>
@@ -163,7 +163,7 @@ const Home: React.FC = () => {
                           </div>
                           <div className="p-4 text-center">
                             <h4 className="text-lg font-semibold text-gray-800 truncate">{product.name}</h4>
-                            <p className="text-teal-600 font-bold mt-2">${product.price.toFixed(2)}</p>
+                            <p className="text-teal-700 font-bold mt-2">${product.price.toFixed(2)}</p>
                           </div>
                         </div>
                       ))}
@@ -174,7 +174,7 @@ const Home: React.FC = () => {
                   <div className="text-center">
                     <Link
                       to="/catalog"
-                      className="inline-block bg-teal-600 text-white px-8 py-3 rounded-lg hover:bg-teal-700 transition-transform transform hover:scale-105"
+                      className="inline-block bg-teal-700 text-white px-8 py-3 rounded-lg hover:bg-teal-800 transition-transform transform hover:scale-105"
                     >
                       View All Products
                     </Link>
@@ -191,13 +191,13 @@ const Home: React.FC = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                   <Link
                     to="/dashboard"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                    className="inline-block bg-teal-700 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition"
                   >
                     Manage Products
                   </Link>
                   <Link
                     to="/orders"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                    className="inline-block bg-teal-700 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition"
                   >
                     Manage Orders
                   </Link>
@@ -211,19 +211,19 @@ const Home: React.FC = () => {
                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                   <Link
                     to="/admin/users"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                    className="inline-block bg-teal-700 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition"
                   >
                     Manage Users
                   </Link>
                   <Link
                     to="/admin/products"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                    className="inline-block bg-teal-700 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition"
                   >
                     Manage Products
                   </Link>
                   <Link
                     to="/admin/orders"
-                    className="inline-block bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition"
+                    className="inline-block bg-teal-700 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition"
                   >
                     Manage Orders
                   </Link>

@@ -21,7 +21,7 @@ const About: React.FC = () => {
                 <ul className="space-y-2">
                   {sections.map((section) => (
                     <li key={section.id}>
-                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-600">{section.title}</a>
+                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-800">{section.title}</a>
                     </li>
                   ))}
                 </ul>

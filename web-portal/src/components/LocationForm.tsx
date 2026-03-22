@@ -179,7 +179,7 @@ const LocationForm: React.FC = () => {
           <h2 className="text-2xl font-semibold text-gray-800">Manage Locations</h2>
           <button
             onClick={openModal}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
+            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
             <span>Add Location</span>
@@ -217,7 +217,7 @@ const LocationForm: React.FC = () => {
 
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
           </div>
         ) : !accountID ? (
           <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">Please select a company first.</div>
@@ -278,7 +278,7 @@ const LocationForm: React.FC = () => {
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded text-sm ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'hover:bg-gray-50'}`}
+                    className={`px-3 py-1 border rounded text-sm ${currentPage === i + 1 ? 'bg-teal-700 text-white' : 'hover:bg-gray-50'}`}
                   >
                     {i + 1}
                   </button>
@@ -328,7 +328,7 @@ const LocationForm: React.FC = () => {
                       <input name="locationType" value={newLocation.locationType} onChange={handleInputChange} className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                     </div>
                     <div className="flex items-center">
-                      <input type="checkbox" name="isDefault" checked={newLocation.isDefault} onChange={handleInputChange} className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded" />
+                      <input type="checkbox" name="isDefault" checked={newLocation.isDefault} onChange={handleInputChange} className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded" />
                       <label className="ml-2 block text-sm text-gray-900">Set as Default Location</label>
                     </div>
                     <div>
@@ -351,7 +351,7 @@ const LocationForm: React.FC = () => {
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
                       <button type="button" onClick={closeModal} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                      <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
+                      <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-700 text-white rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50">
                         {isLoading ? 'Saving...' : editingId ? 'Update' : 'Save'}
                       </button>
                     </div>

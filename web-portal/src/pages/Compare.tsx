@@ -36,14 +36,14 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Commission Fees</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-600">No commission — small per-order fee</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-700">No commission — small per-order fee</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">None (but requires Shopify Payments)</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">None (but requires 3rd party payment gateway)</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15-30%</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Customer Data</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-600">You own it</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-700">You own it</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">You own it</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">You own it</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-red-600">Marketplace owns it</td>
@@ -71,7 +71,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Maintenance</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-600">Fully managed by us</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-teal-700">Fully managed by us</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Fully managed by Shopify</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-red-600">You manage everything (hosting, security)</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Fully managed by marketplace</td>
