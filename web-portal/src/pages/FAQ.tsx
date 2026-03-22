@@ -203,7 +203,7 @@ const FAQ: React.FC = () => {
                 {content[section.id as keyof typeof content]?.questions.map((q) => (
                   <div key={q.id}>
                                           <button
-                                            className="text-left w-full text-teal-600 hover:underline font-medium flex justify-between items-center"
+                                            className="text-left w-full text-teal-700 hover:underline font-medium flex justify-between items-center"
                                             onClick={() => toggleQuestion(q.id)}
                                           >                      {q.question}
                       {openQuestion === q.id ? (

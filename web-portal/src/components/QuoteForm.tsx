@@ -127,7 +127,7 @@ const QuoteForm = () => {
           {currentUser && (currentUser.role === 'company' || currentUser.role === 'admin') && (
             <button
               onClick={() => navigate('/quote-create')}
-              className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700"
+              className="px-4 py-2 bg-teal-700 text-white rounded-md hover:bg-teal-800"
             >
               Create Quote
             </button>
@@ -205,7 +205,7 @@ const QuoteForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleViewDetails(quote.id)}
-                          className="text-teal-600 hover:text-teal-800"
+                          className="text-teal-700 hover:text-teal-800"
                           aria-label={`View quote ${quote.id}`}
                         >
                           <EyeIcon className="h-5 w-5" />
@@ -252,7 +252,7 @@ const QuoteForm = () => {
                 onClick={() => setCurrentPage(i + 1)}
                 className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
                   currentPage === i + 1
-                    ? 'bg-teal-600 text-white'
+                    ? 'bg-teal-700 text-white'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >

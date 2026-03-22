@@ -25,7 +25,7 @@ const PrivacyPolicy: React.FC = () => {
                 <ul className="space-y-2">
                   {sections.map((section) => (
                     <li key={section.id}>
-                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-600">{section.title}</a>
+                      <a href={`#${section.id}`} className="text-gray-600 hover:text-teal-800">{section.title}</a>
                     </li>
                   ))}
                 </ul>
@@ -83,7 +83,7 @@ const PrivacyPolicy: React.FC = () => {
               <section id="contact-us">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Us</h2>
                 <p className="text-gray-600">
-                  If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-600 hover:underline">help@businesscart.ai</a>
+                  If you have questions or comments about this Privacy Policy, please contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>
                 </p>
               </section>
             </div>

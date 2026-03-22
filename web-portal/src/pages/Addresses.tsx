@@ -101,7 +101,7 @@ const Addresses: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-800">Your Shipping Addresses</h1>
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
+            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
             <span>Add Address</span>
@@ -110,7 +110,7 @@ const Addresses: React.FC = () => {
 
         {isLoading && !isOpen ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
           </div>
         ) : addresses.length === 0 ? (
           <div className="bg-white rounded-lg shadow-lg p-6 text-center">
@@ -245,7 +245,7 @@ const Addresses: React.FC = () => {
                           name="isDefaultShipping"
                           checked={newAddress.isDefaultShipping}
                           onChange={handleInputChange}
-                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
                         />
                         <span className="ml-2 text-sm text-gray-700">Set as default shipping address</span>
                       </label>
@@ -261,7 +261,7 @@ const Addresses: React.FC = () => {
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+                          className="px-4 py-2 bg-teal-700 text-white rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50"
                         >
                           {isLoading ? 'Saving...' : 'Save Address'}
                         </button>

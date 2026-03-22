@@ -59,8 +59,8 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity, va
   };
 
   const isExpanded = isHovered || buttonState === 'adding' || buttonState === 'added';
-  const cardClassName = `group relative flex items-center justify-center h-10 bg-teal-600 text-white rounded-full transition-all duration-300 ease-in-out ${isExpanded ? 'w-32' : 'w-10'}`;
-  const modalClassName = "mt-4 w-full bg-teal-600 text-white py-2 rounded-md hover:bg-teal-700 transition";
+  const cardClassName = `group relative flex items-center justify-center h-10 bg-teal-700 text-white rounded-full transition-all duration-300 ease-in-out ${isExpanded ? 'w-32' : 'w-10'}`;
+  const modalClassName = "mt-4 w-full bg-teal-700 text-white py-2 rounded-md hover:bg-teal-800 transition";
 
   const renderCardContent = () => {
     switch (buttonState) {

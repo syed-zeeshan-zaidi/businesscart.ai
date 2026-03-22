@@ -59,7 +59,7 @@ const CodeForm: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -73,7 +73,7 @@ const CodeForm: React.FC = () => {
           <h2 className="text-2xl font-semibold text-gray-800">Codes</h2>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-700"
+            className="bg-teal-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800"
           >
             Create Code
           </button>

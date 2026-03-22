@@ -133,7 +133,7 @@ const QuoteDetailForm: React.FC = () => {
         <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
           </div>
         </main>
       </div>
@@ -150,7 +150,7 @@ const QuoteDetailForm: React.FC = () => {
             <p className="text-gray-600 mb-4">The quote you are looking for does not exist or you do not have access.</p>
             <button
               onClick={() => navigate('/quotes')}
-              className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700 transition"
+              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
             >
               Back to Quotes
             </button>
@@ -285,7 +285,7 @@ const QuoteDetailForm: React.FC = () => {
             {!isEditing && (quote.status === 'open' || quote.status === 'proposed') && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-6 py-2 rounded-md transition bg-teal-600 text-white hover:bg-teal-700"
+                className="px-6 py-2 rounded-md transition bg-teal-700 text-white hover:bg-teal-800"
               >
                 Edit Quote
               </button>
@@ -308,7 +308,7 @@ const QuoteDetailForm: React.FC = () => {
                 </button>
                 <button
                   onClick={handleSaveChanges}
-                  className="px-6 py-2 rounded-md transition bg-teal-600 text-white hover:bg-teal-700"
+                  className="px-6 py-2 rounded-md transition bg-teal-700 text-white hover:bg-teal-800"
                   disabled={loading}
                 >
                   {loading ? 'Saving...' : 'Save Changes'}

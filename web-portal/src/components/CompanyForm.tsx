@@ -190,7 +190,7 @@ const GatewayConfigPanel: React.FC<{
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 disabled:opacity-50 transition"
+              className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 disabled:opacity-50 transition"
             >
               {saving ? 'Saving...' : isConfigured ? 'Update Gateway' : 'Save Gateway'}
             </button>
@@ -233,7 +233,7 @@ const MultiSelect: React.FC<{
               type="checkbox"
               checked={value.includes(opt)}
               onChange={() => toggle(opt)}
-              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+              className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
             />
             <span className="ml-2 text-sm text-gray-700">
               {opt.replace(/_/g, ' ').toUpperCase()}
@@ -389,7 +389,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
         name={name}
         checked={Boolean(companyData[name])}
         onChange={handleChange}
-        className="h-5 w-5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+        className="h-5 w-5 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
       />
       <span className="text-sm font-medium text-gray-800">{label}</span>
     </label>
@@ -501,7 +501,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                     checked={Boolean(companyData.d2c?.enabled)}
                     onChange={handleChange}
                     disabled={userRole !== 'admin'}
-                    className={`h-5 w-5 text-teal-600 focus:ring-teal-500 border-gray-300 rounded ${userRole !== 'admin' ? 'cursor-not-allowed opacity-50' : ''}`}
+                    className={`h-5 w-5 text-teal-700 focus:ring-teal-500 border-gray-300 rounded ${userRole !== 'admin' ? 'cursor-not-allowed opacity-50' : ''}`}
                   />
                   <span className="text-sm font-medium text-gray-800">Enable Storefront</span>
                 </label>
@@ -608,7 +608,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                     />
                   </div>
                   {companyData.d2c?.previewDomain && (
-                    <a href={`https://${companyData.d2c.previewDomain}`} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:text-teal-500 mt-1 inline-block font-medium">
+                    <a href={`https://${companyData.d2c.previewDomain}`} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-700 hover:text-teal-500 mt-1 inline-block font-medium">
                       Open Storefront &rarr;
                     </a>
                   )}
@@ -691,7 +691,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           )}
           <button
             onClick={handleSave}
-            className="px-6 py-2.5 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition shadow-sm text-sm flex items-center space-x-2"
+            className="px-6 py-2.5 bg-teal-700 text-white font-bold rounded-lg hover:bg-teal-800 transition shadow-sm text-sm flex items-center space-x-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
             <span>Save Changes</span>
@@ -786,7 +786,7 @@ const CompanyForm = () => {
   if (isLoading)
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
       </div>
     );
 
@@ -802,7 +802,7 @@ const CompanyForm = () => {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+            className="bg-teal-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50"
           >
             Refresh
           </button>
@@ -861,7 +861,7 @@ const AdminView: React.FC<AdminViewProps> = ({ accounts, onEdit }) => {
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button onClick={() => onEdit(acc)} className="text-teal-600 hover:text-teal-900">Edit</button>
+                <button onClick={() => onEdit(acc)} className="text-teal-700 hover:text-teal-900">Edit</button>
               </td>
             </tr>
           ))}

@@ -19,7 +19,7 @@ const LandingPage: React.FC = () => {
                 <div className="sm:text-center lg:text-left">
                   <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
                     <span className="block xl:inline">Stop Paying Middlemen.</span>{' '}
-                    <span className="block text-teal-600 xl:inline">Start Owning Your Commerce.</span>
+                    <span className="block text-teal-700 xl:inline">Start Owning Your Commerce.</span>
                   </h1>
                   <p className="mt-3 text-base text-gray-200 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                     BusinessCart.ai gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
@@ -28,7 +28,7 @@ const LandingPage: React.FC = () => {
                     <div className="rounded-md shadow">
                       <Link
                         to="/contact-us"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 md:py-4 md:text-lg md:px-10"
+                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800 md:py-4 md:text-lg md:px-10"
                       >
                         Request a Demo
                       </Link>
@@ -47,7 +47,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 flex items-center justify-center p-8">
-            <ShoppingCartIcon className="h-auto w-full max-w-lg text-teal-600 opacity-20" />
+            <ShoppingCartIcon className="h-auto w-full max-w-lg text-teal-700 opacity-20" />
           </div>
         </div>
 
@@ -91,7 +91,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <BanknotesIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">They Take Your Revenue</h3>
@@ -100,7 +100,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <UserGroupIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">They Own Your Customers</h3>
@@ -109,7 +109,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <PuzzlePieceIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Every Customer Gets the Same Deal</h3>
@@ -118,7 +118,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CpuChipIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Slow Pages Lose Customers</h3>
@@ -141,7 +141,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CogIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Private, Code-Gated Access</h3>
@@ -150,7 +150,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CloudArrowUpIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Web Portal & Mobile App</h3>
@@ -159,7 +159,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <BanknotesIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Direct Payment Collection</h3>
@@ -168,7 +168,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <ClipboardDocumentListIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Cart, Quotes & Checkout</h3>
@@ -177,7 +177,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <ServerIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Pickup, Dropoff, or Shipping</h3>
@@ -186,7 +186,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <UserCircleIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Customer Accounts & Company Switching</h3>
@@ -209,7 +209,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <AdjustmentsHorizontalIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Pricing</h3>
@@ -218,7 +218,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <BanknotesIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Payment Methods</h3>
@@ -227,7 +227,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <ServerIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Delivery Options</h3>
@@ -236,7 +236,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <PuzzlePieceIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Order Limits & Credit</h3>
@@ -245,7 +245,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CommandLineIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Quote Negotiation</h3>
@@ -254,7 +254,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <UserGroupIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Multi-Company Customers</h3>
@@ -263,7 +263,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CloudArrowUpIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">API-First Platform</h3>
@@ -273,7 +273,7 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="flex flex-col items-center text-center relative">
                 <span className="absolute -top-2 right-0 bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-0.5 rounded-full">Coming Soon</span>
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CubeIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Custom Catalogs</h3>
@@ -283,7 +283,7 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="flex flex-col items-center text-center relative">
                 <span className="absolute -top-2 right-0 bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-0.5 rounded-full">Coming Soon</span>
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <GlobeAltIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Multi-Language & Currency</h3>
@@ -306,7 +306,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CpuChipIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Sub-Second Page Load</h3>
@@ -315,7 +315,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CheckIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">SEO That Works Out of the Box</h3>
@@ -324,7 +324,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CommandLineIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">AI & LLM Ready</h3>
@@ -333,7 +333,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CloudArrowUpIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">99.99% Uptime, Globally Distributed</h3>
@@ -342,7 +342,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <BanknotesIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Lower Your Ad Costs</h3>
@@ -351,7 +351,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CogIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Modern, Accessible, Standards-Compliant</h3>
@@ -374,7 +374,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CpuChipIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Integration</h3>
@@ -383,7 +383,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CheckIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Observability</h3>
@@ -392,7 +392,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-600 text-white">
+                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <UserGroupIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Inter-Communication</h3>
@@ -404,7 +404,7 @@ const LandingPage: React.FC = () => {
             <div className="mt-10 text-center">
               <p className="text-sm text-gray-500">
                 Available as a premium addon.{' '}
-                <Link to="/contact-us" className="text-teal-600 hover:text-teal-700 font-semibold">
+                <Link to="/contact-us" className="text-teal-700 hover:text-teal-800 font-semibold">
                   Contact us to learn more →
                 </Link>
               </p>
@@ -420,7 +420,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-600 text-white text-2xl font-bold">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
                   1
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Create Your Company Account</h3>
@@ -429,7 +429,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-600 text-white text-2xl font-bold">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
                   2
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Add Your Products</h3>
@@ -438,7 +438,7 @@ const LandingPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-600 text-white text-2xl font-bold">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
                   3
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Launch Your Store</h3>
@@ -467,99 +467,99 @@ const LandingPage: React.FC = () => {
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-600">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
                 <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Private commerce portal access</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Storefront with custom domain</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Standard checkout</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Basic B2B configuration</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Stripe + offline payments</span>
                   </li>
                 </ul>
                 <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order</p>
                 <Link
                   to="/register"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
                 >
                   Get Started
                 </Link>
               </div>
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-600">
+              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
                 <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-600">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
                 <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Everything in Starter</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Negotiable quotes</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Multiple locations</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">All payment gateways</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Full B2B configuration</span>
                   </li>
                 </ul>
                 <p className="mt-6 text-sm font-semibold text-gray-900 text-center">5% + $1 per order</p>
                 <Link
                   to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
                 >
                   Contact Us
                 </Link>
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-600">Custom</p>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">Custom</p>
                 <ul className="mt-6 space-y-4 flex-grow">
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Everything in Growth</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">AI-powered integration</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">AI observability & analytics</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">AI inter-communication</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
                     <span className="ml-3 text-base text-gray-700">Dedicated support & SLA</span>
                   </li>
                 </ul>
                 <p className="mt-6 text-sm font-semibold text-gray-900 text-center">Volume pricing</p>
                 <Link
                   to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
                 >
                   Contact Us
                 </Link>
@@ -586,7 +586,7 @@ const LandingPage: React.FC = () => {
             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
               <Link
                 to="/contact-us"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
               >
                 Request a Demo
               </Link>

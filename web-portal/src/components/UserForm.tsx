@@ -251,7 +251,7 @@ const UserForm = () => {
           <div className="flex space-x-2">
             <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
-              <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700">
+              <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
                 <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
               </button>
             )}
@@ -302,7 +302,7 @@ const UserForm = () => {
         {totalPages > 1 && (
           <div className="mt-4 flex justify-center space-x-2">
             {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-600 text-white' : ''}`}>{i + 1}</button>
+              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-700 text-white' : ''}`}>{i + 1}</button>
             ))}
           </div>
         )}
@@ -368,7 +368,7 @@ const UserForm = () => {
                                         )}
                                         <div className="flex justify-end space-x-2 pt-4">
                                             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
-                                            <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded">{isLoading ? 'Saving...' : 'Save'}</button>
+                                            <button type="submit" disabled={isLoading} className="px-4 py-2 bg-teal-700 text-white rounded">{isLoading ? 'Saving...' : 'Save'}</button>
                                         </div>
                                     </form>
                                 </Dialog.Panel>
@@ -444,7 +444,7 @@ const UserForm = () => {
                   </div>
                   <div className="flex justify-end space-x-2 pt-6">
                     <button type="button" onClick={() => setIsConfigModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
-                    <button type="button" onClick={handleSaveConfiguration} disabled={isLoading} className="px-4 py-2 bg-teal-600 text-white rounded">Save Configuration</button>
+                    <button type="button" onClick={handleSaveConfiguration} disabled={isLoading} className="px-4 py-2 bg-teal-700 text-white rounded">Save Configuration</button>
                   </div>
                 </Dialog.Panel>
               </Transition.Child>

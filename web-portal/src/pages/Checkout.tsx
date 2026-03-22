@@ -193,7 +193,7 @@ const Checkout: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
       </div>
     );
   }
@@ -305,7 +305,7 @@ const Checkout: React.FC = () => {
                           value={method}
                           checked={selectedPaymentMethod === method}
                           onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                          className="focus:ring-teal-500 h-4 w-4 text-teal-600 border-gray-300"
+                          className="focus:ring-teal-500 h-4 w-4 text-teal-700 border-gray-300"
                         />
                         <span className="ml-3 block text-sm font-medium text-gray-700 capitalize">
                           {method.replace(/_/g, ' ')}
@@ -371,7 +371,7 @@ const Checkout: React.FC = () => {
             ) : (
               <button
                 onClick={handlePlaceOrder}
-                className="w-full px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition text-lg font-semibold disabled:opacity-50"
+                className="w-full px-6 py-3 bg-teal-700 text-white rounded-md hover:bg-teal-800 transition text-lg font-semibold disabled:opacity-50"
                 disabled={!selectedPaymentMethod || !isDeliveryComplete || loading}
               >
                 {loading ? 'Placing Order...' : 'Place Order'}

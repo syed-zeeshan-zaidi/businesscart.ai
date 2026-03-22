@@ -152,7 +152,7 @@ const Navbar: React.FC = () => {
                 {isAuthenticated && (
                   <Menu as="div" className="relative">
                     <Menu.Button className="flex items-center space-x-2">
-                      <div className="h-8 w-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-medium">
+                      <div className="h-8 w-8 rounded-full bg-teal-700 text-white flex items-center justify-center text-sm font-medium">
                         {userInitials || 'U'}
                       </div>
                     </Menu.Button>
@@ -299,7 +299,7 @@ const Navbar: React.FC = () => {
                     </button>
                     <button
                       onClick={() => navigate('/register')}
-                      className="bg-teal-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-700"
+                      className="bg-teal-700 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-teal-800"
                     >
                       Sign Up
                     </button>

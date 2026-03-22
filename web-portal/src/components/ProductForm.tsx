@@ -269,7 +269,7 @@ const ProductForm = () => {
           <h2 className="text-2xl font-semibold text-gray-800">Products</h2>
           <button
             onClick={openModal}
-            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center space-x-2"
+            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
           >
             <PlusIcon className="h-5 w-5" />
             <span>Add Product</span>
@@ -294,7 +294,7 @@ const ProductForm = () => {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {isLoading ? (
             <div className="p-6 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full"></div>
+              <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-6 text-center text-gray-600">No products found.</div>
@@ -365,7 +365,7 @@ const ProductForm = () => {
               <button
                 key={i + 1}
                 onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-700 text-white' : 'text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 {i + 1}
@@ -514,7 +514,7 @@ const ProductForm = () => {
                           />
                           {isUploading ? (
                             <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              <div className="animate-spin h-4 w-4 border-2 border-teal-600 border-t-transparent rounded-full"></div>
+                              <div className="animate-spin h-4 w-4 border-2 border-teal-700 border-t-transparent rounded-full"></div>
                               <span>Uploading...</span>
                             </div>
                           ) : (
@@ -613,7 +613,7 @@ const ProductForm = () => {
                         <button
                           type="button"
                           onClick={addAttribute}
-                          className="mt-2 text-teal-600"
+                          className="mt-2 text-teal-700"
                         >
                           + Add Attribute
                         </button>
@@ -629,7 +629,7 @@ const ProductForm = () => {
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+                          className="px-4 py-2 bg-teal-700 text-white rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50"
                         >
                           {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
                         </button>

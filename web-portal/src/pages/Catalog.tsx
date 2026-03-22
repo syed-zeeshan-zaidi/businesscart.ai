@@ -297,7 +297,7 @@ const Catalog: React.FC = () => {
                   </button>
                 </div>
               ) : null)}
-              <button onClick={clearFilters} className="text-sm text-teal-600 hover:underline">
+              <button onClick={clearFilters} className="text-sm text-teal-700 hover:underline">
                 Clear All
               </button>
             </div>
@@ -305,7 +305,7 @@ const Catalog: React.FC = () => {
         )}
 
         {loading ? (
-          <div className="animate-spin h-8 w-8 border-4 border-teal-600 border-t-transparent rounded-full mx-auto my-12"></div>
+          <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full mx-auto my-12"></div>
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
@@ -329,7 +329,7 @@ const Catalog: React.FC = () => {
                     <div>
                       {product.discountedPrice && product.discountedPrice < product.price ? (
                         <>
-                          <p className="text-teal-600 font-bold text-lg">
+                          <p className="text-teal-700 font-bold text-lg">
                             ${product.discountedPrice.toFixed(2)}
                           </p>
                           <p className="text-gray-500 line-through text-sm">
@@ -337,7 +337,7 @@ const Catalog: React.FC = () => {
                           </p>
                         </>
                       ) : (
-                        <p className="text-teal-600 font-bold text-lg">${product.price.toFixed(2)}</p>
+                        <p className="text-teal-700 font-bold text-lg">${product.price.toFixed(2)}</p>
                       )}
                     </div>
                     <AddToCartButton product={product} quantity={1} />
