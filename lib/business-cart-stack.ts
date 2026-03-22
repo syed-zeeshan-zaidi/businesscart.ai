@@ -379,6 +379,17 @@ export class BusinessCartStack extends cdk.Stack {
             'ui-sid-888': 'www.usetgo.com'
           };
 
+          // Redirect www.businesscart.ai to businesscart.ai
+          if (host === 'www.businesscart.ai') {
+            return {
+              statusCode: 301,
+              statusDescription: 'Moved Permanently',
+              headers: {
+                'location': { value: 'https://businesscart.ai' + request.uri }
+              }
+            };
+          }
+
           var companyId = '';
 
           // 1. Direct hit on a Custom Domain
