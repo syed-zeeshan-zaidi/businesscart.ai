@@ -44,5 +44,6 @@
 .blog-content code { background: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.9em; }
 @media (max-width: 640px) {
   .blog-content table { font-size: 0.85rem; display: block; overflow-x: auto; }
-  .blog-content th, .blog-content td { padding: 0.375rem 0.5rem; white-space: nowrap; }
+  .blog-content th { padding: 0.375rem 0.5rem; white-space: nowrap; }
+  .blog-content td { padding: 0.375rem 0.5rem; }
 }
