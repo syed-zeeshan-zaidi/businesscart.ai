@@ -214,7 +214,7 @@ const AppContent = () => {
                 element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" replace />}
               />
               <Route path="/user-guide" element={<UserGuide />} />
-              <Route path="/api-status" element={<ApiStatus />} />
+              <Route path="/system-status" element={<ApiStatus />} />
               <Route path="/contact-us" element={<ContactUs />} />
               <Route path="/about" element={<About />} />
               <Route path="/careers" element={<Careers />} />

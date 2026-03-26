@@ -19,7 +19,7 @@ const LandingPage: React.FC = () => {
                 <div className="sm:text-center lg:text-left">
                   <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
                     <span className="block xl:inline">Stop Paying Middlemen.</span>{' '}
-                    <span className="block text-teal-700 xl:inline">Start Owning Your Commerce.</span>
+                    <span className="block text-teal-400 xl:inline">Start Owning Your Commerce.</span>
                   </h1>
                   <p className="mt-3 text-base text-gray-200 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                     BusinessCart.ai gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
@@ -136,7 +136,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900">Your Own Private Commerce — Like DoorDash, But You Own Everything</h2>
               <p className="mt-4 text-lg text-gray-500">
-                Your products, your customers, your rules. Share your company code and customers access your private catalog through our portal or Android app. You collect the payment. You keep the data.
+                Your products, your customers, your rules. Share your company code and customers access your private catalog through our portal or mobile app. You collect the payment. You keep the data.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -155,7 +155,7 @@ const LandingPage: React.FC = () => {
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Web Portal & Mobile App</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Your customers use the BusinessCart.ai portal or Android app to browse your catalog, place orders, and track deliveries — just like DoorDash, but exclusively yours.
+                  Your customers use the BusinessCart.ai portal or mobile app to browse your catalog, place orders, and track deliveries — just like DoorDash, but exclusively yours.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
