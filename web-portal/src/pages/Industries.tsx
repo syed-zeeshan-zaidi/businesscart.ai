@@ -52,7 +52,7 @@ const Industries: React.FC = () => {
   ];
 
   return (
-    <div className="bg-gray-100">
+    <div className="bg-gray-50">
       <Navbar />
       <main className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

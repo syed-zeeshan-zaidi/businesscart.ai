@@ -5,23 +5,37 @@ import Footer from '../components/Footer';
 const TermsOfService: React.FC = () => {
   const sections = [
     { id: 'acceptance-of-terms', title: 'Acceptance of Terms' },
-    { id: 'description-of-service', title: 'Description of Service' },
-    { id: 'user-accounts', title: 'User Accounts' },
-    { id: 'responsibilities', title: 'Responsibilities' },
-    { id: 'payment-and-fees', title: 'Payment and Fees' },
+    { id: 'the-platform', title: 'The Platform' },
+    { id: 'account-types', title: 'Account Types' },
+    { id: 'company-responsibilities', title: 'Company Responsibilities' },
+    { id: 'customer-responsibilities', title: 'Customer Responsibilities' },
+    { id: 'pricing-and-fees', title: 'Pricing and Fees' },
+    { id: 'payments', title: 'Payments' },
+    { id: 'storefronts', title: 'Storefronts' },
+    { id: 'data-and-ownership', title: 'Data and Ownership' },
+    { id: 'prohibited-use', title: 'Prohibited Use' },
     { id: 'termination', title: 'Termination' },
     { id: 'limitation-of-liability', title: 'Limitation of Liability' },
+    { id: 'changes-to-terms', title: 'Changes to Terms' },
+    { id: 'contact', title: 'Contact' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow">
+        <div className="bg-gray-800 py-12 sm:py-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Terms of Service</h1>
+            <p className="mt-4 text-gray-200">Last updated: March 2026</p>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1">
               <div className="sticky top-24">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Terms of Service</h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Sections</h2>
                 <ul className="space-y-2">
                   {sections.map((section) => (
                     <li key={section.id}>
@@ -35,46 +49,157 @@ const TermsOfService: React.FC = () => {
               <section id="acceptance-of-terms">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">1. Acceptance of Terms</h2>
                 <p className="text-gray-600">
-                  By accessing and using the BusinessCart.ai platform, you accept and agree to be bound by the terms and provision of this agreement. In addition, when using these particular services, you shall be subject to any posted guidelines or rules applicable to such services. Any participation in this service will constitute acceptance of this agreement. If you do not agree to abide by the above, please do not use this service.
+                  By creating an account on or using the BusinessCart.ai platform, you agree to be bound by these Terms of Service. These terms apply to all users of the platform — including companies (sellers), customers (buyers), and visitors to D2C storefronts. If you do not agree to these terms, do not use the platform.
                 </p>
               </section>
-              <section id="description-of-service">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">2. Description of Service</h2>
+
+              <section id="the-platform">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">2. The Platform</h2>
+                <p className="text-gray-600 mb-4">
+                  BusinessCart.ai is an e-commerce platform that allows businesses to create their own branded online store, manage a product catalog, configure per-customer B2B pricing, accept payments through their own payment provider, and process orders — all without monthly subscription fees.
+                </p>
                 <p className="text-gray-600">
-                  Our service is a SaaS B2B e-commerce platform that allows businesses (Companies) to sell their products to their designated customers (Customers). We provide tools for managing products, orders, and customer relationships. The service is provided on an "as is" and "as available" basis. We reserve the right to modify, suspend, or discontinue the service at any time without notice and without any liability to you.
+                  The platform includes a web portal, mobile app, API, and auto-generated D2C storefronts. The service is provided on an "as is" and "as available" basis. We work to maintain high availability but cannot guarantee uninterrupted access at all times.
                 </p>
               </section>
-              <section id="user-accounts">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">3. User Accounts</h2>
+
+              <section id="account-types">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">3. Account Types</h2>
+                <p className="text-gray-600 mb-4">The platform supports the following account types:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li><b>Company accounts:</b> Created with a business code provided by BusinessCart.ai. Companies manage their products, customers, locations, payment gateways, and orders.</li>
+                  <li><b>Customer accounts:</b> Created with a customer code provided by a company. Customers can associate with one or more companies, browse private catalogs, and place orders.</li>
+                  <li><b>Storefront visitors:</b> Anyone can visit a company's public D2C storefront and make a purchase without creating a portal account.</li>
+                </ul>
+                <p className="text-gray-600 mt-4">
+                  You are responsible for maintaining the security of your account credentials. You are liable for all activity that occurs under your account.
+                </p>
+              </section>
+
+              <section id="company-responsibilities">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">4. Company Responsibilities</h2>
+                <p className="text-gray-600 mb-4">Companies using BusinessCart.ai agree to:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Provide accurate business information during onboarding.</li>
+                  <li>Maintain accurate product descriptions, pricing, and inventory in their catalog.</li>
+                  <li>Fulfill orders placed through the portal and D2C storefronts in a timely manner.</li>
+                  <li>Provide customer support to their own buyers for order-related issues (shipping, returns, product questions).</li>
+                  <li>Configure and maintain their own payment provider (Stripe, Amazon Pay, Authorize.net, or offline methods).</li>
+                  <li>Comply with all applicable local, state, and federal laws regarding the sale of their products.</li>
+                </ul>
+                <p className="text-gray-600 mt-4">
+                  BusinessCart.ai provides the technology platform. Companies are responsible for their products, their customers, and their fulfillment.
+                </p>
+              </section>
+
+              <section id="customer-responsibilities">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">5. Customer Responsibilities</h2>
+                <p className="text-gray-600 mb-4">Customers using BusinessCart.ai agree to:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Provide accurate personal and delivery information when placing orders.</li>
+                  <li>Pay for products ordered through the platform.</li>
+                  <li>Use the platform for lawful purchasing activity only.</li>
+                </ul>
+              </section>
+
+              <section id="pricing-and-fees">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">6. Pricing and Fees</h2>
+                <p className="text-gray-600 mb-4">BusinessCart.ai charges companies a per-order fee. There are no monthly subscription fees.</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li><b>Starter:</b> 6% per order. Includes portal access, D2C storefront with custom domain, standard checkout, basic B2B configuration, Stripe and offline payment methods.</li>
+                  <li><b>Growth:</b> 5% + $1 per order. Includes everything in Starter plus negotiable quotes, multiple locations, all payment gateways, and full B2B configuration.</li>
+                  <li><b>Enterprise:</b> Custom pricing. Includes everything in Growth plus premium features, dedicated support, and SLA.</li>
+                </ul>
+                <p className="text-gray-600 mt-4">
+                  Pricing is subject to change. We will notify existing customers before any changes take effect. All fees are in US Dollars.
+                </p>
+              </section>
+
+              <section id="payments">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">7. Payments</h2>
+                <p className="text-gray-600 mb-4">
+                  BusinessCart.ai does not process payments on behalf of companies or customers. Companies connect their own payment provider (Stripe, Amazon Pay, Authorize.net) and receive payments directly from their customers.
+                </p>
                 <p className="text-gray-600">
-                  To access most features of the service, you must register for an account. When you register for an account, you may be required to provide us with some information about yourself, such as your name, email address, or other contact information. You agree that the information you provide to us is accurate and that you will keep it accurate and up-to-date at all times. You are solely responsible for maintaining the confidentiality of your account and password, and you accept responsibility for all activities that occur under your account.
+                  BusinessCart.ai is not responsible for payment disputes, chargebacks, refunds, or issues between companies and their payment providers. Companies are responsible for their own payment processing agreements and compliance.
                 </p>
               </section>
-              <section id="responsibilities">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">4. Responsibilities</h2>
-                <p className="text-gray-600 mb-4"><b>Companies</b> are responsible for managing their product catalogs, pricing, and inventory. They are also responsible for fulfilling orders and providing customer service to their Customers.</p>
-                <p className="text-gray-600"><b>Customers</b> are responsible for providing accurate shipping and payment information. They are also responsible for paying for the products they order.</p>
-              </section>
-              <section id="payment-and-fees">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">5. Payment and Fees</h2>
+
+              <section id="storefronts">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">8. Storefronts</h2>
+                <p className="text-gray-600 mb-4">
+                  BusinessCart.ai automatically generates a public D2C storefront for each company based on their product catalog and branding. Storefronts are hosted on our infrastructure and served through a global content delivery network.
+                </p>
+                <p className="text-gray-600 mb-4">
+                  Storefronts are publicly accessible by design. Product information, company branding, and pricing displayed on storefronts are visible to anyone, including search engines and AI assistants.
+                </p>
                 <p className="text-gray-600">
-                  Certain features of the service may require you to pay fees. Before you pay any fees, you will have an opportunity to review and accept the fees that you will be charged. All fees are in U.S. Dollars and are non-refundable. We may use a third-party payment processor to bill you through a payment account linked to your account on the services.
+                  Companies may use a custom domain for their storefront. BusinessCart.ai provides subdomain hosting (yourcompany.businesscart.ai) at no additional cost.
                 </p>
               </section>
+
+              <section id="data-and-ownership">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">9. Data and Ownership</h2>
+                <p className="text-gray-600 mb-4">
+                  Companies retain ownership of their data — including products, customer information, order history, and business configuration. BusinessCart.ai uses this data solely to provide and improve the platform.
+                </p>
+                <p className="text-gray-600">
+                  BusinessCart.ai does not sell company or customer data to third parties. See our <a href="/privacy-policy" className="text-teal-700 hover:underline">Privacy Policy</a> for full details on data handling.
+                </p>
+              </section>
+
+              <section id="prohibited-use">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">10. Prohibited Use</h2>
+                <p className="text-gray-600 mb-4">You may not use the platform to:</p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Sell illegal products or services.</li>
+                  <li>Engage in fraud, deception, or misrepresentation.</li>
+                  <li>Violate any applicable law or regulation.</li>
+                  <li>Interfere with the operation of the platform or other users' accounts.</li>
+                  <li>Attempt to access data or accounts that do not belong to you.</li>
+                  <li>Use the platform for unsolicited communications or spam.</li>
+                </ul>
+              </section>
+
               <section id="termination">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">6. Termination</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">11. Termination</h2>
+                <p className="text-gray-600 mb-4">
+                  You may close your account at any time by contacting us. Companies can request deletion of their data upon account closure.
+                </p>
                 <p className="text-gray-600">
-                  We may terminate or suspend your account and bar access to the service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.
+                  We may suspend or terminate your account if you violate these terms, engage in prohibited activity, or if your use of the platform creates a risk to other users or to our infrastructure. We will attempt to notify you before taking action, except in cases requiring immediate response.
                 </p>
               </section>
+
               <section id="limitation-of-liability">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">7. Limitation of Liability</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">12. Limitation of Liability</h2>
+                <p className="text-gray-600 mb-4">
+                  BusinessCart.ai provides a technology platform. We are not a party to transactions between companies and their customers. We are not responsible for the quality, safety, or legality of products sold through the platform, or for the accuracy of product listings.
+                </p>
                 <p className="text-gray-600">
-                  In no event shall BusinessCart.ai, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.
+                  To the maximum extent permitted by law, BusinessCart.ai and its team shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of profits, data, or business opportunity — arising from your use of the platform.
+                </p>
+              </section>
+
+              <section id="changes-to-terms">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">13. Changes to Terms</h2>
+                <p className="text-gray-600">
+                  We may update these terms from time to time. If we make significant changes, we will notify you by email or through the platform. Continued use of the platform after changes take effect constitutes acceptance of the updated terms.
+                </p>
+              </section>
+
+              <section id="contact">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">14. Contact</h2>
+                <p className="text-gray-600">
+                  Questions about these terms? Contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>
+                </p>
+                <p className="text-gray-600 mt-2">
+                  BusinessCart, Inc. — United States
                 </p>
               </section>
             </div>
           </div>
+        </div>
         </div>
       </main>
       <Footer />
