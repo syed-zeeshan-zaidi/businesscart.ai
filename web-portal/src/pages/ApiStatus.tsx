@@ -56,7 +56,7 @@ const ApiStatus: React.FC = () => {
 
         {/* Report an Issue */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 text-center">
             <h2 className="text-xl font-bold text-gray-900 mb-2">Experiencing an Issue?</h2>
             <p className="text-gray-600 mb-6">
               If something is not working as expected, let us know. Our US-based team investigates every report.

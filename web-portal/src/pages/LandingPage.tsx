@@ -52,7 +52,7 @@ const LandingPage: React.FC = () => {
         </div>
 
         {/* Social Proof */}
-        <div className="bg-gray-100 py-8">
+        <div className="bg-gray-50 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h2 className="text-sm font-semibold text-gray-600 tracking-wider uppercase">
@@ -492,7 +492,7 @@ const LandingPage: React.FC = () => {
                 </ul>
                 <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order</p>
                 <Link
-                  to="/register"
+                  to="/contact-us"
                   className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
                 >
                   Get Started

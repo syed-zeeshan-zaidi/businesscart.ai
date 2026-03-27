@@ -24,18 +24,18 @@ const ContactUs: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
             {/* Get Started */}
-            <div className="bg-white shadow-lg rounded-lg p-8 flex flex-col">
+            <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 flex flex-col">
               <div className="flex items-center justify-center h-14 w-14 rounded-full bg-teal-700 text-white mx-auto">
                 <RocketLaunchIcon className="h-7 w-7" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mt-5 mb-4 text-center">Get Started</h2>
               <p className="text-gray-600 mb-6 text-center">
-                Send us your company name and business email. No commitment, no credit card — we handle the rest.
+                Send us your company name and business email. No commitment, no credit card required.
               </p>
               <div className="space-y-3 mb-8">
-                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Account created for you</span></div>
-                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Guided setup for products and payments</span></div>
-                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Your store live in under 30 minutes</span></div>
+                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">We verify your business</span></div>
+                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">You receive a business code to register</span></div>
+                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Guided setup — your store live in under 30 minutes</span></div>
               </div>
               <p className="text-gray-500 text-sm text-center mb-4">We respond within one business day.</p>
               <a
@@ -48,7 +48,7 @@ const ContactUs: React.FC = () => {
             </div>
 
             {/* Request a Demo */}
-            <div className="bg-white shadow-lg rounded-lg p-8 flex flex-col">
+            <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 flex flex-col">
               <div className="flex items-center justify-center h-14 w-14 rounded-full bg-gray-800 text-white mx-auto">
                 <PresentationChartBarIcon className="h-7 w-7" />
               </div>
@@ -61,7 +61,7 @@ const ContactUs: React.FC = () => {
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Your industry-specific use cases</span></div>
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Live Q&amp;A with our team</span></div>
               </div>
-              <p className="text-gray-500 text-sm text-center mb-4">Include your availability and we will find a time</p>
+              <p className="text-gray-500 text-sm text-center mb-4">Include your availability and we will find a time.</p>
               <a
                 href="mailto:help@businesscart.ai?subject=Demo%20Request%20-%20BusinessCart.ai"
                 className="mt-auto inline-flex items-center justify-center w-full px-6 py-3 border-2 border-teal-700 text-base font-medium rounded-md text-teal-700 hover:bg-teal-700 hover:text-white transition"
@@ -73,7 +73,7 @@ const ContactUs: React.FC = () => {
           </div>
 
           {/* Direct Contact */}
-          <div className="mt-12 bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="mt-12 bg-white shadow-lg rounded-lg p-4 sm:p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Prefer to Talk?</h2>
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
               <div className="flex items-center space-x-3">

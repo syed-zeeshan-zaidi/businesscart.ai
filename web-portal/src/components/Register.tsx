@@ -61,7 +61,10 @@ const Register = () => {
       <Navbar />
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Create Your Account</h2>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2 text-center">Create Your Account</h2>
+          <div className="bg-teal-50 border border-teal-200 rounded-md p-3 mb-6 text-center">
+            <p className="text-sm text-teal-800">A business code or customer access code is required to register. <a href="/contact-us" className="font-semibold underline">Request a code</a> if you do not have one.</p>
+          </div>
           {errors.length > 0 && (
             <div className="bg-red-50 text-red-600 p-3 rounded-md mb-6">
               {errors.map((error, idx) => (
@@ -71,7 +74,7 @@ const Register = () => {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
+              <label className="block text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
               <input
                 name="name"
                 value={formData.name}
@@ -81,7 +84,7 @@ const Register = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></label>
               <input
                 name="email"
                 type="email"
@@ -92,7 +95,7 @@ const Register = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label className="block text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></label>
               <input
                 name="password"
                 type="password"
@@ -103,7 +106,7 @@ const Register = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Role</label>
+              <label className="block text-sm font-medium text-gray-700">Role <span className="text-red-500">*</span></label>
               <select
                 name="role"
                 value={formData.role}
@@ -116,7 +119,7 @@ const Register = () => {
             </div>
             {formData.role === 'company' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Business Code</label>
+                <label className="block text-sm font-medium text-gray-700">Business Code <span className="text-red-500">*</span></label>
                 <input
                   name="code"
                   value={formData.code}
@@ -124,11 +127,14 @@ const Register = () => {
                   placeholder="Enter your business code"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  A business code is provided after we verify your business. Do not have one? <a href="/contact-us" className="text-teal-700 hover:underline">Request a code</a>.
+                </p>
               </div>
             )}
             {formData.role === 'customer' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Company Access Code</label>
+                <label className="block text-sm font-medium text-gray-700">Company Access Code <span className="text-red-500">*</span></label>
                 <input
                   name="customerCodes"
                   value={formData.customerCodes}
@@ -136,10 +142,13 @@ const Register = () => {
                   placeholder="Enter company access code(s), comma separated"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  This code is provided by the company you are purchasing from. Contact your supplier if you do not have one.
+                </p>
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+              <label className="block text-sm font-medium text-gray-700">Phone Number <span className="text-red-500">*</span></label>
               <input
                 name="phoneNumber"
                 value={formData.phoneNumber}

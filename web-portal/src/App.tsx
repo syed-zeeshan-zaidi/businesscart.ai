@@ -47,8 +47,9 @@ const AppContent = () => {
   const location = useLocation();
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 500); // Simulate loading
+    const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
   }, [location]);
 
@@ -101,7 +102,7 @@ const AppContent = () => {
             </Routes>
           </Suspense>
         )}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
               <Route path="/" element={<LandingPage />} /> {/* Moved to the top */}

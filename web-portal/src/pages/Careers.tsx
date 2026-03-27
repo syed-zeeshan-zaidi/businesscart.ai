@@ -68,7 +68,7 @@ const Careers: React.FC = () => {
           <p className="text-gray-600 text-lg leading-relaxed mb-8">
             We do not always have formal openings, but we are always interested in meeting exceptional people. If you are an engineer, designer, or business operator who wants to build something that matters — reach out. Tell us what you are great at and why BusinessCart.ai interests you.
           </p>
-          <div className="bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 text-center">
             <p className="text-gray-600 mb-6">Send us your background and what excites you about commerce infrastructure.</p>
             <a
               href="mailto:help@businesscart.ai?subject=Career%20Inquiry%20-%20BusinessCart.ai"
