@@ -24,7 +24,7 @@ const ContactUs: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
             {/* Get Started */}
-            <div className="bg-white shadow-lg rounded-lg p-8 flex flex-col">
+            <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 flex flex-col">
               <div className="flex items-center justify-center h-14 w-14 rounded-full bg-teal-700 text-white mx-auto">
                 <RocketLaunchIcon className="h-7 w-7" />
               </div>
@@ -48,7 +48,7 @@ const ContactUs: React.FC = () => {
             </div>
 
             {/* Request a Demo */}
-            <div className="bg-white shadow-lg rounded-lg p-8 flex flex-col">
+            <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 flex flex-col">
               <div className="flex items-center justify-center h-14 w-14 rounded-full bg-gray-800 text-white mx-auto">
                 <PresentationChartBarIcon className="h-7 w-7" />
               </div>
@@ -73,7 +73,7 @@ const ContactUs: React.FC = () => {
           </div>
 
           {/* Direct Contact */}
-          <div className="mt-12 bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="mt-12 bg-white shadow-lg rounded-lg p-4 sm:p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Prefer to Talk?</h2>
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
               <div className="flex items-center space-x-3">

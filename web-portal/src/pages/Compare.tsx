@@ -192,12 +192,12 @@ const Compare: React.FC = () => {
               >
                 Get Started Free
               </Link>
-              <Link
-                to="/contact-us"
+              <a
+                href="mailto:help@businesscart.ai?subject=Demo%20Request%20-%20BusinessCart.ai"
                 className="inline-flex items-center justify-center px-8 py-3 border-2 border-teal-700 text-base font-medium rounded-md text-teal-700 hover:bg-teal-700 hover:text-white transition"
               >
                 Request a Demo
-              </Link>
+              </a>
             </div>
           </div>
         </div>

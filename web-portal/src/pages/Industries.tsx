@@ -65,7 +65,7 @@ const Industries: React.FC = () => {
 
           <div className="space-y-12">
             {useCases.map((useCase, index) => (
-              <div key={index} className="bg-white shadow-lg rounded-lg p-8">
+              <div key={index} className="bg-white shadow-lg rounded-lg p-4 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">{useCase.title}</h2>
                 <div className="grid md:grid-cols-2 gap-8">
                   <div>
