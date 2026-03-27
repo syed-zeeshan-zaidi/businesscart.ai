@@ -104,7 +104,7 @@ const About: React.FC = () => {
             <p className="mt-4 text-gray-200">No monthly fees. No setup costs. Pay only when you sell.</p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                to="/register"
+                to="/contact-us"
                 className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
               >
                 Get Started Free

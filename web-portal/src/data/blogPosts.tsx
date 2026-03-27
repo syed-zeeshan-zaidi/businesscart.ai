@@ -85,7 +85,7 @@ const blogPosts: BlogPostData[] = [
         <h2>The Bottom Line</h2>
         <p>If you are starting an online store in 2026, paying $39+/month before your first sale does not make sense. The alternatives have caught up — and in some areas, passed Shopify entirely.</p>
         <p>BusinessCart.ai eliminates the monthly fee, gives you the fastest storefront on the web, and includes SEO and B2B features that Shopify charges thousands for. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
-        <p>Stop paying for a store before you have customers. <strong><a href="/register">Start for free on BusinessCart.ai</a></strong> and pay only when you sell.</p>
+        <p>Stop paying for a store before you have customers. <strong><a href="/contact-us">Start for free on BusinessCart.ai</a></strong> and pay only when you sell.</p>
       </>
     ),
   },
@@ -109,7 +109,7 @@ const blogPosts: BlogPostData[] = [
         <p>That is it. No domain name required (you get one automatically). No hosting to set up. No SSL certificate to configure.</p>
 
         <h2>Step 1: Create Your Account (2 minutes)</h2>
-        <p>Sign up on <a href="/register">BusinessCart.ai</a> with your company code. Enter your business name, upload a logo if you have one, and pick your brand colors. This takes about 2 minutes.</p>
+        <p>Sign up on <a href="/contact-us">BusinessCart.ai</a> with your company code. Enter your business name, upload a logo if you have one, and pick your brand colors. This takes about 2 minutes.</p>
         <p>Your business immediately gets its own subdomain: <code>your-business-name.businesscart.ai</code>.</p>
 
         <h2>Step 2: Add Your Products (10-20 minutes)</h2>
@@ -174,7 +174,7 @@ const blogPosts: BlogPostData[] = [
           <li><strong>AI assistants find it</strong> — Your static HTML storefront is LLM-friendly. ChatGPT, Alexa, and Google's AI can read your product catalog directly.</li>
           <li><strong>Scale when ready</strong> — Add B2B features, per-customer pricing, quote negotiation, and multiple locations as your business grows. No plan upgrade needed for basic B2B.</li>
         </ul>
-        <p>Ready to start? <strong><a href="/register">Create your free store on BusinessCart.ai</a></strong>.</p>
+        <p>Ready to start? <strong><a href="/contact-us">Create your free store on BusinessCart.ai</a></strong>.</p>
       </>
     ),
   },
@@ -235,7 +235,7 @@ const blogPosts: BlogPostData[] = [
         <p>Right now, almost no e-commerce platforms market LLM-friendliness as a feature. Most stores are JavaScript-heavy and invisible to AI assistants. This is a window of opportunity.</p>
         <p>If your store is one of the few that AI can actually read and recommend from, you get traffic that your competitors miss entirely. And as AI shopping grows — which every trend indicates it will — this advantage compounds.</p>
         <p>The stores that AI can read will get recommended. The ones it cannot read will not. It is that simple.</p>
-        <p><strong><a href="/register">Start your LLM-friendly store on BusinessCart.ai</a></strong> — free, no code, no monthly fees.</p>
+        <p><strong><a href="/contact-us">Start your LLM-friendly store on BusinessCart.ai</a></strong> — free, no code, no monthly fees.</p>
       </>
     ),
   },
@@ -349,7 +349,7 @@ const blogPosts: BlogPostData[] = [
         <h2>The Bottom Line</h2>
         <p>The "cheapest" platform depends on your revenue. At $0 revenue, BusinessCart.ai costs $0 while Shopify costs $39+ and WooCommerce costs $30+. At $5K/month, all three end up around $250-360/month total.</p>
         <p>The real question is: <strong>do you want to pay before you earn, or after?</strong></p>
-        <p><strong><a href="/register">Start selling for free on BusinessCart.ai</a></strong> — no monthly fees, no setup costs, pay only per order.</p>
+        <p><strong><a href="/contact-us">Start selling for free on BusinessCart.ai</a></strong> — no monthly fees, no setup costs, pay only per order.</p>
       </>
     ),
   },
@@ -402,7 +402,7 @@ const blogPosts: BlogPostData[] = [
           <li><strong>Increase your profits:</strong> Keep the 30% you have been giving away and reinvest it in your business.</li>
           <li><strong>No monthly fees:</strong> Pay only when you make sales — 6% per order on the Starter plan.</li>
         </ul>
-        <p>Stop being a tenant in someone else's store. It is time to build your own. <strong><a href="/register">Get started for free on BusinessCart.ai</a></strong>.</p>
+        <p>Stop being a tenant in someone else's store. It is time to build your own. <strong><a href="/contact-us">Get started for free on BusinessCart.ai</a></strong>.</p>
       </>
     ),
   },
@@ -494,7 +494,7 @@ const blogPosts: BlogPostData[] = [
         <h2>The Math That Matters</h2>
         <p>If you do $5,000/month on Etsy, switching to your own store saves you $220-970/month in fees depending on whether offsite ads hit you. That is $2,640-11,640 per year back in your pocket.</p>
         <p>You also get something no amount of money can buy on Etsy: a customer list you own, a brand people remember, and a business that cannot be shut down by someone else's algorithm.</p>
-        <p><strong><a href="/register">Create your free storefront on BusinessCart.ai</a></strong> — bring your Etsy products over in 30 minutes.</p>
+        <p><strong><a href="/contact-us">Create your free storefront on BusinessCart.ai</a></strong> — bring your Etsy products over in 30 minutes.</p>
         <p>Related: <a href="/blog/how-to-sell-online-without-marketplace-fees">How to Sell Online Without Marketplace Fees: The Independence Playbook</a></p>
       </>
     ),
@@ -595,7 +595,7 @@ const blogPosts: BlogPostData[] = [
           <li>You would rather pay per sale than per month</li>
         </ul>
         <p>A beautiful store that nobody can find and half of visitors abandon because it loads too slowly is not a good investment at any price.</p>
-        <p><strong><a href="/register">Try BusinessCart.ai free</a></strong> — sub-1-second storefronts, full SEO, $0/month.</p>
+        <p><strong><a href="/contact-us">Try BusinessCart.ai free</a></strong> — sub-1-second storefronts, full SEO, $0/month.</p>
         <p>Related: <a href="/blog/why-your-online-store-should-be-llm-friendly">Why Your Online Store Should Be LLM-Friendly (And What That Means)</a></p>
       </>
     ),
@@ -691,7 +691,7 @@ const blogPosts: BlogPostData[] = [
         <p>Marketplaces are not evil. They are a discovery channel — a way for new customers to find you. The mistake is making them your <em>only</em> channel.</p>
         <p>The goal is not to leave marketplaces entirely. It is to flip the relationship: use the marketplace to discover new customers, then convert them to direct buyers. The marketplace becomes a funnel, not a landlord.</p>
         <p>You keep your brand. You keep your customers. You keep your margins.</p>
-        <p><strong><a href="/register">Start your free store on BusinessCart.ai</a></strong> and begin the shift today.</p>
+        <p><strong><a href="/contact-us">Start your free store on BusinessCart.ai</a></strong> and begin the shift today.</p>
         <p>Related: <a href="/blog/etsy-alternatives-for-sellers-who-want-their-own-store">Etsy Alternatives for Sellers Who Want Their Own Store</a></p>
       </>
     ),

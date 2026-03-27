@@ -124,6 +124,9 @@ const Register = () => {
                   placeholder="Enter your business code"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  A business code is provided after we verify your business. Do not have one? <a href="/contact-us" className="text-teal-700 hover:underline">Request a code</a>.
+                </p>
               </div>
             )}
             {formData.role === 'customer' && (
@@ -136,6 +139,9 @@ const Register = () => {
                   placeholder="Enter company access code(s), comma separated"
                   className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  This code is provided by the company you are purchasing from. Contact your supplier if you do not have one.
+                </p>
               </div>
             )}
             <div>
