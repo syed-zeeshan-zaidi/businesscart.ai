@@ -225,8 +225,8 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 
 	acc := &storage.Account{
 		ID:            primitive.NewObjectID(),
-		Name:          req.Name,
-		Email:         req.Email,
+		Name:          strings.TrimSpace(req.Name),
+		Email:         strings.TrimSpace(req.Email),
 		Password:      hashedPassword,
 		Role:          req.Role,
 		AccountStatus: storage.AccountActive,
@@ -523,6 +523,15 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
 	}
 
+	// Sanitize string fields that affect URLs and display
+	for k, v := range payload.Company {
+		if str, ok := v.(string); ok {
+			if k == "name" || k == "contactEmail" || k == "contactPhone" {
+				payload.Company[k] = strings.TrimSpace(str)
+			}
+		}
+	}
+
 	setFields := bson.M{}
 	for k, v := range payload.Company {
 		// Only admin can change company codes
@@ -538,6 +547,14 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 					delete(d2c, "enabled")
 					delete(d2c, "customDomain")
 					delete(d2c, "previewDomain")
+				}
+				// Sanitize D2C string fields
+				for subK, subV := range d2c {
+					if str, ok := subV.(string); ok {
+						if subK == "contactEmail" || subK == "contactPhone" || subK == "heroTitle" || subK == "heroSlogan" || subK == "customDomain" {
+							d2c[subK] = strings.TrimSpace(str)
+						}
+					}
 				}
 				// Flatten the d2c map into individual set operations to avoid overwriting the whole object
 				for subK, subV := range d2c {

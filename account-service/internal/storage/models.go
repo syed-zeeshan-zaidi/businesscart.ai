@@ -78,6 +78,15 @@ type D2CConfig struct {
 	HeroSlogan     string `bson:"heroSlogan" json:"heroSlogan"`
 	HeroTextColor  string `bson:"heroTextColor" json:"heroTextColor"`
 	HeroBgColor    string `bson:"heroBgColor" json:"heroBgColor"`
+	AboutText      string `bson:"aboutText" json:"aboutText"`
+	PrivacyText    string `bson:"privacyText" json:"privacyText"`
+	TermsText      string `bson:"termsText" json:"termsText"`
+	ShippingText   string `bson:"shippingText" json:"shippingText"`
+	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
+	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`
+	TwitterURL     string `bson:"twitterUrl" json:"twitterUrl"`
+	LinkedinURL    string `bson:"linkedinUrl" json:"linkedinUrl"`
+	TiktokURL      string `bson:"tiktokUrl" json:"tiktokUrl"`
 }
 
 // Multiple locations/addresses for Account role companies

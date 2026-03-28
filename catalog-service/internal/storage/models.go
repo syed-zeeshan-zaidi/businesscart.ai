@@ -23,6 +23,7 @@ type Product struct {
 	Images          []string           `bson:"images,omitempty" json:"images,omitempty"`
 	Category        string             `bson:"category,omitempty" json:"category,omitempty"`
 	Slug            string             `bson:"slug,omitempty" json:"slug,omitempty"`
+	Featured        bool               `bson:"featured,omitempty" json:"featured,omitempty"`
 	Attributes      []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt       time.Time          `bson:"updatedAt" json:"updatedAt"`

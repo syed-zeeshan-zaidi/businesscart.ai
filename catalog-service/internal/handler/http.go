@@ -138,6 +138,13 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	}
 
 	product.SellerID = userClaim["id"].(string)
+	product.Name = strings.TrimSpace(product.Name)
+	product.Category = strings.TrimSpace(product.Category)
+	product.Slug = strings.TrimSpace(product.Slug)
+	for i := range product.Attributes {
+		product.Attributes[i].Key = strings.TrimSpace(product.Attributes[i].Key)
+		product.Attributes[i].Value = strings.TrimSpace(product.Attributes[i].Value)
+	}
 
 	if err := h.db.CreateProduct(&product); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create product"), nil
@@ -260,6 +267,31 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 
 	// Prevent updating SellerID
 	delete(updates, "sellerID")
+
+	// Sanitize text fields that affect URLs and display
+	if name, ok := updates["name"].(string); ok {
+		updates["name"] = strings.TrimSpace(name)
+	}
+	if category, ok := updates["category"].(string); ok {
+		updates["category"] = strings.TrimSpace(category)
+	}
+	if slug, ok := updates["slug"].(string); ok {
+		updates["slug"] = strings.TrimSpace(slug)
+	}
+	if attrs, ok := updates["attributes"].([]interface{}); ok {
+		for i, a := range attrs {
+			if attr, ok := a.(map[string]interface{}); ok {
+				if k, ok := attr["key"].(string); ok {
+					attr["key"] = strings.TrimSpace(k)
+				}
+				if v, ok := attr["value"].(string); ok {
+					attr["value"] = strings.TrimSpace(v)
+				}
+				attrs[i] = attr
+			}
+		}
+		updates["attributes"] = attrs
+	}
 
 	if err := h.db.UpdateProduct(id, updates); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update product"), nil

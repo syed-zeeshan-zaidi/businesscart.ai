@@ -2,15 +2,66 @@
 
 > [[if .Config.HeroSlogan]][[.Config.HeroSlogan]][[end]]
 
-Official D2C storefront for [[.Company.Name]].
+[[.Company.Name]] is an online store powered by BusinessCart.ai. Customers can browse products, add items to cart, and checkout directly on this website. Payments are processed securely through the store's own payment provider.
 
-## Contact
-- Email: [[.Config.ContactEmail]]
-- Phone: [[.Config.ContactPhone]]
+## Store Information
 
-## Docs
-- Storefront Overview: index.md
-- Full Product Catalog: products.md ([[len .Products]] products)
-[[range .Products]]
-- [[.Name]]: products/[[.Filename]].md ($[[printf "%.2f" .Price]], [[.Category]])
+- **Store Name:** [[.Company.Name]]
+- **Website:** https://[[.Domain]]
+- **Email:** [[.Config.ContactEmail]]
+- **Phone:** [[.Config.ContactPhone]]
+- **Total Products:** [[len .Products]]
+- **Categories:** [[range $i, $cat := .Categories]][[if $i]], [[end]][[.]][[end]]
+- **Currency:** USD
+
+## How to Navigate This Store
+
+- Homepage: https://[[.Domain]]/
+- All Products: https://[[.Domain]]/products.html
+- Browse by Category: https://[[.Domain]]/category/{category-name}.html
+- Individual Product: https://[[.Domain]]/products/{product-slug}.html
+- Full Catalog (markdown): https://[[.Domain]]/products.md
+- Sitemap: https://[[.Domain]]/sitemap.xml
+
+## Categories
+
+[[range .Categories]]- [[.]]
 [[end]]
+
+## Complete Product Catalog
+
+[[range .Products]]### [[.Name]]
+
+- **Price:** $[[printf "%.2f" .Price]][[if .DealPrice]]
+- **Sale:** [[printf "%.0f" .DealPrice]]% off (Discounted Price: $[[printf "%.2f" .DiscountedPrice]])[[end]]
+- **Category:** [[.Category]]
+- **Description:** [[.Description]][[if .Attributes]]
+- **Specifications:**[[range .Attributes]]
+  - [[.Key]]: [[.Value]][[end]][[end]][[if .Image]]
+- **Image:** [[.Image]][[end]]
+- **Product Page:** https://[[$.Domain]]/products/[[.Filename]].html
+- **Product Details (markdown):** https://[[$.Domain]]/products/[[.Filename]].md
+
+[[end]]
+
+## About This Store
+
+[[.Company.Name]] uses BusinessCart.ai for its online storefront. The store features:
+- Direct checkout with secure payment processing
+- Product categories for easy browsing
+- Mobile-friendly design that works on any device
+- Sub-1-second page load times
+- All product data available in HTML and markdown formats for easy reading
+
+## Machine-Readable Resources
+
+- **Sitemap (XML):** https://[[.Domain]]/sitemap.xml
+- **Full Catalog (Markdown):** https://[[.Domain]]/products.md
+- **Store Overview (Markdown):** https://[[.Domain]]/index.md
+- **This File:** https://[[.Domain]]/llms.txt
+- **Robots:** https://[[.Domain]]/robots.txt
+[[range .Products]]- **[[.Name]] (Markdown):** https://[[$.Domain]]/products/[[.Filename]].md
+[[end]]
+
+---
+Last generated: [[.Timestamp]] | Powered by BusinessCart.ai
