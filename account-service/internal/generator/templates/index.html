@@ -3,16 +3,29 @@
 
 <head>
     <meta charset="UTF-8">
+    [[if .Company.LogoURL]]<link rel="icon" href="[[.Company.LogoURL]]" type="image/png">[[end]]
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[[.Company.Name]] | Official Storefront</title>
-    <meta name="description" content="Discover premium products at [[.Company.Name]]. Official B2B and D2C storefront.">
+    <meta name="description" content="Shop [[len .Products]] products from [[.Company.Name]][[if .Categories]] in [[range $i, $cat := .Categories]][[if $i]], [[end]][[.]][[end]][[end]]. [[if .Config.HeroSlogan]][[.Config.HeroSlogan]]. [[end]]Fast checkout, free shipping options.">
     <link rel="canonical" href="https://[[.Domain]]/">
     <link rel="alternate" type="text/markdown" href="index.md">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="[[.Company.Name]] | Official Storefront">
-    <meta property="og:description" content="Discover premium products at [[.Company.Name]]. Official B2B and D2C storefront.">
+    <meta property="og:title" content="[[.Company.Name]] | Official Store">
+    <meta property="og:description" content="Shop [[len .Products]] products from [[.Company.Name]]. [[if .Config.HeroSlogan]][[.Config.HeroSlogan]][[end]]">
     <meta property="og:url" content="https://[[.Domain]]/">
     [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "[[.Company.Name]]",
+      "url": "https://[[.Domain]]",
+      [[if .Company.LogoURL]]"logo": "[[.Company.LogoURL]]",[[end]]
+      [[if .Config.ContactEmail]]"email": "[[.Config.ContactEmail]]",[[end]]
+      [[if .Config.ContactPhone]]"telephone": "[[.Config.ContactPhone]]",[[end]]
+      "description": "[[if .Config.HeroSlogan]][[.Config.HeroSlogan]][[end]]"
+    }
+    </script>
     <style>
         :root {
             --primary: [[.Config.PrimaryColor]];
@@ -464,6 +477,13 @@
             </div>
         </div>
     </div>
+
+    [[if .Config.AboutText]]
+    <div style="max-width: 900px; margin: 0 auto; padding: 4rem 5% 2rem 5%; text-align: center;">
+        <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 1rem;">About [[.Company.Name]]</h2>
+        <p style="font-size: 1.1rem; color: #475569; line-height: 1.8;">[[.Config.AboutText]]</p>
+    </div>
+    [[end]]
 
     [[template "footer" .]]
 </body>

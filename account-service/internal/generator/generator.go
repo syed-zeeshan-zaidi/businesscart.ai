@@ -33,6 +33,7 @@ type StorefrontData struct {
 	Products         []ProductData
 	Categories       []string      // Unique list of product categories
 	FeaturedProducts []ProductData // Subset of products for the homepage
+	DealProducts     []ProductData // Products with active deals (DealPrice > 0)
 	Year             int
 	Timestamp        string
 	BasePath         string
@@ -56,6 +57,7 @@ type ProductData struct {
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`
 	Slug            string      `json:"slug"`
+	Featured        bool        `json:"featured,omitempty"`
 	Attributes      []Attribute `json:"attributes"`
 	Filename        string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
@@ -151,11 +153,25 @@ func (g *Generator) Generate(data StorefrontData) error {
 		data.Categories = append(data.Categories, cat)
 	}
 
-	// Simple selection for featured products (e.g., first 8)
-	if len(data.Products) > 8 {
-		data.FeaturedProducts = data.Products[:8]
-	} else {
-		data.FeaturedProducts = data.Products
+	// Featured products: use products marked as featured, fallback to first 3
+	for _, p := range data.Products {
+		if p.Featured {
+			data.FeaturedProducts = append(data.FeaturedProducts, p)
+		}
+	}
+	if len(data.FeaturedProducts) == 0 {
+		if len(data.Products) > 3 {
+			data.FeaturedProducts = data.Products[:3]
+		} else {
+			data.FeaturedProducts = data.Products
+		}
+	}
+
+	// Deal products: products with DealPrice > 0
+	for _, p := range data.Products {
+		if p.DealPrice > 0 {
+			data.DealProducts = append(data.DealProducts, p)
+		}
 	}
 
 	// Generate Index HTML
@@ -188,6 +204,38 @@ func (g *Generator) Generate(data StorefrontData) error {
 		return fmt.Errorf("products.html: %w", err)
 	}
 
+	// Generate Deals Page (only if there are deals)
+	if len(data.DealProducts) > 0 {
+		if err := g.renderTemplate(
+			"deals.html",
+			filepath.Join(companyDir, "deals.html"),
+			data,
+			true,
+		); err != nil {
+			return fmt.Errorf("deals.html: %w", err)
+		}
+	}
+
+	// Generate Contact Page
+	if err := g.renderTemplate("contact.html", filepath.Join(companyDir, "contact.html"), data, true); err != nil {
+		return fmt.Errorf("contact.html: %w", err)
+	}
+
+	// Generate Privacy Policy Page
+	if err := g.renderTemplate("privacy.html", filepath.Join(companyDir, "privacy.html"), data, true); err != nil {
+		return fmt.Errorf("privacy.html: %w", err)
+	}
+
+	// Generate Terms of Service Page
+	if err := g.renderTemplate("terms.html", filepath.Join(companyDir, "terms.html"), data, true); err != nil {
+		return fmt.Errorf("terms.html: %w", err)
+	}
+
+	// Generate Shipping & Returns Page
+	if err := g.renderTemplate("shipping.html", filepath.Join(companyDir, "shipping.html"), data, true); err != nil {
+		return fmt.Errorf("shipping.html: %w", err)
+	}
+
 	// Generate Category Pages
 	for _, cat := range data.Categories {
 		var catProducts []ProductData
@@ -198,30 +246,31 @@ func (g *Generator) Generate(data StorefrontData) error {
 		}
 
 		catData := struct {
-			AccountID string
-			Company   *storage.CompanyData
-			Config    *storage.D2CConfig
-			Category  string
-			Products  []ProductData
-			Year      int
-			Timestamp string
-			// Also passing the full list of categories for the nav menu
-			Categories []string
-			BasePath   string
-			ApiBase    string
-			Domain     string
+			AccountID    string
+			Company      *storage.CompanyData
+			Config       *storage.D2CConfig
+			Category     string
+			Products     []ProductData
+			DealProducts []ProductData
+			Year         int
+			Timestamp    string
+			Categories   []string
+			BasePath     string
+			ApiBase      string
+			Domain       string
 		}{
-			AccountID:  data.AccountID,
-			Company:    data.Company,
-			Config:     data.Config,
-			Category:   cat,
-			Products:   catProducts,
-			Year:       data.Year,
-			Timestamp:  data.Timestamp,
-			Categories: data.Categories,
-			BasePath:   "../",
-			ApiBase:    data.ApiBase,
-			Domain:     data.Domain,
+			AccountID:    data.AccountID,
+			Company:      data.Company,
+			Config:       data.Config,
+			Category:     cat,
+			Products:     catProducts,
+			DealProducts: data.DealProducts,
+			Year:         data.Year,
+			Timestamp:    data.Timestamp,
+			Categories:   data.Categories,
+			BasePath:     "../",
+			ApiBase:      data.ApiBase,
+			Domain:       data.Domain,
 		}
 
 		catFilename := fmt.Sprintf("%s.html", slugify(cat))
@@ -241,27 +290,29 @@ func (g *Generator) Generate(data StorefrontData) error {
 		filenameBase := product.Filename
 
 		productPageData := struct {
-			AccountID  string
-			Company    *storage.CompanyData
-			Config     *storage.D2CConfig
-			Product    ProductData
-			Year       int
-			Timestamp  string
-			Categories []string
-			BasePath   string
-			ApiBase    string
-			Domain     string
+			AccountID    string
+			Company      *storage.CompanyData
+			Config       *storage.D2CConfig
+			Product      ProductData
+			DealProducts []ProductData
+			Year         int
+			Timestamp    string
+			Categories   []string
+			BasePath     string
+			ApiBase      string
+			Domain       string
 		}{
-			AccountID:  data.AccountID,
-			Company:    data.Company,
-			Config:     data.Config,
-			Product:    product,
-			Year:       data.Year,
-			Timestamp:  data.Timestamp,
-			Categories: data.Categories,
-			BasePath:   "../",
-			ApiBase:    data.ApiBase,
-			Domain:     data.Domain,
+			AccountID:    data.AccountID,
+			Company:      data.Company,
+			Config:       data.Config,
+			Product:      product,
+			DealProducts: data.DealProducts,
+			Year:         data.Year,
+			Timestamp:    data.Timestamp,
+			Categories:   data.Categories,
+			BasePath:     "../",
+			ApiBase:      data.ApiBase,
+			Domain:       data.Domain,
 		}
 
 		// Product HTML

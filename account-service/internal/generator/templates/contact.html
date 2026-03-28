@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    [[if .Company.LogoURL]]<link rel="icon" href="[[.Company.LogoURL]]" type="image/png">[[end]]
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | [[.Company.Name]]</title>
+    <meta name="description" content="Contact [[.Company.Name]]. Email, phone, and address information.">
+    <link rel="canonical" href="https://[[.Domain]]/contact.html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Contact Us | [[.Company.Name]]">
+    <meta property="og:description" content="Contact [[.Company.Name]].">
+    <meta property="og:url" content="https://[[.Domain]]/contact.html">
+    [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
+    <style>
+        :root { --primary: [[.Config.PrimaryColor]]; --secondary: [[.Config.SecondaryColor]]; --bg: #f8fafc; --text: #0f172a; }
+        * { box-sizing: border-box; } body { font-family: 'Inter', -apple-system, sans-serif; margin: 0; background: var(--bg); color: var(--text); line-height: 1.6; }
+        main { max-width: 800px; margin: 0 auto; padding: 4rem 5%; }
+        h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; font-weight: 700; margin: 2rem 0 0.75rem; color: var(--text); }
+        p, li { color: #475569; }
+        .subtitle { color: #64748b; margin-bottom: 2rem; }
+        .contact-card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .contact-card p { margin: 0.25rem 0; }
+        .contact-card a { color: var(--primary); text-decoration: none; } .contact-card a:hover { text-decoration: underline; }
+        @media (max-width: 768px) { h1 { font-size: 2rem; } main { padding: 2rem 5%; } }
+        [[template "global_css" .]]
+    </style>
+    <script>
+        window.D2C_CONFIG = { sellerId: "[[.AccountID]]", primaryColor: "[[.Config.PrimaryColor]]", companyName: "[[.Company.Name]]", companyCode: "[[.Company.CompanyCode]]", apiBase: "[[.ApiBase]]", paymentMethods: [[jsArray .Company.PaymentMethods]], deliveryMethods: [[jsArray .Company.DeliveryMethods]], shippingOutOptions: [[jsArray .Company.ShippingOutOptions]] };
+    </script>
+    <script src="cart.js"></script><script src="customer.js"></script><script src="nav.js"></script>
+</head>
+
+<body>
+    [[template "nav" .]]
+    <main>
+        <h1>Contact Us</h1>
+        <p class="subtitle">We are here to help. Reach out through any of the methods below.</p>
+
+        <div class="contact-card">
+            <h2 style="margin-top: 0;">[[.Company.Name]]</h2>
+            [[if .Config.ContactEmail]]<p>Email: <a href="mailto:[[.Config.ContactEmail]]">[[.Config.ContactEmail]]</a></p>[[end]]
+            [[if .Config.ContactPhone]]<p>Phone: <a href="tel:[[.Config.ContactPhone]]">[[.Config.ContactPhone]]</a></p>[[end]]
+            [[if .Company.Address.Street]]
+            <p style="margin-top: 0.75rem;">
+                [[.Company.Address.Street]][[if .Company.Address.City]], [[.Company.Address.City]][[end]][[if .Company.Address.State]], [[.Company.Address.State]][[end]] [[.Company.Address.Zip]]
+            </p>
+            [[end]]
+        </div>
+
+        [[if .Company.DeliveryMethods]]
+        <h2>How We Deliver</h2>
+        <div class="contact-card">
+            [[range .Company.DeliveryMethods]]
+            [[if eq (printf "%s" .) "pickup"]]<p>Pickup — Visit us to collect your order in person.</p>[[end]]
+            [[if eq (printf "%s" .) "dropoff"]]<p>Dropoff — We deliver to your location.</p>[[end]]
+            [[if eq (printf "%s" .) "shipping_out"]]<p>Shipping — We ship orders to your address.</p>[[end]]
+            [[end]]
+        </div>
+        [[end]]
+    </main>
+    [[template "footer" .]]
+</body>
+
+</html>

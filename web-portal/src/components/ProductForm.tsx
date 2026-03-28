@@ -30,6 +30,7 @@ const ProductForm = () => {
     images: [],
     category: '',
     slug: '',
+    featured: false,
     attributes: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -126,6 +127,7 @@ const ProductForm = () => {
         images: [],
         category: '',
         slug: '',
+        featured: false,
         attributes: [],
       });
       setEditingId(null);
@@ -177,6 +179,7 @@ const ProductForm = () => {
       images: product.images || [],
       category: product.category,
       slug: product.slug || '',
+      featured: product.featured || false,
       attributes: product.attributes || [],
     });
     setEditingId(product._id);
@@ -244,6 +247,7 @@ const ProductForm = () => {
       images: [],
       category: '',
       slug: '',
+      featured: false,
       attributes: [],
     });
     setEditingId(null);
@@ -311,7 +315,6 @@ const ProductForm = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Price (%)</th>
 
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -326,7 +329,6 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
 
-                      <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(product)}
@@ -474,6 +476,16 @@ const ProductForm = () => {
                           placeholder="e.g., 10 (for 10% off)"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
+                      </div>
+                      <div className="flex items-center space-x-3 pt-2">
+                        <input
+                          type="checkbox"
+                          name="featured"
+                          checked={formData.featured || false}
+                          onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                          className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                        />
+                        <label className="text-sm font-medium text-gray-700">Featured on storefront homepage</label>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Account ID</label>

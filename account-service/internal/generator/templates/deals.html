@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     [[if .Company.LogoURL]]<link rel="icon" href="[[.Company.LogoURL]]" type="image/png">[[end]]
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[[.Category]] | [[.Company.Name]]</title>
-    <meta name="description" content="Browse [[.Category]] products from [[.Company.Name]].">
-    <link rel="canonical" href="https://[[.Domain]]/category/[[slugify .Category]].html">
+    <title>Today's Deals | [[.Company.Name]]</title>
+    <meta name="description" content="Shop today's deals at [[.Company.Name]]. [[len .DealProducts]] products on sale with discounts up to 50% off.">
+    <link rel="canonical" href="https://[[.Domain]]/deals.html">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="[[.Category]] | [[.Company.Name]]">
-    <meta property="og:description" content="Browse [[.Category]] products from [[.Company.Name]].">
-    <meta property="og:url" content="https://[[.Domain]]/category/[[slugify .Category]].html">
+    <meta property="og:title" content="Today's Deals | [[.Company.Name]]">
+    <meta property="og:description" content="Shop today's deals at [[.Company.Name]]. [[len .DealProducts]] products on sale.">
+    <meta property="og:url" content="https://[[.Domain]]/deals.html">
     [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
     <style>
         :root {
@@ -36,9 +36,6 @@
             line-height: 1.6;
         }
 
-
-
-        /* Products Grid */
         main {
             padding: 4rem 5% 8rem 5%;
             max-width: 1400px;
@@ -54,23 +51,18 @@
             font-size: 3rem;
             font-weight: 900;
             letter-spacing: -0.05em;
-            margin-bottom: 1rem;
-            text-transform: capitalize;
+            margin-bottom: 0.5rem;
         }
 
-        .breadcrumb {
-            color: #94a3b8;
+        .deals-banner {
+            background: linear-gradient(135deg, var(--primary), var(--secondary, #0f766e));
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
             font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .breadcrumb a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .breadcrumb a:hover {
-            color: var(--primary);
         }
 
         @media (max-width: 768px) {
@@ -97,10 +89,9 @@
             shippingOutOptions: [[jsArray .Company.ShippingOutOptions]]
         };
     </script>
-    <!-- Adjust path since category files are in /category/ -->
-    <script src="../cart.js"></script>
-    <script src="../customer.js"></script>
-    <script src="../nav.js"></script>
+    <script src="cart.js"></script>
+    <script src="customer.js"></script>
+    <script src="nav.js"></script>
 </head>
 
 <body>
@@ -108,20 +99,19 @@
 
     <main>
         <header class="page-header">
-            <div class="breadcrumb">
-                <a href="../index.html">Home</a> / <a href="../products.html">Products</a> / [[.Category]]
-            </div>
-            <h1>[[.Category]]</h1>
-            <p>Showing [[len .Products]] products in this category.</p>
+            <h1>Today's Deals</h1>
+            <p>[[len .DealProducts]] products on sale right now.</p>
         </header>
 
+        <div class="deals-banner">
+            Save up to 50% on selected products. Limited time offers.
+        </div>
+
         <section class="product-grid">
-            [[range .Products]]
-            <a href="../products/[[.Filename]].html"
+            [[range .DealProducts]]
+            <a href="products/[[.Filename]].html"
                 class="product-card">
-                [[if and .DealPrice (gt .DealPrice 0.0)]]
-                <div class="sale-badge">SALE</div>
-                [[end]]
+                <div class="sale-badge">[[printf "%.0f" .DealPrice]]% OFF</div>
 
                 <div class="image-wrapper">
                     [[if .Image]]
@@ -131,20 +121,16 @@
                     [[end]]
                 </div>
 
-                <div class="category-tag">[[.Category]]</div>
+                [[if .Category]]<div class="category-tag">[[.Category]]</div>[[end]]
                 <h3 class="product-name">[[.Name]]</h3>
 
                 <div class="price-row">
-                    [[if and .DealPrice (gt .DealPrice 0.0)]]
                     <span class="price">$[[printf "%.2f" .DiscountedPrice]]</span>
                     <span class="original-price">$[[printf "%.2f" .Price]]</span>
-                    [[else]]
-                    <span class="price">$[[printf "%.2f" .Price]]</span>
-                    [[end]]
                 </div>
 
                 <button class="cta-btn"
-                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]'})">
+                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[.DiscountedPrice]], image:'[[.Image]]'})">
                     Add to Cart
                 </button>
             </a>

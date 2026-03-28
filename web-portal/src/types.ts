@@ -51,6 +51,7 @@ export interface Product {
   images?: string[];
   category?: string;
   slug?: string;
+  featured?: boolean;
   attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
@@ -190,6 +191,15 @@ export interface D2CConfig {
   heroSlogan?: string;
   heroTextColor?: string;
   heroBgColor?: string;
+  aboutText?: string;
+  privacyText?: string;
+  termsText?: string;
+  shippingText?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+  tiktokUrl?: string;
 }
 
 export interface CustomerCodeEntry {

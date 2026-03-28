@@ -24,6 +24,7 @@ local.env.json
 
 # Marketing content
 marketing/
+exclude/
 
 # Go binaries
 *-service/**/bootstrap
