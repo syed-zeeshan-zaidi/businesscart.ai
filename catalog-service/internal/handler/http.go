@@ -141,6 +141,8 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	product.Name = strings.TrimSpace(product.Name)
 	product.Category = strings.TrimSpace(product.Category)
 	product.Slug = strings.TrimSpace(product.Slug)
+	product.SKU = strings.TrimSpace(product.SKU)
+	product.Barcode = strings.TrimSpace(product.Barcode)
 	for i := range product.Attributes {
 		product.Attributes[i].Key = strings.TrimSpace(product.Attributes[i].Key)
 		product.Attributes[i].Value = strings.TrimSpace(product.Attributes[i].Value)
@@ -173,7 +175,13 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		for _, id := range associateCompanyIDs {
 			companyIDs = append(companyIDs, id.(string))
 		}
-		filter = bson.M{"sellerID": bson.M{"$in": companyIDs}}
+		filter = bson.M{
+			"sellerID": bson.M{"$in": companyIDs},
+			"$or": []bson.M{
+				{"active": true},
+				{"active": bson.M{"$exists": false}},
+			},
+		}
 	default:
 		return h.errorResponse(http.StatusForbidden, "Unauthorized: Invalid role"), nil
 	}
@@ -240,6 +248,11 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 		if !isOwner && !isAssociatedCustomer {
 			return h.errorResponse(http.StatusForbidden, "Unauthorized to access this product"), nil
 		}
+
+		// Customers cannot view inactive products
+		if isAssociatedCustomer && product.Active != nil && !*product.Active {
+			return h.errorResponse(http.StatusNotFound, "Product not found"), nil
+		}
 	}
 
 	return h.successResponse(product), nil
@@ -277,6 +290,12 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	if slug, ok := updates["slug"].(string); ok {
 		updates["slug"] = strings.TrimSpace(slug)
+	}
+	if sku, ok := updates["sku"].(string); ok {
+		updates["sku"] = strings.TrimSpace(sku)
+	}
+	if barcode, ok := updates["barcode"].(string); ok {
+		updates["barcode"] = strings.TrimSpace(barcode)
 	}
 	if attrs, ok := updates["attributes"].([]interface{}); ok {
 		for i, a := range attrs {

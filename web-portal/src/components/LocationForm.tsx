@@ -265,8 +265,13 @@ const LocationForm: React.FC = () => {
               </table>
             </div>
 
+            {filteredLocations.length > 0 && (
+              <div className="mt-4 text-sm text-gray-500">
+                Showing {idxFirst + 1}-{Math.min(idxLast, filteredLocations.length)} of {filteredLocations.length} locations
+              </div>
+            )}
             {totalPages > 1 && (
-              <div className="mt-6 flex justify-end space-x-2">
+              <div className="mt-2 flex justify-end space-x-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}

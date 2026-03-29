@@ -59,6 +59,10 @@ type ProductData struct {
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`
 	Slug            string      `json:"slug"`
+	SKU             string      `json:"sku,omitempty"`
+	Barcode         string      `json:"barcode,omitempty"`
+	Stock           int         `json:"stock"`
+	Active          *bool       `json:"active,omitempty"`
 	Featured        bool        `json:"featured,omitempty"`
 	Attributes      []Attribute `json:"attributes"`
 	Filename        string      `json:"-"` // Pre-computed: slug-suffix (no extension)

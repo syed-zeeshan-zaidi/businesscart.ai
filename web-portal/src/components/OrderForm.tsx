@@ -236,9 +236,14 @@ const OrderForm = () => {
           )}
         </section>
 
-        {/* Pagination */}
+        {/* Record count & Pagination */}
+        {filteredOrders.length > 0 && (
+          <div className="mt-4 text-sm text-gray-500">
+            Showing {((currentPage - 1) * ORDERS_PER_PAGE) + 1}-{Math.min(currentPage * ORDERS_PER_PAGE, filteredOrders.length)} of {filteredOrders.length} orders
+          </div>
+        )}
         {totalPages > 1 && (
-          <nav className="mt-6 flex justify-end space-x-2">
+          <nav className="mt-2 flex justify-end space-x-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}

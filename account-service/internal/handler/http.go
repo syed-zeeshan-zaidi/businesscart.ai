@@ -660,8 +660,14 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 		_ = h.db.UpdateAccount(acc.ID, bson.M{"company.d2c.previewDomain": acc.CompanyData.D2C.PreviewDomain})
 	}
 
-	// 4. Fetch Products
-	products := h.fetchCompanyProducts(acc.ID.Hex(), jwtToken)
+	// 4. Fetch Products (only active products for storefront)
+	allProducts := h.fetchCompanyProducts(acc.ID.Hex(), jwtToken)
+	var products []generator.ProductData
+	for _, p := range allProducts {
+		if p.Active == nil || *p.Active {
+			products = append(products, p)
+		}
+	}
 
 	// 5. Run Generator
 	genData := generator.StorefrontData{

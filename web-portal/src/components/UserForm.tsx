@@ -299,8 +299,13 @@ const UserForm = () => {
           )}
         </div>
 
+        {filteredAccounts.length > 0 && (
+          <div className="mt-4 text-sm text-gray-500">
+            Showing {indexOfFirst + 1}-{Math.min(indexOfLast, filteredAccounts.length)} of {filteredAccounts.length} users
+          </div>
+        )}
         {totalPages > 1 && (
-          <div className="mt-4 flex justify-center space-x-2">
+          <div className="mt-2 flex justify-center space-x-2">
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-700 text-white' : ''}`}>{i + 1}</button>
             ))}
