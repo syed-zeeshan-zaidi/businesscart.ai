@@ -51,6 +51,10 @@ export interface Product {
   images?: string[];
   category?: string;
   slug?: string;
+  sku?: string;
+  barcode?: string;
+  stock?: number;
+  active?: boolean;
   featured?: boolean;
   attributes?: Attribute[];
   createdAt: Date;

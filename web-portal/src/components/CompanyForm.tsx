@@ -799,8 +799,9 @@ const CompanyForm = () => {
         }
       }
       const data = await getAccounts();
-      setAccounts(data);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+      const sorted = [...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setAccounts(sorted);
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: sorted, timestamp: Date.now() }));
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to fetch accounts');
     } finally {

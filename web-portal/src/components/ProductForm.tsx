@@ -30,6 +30,10 @@ const ProductForm = () => {
     images: [],
     category: '',
     slug: '',
+    sku: '',
+    barcode: '',
+    stock: 0,
+    active: true,
     featured: false,
     attributes: [],
   });
@@ -78,8 +82,9 @@ const ProductForm = () => {
     setIsLoading(true);
     try {
       const data = await getProducts();
-      setProducts(data);
-      setFilteredProducts(data);
+      const sorted = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setProducts(sorted);
+      setFilteredProducts(sorted);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error fetching products');
@@ -127,7 +132,11 @@ const ProductForm = () => {
         images: [],
         category: '',
         slug: '',
-        featured: false,
+        sku: '',
+        barcode: '',
+        stock: 0,
+        active: true,
+    featured: false,
         attributes: [],
       });
       setEditingId(null);
@@ -179,6 +188,10 @@ const ProductForm = () => {
       images: product.images || [],
       category: product.category,
       slug: product.slug || '',
+      sku: product.sku || '',
+      barcode: product.barcode || '',
+      stock: product.stock || 0,
+      active: product.active !== false,
       featured: product.featured || false,
       attributes: product.attributes || [],
     });
@@ -247,7 +260,11 @@ const ProductForm = () => {
       images: [],
       category: '',
       slug: '',
-      featured: false,
+      sku: '',
+      barcode: '',
+      stock: 0,
+      active: true,
+    featured: false,
       attributes: [],
     });
     setEditingId(null);
@@ -309,7 +326,7 @@ const ProductForm = () => {
                   <tr>
 
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
@@ -323,7 +340,7 @@ const ProductForm = () => {
                     <tr key={product._id} className="hover:bg-gray-50">
 
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.slug || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{product.active !== false ? <span className="text-green-700 font-medium">Active</span> : <span className="text-red-600 font-medium">Inactive</span>}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
@@ -354,8 +371,13 @@ const ProductForm = () => {
         </div>
 
         {/* Pagination */}
+        {filteredProducts.length > 0 && (
+          <div className="mt-4 text-sm text-gray-500">
+            Showing {((currentPage - 1) * productsPerPage) + 1}-{Math.min(currentPage * productsPerPage, filteredProducts.length)} of {filteredProducts.length} products
+          </div>
+        )}
         {totalPages > 1 && (
-          <div className="mt-6 flex justify-end space-x-2">
+          <div className="mt-2 flex justify-end space-x-2">
             <button
               onClick={() => paginate(currentPage - 1)}
               disabled={currentPage === 1}
@@ -452,6 +474,38 @@ const ProductForm = () => {
                         />
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700">SKU</label>
+                        <input
+                          name="sku"
+                          value={formData.sku}
+                          onChange={handleChange}
+                          placeholder="e.g., GLV-BBQ-001"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Barcode / UPC</label>
+                        <input
+                          name="barcode"
+                          value={formData.barcode}
+                          onChange={handleChange}
+                          placeholder="e.g., 012345678901"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Stock</label>
+                        <input
+                          name="stock"
+                          type="number"
+                          min="0"
+                          value={formData.stock}
+                          onChange={handleChange}
+                          placeholder="0"
+                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700">Price</label>
                         <input
                           name="price"
@@ -476,6 +530,16 @@ const ProductForm = () => {
                           placeholder="e.g., 10 (for 10% off)"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
+                      </div>
+                      <div className="flex items-center space-x-3 pt-2">
+                        <input
+                          type="checkbox"
+                          name="active"
+                          checked={formData.active !== false}
+                          onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                          className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                        />
+                        <label className="text-sm font-medium text-gray-700">Active (visible on storefront and catalog)</label>
                       </div>
                       <div className="flex items-center space-x-3 pt-2">
                         <input

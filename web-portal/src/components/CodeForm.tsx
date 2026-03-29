@@ -21,8 +21,8 @@ const CodeForm: React.FC = () => {
     setIsLoading(true);
     try {
       const data = await getCodes();
-      console.log('Fetched codes:', data);
-      setCodes(data);
+      const sorted = [...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setCodes(sorted);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to fetch codes');
     } finally {
