@@ -38,9 +38,9 @@ const ProductForm = () => {
     attributes: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -116,11 +116,19 @@ const ProductForm = () => {
 
     setIsLoading(true);
     try {
+      // Upload any pending files first, then combine with existing images
+      let allImages = [...(formData.images || [])];
+      if (pendingFiles.length > 0) {
+        const newUrls = await uploadPendingFiles();
+        allImages = [...allImages, ...newUrls];
+      }
+      const dataToSave = { ...formData, images: allImages };
+
       if (editingId) {
-        await updateProduct(editingId, formData as Product);
+        await updateProduct(editingId, dataToSave as Product);
         toast.success('Product updated successfully');
       } else {
-        await createProduct(formData as Omit<Product, '_id'>);
+        await createProduct(dataToSave as Omit<Product, '_id'>);
         toast.success('Product created successfully');
       }
       setFormData({
@@ -140,6 +148,7 @@ const ProductForm = () => {
         attributes: [],
       });
       setEditingId(null);
+      setPendingFiles([]);
       setIsModalOpen(false);
       invalidateCache();
       await fetchProducts();
@@ -196,6 +205,7 @@ const ProductForm = () => {
       attributes: product.attributes || [],
     });
     setEditingId(product._id);
+    setPendingFiles([]);
     setIsModalOpen(true);
   };
 
@@ -221,27 +231,24 @@ const ProductForm = () => {
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    setIsUploading(true);
-    try {
+    setPendingFiles(prev => [...prev, file]);
+    toast.success('Image added — will upload when you save');
+    e.target.value = '';
+  };
+
+  const uploadPendingFiles = async (): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    for (const file of pendingFiles) {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const { uploadUrl, imageUrl } = await getUploadUrl(file.type, ext);
       await uploadFileToS3(uploadUrl, file);
-      setFormData(prev => ({
-        ...prev,
-        images: [...(prev.images || []), imageUrl],
-      }));
-      toast.success('Image uploaded');
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Image upload failed';
-      toast.error(msg === 'Image upload not configured' ? 'Upload not available locally — use URL paste instead' : msg);
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
+      uploadedUrls.push(imageUrl);
     }
+    return uploadedUrls;
   };
 
   const removeImage = (index: number) => {
@@ -564,10 +571,10 @@ const ProductForm = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Images</label>
-                        {(formData.images || []).length > 0 && (
+                        {((formData.images || []).length > 0 || pendingFiles.length > 0) && (
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {formData.images!.map((url, i) => (
-                              <div key={i} className="relative group w-20 h-20">
+                            {(formData.images || []).map((url, i) => (
+                              <div key={`existing-${i}`} className="relative group w-20 h-20">
                                 <img src={url} alt={`Product ${i + 1}`} className="w-20 h-20 object-cover rounded-md border" />
                                 <button
                                   type="button"
@@ -578,6 +585,19 @@ const ProductForm = () => {
                                 </button>
                               </div>
                             ))}
+                            {pendingFiles.map((file, i) => (
+                              <div key={`pending-${i}`} className="relative group w-20 h-20">
+                                <img src={URL.createObjectURL(file)} alt={`New ${i + 1}`} className="w-20 h-20 object-cover rounded-md border border-teal-700" />
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
+                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <XMarkIcon className="h-3 w-3" />
+                                </button>
+                                <span className="absolute bottom-0 left-0 right-0 bg-teal-700 text-white text-xs text-center rounded-b-md">New</span>
+                              </div>
+                            ))}
                           </div>
                         )}
                         <label className="mt-2 flex items-center justify-center w-full h-16 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-teal-500 transition-colors">
@@ -586,19 +606,12 @@ const ProductForm = () => {
                             accept="image/webp,image/jpeg,image/png"
                             onChange={handleImageUpload}
                             className="hidden"
-                            disabled={isUploading}
+                            disabled={isLoading}
                           />
-                          {isUploading ? (
-                            <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              <div className="animate-spin h-4 w-4 border-2 border-teal-700 border-t-transparent rounded-full"></div>
-                              <span>Uploading...</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              <PhotoIcon className="h-5 w-5" />
-                              <span>Upload image (WebP recommended)</span>
-                            </div>
-                          )}
+                          <div className="flex items-center space-x-2 text-sm text-gray-500">
+                            <PhotoIcon className="h-5 w-5" />
+                            <span>Add image</span>
+                          </div>
                         </label>
                         <div className="mt-2 flex items-center space-x-2">
                           <input
