@@ -147,7 +147,8 @@ const robots = `User-agent: *
 Allow: /
 
 Sitemap: ${baseUrl}/sitemap.xml
-LLMs-txt: ${baseUrl}/llms.txt
+
+# AI/LLM context: ${baseUrl}/llms.txt
 `;
 
 fs.writeFileSync(path.join(distDir, 'robots.txt'), robots);

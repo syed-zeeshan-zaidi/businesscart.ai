@@ -109,7 +109,7 @@ class D2CCart {
         }
 
         if (this.items.length === 0) {
-            container.innerHTML = `<div style="text-align: center; padding: 4rem 2rem; opacity: 0.5;">Your cart is empty</div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 4rem 2rem; color: #64748b;">Your cart is empty</div>`;
             document.getElementById('cart-total').innerText = `$0.00`;
             return;
         }

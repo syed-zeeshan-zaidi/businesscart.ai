@@ -27,6 +27,7 @@ func main() {
 	}
 
 	d2cBucketName := os.Getenv("D2C_BUCKET_NAME")
-	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName)
+	d2cDistributionId := os.Getenv("D2C_DISTRIBUTION_ID")
+	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId)
 	lambda.Start(h.HandleRequest)
 }

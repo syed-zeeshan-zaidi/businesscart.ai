@@ -18,6 +18,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,16 +29,18 @@ type LambdaHandler struct {
 	db               *storage.DB
 	jwtSecret        string
 	jwtRefreshSecret string
-	d2cBucketName    string
-	requestOrigin    string // set per-request from Origin header
+	d2cBucketName      string
+	d2cDistributionId  string
+	requestOrigin      string // set per-request from Origin header
 }
 
-func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName string) *LambdaHandler {
+func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string) *LambdaHandler {
 	return &LambdaHandler{
-		db:               db,
-		jwtSecret:        jwtSecret,
-		jwtRefreshSecret: jwtRefreshSecret,
-		d2cBucketName:    d2cBucketName,
+		db:                 db,
+		jwtSecret:          jwtSecret,
+		jwtRefreshSecret:   jwtRefreshSecret,
+		d2cBucketName:      d2cBucketName,
+		d2cDistributionId:  d2cDistributionId,
 	}
 }
 
@@ -620,10 +623,12 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 	// 1. Initialize Generator and S3 Client (needed for both Enable and Disable)
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	var s3Client *s3.Client
+	var cfClient *cloudfront.Client
 	if err == nil {
 		s3Client = s3.NewFromConfig(cfg)
+		cfClient = cloudfront.NewFromConfig(cfg)
 	} else {
-		log.Printf("Warning: Failed to load AWS config for S3: %v", err)
+		log.Printf("Warning: Failed to load AWS config: %v", err)
 	}
 
 	tmplDir := os.Getenv("D2C_TEMPLATE_DIR")
@@ -632,7 +637,7 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 		outputDir = "/tmp/storefronts"
 	}
 
-	gen := generator.NewGenerator(tmplDir, outputDir, s3Client, h.d2cBucketName)
+	gen := generator.NewGenerator(tmplDir, outputDir, s3Client, h.d2cBucketName, cfClient, h.d2cDistributionId)
 
 	// 2. Handle Case: Storefront Disabled (Offboarding)
 	if !acc.CompanyData.D2C.Enabled {
@@ -670,6 +675,12 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 	if err := gen.Generate(genData); err != nil {
 		log.Printf("D2C Generation Failed for %s: %v", acc.ID.Hex(), err)
 		return err
+	}
+
+	// Invalidate CloudFront cache for this company only
+	if err := gen.InvalidateCache(acc.CompanyData.UniqueIdentifier); err != nil {
+		log.Printf("CloudFront invalidation warning for %s: %v", acc.CompanyData.Name, err)
+		// Don't return error — generation succeeded, invalidation is best-effort
 	}
 
 	log.Printf("D2C Storefront successfully generated for %s at https://%s", acc.CompanyData.Name, acc.CompanyData.D2C.PreviewDomain)
