@@ -82,10 +82,19 @@ export class BusinessCartStack extends cdk.Stack {
       ],
     });
 
+    const imagesCachePolicy = new cloudfront.ResponseHeadersPolicy(this, 'ImagesCacheHeaders', {
+      customHeadersBehavior: {
+        customHeaders: [
+          { header: 'Cache-Control', value: 'public, max-age=31536000', override: true },
+        ],
+      },
+    });
+
     const productImagesCdn = new cloudfront.Distribution(this, 'ProductImagesCdn', {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(productImagesBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        responseHeadersPolicy: imagesCachePolicy,
       },
     });
 

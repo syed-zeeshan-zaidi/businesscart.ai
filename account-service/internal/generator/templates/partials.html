@@ -239,7 +239,7 @@ text-decoration: none;
 color: #fff;
 }
 
-.footer-col h4 {
+.footer-heading {
 color: #cbd5e1;
 font-size: 0.8rem;
 font-weight: 600;
@@ -364,7 +364,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
 [[define "nav"]]
 <nav class="sticky-nav">
     <a href="[[.BasePath]]index.html" class="nav-brand">
-        [[if .Company.LogoURL]]<img src="[[.Company.LogoURL]]" alt="[[.Company.Name]]" class="nav-logo" width="40" height="40">[[end]]
+        [[if .Company.LogoURL]]<img src="[[.Company.LogoURL]]" alt="[[.Company.Name]]" class="nav-logo" height="40" style="width:auto;">[[end]]
         <span>[[.Company.Name]]</span>
     </a>
 
@@ -422,7 +422,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
             [[if .Config.ContactPhone]]<p><a href="tel:[[.Config.ContactPhone]]">[[.Config.ContactPhone]]</a></p>[[end]]
         </div>
         <div class="footer-col">
-            <h4>Shop</h4>
+            <p class="footer-heading">Shop</p>
             <a href="[[.BasePath]]products.html">All Products</a>
             [[if .DealProducts]]<a href="[[.BasePath]]deals.html">Today's Deals</a>[[end]]
             [[range .Categories]]
@@ -430,7 +430,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
             [[end]]
         </div>
         <div class="footer-col">
-            <h4>Info</h4>
+            <p class="footer-heading">Info</p>
             <a href="[[.BasePath]]contact.html">Contact Us</a>
             <a href="[[.BasePath]]shipping.html">Shipping & Returns</a>
             <a href="[[.BasePath]]privacy.html">Privacy Policy</a>
