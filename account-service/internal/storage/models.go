@@ -82,6 +82,7 @@ type D2CConfig struct {
 	PrivacyText    string `bson:"privacyText" json:"privacyText"`
 	TermsText      string `bson:"termsText" json:"termsText"`
 	ShippingText   string `bson:"shippingText" json:"shippingText"`
+	WhatsappNumber string `bson:"whatsappNumber" json:"whatsappNumber"`
 	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
 	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`
 	TwitterURL     string `bson:"twitterUrl" json:"twitterUrl"`

@@ -199,6 +199,7 @@ export interface D2CConfig {
   privacyText?: string;
   termsText?: string;
   shippingText?: string;
+  whatsappNumber?: string;
   facebookUrl?: string;
   instagramUrl?: string;
   twitterUrl?: string;

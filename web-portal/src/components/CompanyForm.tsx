@@ -286,6 +286,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   const [companyData, setCompanyData] = useState<Partial<CompanyData>>(
     account.company || {}
   );
+  const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [gatewayConfigs, setGatewayConfigs] = useState<GatewayConfigResponse[]>([]);
 
@@ -347,6 +348,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
       const updatedAccount = await updateAccount(account._id, {
         company: companyData as CompanyData
@@ -356,6 +358,8 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
       if (!alwaysOpen) onClose();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update company data');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -651,6 +655,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                     <input name="d2c.twitterUrl" value={companyData.d2c?.twitterUrl || ''} onChange={handleChange} placeholder="X (Twitter) URL" className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm" />
                     <input name="d2c.linkedinUrl" value={companyData.d2c?.linkedinUrl || ''} onChange={handleChange} placeholder="LinkedIn URL" className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm" />
                     <input name="d2c.tiktokUrl" value={companyData.d2c?.tiktokUrl || ''} onChange={handleChange} placeholder="TikTok URL" className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm" />
+                    <input name="d2c.whatsappNumber" value={companyData.d2c?.whatsappNumber || ''} onChange={handleChange} placeholder="WhatsApp number (e.g., 16575010200)" className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm" />
                   </div>
                 </div>
 
@@ -751,10 +756,15 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           )}
           <button
             onClick={handleSave}
-            className="px-6 py-2.5 bg-teal-700 text-white font-bold rounded-lg hover:bg-teal-800 transition shadow-sm text-sm flex items-center space-x-2"
+            disabled={isSaving}
+            className={`px-6 py-2.5 font-bold rounded-lg transition shadow-sm text-sm flex items-center space-x-2 ${isSaving ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-teal-700 text-white hover:bg-teal-800'}`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-            <span>Save Changes</span>
+            {isSaving ? (
+              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+            )}
+            <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
           </button>
         </div>
       </div>

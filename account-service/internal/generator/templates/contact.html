@@ -48,6 +48,7 @@
                 [[.Company.Address.Street]][[if .Company.Address.City]], [[.Company.Address.City]][[end]][[if .Company.Address.State]], [[.Company.Address.State]][[end]] [[.Company.Address.Zip]]
             </p>
             [[end]]
+            [[if .Config.WhatsappNumber]]<p style="margin-top: 0.75rem;"><a href="https://wa.me/[[.Config.WhatsappNumber]]" target="_blank" rel="noopener noreferrer" style="color: var(--primary);">Chat with us on WhatsApp</a></p>[[end]]
         </div>
 
         [[if .Company.DeliveryMethods]]
