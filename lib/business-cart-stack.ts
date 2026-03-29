@@ -357,7 +357,7 @@ export class BusinessCartStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
-    // Grant accountService permission to write to this bucket
+    // Grant accountService permission to write to this bucket and invalidate CloudFront
     d2cStorefrontBucket.grantReadWrite(accountService);
     accountService.addEnvironment('D2C_BUCKET_NAME', d2cStorefrontBucket.bucketName);
 
@@ -440,6 +440,10 @@ export class BusinessCartStack extends cdk.Stack {
       domainNames: ['*.businesscart.ai', 'www.usetgo.com'],
       certificate: certificate,
     });
+
+    // Grant accountService permission to invalidate D2C CloudFront cache after storefront regeneration
+    d2cDistribution.grant(accountService, 'cloudfront:CreateInvalidation');
+    accountService.addEnvironment('D2C_DISTRIBUTION_ID', d2cDistribution.distributionId);
 
     // Create a Wildcard A record to point all subdomains to CloudFront
     new route53.ARecord(this, 'WildcardD2CRecord', {

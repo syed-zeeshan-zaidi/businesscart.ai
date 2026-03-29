@@ -19,6 +19,8 @@ import (
 	"unicode"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
+	cftypes "github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
@@ -63,13 +65,15 @@ type ProductData struct {
 }
 
 type Generator struct {
-	TemplateFS fs.FS
-	OutputDir  string
-	S3Client   *s3.Client
-	BucketName string
+	TemplateFS     fs.FS
+	OutputDir      string
+	S3Client       *s3.Client
+	BucketName     string
+	CFClient       *cloudfront.Client
+	DistributionId string
 }
 
-func NewGenerator(templateDir, outputDir string, s3Client *s3.Client, bucketName string) *Generator {
+func NewGenerator(templateDir, outputDir string, s3Client *s3.Client, bucketName string, cfClient *cloudfront.Client, distributionId string) *Generator {
 	var tfs fs.FS
 	if templateDir != "" {
 		tfs = os.DirFS(templateDir)
@@ -85,10 +89,12 @@ func NewGenerator(templateDir, outputDir string, s3Client *s3.Client, bucketName
 	}
 
 	return &Generator{
-		TemplateFS: tfs,
-		OutputDir:  outputDir,
-		S3Client:   s3Client,
-		BucketName: bucketName,
+		TemplateFS:     tfs,
+		OutputDir:      outputDir,
+		S3Client:       s3Client,
+		BucketName:     bucketName,
+		CFClient:       cfClient,
+		DistributionId: distributionId,
 	}
 }
 
@@ -453,14 +459,43 @@ func (g *Generator) syncToS3(localDir, companyUID string) error {
 		defer file.Close()
 
 		_, err = g.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-			Bucket: aws.String(g.BucketName),
-			Key:    aws.String(s3Key),
-			Body:   file,
-			// Simplified content-type logic
-			ContentType: aws.String(g.getContentType(path)),
+			Bucket:       aws.String(g.BucketName),
+			Key:          aws.String(s3Key),
+			Body:         file,
+			ContentType:  aws.String(g.getContentType(path)),
+			CacheControl: aws.String(g.getCacheControl(path)),
 		})
 		return err
 	})
+}
+
+func (g *Generator) getCacheControl(path string) string {
+	switch filepath.Ext(path) {
+	case ".js":
+		return "public, max-age=604800" // 7 days — JS changes only on code deploy
+	default:
+		return "public, max-age=3600" // 1 hour — HTML/MD/XML change with product updates
+	}
+}
+
+func (g *Generator) InvalidateCache(companyUID string) error {
+	if g.CFClient == nil || g.DistributionId == "" {
+		return nil // skip in local dev
+	}
+	_, err := g.CFClient.CreateInvalidation(context.TODO(), &cloudfront.CreateInvalidationInput{
+		DistributionId: aws.String(g.DistributionId),
+		InvalidationBatch: &cftypes.InvalidationBatch{
+			CallerReference: aws.String(fmt.Sprintf("%s-%d", companyUID, time.Now().Unix())),
+			Paths: &cftypes.Paths{
+				Quantity: aws.Int32(1),
+				Items:    []string{"/storefronts/" + companyUID + "/*"},
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("CloudFront invalidation failed for %s: %v", companyUID, err)
+	}
+	return err
 }
 
 func (g *Generator) getContentType(path string) string {

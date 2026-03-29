@@ -2,4 +2,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://[[.Domain]]/sitemap.xml
-LLMs-txt: https://[[.Domain]]/llms.txt
+
+# AI/LLM context: https://[[.Domain]]/llms.txt
