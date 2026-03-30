@@ -494,7 +494,10 @@
                                     <option value="">Select an address</option>
                                     ${customerAddresses.map(a => `<option value="${a.id}">${a.addressLabel || 'Address'}: ${a.address?.street || ''}, ${a.address?.city || ''}</option>`).join('')}
                                 </select>
-                            ` : '<div style="font-size:13px;color:#9ca3af;padding:8px 0">No saved addresses. You can add one from your profile.</div>'}
+                            ` : `<div id="checkout-new-address-section">
+                                <p style="font-size:13px;color:#9ca3af;padding:4px 0 8px">No saved addresses.</p>
+                                <button type="button" onclick="document.getElementById('d2c-checkout-overlay')?.remove(); D2C_CUSTOMER._showAddressForm=true; D2C_CUSTOMER._dashboardTab='addresses'; D2C_CUSTOMER.showDashboard();" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Delivery Address</button>
+                            </div>`}
                         </div>
 
                         <div class="checkout-section" id="checkout-pickup-section" style="display:${deliveryMethods[0] === 'pickup' ? 'block' : 'none'}">
@@ -559,6 +562,42 @@
                 });
             }
 
+            // Validate checkout form and enable/disable Place Order button
+            const validateCheckout = () => {
+                const btn = document.getElementById('checkout-place-order-btn');
+                const dm = document.getElementById('checkout-delivery')?.value || '';
+                const pm = document.querySelector('input[name="checkout-payment"]:checked')?.value || '';
+                let valid = true;
+
+                if (!dm || !pm) valid = false;
+
+                if (dm !== 'pickup') {
+                    const addrSelect = document.getElementById('checkout-address');
+                    if (!addrSelect || !addrSelect.value) valid = false;
+                }
+                if (dm === 'pickup') {
+                    const pickupSelect = document.getElementById('checkout-pickup');
+                    if (pickupSelect && !pickupSelect.value) valid = false;
+                    if (!pickupSelect) valid = false;
+                }
+
+                if (btn && pm !== 'amazon_pay') {
+                    btn.disabled = !valid;
+                    btn.style.opacity = valid ? '1' : '0.5';
+                    btn.style.cursor = valid ? 'pointer' : 'not-allowed';
+                }
+            };
+
+            // Run validation on all form changes
+            document.querySelectorAll('#checkout-delivery, #checkout-address, #checkout-pickup').forEach(el => {
+                el.addEventListener('change', validateCheckout);
+                el.addEventListener('input', validateCheckout);
+            });
+            document.querySelectorAll('input[name="checkout-payment"]').forEach(el => {
+                el.addEventListener('change', validateCheckout);
+            });
+            validateCheckout(); // initial state
+
             document.getElementById('checkout-place-order-btn').addEventListener('click', () => {
                 this._processCheckout(quote);
             });
@@ -598,12 +637,29 @@
             const deliveryMethod = document.getElementById('checkout-delivery')?.value || 'shipping_out';
             const paymentMethod = document.querySelector('input[name="checkout-payment"]:checked')?.value || 'pickup_&_pay';
             const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
-            const deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
+            let deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
 
             btn.disabled = true;
             btn.textContent = 'Placing order...';
             status.style.display = 'block';
+            status.style.color = '';
             status.textContent = 'Processing your order...';
+
+            if (deliveryMethod !== 'pickup' && !deliveryAddressId) {
+                status.style.color = '#dc2626';
+                status.textContent = 'Please add a delivery address first.';
+                btn.disabled = false;
+                btn.textContent = 'Place Order';
+                return;
+            }
+
+            if (deliveryMethod === 'pickup' && !pickupLocationId) {
+                status.style.color = '#dc2626';
+                status.textContent = 'Please select a pickup location.';
+                btn.disabled = false;
+                btn.textContent = 'Place Order';
+                return;
+            }
 
             try {
                 const quoteId = quote._id || quote.id;
@@ -646,6 +702,16 @@
             const deliveryMethod = document.getElementById('checkout-delivery')?.value || 'shipping_out';
             const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
             const deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
+
+            if (deliveryMethod !== 'pickup' && !deliveryAddressId) {
+                container.innerHTML = '<p style="text-align:center;color:#dc2626;font-size:14px;">Please add a delivery address first.</p>';
+                return;
+            }
+            if (deliveryMethod === 'pickup' && !pickupLocationId) {
+                container.innerHTML = '<p style="text-align:center;color:#dc2626;font-size:14px;">Please select a pickup location first.</p>';
+                return;
+            }
+
             const quoteId = quote._id || quote.id;
 
             const result = await this.placeOrder(quoteId, 'amazon_pay', deliveryMethod, pickupLocationId, deliveryAddressId);
