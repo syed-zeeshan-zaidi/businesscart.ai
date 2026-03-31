@@ -40,6 +40,7 @@ type DB struct {
 	blacklistedtokens *mongo.Collection
 	companyLocations  *mongo.Collection
 	customerAddresses *mongo.Collection
+	visitors          *mongo.Collection
 }
 
 /* ---------- NEWDB ---------- */
@@ -57,6 +58,7 @@ func NewDB(mongoURI string) (*DB, error) {
 		blacklistedtokens: db.Collection("blacklistedtokens"),
 		companyLocations:  db.Collection("company_locations"),
 		customerAddresses: db.Collection("customer_addresses"),
+		visitors:          db.Collection("visitors"),
 	}, nil
 }
 
@@ -275,6 +277,209 @@ func (db *DB) BlacklistToken(token *BlacklistedToken) error {
 func (db *DB) IsTokenBlacklisted(token string) (bool, error) {
 	n, err := db.blacklistedtokens.CountDocuments(context.Background(), bson.M{"token": token})
 	return n > 0, err
+}
+
+/* ---------- VISITORS ---------- */
+
+func (db *DB) UpsertVisitor(visitor *Visitor) error {
+	now := time.Now()
+	filter := bson.M{"visitorId": visitor.VisitorID}
+
+	// Check if visitor exists
+	var existing Visitor
+	err := db.visitors.FindOne(context.Background(), filter).Decode(&existing)
+
+	if err == mongo.ErrNoDocuments {
+		// New visitor — insert
+		visitor.CreatedAt = now
+		visitor.UpdatedAt = now
+		visitor.FirstVisit = now
+		visitor.LastVisit = now
+		visitor.TotalSessions = 1
+		visitor.TotalPageViews = 1
+		_, err = db.visitors.InsertOne(context.Background(), visitor)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	// Existing visitor — update
+	update := bson.M{
+		"$set": bson.M{
+			"lastVisit": now,
+			"updatedAt": now,
+			"geo":       visitor.Geo,
+			"device":    visitor.Device,
+			"os":        visitor.OS,
+			"browser":   visitor.Browser,
+		},
+		"$inc": bson.M{
+			"totalPageViews": 1,
+		},
+	}
+
+	// Add page to set (deduplicated)
+	if len(visitor.Pages) > 0 {
+		update["$addToSet"] = bson.M{"pages": visitor.Pages[0]}
+	}
+
+	// Increment session if last visit was > 30 min ago
+	if now.Sub(existing.LastVisit) > 30*time.Minute {
+		update["$inc"].(bson.M)["totalSessions"] = 1
+	}
+
+	// Link customer if provided and not already linked
+	if visitor.CustomerID != "" && existing.CustomerID == "" {
+		update["$set"].(bson.M)["customerId"] = visitor.CustomerID
+	}
+
+	_, err = db.visitors.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
+func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) error {
+	filter := bson.M{"visitorId": visitorID}
+	update := bson.M{
+		"$push": bson.M{"milestones": milestone},
+		"$set":  bson.M{"updatedAt": time.Now()},
+	}
+	_, err := db.visitors.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
+func (db *DB) UpdateVisitorConversion(visitorID string, fields bson.M) error {
+	filter := bson.M{"visitorId": visitorID}
+	update := bson.M{"$set": fields}
+	_, err := db.visitors.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
+func (db *DB) AppendVisitorError(visitorID string, errMsg string) {
+	filter := bson.M{"visitorId": visitorID}
+	update := bson.M{"$push": bson.M{"errorLog": errMsg}}
+	db.visitors.UpdateOne(context.Background(), filter, update)
+}
+
+func (db *DB) GetVisitorByID(visitorID string) (*Visitor, error) {
+	var visitor Visitor
+	err := db.visitors.FindOne(context.Background(), bson.M{"visitorId": visitorID}).Decode(&visitor)
+	if err != nil {
+		return nil, err
+	}
+	return &visitor, nil
+}
+
+func (db *DB) GetVisitors(filter bson.M, skip, limit int64) ([]*Visitor, int64, error) {
+	total, err := db.visitors.CountDocuments(context.Background(), filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	opts := options.Find().
+		SetSort(bson.M{"lastVisit": -1}).
+		SetSkip(skip).
+		SetLimit(limit)
+
+	cursor, err := db.visitors.Find(context.Background(), filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(context.Background())
+
+	var visitors []*Visitor
+	if err := cursor.All(context.Background(), &visitors); err != nil {
+		return nil, 0, err
+	}
+	return visitors, total, nil
+}
+
+func (db *DB) GetVisitorStats() (map[string]interface{}, error) {
+	ctx := context.Background()
+
+	total, _ := db.visitors.CountDocuments(ctx, bson.M{})
+	bots, _ := db.visitors.CountDocuments(ctx, bson.M{"isBot": true})
+	registered, _ := db.visitors.CountDocuments(ctx, bson.M{"registered": true})
+	ordered, _ := db.visitors.CountDocuments(ctx, bson.M{"ordered": true})
+
+	// Today's visitors
+	today := time.Now().Truncate(24 * time.Hour)
+	todayCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": today}})
+
+	// Last 7 days
+	week := time.Now().AddDate(0, 0, -7)
+	weekCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": week}})
+
+	// Last 30 days
+	month := time.Now().AddDate(0, 0, -30)
+	monthCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": month}})
+
+	// Helper: run aggregation and return results
+	aggregate := func(pipeline mongo.Pipeline) []map[string]interface{} {
+		cur, err := db.visitors.Aggregate(ctx, pipeline)
+		if err != nil {
+			return nil
+		}
+		defer cur.Close(ctx)
+		var out []map[string]interface{}
+		cur.All(ctx, &out)
+		return out
+	}
+
+	groupByField := func(field string, limit int) []map[string]interface{} {
+		p := mongo.Pipeline{
+			{{Key: "$group", Value: bson.M{"_id": "$" + field, "count": bson.M{"$sum": 1}}}},
+			{{Key: "$sort", Value: bson.M{"count": -1}}},
+		}
+		if limit > 0 {
+			p = append(p, bson.D{{Key: "$limit", Value: limit}})
+		}
+		return aggregate(p)
+	}
+
+	topSources := groupByField("attribution.source", 10)
+
+	topCountries := aggregate(mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"geo.country": bson.M{"$ne": ""}}}},
+		{{Key: "$group", Value: bson.M{"_id": "$geo.country", "count": bson.M{"$sum": 1}}}},
+		{{Key: "$sort", Value: bson.M{"count": -1}}},
+		{{Key: "$limit", Value: 10}},
+	})
+
+	devices := groupByField("device", 0)
+	browsers := groupByField("browser", 0)
+
+	revResult := aggregate(mongo.Pipeline{
+		{{Key: "$group", Value: bson.M{"_id": nil, "totalRevenue": bson.M{"$sum": "$totalRevenue"}, "totalOrders": bson.M{"$sum": "$totalOrders"}}}},
+	})
+	totalRevenue := 0.0
+	totalOrders := 0
+	if len(revResult) > 0 {
+		if v, ok := revResult[0]["totalRevenue"].(float64); ok {
+			totalRevenue = v
+		}
+		if v, ok := revResult[0]["totalOrders"].(int32); ok {
+			totalOrders = int(v)
+		} else if v, ok := revResult[0]["totalOrders"].(int64); ok {
+			totalOrders = int(v)
+		}
+	}
+
+	return map[string]interface{}{
+		"totalVisitors":    total,
+		"totalBots":        bots,
+		"totalRegistered":  registered,
+		"totalOrdered":     ordered,
+		"todayVisitors":    todayCount,
+		"weekVisitors":     weekCount,
+		"monthVisitors":    monthCount,
+		"topSources":       topSources,
+		"topCountries":     topCountries,
+		"devices":          devices,
+		"browsers":         browsers,
+		"totalRevenue":     totalRevenue,
+		"totalOrders":      totalOrders,
+	}, nil
 }
 
 /* ---------- DISCONNECT ---------- */

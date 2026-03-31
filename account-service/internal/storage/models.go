@@ -208,6 +208,64 @@ type Account struct {
 	CustomerData  *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
 	PartnerData   *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
 	Address       *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
+	VisitorID     string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
+}
+
+// ---------- visitor analytics ----------
+
+type VisitorAttribution struct {
+	Source      string `bson:"source" json:"source"`
+	Medium      string `bson:"medium" json:"medium"`
+	Campaign    string `bson:"campaign,omitempty" json:"campaign,omitempty"`
+	Content     string `bson:"content,omitempty" json:"content,omitempty"`
+	Referrer    string `bson:"referrer,omitempty" json:"referrer,omitempty"`
+	LandingPage string `bson:"landingPage" json:"landingPage"`
+}
+
+type VisitorGeo struct {
+	Country  string `bson:"country,omitempty" json:"country,omitempty"`
+	Region   string `bson:"region,omitempty" json:"region,omitempty"`
+	City     string `bson:"city,omitempty" json:"city,omitempty"`
+	Timezone string `bson:"timezone,omitempty" json:"timezone,omitempty"`
+	IP       string `bson:"ip,omitempty" json:"ip,omitempty"`
+	ASN      string `bson:"asn,omitempty" json:"asn,omitempty"`
+}
+
+type VisitorMilestone struct {
+	Event    string                 `bson:"event" json:"event"`
+	Page     string                 `bson:"page,omitempty" json:"page,omitempty"`
+	Date     time.Time              `bson:"date" json:"date"`
+	Metadata map[string]interface{} `bson:"metadata,omitempty" json:"metadata,omitempty"`
+}
+
+type Visitor struct {
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	VisitorID      string             `bson:"visitorId" json:"visitorId"`
+	Attribution    VisitorAttribution `bson:"attribution" json:"attribution"`
+	Geo            VisitorGeo         `bson:"geo" json:"geo"`
+	Device         string             `bson:"device" json:"device"`
+	OS             string             `bson:"os,omitempty" json:"os,omitempty"`
+	Browser        string             `bson:"browser,omitempty" json:"browser,omitempty"`
+	IsBot          bool               `bson:"isBot" json:"isBot"`
+	BotName        string             `bson:"botName,omitempty" json:"botName,omitempty"`
+	FirstVisit     time.Time          `bson:"firstVisit" json:"firstVisit"`
+	LastVisit      time.Time          `bson:"lastVisit" json:"lastVisit"`
+	TotalSessions  int                `bson:"totalSessions" json:"totalSessions"`
+	TotalPageViews int                `bson:"totalPageViews" json:"totalPageViews"`
+	Pages          []string           `bson:"pages" json:"pages"`
+	Milestones     []VisitorMilestone `bson:"milestones" json:"milestones"`
+	CustomerID     string             `bson:"customerId,omitempty" json:"customerId,omitempty"`
+	Registered     bool               `bson:"registered" json:"registered"`
+	RegisteredAt   *time.Time         `bson:"registeredAt,omitempty" json:"registeredAt,omitempty"`
+	Ordered        bool               `bson:"ordered" json:"ordered"`
+	FirstOrderAt   *time.Time         `bson:"firstOrderAt,omitempty" json:"firstOrderAt,omitempty"`
+	TotalOrders    int                `bson:"totalOrders" json:"totalOrders"`
+	TotalRevenue   float64            `bson:"totalRevenue" json:"totalRevenue"`
+	DaysToRegister *int               `bson:"daysToRegister,omitempty" json:"daysToRegister,omitempty"`
+	DaysToOrder    *int               `bson:"daysToOrder,omitempty" json:"daysToOrder,omitempty"`
+	ErrorLog       []string           `bson:"errorLog,omitempty" json:"errorLog,omitempty"`
+	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
 // ---------- code & auth ----------

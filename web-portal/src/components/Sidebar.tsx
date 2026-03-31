@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon, MapPinIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
 
@@ -19,6 +19,7 @@ const Sidebar = () => {
 
   if (user && user.role === 'admin') {
     links.splice(1, 0, { name: 'Codes', path: '/codes', icon: DocumentPlusIcon });
+    links.push({ name: 'Analytics', path: '/analytics', icon: ChartBarIcon });
   }
 
   if (user && (user.role === 'admin' || user.role === 'company')) {

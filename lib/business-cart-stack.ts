@@ -188,6 +188,12 @@ export class BusinessCartStack extends cdk.Stack {
     customerConfig.addMethod('PATCH', accountInteg);
     const customerAssociate = customerById.addResource('associate');
     customerAssociate.addMethod('PATCH', accountInteg);
+    const visitors = api.root.addResource('visitors');
+    visitors.addMethod('GET', accountInteg);
+    const visitorEvent = visitors.addResource('event');
+    visitorEvent.addMethod('POST', accountInteg);
+    const visitorStats = visitors.addResource('stats');
+    visitorStats.addMethod('GET', accountInteg);
 
     const catalogInteg = new apigw.LambdaIntegration(catalogService);
     const products = api.root.addResource('products');

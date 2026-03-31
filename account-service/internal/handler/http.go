@@ -72,6 +72,10 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		if request.HTTPMethod == "POST" {
 			return h.logoutUser(request)
 		}
+	case "/visitors/event":
+		if request.HTTPMethod == "POST" {
+			return h.trackVisitorEvent(request)
+		}
 	}
 
 	// Protected routes requiring JWT authentication
@@ -111,6 +115,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	}
 	if strings.HasPrefix(request.Path, "/customers") {
 		return h.handleCustomers(userClaim, request)
+	}
+	if strings.HasPrefix(request.Path, "/visitors") {
+		return h.handleVisitors(userClaim, request)
 	}
 
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
@@ -1016,5 +1023,346 @@ func (h *LambdaHandler) successResponse(data interface{}, statusCode int) events
 		StatusCode: statusCode,
 		Headers:    corsHeaders(h.requestOrigin),
 		Body:       body,
+	}
+}
+
+// ---------- visitor analytics ----------
+
+func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	var req struct {
+		VisitorID  string `json:"visitorId"`
+		Event      string `json:"event"`
+		Page       string `json:"page"`
+		Referrer   string `json:"referrer"`
+		UTMSource  string `json:"utm_source"`
+		UTMMedium  string `json:"utm_medium"`
+		UTMCampaign string `json:"utm_campaign"`
+		UTMContent string `json:"utm_content"`
+		CustomerID string `json:"customerId"`
+		Metadata   map[string]interface{} `json:"metadata"`
+	}
+
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	if req.VisitorID == "" || req.Event == "" {
+		return h.errorResponse(http.StatusBadRequest, "visitorId and event are required"), nil
+	}
+
+	// Read CloudFront headers
+	headers := request.Headers
+	country := headers["CloudFront-Viewer-Country"]
+	region := headers["CloudFront-Viewer-Country-Region"]
+	city := headers["CloudFront-Viewer-City"]
+	timezone := headers["CloudFront-Viewer-Time-Zone"]
+	ip := headers["X-Forwarded-For"]
+	asn := headers["CloudFront-Viewer-ASN"]
+	userAgent := headers["User-Agent"]
+	if userAgent == "" {
+		userAgent = headers["user-agent"]
+	}
+
+	// Detect device from CloudFront headers
+	device := "desktop"
+	if headers["CloudFront-Is-Mobile-Viewer"] == "true" {
+		device = "mobile"
+	} else if headers["CloudFront-Is-Tablet-Viewer"] == "true" {
+		device = "tablet"
+	} else if headers["CloudFront-Is-SmartTV-Viewer"] == "true" {
+		device = "smarttv"
+	}
+
+	// Parse browser and OS from User-Agent
+	browser, os := parseUserAgent(userAgent)
+
+	// Detect bots
+	isBot, botName := detectBot(userAgent, asn)
+
+	// Infer source from referrer if no UTM
+	source := req.UTMSource
+	medium := req.UTMMedium
+	if source == "" && req.Referrer != "" {
+		source, medium = inferSource(req.Referrer)
+	}
+	if source == "" {
+		source = "direct"
+		medium = "direct"
+	}
+	if isBot {
+		medium = "bot"
+	}
+
+	// Build visitor object
+	visitor := &storage.Visitor{
+		VisitorID: req.VisitorID,
+		Attribution: storage.VisitorAttribution{
+			Source:      source,
+			Medium:      medium,
+			Campaign:    req.UTMCampaign,
+			Content:     req.UTMContent,
+			Referrer:    req.Referrer,
+			LandingPage: req.Page,
+		},
+		Geo: storage.VisitorGeo{
+			Country:  country,
+			Region:   region,
+			City:     city,
+			Timezone: timezone,
+			IP:       ip,
+			ASN:      asn,
+		},
+		Device:     device,
+		OS:         os,
+		Browser:    browser,
+		IsBot:      isBot,
+		BotName:    botName,
+		Pages:      []string{req.Page},
+		CustomerID: req.CustomerID,
+	}
+
+	// Upsert visitor — if it fails, save a raw doc with error log
+	if err := h.db.UpsertVisitor(visitor); err != nil {
+		errMsg := fmt.Sprintf("%s: %v", time.Now().Format(time.RFC3339), err)
+		log.Printf("ERROR: UpsertVisitor failed: %v", err)
+		visitor.ErrorLog = []string{errMsg}
+		// Try to at least save the raw data with error
+		h.db.UpsertVisitor(visitor)
+	}
+
+	// Handle milestone events — errors are logged, never block the response
+	now := time.Now()
+	logErr := func(action string, err error) {
+		if err != nil {
+			errMsg := fmt.Sprintf("%s: %s: %v", now.Format(time.RFC3339), action, err)
+			log.Printf("WARN: visitor event: %s", errMsg)
+			h.db.AppendVisitorError(req.VisitorID, errMsg)
+		}
+	}
+
+	switch req.Event {
+	case "register":
+		milestone := storage.VisitorMilestone{Event: "register", Date: now, Metadata: req.Metadata}
+		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+		existing, _ := h.db.GetVisitorByID(req.VisitorID)
+		if existing != nil {
+			days := int(now.Sub(existing.FirstVisit).Hours() / 24)
+			logErr("updateConversion", h.db.UpdateVisitorConversion(req.VisitorID, bson.M{
+				"registered": true, "registeredAt": now,
+				"customerId": req.CustomerID, "daysToRegister": days,
+			}))
+		}
+	case "login":
+		if req.CustomerID != "" {
+			logErr("linkCustomer", h.db.UpdateVisitorConversion(req.VisitorID, bson.M{"customerId": req.CustomerID}))
+		}
+	case "add_to_cart":
+		milestone := storage.VisitorMilestone{Event: "add_to_cart", Page: req.Page, Date: now, Metadata: req.Metadata}
+		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+	case "order":
+		milestone := storage.VisitorMilestone{Event: "order", Date: now, Metadata: req.Metadata}
+		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+		amount, _ := req.Metadata["amount"].(float64)
+		existing, _ := h.db.GetVisitorByID(req.VisitorID)
+		updates := bson.M{"ordered": true, "updatedAt": now}
+		if existing != nil {
+			if !existing.Ordered {
+				updates["firstOrderAt"] = now
+				days := int(now.Sub(existing.FirstVisit).Hours() / 24)
+				updates["daysToOrder"] = days
+			}
+			updates["totalOrders"] = existing.TotalOrders + 1
+			updates["totalRevenue"] = existing.TotalRevenue + amount
+		}
+		logErr("updateConversion", h.db.UpdateVisitorConversion(req.VisitorID, updates))
+	case "visit":
+		milestone := storage.VisitorMilestone{Event: "visit", Page: req.Page, Date: now}
+		h.db.AddVisitorMilestone(req.VisitorID, milestone)
+	}
+
+	return h.successResponse(map[string]string{"status": "ok"}, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	role, _ := userClaim["role"].(string)
+	if role != storage.RoleAdmin {
+		return h.errorResponse(http.StatusForbidden, "Admin access required"), nil
+	}
+
+	switch {
+	case request.Path == "/visitors/stats" && request.HTTPMethod == "GET":
+		return h.getVisitorStats()
+	case request.Path == "/visitors" && request.HTTPMethod == "GET":
+		return h.getVisitors(request)
+	}
+	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
+}
+
+func (h *LambdaHandler) getVisitorStats() (events.APIGatewayProxyResponse, error) {
+	stats, err := h.db.GetVisitorStats()
+	if err != nil {
+		log.Printf("ERROR: GetVisitorStats: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to get visitor stats"), nil
+	}
+	return h.successResponse(stats, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	filter := bson.M{}
+
+	q := request.QueryStringParameters
+
+	// Filter by source
+	if v := q["source"]; v != "" {
+		filter["attribution.source"] = v
+	}
+	// Filter by country
+	if v := q["country"]; v != "" {
+		filter["geo.country"] = v
+	}
+	// Filter by device
+	if v := q["device"]; v != "" {
+		filter["device"] = v
+	}
+	// Filter bots
+	if v := q["isBot"]; v == "true" {
+		filter["isBot"] = true
+	} else if v == "false" {
+		filter["isBot"] = false
+	}
+	// Filter registered
+	if v := q["registered"]; v == "true" {
+		filter["registered"] = true
+	}
+	// Filter ordered
+	if v := q["ordered"]; v == "true" {
+		filter["ordered"] = true
+	}
+	// Search by visitorId
+	if v := q["visitorId"]; v != "" {
+		filter["visitorId"] = v
+	}
+
+	page := int64(1)
+	if v := q["page"]; v != "" {
+		var p int64
+		if _, err := fmt.Sscanf(v, "%d", &p); err == nil && p > 0 {
+			page = p
+		}
+	}
+	perPage := int64(50)
+	if v := q["perPage"]; v != "" {
+		var pp int64
+		if _, err := fmt.Sscanf(v, "%d", &pp); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
+
+	skip := (page - 1) * perPage
+	visitors, total, err := h.db.GetVisitors(filter, skip, perPage)
+	if err != nil {
+		log.Printf("ERROR: GetVisitors: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to get visitors"), nil
+	}
+
+	return h.successResponse(map[string]interface{}{
+		"visitors": visitors,
+		"total":    total,
+		"page":     page,
+		"perPage":  perPage,
+	}, http.StatusOK), nil
+}
+
+func parseUserAgent(ua string) (browser, os string) {
+	ua = strings.ToLower(ua)
+	// Browser
+	switch {
+	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
+		browser = "Chrome"
+	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
+		browser = "Safari"
+	case strings.Contains(ua, "firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "edg"):
+		browser = "Edge"
+	default:
+		browser = "Other"
+	}
+	// OS
+	switch {
+	case strings.Contains(ua, "windows"):
+		os = "Windows"
+	case strings.Contains(ua, "macintosh") || strings.Contains(ua, "mac os"):
+		os = "macOS"
+	case strings.Contains(ua, "linux") && !strings.Contains(ua, "android"):
+		os = "Linux"
+	case strings.Contains(ua, "android"):
+		os = "Android"
+	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
+		os = "iOS"
+	default:
+		os = "Other"
+	}
+	return
+}
+
+func detectBot(ua, asn string) (bool, string) {
+	bots := map[string]string{
+		"googlebot": "Googlebot", "bingbot": "Bingbot", "gptbot": "GPTBot",
+		"perplexitybot": "PerplexityBot", "claudebot": "ClaudeBot", "ccbot": "CCBot",
+		"twitterbot": "Twitterbot", "facebookexternalhit": "FacebookBot",
+		"linkedinbot": "LinkedInBot", "slackbot": "Slackbot", "whatsapp": "WhatsApp",
+		"yandexbot": "YandexBot", "duckduckbot": "DuckDuckBot", "applebot": "AppleBot",
+		"semrushbot": "SemrushBot", "ahrefsbot": "AhrefsBot",
+	}
+	lower := strings.ToLower(ua)
+	for key, name := range bots {
+		if strings.Contains(lower, key) {
+			return true, name
+		}
+	}
+	// Known datacenter ASNs (likely bots)
+	botASNs := map[string]bool{"16509": true, "14618": true, "15169": true, "8075": true}
+	if botASNs[asn] && !strings.Contains(lower, "mozilla") {
+		return true, "datacenter"
+	}
+	return false, ""
+}
+
+func inferSource(referrer string) (source, medium string) {
+	r := strings.ToLower(referrer)
+	switch {
+	case strings.Contains(r, "google."):
+		return "google", "organic"
+	case strings.Contains(r, "bing."):
+		return "bing", "organic"
+	case strings.Contains(r, "reddit.com"):
+		return "reddit", "social"
+	case strings.Contains(r, "linkedin.com"):
+		return "linkedin", "social"
+	case strings.Contains(r, "facebook.com") || strings.Contains(r, "fb.com"):
+		return "facebook", "social"
+	case strings.Contains(r, "instagram.com"):
+		return "instagram", "social"
+	case strings.Contains(r, "twitter.com") || strings.Contains(r, "t.co"):
+		return "twitter", "social"
+	case strings.Contains(r, "youtube.com"):
+		return "youtube", "social"
+	case strings.Contains(r, "tiktok.com"):
+		return "tiktok", "social"
+	case strings.Contains(r, "wa.me") || strings.Contains(r, "whatsapp.com"):
+		return "whatsapp", "social"
+	case strings.Contains(r, "chat.openai.com") || strings.Contains(r, "chatgpt.com"):
+		return "chatgpt", "llm"
+	case strings.Contains(r, "perplexity.ai"):
+		return "perplexity", "llm"
+	case strings.Contains(r, "claude.ai"):
+		return "claude", "llm"
+	case strings.Contains(r, "duckduckgo.com"):
+		return "duckduckgo", "organic"
+	case strings.Contains(r, "yahoo."):
+		return "yahoo", "organic"
+	default:
+		return "referral", "referral"
 	}
 }
