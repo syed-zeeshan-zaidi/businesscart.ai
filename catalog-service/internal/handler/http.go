@@ -140,8 +140,14 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 
 	product.SellerID = userClaim["id"].(string)
 	product.Name = strings.TrimSpace(product.Name)
+	if strings.Contains(product.Name, "/") {
+		return h.errorResponse(http.StatusBadRequest, "Product name cannot contain '/'"), nil
+	}
 	product.Category = strings.TrimSpace(product.Category)
 	product.Slug = strings.TrimSpace(product.Slug)
+	if product.Slug == "" {
+		return h.errorResponse(http.StatusBadRequest, "Slug is required"), nil
+	}
 	product.SKU = strings.TrimSpace(product.SKU)
 	product.Barcode = strings.TrimSpace(product.Barcode)
 	for i := range product.Attributes {
@@ -285,13 +291,41 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 
 	// Sanitize text fields that affect URLs and display
 	if name, ok := updates["name"].(string); ok {
-		updates["name"] = strings.TrimSpace(name)
+		name = strings.TrimSpace(name)
+		if strings.Contains(name, "/") {
+			return h.errorResponse(http.StatusBadRequest, "Product name cannot contain '/'"), nil
+		}
+		updates["name"] = name
 	}
 	if category, ok := updates["category"].(string); ok {
-		updates["category"] = strings.TrimSpace(category)
+		category = strings.TrimSpace(category)
+		if strings.Contains(category, "/") {
+			return h.errorResponse(http.StatusBadRequest, "Category cannot contain '/'"), nil
+		}
+		updates["category"] = category
 	}
 	if slug, ok := updates["slug"].(string); ok {
-		updates["slug"] = strings.TrimSpace(slug)
+		slug = strings.TrimSpace(slug)
+		if strings.Contains(slug, "/") {
+			return h.errorResponse(http.StatusBadRequest, "Slug cannot contain '/'"), nil
+		}
+		updates["slug"] = slug
+	}
+	// Coerce price to float64
+	if price, ok := updates["price"].(string); ok {
+		n, _ := strconv.ParseFloat(price, 64)
+		updates["price"] = n
+	}
+	if dealPrice, ok := updates["dealPrice"].(string); ok {
+		n, _ := strconv.ParseFloat(dealPrice, 64)
+		updates["dealPrice"] = n
+	}
+	// Coerce booleans
+	if active, ok := updates["active"].(string); ok {
+		updates["active"] = active == "true"
+	}
+	if featured, ok := updates["featured"].(string); ok {
+		updates["featured"] = featured == "true"
 	}
 	if sku, ok := updates["sku"].(string); ok {
 		updates["sku"] = strings.TrimSpace(sku)

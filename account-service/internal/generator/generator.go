@@ -141,7 +141,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 
 	// Pre-compute product filenames
 	for i := range data.Products {
-		slug := data.Products[i].Slug
+		slug := slugify(data.Products[i].Slug)
 		if slug == "" {
 			slug = "product"
 		}

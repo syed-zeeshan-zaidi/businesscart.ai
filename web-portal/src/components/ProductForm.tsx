@@ -100,10 +100,15 @@ const ProductForm = () => {
   const validateForm = () => {
     const newErrors: string[] = [];
     if (!formData.name) newErrors.push('Product name is required');
+    if (formData.name && formData.name.includes('/')) newErrors.push('Product name cannot contain "/"');
+    if (!formData.slug) newErrors.push('Slug is required');
+    if (formData.slug && formData.slug.includes('/')) newErrors.push('Slug cannot contain "/"');
+    if (formData.category && formData.category.includes('/')) newErrors.push('Category cannot contain "/"');
     if (formData.price === undefined || formData.price <= 0) newErrors.push('Price must be positive');
     if (formData.dealPrice !== undefined && (formData.dealPrice < 0 || formData.dealPrice > 50)) {
       newErrors.push('Deal Price must be between 0 and 50');
     }
+    if (formData.stock !== undefined && formData.stock < 0) newErrors.push('Stock cannot be negative');
     if (!formData.description) newErrors.push('Description is required');
     return newErrors;
   };
@@ -160,12 +165,17 @@ const ProductForm = () => {
     }
   };
 
+  const toSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value,
-    });
+    const parsed = (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
+    const updates: Partial<Product> = { [name]: parsed };
+    // Auto-generate slug from name (only if slug hasn't been manually edited)
+    if (name === 'name' && (!formData.slug || formData.slug === toSlug(formData.name || ''))) {
+      updates.slug = toSlug(value);
+    }
+    setFormData({ ...formData, ...updates });
   };
 
   const handleAttributeChange = (index: number, field: keyof Attribute, value: string) => {
