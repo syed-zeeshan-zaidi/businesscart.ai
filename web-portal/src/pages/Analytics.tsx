@@ -471,7 +471,7 @@ const Analytics: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-gray-500">Days to Register</p>
-                    <p>{selected.daysToRegister != null ? selected.daysToRegister : '-'}</p>
+                    <p>{selected.daysToRegister !== null && selected.daysToRegister !== undefined ? selected.daysToRegister : '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">First Order</p>
@@ -479,7 +479,7 @@ const Analytics: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-gray-500">Days to Order</p>
-                    <p>{selected.daysToOrder != null ? selected.daysToOrder : '-'}</p>
+                    <p>{selected.daysToOrder !== null && selected.daysToOrder !== undefined ? selected.daysToOrder : '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Total Orders</p>
