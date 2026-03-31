@@ -31,6 +31,7 @@ class D2CCart {
         this.saveCart();
         this.showDrawer();
         this.showToast(`Added ${product.name} to cart`);
+        if (window.D2C_TRACKER) window.D2C_TRACKER.trackAddToCart(product._id, product.name, product.discountedPrice || product.price);
     }
 
     removeItem(productId) {

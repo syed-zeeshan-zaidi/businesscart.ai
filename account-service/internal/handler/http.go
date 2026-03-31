@@ -1039,6 +1039,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		UTMCampaign string `json:"utm_campaign"`
 		UTMContent string `json:"utm_content"`
 		CustomerID string `json:"customerId"`
+		SellerID   string `json:"sellerId"`
 		Metadata   map[string]interface{} `json:"metadata"`
 	}
 
@@ -1048,6 +1049,17 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 
 	if req.VisitorID == "" || req.Event == "" {
 		return h.errorResponse(http.StatusBadRequest, "visitorId and event are required"), nil
+	}
+
+	// Skip internal users (admin, company, partner)
+	if req.CustomerID != "" {
+		if oid, err := primitive.ObjectIDFromHex(req.CustomerID); err == nil {
+			if acc, err := h.db.GetAccountByID(oid); err == nil {
+				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == "partner" {
+					return h.successResponse(map[string]string{"status": "skipped"}, http.StatusOK), nil
+				}
+			}
+		}
 	}
 
 	// Read CloudFront headers
@@ -1096,6 +1108,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	// Build visitor object
 	visitor := &storage.Visitor{
 		VisitorID: req.VisitorID,
+		SellerID:  req.SellerID,
 		Attribution: storage.VisitorAttribution{
 			Source:      source,
 			Medium:      medium,
@@ -1185,21 +1198,30 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 
 func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	role, _ := userClaim["role"].(string)
-	if role != storage.RoleAdmin {
-		return h.errorResponse(http.StatusForbidden, "Admin access required"), nil
+	if role != storage.RoleAdmin && role != storage.RoleCompany {
+		return h.errorResponse(http.StatusForbidden, "Access denied"), nil
+	}
+
+	// Company users can only see their own storefront visitors
+	sellerID := ""
+	if role == storage.RoleCompany {
+		sellerID, _ = userClaim["id"].(string)
+		if sellerID == "" {
+			return h.errorResponse(http.StatusForbidden, "Invalid account"), nil
+		}
 	}
 
 	switch {
 	case request.Path == "/visitors/stats" && request.HTTPMethod == "GET":
-		return h.getVisitorStats()
+		return h.getVisitorStats(sellerID)
 	case request.Path == "/visitors" && request.HTTPMethod == "GET":
-		return h.getVisitors(request)
+		return h.getVisitors(request, sellerID)
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) getVisitorStats() (events.APIGatewayProxyResponse, error) {
-	stats, err := h.db.GetVisitorStats()
+func (h *LambdaHandler) getVisitorStats(sellerID string) (events.APIGatewayProxyResponse, error) {
+	stats, err := h.db.GetVisitorStats(sellerID)
 	if err != nil {
 		log.Printf("ERROR: GetVisitorStats: %v", err)
 		return h.errorResponse(http.StatusInternalServerError, "Failed to get visitor stats"), nil
@@ -1207,8 +1229,11 @@ func (h *LambdaHandler) getVisitorStats() (events.APIGatewayProxyResponse, error
 	return h.successResponse(stats, http.StatusOK), nil
 }
 
-func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, sellerID string) (events.APIGatewayProxyResponse, error) {
 	filter := bson.M{}
+	if sellerID != "" {
+		filter["sellerId"] = sellerID
+	}
 
 	q := request.QueryStringParameters
 

@@ -208,7 +208,6 @@ type Account struct {
 	CustomerData  *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
 	PartnerData   *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
 	Address       *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
-	VisitorID     string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
 }
 
 // ---------- visitor analytics ----------
@@ -241,6 +240,7 @@ type VisitorMilestone struct {
 type Visitor struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	VisitorID      string             `bson:"visitorId" json:"visitorId"`
+	SellerID       string             `bson:"sellerId,omitempty" json:"sellerId,omitempty"`
 	Attribution    VisitorAttribution `bson:"attribution" json:"attribution"`
 	Geo            VisitorGeo         `bson:"geo" json:"geo"`
 	Device         string             `bson:"device" json:"device"`

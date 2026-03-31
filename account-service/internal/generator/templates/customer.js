@@ -32,6 +32,7 @@
 
             if (status === 'success') {
                 if (window.D2C_CART) window.D2C_CART.clear();
+                if (window.D2C_TRACKER && orderId) window.D2C_TRACKER.trackOrder(orderId, 0);
                 this._showOrderConfirmation(orderId);
             } else {
                 const messages = {
@@ -680,6 +681,7 @@
                 }
 
                 const placedOrderId = result._id || result.id || '';
+                if (window.D2C_TRACKER) window.D2C_TRACKER.trackOrder(placedOrderId, result.grandTotal || 0);
                 setTimeout(() => {
                     document.getElementById('d2c-checkout-overlay')?.remove();
                     this._showOrderConfirmation(placedOrderId);
@@ -1258,6 +1260,7 @@
                         // Register returns account object, not a token — auto-login with same credentials
                         const loginSuccess = await this.login(data.email, data.password);
                         if (loginSuccess) {
+                            if (window.D2C_TRACKER) window.D2C_TRACKER.trackRegister(this.user?.id || '');
                             this.hideLoginModal();
                             this.showDashboard();
                         } else {
@@ -1271,6 +1274,7 @@
                 } else {
                     const success = await this.login(data.email, data.password);
                     if (success) {
+                        if (window.D2C_TRACKER) window.D2C_TRACKER.trackLogin(this.user?.id || '');
                         this.showToast('Welcome back!');
                         this.hideLoginModal();
                         this.showDashboard();

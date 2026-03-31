@@ -19,6 +19,9 @@ const Sidebar = () => {
 
   if (user && user.role === 'admin') {
     links.splice(1, 0, { name: 'Codes', path: '/codes', icon: DocumentPlusIcon });
+  }
+
+  if (user && (user.role === 'admin' || user.role === 'company')) {
     links.push({ name: 'Analytics', path: '/analytics', icon: ChartBarIcon });
   }
 
