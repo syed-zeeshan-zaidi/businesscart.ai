@@ -350,6 +350,17 @@ export const associateCompany = async (customerCode: string): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/associate`, { customerCode });
 };
 
+export const getVisitorStats = async (): Promise<any> => {
+  const response = await api.get(`${API_URL}/visitors/stats`);
+  return response.data;
+};
+
+export const getVisitors = async (params?: Record<string, string>): Promise<any> => {
+  const query = params ? '?' + new URLSearchParams(params).toString() : '';
+  const response = await api.get(`${API_URL}/visitors${query}`);
+  return response.data;
+};
+
 export const updateD2CConfig = async (accountId: string, config: any): Promise<void> => {
   await api.patch(`${API_URL}/accounts/${accountId}`, {
     company: {

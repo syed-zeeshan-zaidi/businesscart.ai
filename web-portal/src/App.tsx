@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import LoadingIndicator from './components/LoadingIndicator';
+import { trackPageView } from './tracker';
 
 const Home = lazy(() => import('./pages/Home'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -39,6 +40,7 @@ const QuoteCreateForm = lazy(() => import('./components/QuoteCreateForm'));
 const Compare = lazy(() => import('./pages/Compare'));
 const Industries = lazy(() => import('./pages/Industries'));
 const Blog = lazy(() => import('./pages/Blog'));
+const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 
 const AppContent = () => {
@@ -48,10 +50,11 @@ const AppContent = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    trackPageView(location.pathname);
     setIsLoading(true);
     const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
-  }, [location]);
+  }, [location.pathname]);
 
   const getRedirectPath = () => {
     const token = localStorage.getItem('accessToken');
@@ -87,6 +90,7 @@ const AppContent = () => {
     '/admin/orders',
     '/locations',
     '/quote-create',
+    '/analytics',
   ];
 
   return (
@@ -213,6 +217,10 @@ const AppContent = () => {
               <Route
                 path="/admin/orders"
                 element={isAuthenticated ? <OrderForm /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/analytics"
+                element={isAuthenticated ? <Analytics /> : <Navigate to="/login" replace />}
               />
               <Route path="/user-guide" element={<UserGuide />} />
               <Route path="/system-status" element={<ApiStatus />} />
