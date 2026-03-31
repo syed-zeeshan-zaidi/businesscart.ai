@@ -164,7 +164,7 @@ const ProductForm = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : value,
+      [name]: (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value,
     });
   };
 

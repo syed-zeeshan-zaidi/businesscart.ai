@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -188,6 +189,7 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 
 	products, err := h.db.GetProducts(filter)
 	if err != nil {
+		log.Printf("ERROR: GetProducts failed: %v", err)
 		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve products"), nil
 	}
 
@@ -296,6 +298,13 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	if barcode, ok := updates["barcode"].(string); ok {
 		updates["barcode"] = strings.TrimSpace(barcode)
+	}
+	// Coerce stock to integer (JSON/frontend may send as string or float64)
+	if stock, ok := updates["stock"].(string); ok {
+		n, _ := strconv.Atoi(stock)
+		updates["stock"] = n
+	} else if stock, ok := updates["stock"].(float64); ok {
+		updates["stock"] = int(stock)
 	}
 	if attrs, ok := updates["attributes"].([]interface{}); ok {
 		for i, a := range attrs {
