@@ -387,7 +387,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 	}
 
 	// Copy Static Files
-	for _, jsFile := range []string{"cart.js", "customer.js", "nav.js"} {
+	for _, jsFile := range []string{"tracker.js", "cart.js", "customer.js", "nav.js"} {
 		jsData, err := fs.ReadFile(g.TemplateFS, jsFile)
 		if err != nil {
 			return fmt.Errorf("%s read: %w", jsFile, err)

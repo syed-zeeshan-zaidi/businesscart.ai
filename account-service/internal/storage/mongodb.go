@@ -285,56 +285,47 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	now := time.Now()
 	filter := bson.M{"visitorId": visitor.VisitorID}
 
-	// Check if visitor exists
-	var existing Visitor
-	err := db.visitors.FindOne(context.Background(), filter).Decode(&existing)
-
-	if err == mongo.ErrNoDocuments {
-		// New visitor — insert
-		visitor.CreatedAt = now
-		visitor.UpdatedAt = now
-		visitor.FirstVisit = now
-		visitor.LastVisit = now
-		visitor.TotalSessions = 1
-		visitor.TotalPageViews = 1
-		_, err = db.visitors.InsertOne(context.Background(), visitor)
-		return err
+	setOnInsert := bson.M{
+		"attribution":    visitor.Attribution,
+		"firstVisit":     now,
+		"createdAt":      now,
+		"totalSessions":  0,
+		"totalPageViews": 0,
+		"registered":     false,
+		"ordered":        false,
+		"totalOrders":    0,
+		"totalRevenue":   0,
 	}
-	if err != nil {
-		return err
+	if visitor.SellerID != "" {
+		setOnInsert["sellerId"] = visitor.SellerID
 	}
 
-	// Existing visitor — update
+	setFields := bson.M{
+		"lastVisit": now,
+		"updatedAt": now,
+		"geo":       visitor.Geo,
+		"device":    visitor.Device,
+		"os":        visitor.OS,
+		"browser":   visitor.Browser,
+		"isBot":     visitor.IsBot,
+		"botName":   visitor.BotName,
+	}
+	if visitor.CustomerID != "" {
+		setFields["customerId"] = visitor.CustomerID
+	}
+
 	update := bson.M{
-		"$set": bson.M{
-			"lastVisit": now,
-			"updatedAt": now,
-			"geo":       visitor.Geo,
-			"device":    visitor.Device,
-			"os":        visitor.OS,
-			"browser":   visitor.Browser,
-		},
-		"$inc": bson.M{
-			"totalPageViews": 1,
-		},
+		"$setOnInsert": setOnInsert,
+		"$set":         setFields,
+		"$inc":         bson.M{"totalPageViews": 1, "totalSessions": 1},
 	}
 
-	// Add page to set (deduplicated)
 	if len(visitor.Pages) > 0 {
 		update["$addToSet"] = bson.M{"pages": visitor.Pages[0]}
 	}
 
-	// Increment session if last visit was > 30 min ago
-	if now.Sub(existing.LastVisit) > 30*time.Minute {
-		update["$inc"].(bson.M)["totalSessions"] = 1
-	}
-
-	// Link customer if provided and not already linked
-	if visitor.CustomerID != "" && existing.CustomerID == "" {
-		update["$set"].(bson.M)["customerId"] = visitor.CustomerID
-	}
-
-	_, err = db.visitors.UpdateOne(context.Background(), filter, update)
+	opts := options.Update().SetUpsert(true)
+	_, err := db.visitors.UpdateOne(context.Background(), filter, update, opts)
 	return err
 }
 
@@ -394,29 +385,47 @@ func (db *DB) GetVisitors(filter bson.M, skip, limit int64) ([]*Visitor, int64, 
 	return visitors, total, nil
 }
 
-func (db *DB) GetVisitorStats() (map[string]interface{}, error) {
+func (db *DB) GetVisitorStats(sellerID string) (map[string]interface{}, error) {
 	ctx := context.Background()
 
-	total, _ := db.visitors.CountDocuments(ctx, bson.M{})
-	bots, _ := db.visitors.CountDocuments(ctx, bson.M{"isBot": true})
-	registered, _ := db.visitors.CountDocuments(ctx, bson.M{"registered": true})
-	ordered, _ := db.visitors.CountDocuments(ctx, bson.M{"ordered": true})
+	base := bson.M{}
+	if sellerID != "" {
+		base["sellerId"] = sellerID
+	}
 
-	// Today's visitors
+	withBase := func(extra bson.M) bson.M {
+		f := bson.M{}
+		for k, v := range base {
+			f[k] = v
+		}
+		for k, v := range extra {
+			f[k] = v
+		}
+		return f
+	}
+
+	total, _ := db.visitors.CountDocuments(ctx, base)
+	bots, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"isBot": true}))
+	registered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"registered": true}))
+	ordered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"ordered": true}))
+
 	today := time.Now().Truncate(24 * time.Hour)
-	todayCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": today}})
+	todayCount, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"lastVisit": bson.M{"$gte": today}}))
 
-	// Last 7 days
 	week := time.Now().AddDate(0, 0, -7)
-	weekCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": week}})
+	weekCount, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"lastVisit": bson.M{"$gte": week}}))
 
-	// Last 30 days
 	month := time.Now().AddDate(0, 0, -30)
-	monthCount, _ := db.visitors.CountDocuments(ctx, bson.M{"lastVisit": bson.M{"$gte": month}})
+	monthCount, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"lastVisit": bson.M{"$gte": month}}))
 
-	// Helper: run aggregation and return results
+	// Helper: run aggregation with base match prepended
 	aggregate := func(pipeline mongo.Pipeline) []map[string]interface{} {
-		cur, err := db.visitors.Aggregate(ctx, pipeline)
+		full := mongo.Pipeline{}
+		if len(base) > 0 {
+			full = append(full, bson.D{{Key: "$match", Value: base}})
+		}
+		full = append(full, pipeline...)
+		cur, err := db.visitors.Aggregate(ctx, full)
 		if err != nil {
 			return nil
 		}

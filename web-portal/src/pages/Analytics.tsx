@@ -32,8 +32,8 @@ interface Stats {
 
 interface Visitor {
   visitorId: string;
-  attribution: { source: string; medium: string; campaign: string; landingPage: string; referrer: string };
-  geo: { country: string; region: string; city: string };
+  attribution: { source: string; medium: string; campaign: string; content: string; landingPage: string; referrer: string };
+  geo: { country: string; region: string; city: string; timezone: string; ip: string; asn: string };
   device: string;
   os: string;
   browser: string;
@@ -44,12 +44,16 @@ interface Visitor {
   totalSessions: number;
   totalPageViews: number;
   pages: string[];
-  milestones: { event: string; date: string; metadata?: Record<string, unknown> }[];
+  milestones: { event: string; page: string; date: string; metadata?: Record<string, unknown> }[];
   customerId: string;
   registered: boolean;
+  registeredAt: string;
   ordered: boolean;
+  firstOrderAt: string;
   totalOrders: number;
   totalRevenue: number;
+  daysToRegister: number;
+  daysToOrder: number;
   errorLog: string[];
 }
 
@@ -195,11 +199,13 @@ const Analytics: React.FC = () => {
 
           {stats && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                 <StatCard icon={UsersIcon} label="Total Visitors" value={stats.totalVisitors} sub={`${stats.todayVisitors} today`} />
                 <StatCard icon={UsersIcon} label="This Week" value={stats.weekVisitors} sub={`${stats.monthVisitors} this month`} />
                 <StatCard icon={GlobeAltIcon} label="Registered" value={stats.totalRegistered} sub={`${stats.totalVisitors > 0 ? ((stats.totalRegistered / stats.totalVisitors) * 100).toFixed(1) : 0}% conversion`} />
+                <StatCard icon={UsersIcon} label="Ordered" value={stats.totalOrdered} sub={`${stats.totalRegistered > 0 ? ((stats.totalOrdered / stats.totalRegistered) * 100).toFixed(1) : 0}% of registered`} />
                 <StatCard icon={CurrencyDollarIcon} label="Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} sub={`${stats.totalOrders} orders`} />
+                <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -207,11 +213,6 @@ const Analytics: React.FC = () => {
                 <BreakdownTable title="Top Countries" data={stats.topCountries} />
                 <BreakdownTable title="Devices" data={stats.devices} />
                 <BreakdownTable title="Browsers" data={stats.browsers} />
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
-                <StatCard icon={UsersIcon} label="Ordered" value={stats.totalOrdered} sub={`${stats.totalRegistered > 0 ? ((stats.totalOrdered / stats.totalRegistered) * 100).toFixed(1) : 0}% of registered`} />
               </div>
             </>
           )}
@@ -280,12 +281,15 @@ const Analytics: React.FC = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-left text-gray-600">
-                    <th className="px-4 py-3 font-medium">Visitor</th>
                     <th className="px-4 py-3 font-medium">Source</th>
+                    <th className="px-4 py-3 font-medium">Landing Page</th>
                     <th className="px-4 py-3 font-medium">Location</th>
                     <th className="px-4 py-3 font-medium">Device</th>
                     <th className="px-4 py-3 font-medium">Pages</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Orders</th>
+                    <th className="px-4 py-3 font-medium">Revenue</th>
+                    <th className="px-4 py-3 font-medium">First Visit</th>
                     <th className="px-4 py-3 font-medium">Last Visit</th>
                   </tr>
                 </thead>
@@ -293,12 +297,12 @@ const Analytics: React.FC = () => {
                   {visitors.map((v) => (
                     <tr key={v.visitorId} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(v)}>
                       <td className="px-4 py-3">
-                        <div className="font-mono text-xs text-gray-600">{v.visitorId.substring(0, 16)}...</div>
+                        <div className="text-gray-800">{v.attribution?.source || '-'}</div>
+                        <div className="text-xs text-gray-400">{v.attribution?.medium || ''}{v.attribution?.campaign ? ` / ${v.attribution.campaign}` : ''}</div>
                         {v.isBot && <span className="inline-block mt-0.5 text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">{v.botName || 'Bot'}</span>}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-800">{v.attribution?.source || '-'}</div>
-                        <div className="text-xs text-gray-400">{v.attribution?.medium || ''}</div>
+                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate" title={v.attribution?.landingPage || ''}>
+                        {v.attribution?.landingPage || '-'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-gray-800">{formatLocation(v.geo)}</div>
@@ -320,11 +324,14 @@ const Analytics: React.FC = () => {
                           <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Visitor</span>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-center text-gray-800">{v.totalOrders || 0}</td>
+                      <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{v.totalRevenue ? `$${v.totalRevenue.toFixed(2)}` : '-'}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.firstVisit)}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.lastVisit)}</td>
                     </tr>
                   ))}
                   {visitors.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No visitors found</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No visitors found</td></tr>
                   )}
                 </tbody>
               </table>
@@ -354,61 +361,140 @@ const Analytics: React.FC = () => {
               <h3 className="font-semibold text-gray-800">Visitor Details</h3>
               <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5" /></button>
             </div>
-            <div className="p-5 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-gray-500">Visitor ID</p>
-                  <p className="font-mono text-xs break-all">{selected.visitorId}</p>
+            <div className="p-5 space-y-5 text-sm">
+              <div>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identity</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-500">Visitor ID</p>
+                    <p className="font-mono text-xs break-all">{selected.visitorId}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Customer ID</p>
+                    <p className="font-mono text-xs">{selected.customerId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Type</p>
+                    <p>{selected.isBot ? <span className="text-yellow-700">{selected.botName || 'Bot'}</span> : 'Human'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Status</p>
+                    <p>{selected.ordered ? 'Ordered' : selected.registered ? 'Registered' : 'Visitor'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500">Customer ID</p>
-                  <p className="font-mono text-xs">{selected.customerId || '-'}</p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Attribution</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-500">Source / Medium</p>
+                    <p>{selected.attribution?.source || '-'} / {selected.attribution?.medium || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Campaign</p>
+                    <p>{selected.attribution?.campaign || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Content</p>
+                    <p>{selected.attribution?.content || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Landing Page</p>
+                    <p>{selected.attribution?.landingPage || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-500">Referrer</p>
+                    <p className="break-all">{selected.attribution?.referrer || '-'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500">First Visit</p>
-                  <p>{formatDate(selected.firstVisit)}</p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Location & Device</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-500">Location</p>
+                    <p>{formatLocation(selected.geo)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Timezone</p>
+                    <p>{selected.geo?.timezone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">IP Address</p>
+                    <p className="font-mono text-xs">{selected.geo?.ip || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">ASN</p>
+                    <p>{selected.geo?.asn || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Device</p>
+                    <p>{selected.device || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Browser / OS</p>
+                    <p>{selected.browser || '-'} / {selected.os || '-'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500">Last Visit</p>
-                  <p>{formatDate(selected.lastVisit)}</p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-500">First Visit</p>
+                    <p>{formatDate(selected.firstVisit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Last Visit</p>
+                    <p>{formatDate(selected.lastVisit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Sessions</p>
+                    <p>{selected.totalSessions}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Page Views</p>
+                    <p>{selected.totalPageViews}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500">Source / Medium</p>
-                  <p>{selected.attribution?.source} / {selected.attribution?.medium}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Campaign</p>
-                  <p>{selected.attribution?.campaign || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Landing Page</p>
-                  <p>{selected.attribution?.landingPage || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Referrer</p>
-                  <p className="truncate">{selected.attribution?.referrer || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Location</p>
-                  <p>{formatLocation(selected.geo)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Device / Browser / OS</p>
-                  <p>{selected.device} / {selected.browser} / {selected.os}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Sessions / Page Views</p>
-                  <p>{selected.totalSessions} / {selected.totalPageViews}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Orders / Revenue</p>
-                  <p>{selected.totalOrders} / ${selected.totalRevenue?.toFixed(2) || '0.00'}</p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Conversion</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-gray-500">Registered</p>
+                    <p>{selected.registered ? formatDate(selected.registeredAt) : 'No'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Days to Register</p>
+                    <p>{selected.daysToRegister != null ? selected.daysToRegister : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">First Order</p>
+                    <p>{selected.ordered ? formatDate(selected.firstOrderAt) : 'No'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Days to Order</p>
+                    <p>{selected.daysToOrder != null ? selected.daysToOrder : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Total Orders</p>
+                    <p>{selected.totalOrders}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Total Revenue</p>
+                    <p>${selected.totalRevenue?.toFixed(2) || '0.00'}</p>
+                  </div>
                 </div>
               </div>
 
               {selected.pages && selected.pages.length > 0 && (
                 <div>
-                  <p className="text-gray-500 mb-1">Pages Visited</p>
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pages Visited ({selected.pages.length})</h4>
                   <div className="flex flex-wrap gap-1">
                     {selected.pages.map((p, i) => (
                       <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{p}</span>
@@ -419,12 +505,16 @@ const Analytics: React.FC = () => {
 
               {selected.milestones && selected.milestones.length > 0 && (
                 <div>
-                  <p className="text-gray-500 mb-1">Milestones</p>
-                  <div className="space-y-1">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Milestones ({selected.milestones.length})</h4>
+                  <div className="space-y-2">
                     {selected.milestones.map((m, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded">{m.event}</span>
-                        <span className="text-gray-400">{formatDate(m.date)}</span>
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded shrink-0">{m.event}</span>
+                        <span className="text-gray-400 shrink-0">{formatDate(m.date)}</span>
+                        {m.page && <span className="text-gray-500">{m.page}</span>}
+                        {m.metadata && Object.keys(m.metadata).length > 0 && (
+                          <span className="text-gray-400">{Object.entries(m.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')}</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -433,7 +523,7 @@ const Analytics: React.FC = () => {
 
               {selected.errorLog && selected.errorLog.length > 0 && (
                 <div>
-                  <p className="text-gray-500 mb-1">Error Log</p>
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Error Log ({selected.errorLog.length})</h4>
                   <div className="bg-red-50 rounded p-2 text-xs text-red-700 space-y-1">
                     {selected.errorLog.map((e, i) => <div key={i}>{e}</div>)}
                   </div>
