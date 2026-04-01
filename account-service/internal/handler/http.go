@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"business-cart/account-service/internal/auth"
 	"business-cart/account-service/internal/generator"
@@ -123,6 +124,15 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+func extractClaim(userClaim map[string]interface{}) (role, userID string, err error) {
+	role, _ = userClaim["role"].(string)
+	userID, _ = userClaim["id"].(string)
+	if role == "" || userID == "" {
+		return "", "", fmt.Errorf("invalid token claims")
+	}
+	return role, userID, nil
+}
+
 // --- Route Handlers ---
 
 func (h *LambdaHandler) handleAccounts(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -228,6 +238,20 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
+	// Check for duplicate email
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
+		return h.errorResponse(http.StatusBadRequest, "Email is required"), nil
+	}
+	if _, err := h.db.GetAccountByEmail(email); err == nil {
+		return h.errorResponse(http.StatusConflict, "An account with this email already exists"), nil
+	}
+
+	// Validate password strength
+	if err := validatePassword(req.Password); err != nil {
+		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+	}
+
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to hash password"), nil
@@ -237,6 +261,7 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		ID:            primitive.NewObjectID(),
 		Name:          strings.TrimSpace(req.Name),
 		Email:         strings.TrimSpace(req.Email),
+		PhoneNumber:   strings.TrimSpace(req.PhoneNumber),
 		Password:      hashedPassword,
 		Role:          req.Role,
 		AccountStatus: storage.AccountActive,
@@ -385,9 +410,10 @@ func (h *LambdaHandler) logoutUser(request events.APIGatewayProxyRequest) (event
 // --- Protected Handlers ---
 
 func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Implementation adapted from original GetAccounts
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var filter bson.M
 	switch role {
@@ -520,8 +546,10 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	// Authorization
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 	if role != storage.RoleAdmin && userID != targetID.Hex() {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
@@ -606,8 +634,10 @@ func (h *LambdaHandler) regenerateStorefront(userClaim map[string]interface{}, i
 	}
 
 	// Authorization - Admin or the company itself
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 	if role != storage.RoleAdmin && userID != targetID.Hex() {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
@@ -831,7 +861,10 @@ func (h *LambdaHandler) updateCustomerConfiguration(userClaim map[string]interfa
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid customer ID"), nil
 	}
-	companyID := userClaim["id"].(string)
+	companyID, _ := userClaim["id"].(string)
+	if companyID == "" {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var config storage.CustomerConfiguration
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
@@ -850,8 +883,10 @@ func (h *LambdaHandler) associateCustomerWithCompany(userClaim map[string]interf
 		return h.errorResponse(http.StatusBadRequest, "Invalid customer ID"), nil
 	}
 
-	role := userClaim["role"].(string)
-	actorID := userClaim["id"].(string)
+	role, actorID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var entry *storage.CustomerCodeEntry
 
@@ -1055,7 +1090,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	if req.CustomerID != "" {
 		if oid, err := primitive.ObjectIDFromHex(req.CustomerID); err == nil {
 			if acc, err := h.db.GetAccountByID(oid); err == nil {
-				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == "partner" {
+				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == storage.RolePartner {
 					return h.successResponse(map[string]string{"status": "skipped"}, http.StatusOK), nil
 				}
 			}
@@ -1202,13 +1237,17 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 		return h.errorResponse(http.StatusForbidden, "Access denied"), nil
 	}
 
-	// Company users can only see their own storefront visitors
+	// Determine sellerId scope
+	// Admin: no param = all data, ?sellerId=portal = portal only, ?sellerId=X = company X
+	// Company: forced to their own sellerId
 	sellerID := ""
 	if role == storage.RoleCompany {
 		sellerID, _ = userClaim["id"].(string)
 		if sellerID == "" {
 			return h.errorResponse(http.StatusForbidden, "Invalid account"), nil
 		}
+	} else if role == storage.RoleAdmin {
+		sellerID = request.QueryStringParameters["sellerId"]
 	}
 
 	switch {
@@ -1231,7 +1270,9 @@ func (h *LambdaHandler) getVisitorStats(sellerID string) (events.APIGatewayProxy
 
 func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, sellerID string) (events.APIGatewayProxyResponse, error) {
 	filter := bson.M{}
-	if sellerID != "" {
+	if sellerID == "portal" {
+		filter["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
+	} else if sellerID != "" {
 		filter["sellerId"] = sellerID
 	}
 
@@ -1296,6 +1337,38 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 		"page":     page,
 		"perPage":  perPage,
 	}, http.StatusOK), nil
+}
+
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("Password must be at least 8 characters")
+	}
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, c := range password {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsDigit(c):
+			hasDigit = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
+		}
+	}
+	if !hasUpper {
+		return fmt.Errorf("Password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("Password must contain at least one lowercase letter")
+	}
+	if !hasDigit {
+		return fmt.Errorf("Password must contain at least one digit")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("Password must contain at least one special character")
+	}
+	return nil
 }
 
 func parseUserAgent(ua string) (browser, os string) {

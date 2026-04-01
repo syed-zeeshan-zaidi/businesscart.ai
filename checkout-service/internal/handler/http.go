@@ -701,6 +701,9 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 		}
+		if req.Entity.Quantity <= 0 {
+			return h.errorResponse(http.StatusBadRequest, "Quantity must be greater than 0"), nil
+		}
 		currentCart, err := h.cartService.GetCart(effectiveAccountID, req.Entity.SellerID)
 		if err != nil && err.Error() != "cart not found" {
 			return h.errorResponse(http.StatusInternalServerError, "Failed to get cart"), nil
@@ -793,6 +796,9 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 			return h.errorResponse(http.StatusBadRequest, "Invalid item ID format"), nil
 		}
 
+		if req.Entity.Quantity <= 0 {
+			return h.errorResponse(http.StatusBadRequest, "Quantity must be greater than 0"), nil
+		}
 		currentCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
 		if err != nil {
 			return h.errorResponse(http.StatusNotFound, "Cart not found"), nil

@@ -1189,7 +1189,8 @@
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            <input type="password" name="password" required placeholder="••••••••">
+                            <input type="password" name="password" required placeholder="••••••••" minlength="8">
+                            <small style="color:#64748b;font-size:0.75rem">Min 8 characters with uppercase, lowercase, digit, and special character.</small>
                         </div>
                         <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Create Account</button>
                     </form>

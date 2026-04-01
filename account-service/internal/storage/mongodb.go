@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -50,15 +51,36 @@ func NewDB(mongoURI string) (*DB, error) {
 		return nil, err
 	}
 	db := c.Database("AccountService")
+
+	accounts := db.Collection("accounts")
+	visitors := db.Collection("visitors")
+
+	// Ensure indexes (idempotent)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	indexes := []struct {
+		coll  *mongo.Collection
+		model mongo.IndexModel
+	}{
+		{accounts, mongo.IndexModel{Keys: bson.M{"email": 1}, Options: options.Index().SetUnique(true)}},
+		{visitors, mongo.IndexModel{Keys: bson.M{"visitorId": 1}}},
+		{visitors, mongo.IndexModel{Keys: bson.M{"sellerId": 1}}},
+	}
+	for _, idx := range indexes {
+		if _, err := idx.coll.Indexes().CreateOne(ctx, idx.model); err != nil {
+			log.Printf("WARN: index creation failed: %v", err)
+		}
+	}
+
 	return &DB{
 		client:            c,
-		accounts:          db.Collection("accounts"),
+		accounts:          accounts,
 		codes:             db.Collection("codes"),
 		refreshtokens:     db.Collection("refreshtokens"),
 		blacklistedtokens: db.Collection("blacklistedtokens"),
 		companyLocations:  db.Collection("company_locations"),
 		customerAddresses: db.Collection("customer_addresses"),
-		visitors:          db.Collection("visitors"),
+		visitors:          visitors,
 	}, nil
 }
 
@@ -389,7 +411,9 @@ func (db *DB) GetVisitorStats(sellerID string) (map[string]interface{}, error) {
 	ctx := context.Background()
 
 	base := bson.M{}
-	if sellerID != "" {
+	if sellerID == "portal" {
+		base["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
+	} else if sellerID != "" {
 		base["sellerId"] = sellerID
 	}
 

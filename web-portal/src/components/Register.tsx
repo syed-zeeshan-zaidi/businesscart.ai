@@ -21,6 +21,10 @@ const Register = () => {
     if (!formData.name) errors.push('Name is required');
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push('Valid email is required');
     if (!formData.password || formData.password.length < 8) errors.push('Password must be at least 8 characters');
+    if (formData.password && !/[A-Z]/.test(formData.password)) errors.push('Password must contain at least one uppercase letter');
+    if (formData.password && !/[a-z]/.test(formData.password)) errors.push('Password must contain at least one lowercase letter');
+    if (formData.password && !/[0-9]/.test(formData.password)) errors.push('Password must contain at least one digit');
+    if (formData.password && !/[^A-Za-z0-9]/.test(formData.password)) errors.push('Password must contain at least one special character');
     if (!formData.role) errors.push('Role is required');
     if (formData.role === 'company' && !formData.code) errors.push('Business code is required');
     if (formData.role === 'customer' && !formData.customerCodes) errors.push('Company access code is required');
@@ -41,7 +45,8 @@ const Register = () => {
         password: formData.password,
         role: formData.role,
         code: formData.code,
-        customerCodes: formData.customerCodes.split(',').map(c => c.trim()),
+        customerCodes: formData.customerCodes.split(',').map(c => c.trim()).filter(Boolean),
+        phoneNumber: formData.phoneNumber,
       });
       localStorage.setItem('accessToken', accessToken);
       setErrors([]);
@@ -104,6 +109,7 @@ const Register = () => {
                 placeholder="securepassword"
                 className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
               />
+              <p className="mt-1 text-xs text-gray-500">Min 8 characters with uppercase, lowercase, digit, and special character.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Role <span className="text-red-500">*</span></label>

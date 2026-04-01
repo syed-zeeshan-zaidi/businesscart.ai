@@ -305,10 +305,10 @@ func (s *Service) UpdateQuoteBySeller(quoteID primitive.ObjectID, updates Seller
 		found := false
 		for i, item := range quote.Items {
 			if item.ID.Hex() == itemUpdate.ItemID {
-				if itemUpdate.Quantity != nil {
+				if itemUpdate.Quantity != nil && *itemUpdate.Quantity > 0 {
 					quote.Items[i].Quantity = *itemUpdate.Quantity
 				}
-				if itemUpdate.Price != nil {
+				if itemUpdate.Price != nil && *itemUpdate.Price > 0 {
 					quote.Items[i].Price = *itemUpdate.Price
 				}
 				// Recalculate line item total

@@ -60,6 +60,11 @@ const Addresses: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const a = newAddress;
+    if (!a.recipientName.trim() || !a.address.street.trim() || !a.address.city.trim() || !a.address.state.trim() || !a.address.zip.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
     setIsLoading(true);
     try {
       await upsertCustomerAddress(user.id, newAddress);

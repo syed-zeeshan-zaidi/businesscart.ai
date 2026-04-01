@@ -199,6 +199,7 @@ type Account struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Name          string             `bson:"name" json:"name"`
 	Email         string             `bson:"email" json:"email"`
+	PhoneNumber   string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
 	Password      string             `bson:"password" json:"-"` // Do not expose password
 	Role          string             `bson:"role" json:"role"`
 	AccountStatus AccountStatus      `bson:"accountStatus" json:"accountStatus"`
@@ -306,6 +307,7 @@ type RegisterRequest struct {
 	Role          string   `json:"role"`
 	Code          string   `json:"code"`
 	CustomerCodes []string `json:"customerCodes"`
+	PhoneNumber   string   `json:"phoneNumber,omitempty"`
 }
 
 type LoginRequest struct {

@@ -67,6 +67,7 @@ export const register = async (data: {
   role: string;
   code?: string;
   customerCodes?: string[];
+  phoneNumber?: string;
 }): Promise<{ accessToken: string; account: Account }> => {
   const response = await api.post(`${API_URL}/accounts/register`, data);
   return response.data;
@@ -86,7 +87,11 @@ export const logout = async (): Promise<void> => {
   } catch (_) {
     // Intentionally left empty
   } finally {
-    localStorage.removeItem('accessToken');
+    const keep = ['bc_visitor_id', 'bc_attribution'];
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (!keep.includes(key)) localStorage.removeItem(key);
+    }
   }
 };
 
@@ -350,8 +355,9 @@ export const associateCompany = async (customerCode: string): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/associate`, { customerCode });
 };
 
-export const getVisitorStats = async (): Promise<any> => {
-  const response = await api.get(`${API_URL}/visitors/stats`);
+export const getVisitorStats = async (sellerId?: string): Promise<any> => {
+  const query = sellerId ? `?sellerId=${sellerId}` : '';
+  const response = await api.get(`${API_URL}/visitors/stats${query}`);
   return response.data;
 };
 
