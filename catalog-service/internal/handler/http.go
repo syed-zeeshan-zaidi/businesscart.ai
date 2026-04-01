@@ -158,6 +158,9 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	if product.Slug == "" {
 		return h.errorResponse(http.StatusBadRequest, "Slug is required"), nil
 	}
+	if product.Price <= 0 {
+		return h.errorResponse(http.StatusBadRequest, "Price must be greater than 0"), nil
+	}
 	product.SKU = strings.TrimSpace(product.SKU)
 	product.Barcode = strings.TrimSpace(product.Barcode)
 	for i := range product.Attributes {
@@ -322,6 +325,9 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	if slug, ok := updates["slug"].(string); ok {
 		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			return h.errorResponse(http.StatusBadRequest, "Slug cannot be empty"), nil
+		}
 		if strings.Contains(slug, "/") {
 			return h.errorResponse(http.StatusBadRequest, "Slug cannot contain '/'"), nil
 		}
@@ -329,11 +335,20 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	// Coerce price to float64
 	if price, ok := updates["price"].(string); ok {
-		n, _ := strconv.ParseFloat(price, 64)
+		n, err := strconv.ParseFloat(price, 64)
+		if err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid price value"), nil
+		}
 		updates["price"] = n
 	}
+	if p, ok := updates["price"].(float64); ok && p <= 0 {
+		return h.errorResponse(http.StatusBadRequest, "Price must be greater than 0"), nil
+	}
 	if dealPrice, ok := updates["dealPrice"].(string); ok {
-		n, _ := strconv.ParseFloat(dealPrice, 64)
+		n, err := strconv.ParseFloat(dealPrice, 64)
+		if err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid deal price value"), nil
+		}
 		updates["dealPrice"] = n
 	}
 	// Coerce booleans
@@ -351,7 +366,10 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	// Coerce stock to integer (JSON/frontend may send as string or float64)
 	if stock, ok := updates["stock"].(string); ok {
-		n, _ := strconv.Atoi(stock)
+		n, err := strconv.Atoi(stock)
+		if err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid stock value"), nil
+		}
 		updates["stock"] = n
 	} else if stock, ok := updates["stock"].(float64); ok {
 		updates["stock"] = int(stock)
