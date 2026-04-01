@@ -87,7 +87,11 @@ export const logout = async (): Promise<void> => {
   } catch (_) {
     // Intentionally left empty
   } finally {
-    localStorage.removeItem('accessToken');
+    const keep = ['bc_visitor_id', 'bc_attribution'];
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (!keep.includes(key)) localStorage.removeItem(key);
+    }
   }
 };
 
