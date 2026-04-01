@@ -67,6 +67,7 @@ export const register = async (data: {
   role: string;
   code?: string;
   customerCodes?: string[];
+  phoneNumber?: string;
 }): Promise<{ accessToken: string; account: Account }> => {
   const response = await api.post(`${API_URL}/accounts/register`, data);
   return response.data;

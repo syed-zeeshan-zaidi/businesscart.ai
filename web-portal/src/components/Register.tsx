@@ -46,6 +46,7 @@ const Register = () => {
         role: formData.role,
         code: formData.code,
         customerCodes: formData.customerCodes.split(',').map(c => c.trim()),
+        phoneNumber: formData.phoneNumber,
       });
       localStorage.setItem('accessToken', accessToken);
       setErrors([]);
