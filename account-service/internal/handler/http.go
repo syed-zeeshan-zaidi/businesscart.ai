@@ -124,6 +124,15 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+func extractClaim(userClaim map[string]interface{}) (role, userID string, err error) {
+	role, _ = userClaim["role"].(string)
+	userID, _ = userClaim["id"].(string)
+	if role == "" || userID == "" {
+		return "", "", fmt.Errorf("invalid token claims")
+	}
+	return role, userID, nil
+}
+
 // --- Route Handlers ---
 
 func (h *LambdaHandler) handleAccounts(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -400,9 +409,10 @@ func (h *LambdaHandler) logoutUser(request events.APIGatewayProxyRequest) (event
 // --- Protected Handlers ---
 
 func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Implementation adapted from original GetAccounts
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var filter bson.M
 	switch role {
@@ -535,8 +545,10 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	// Authorization
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 	if role != storage.RoleAdmin && userID != targetID.Hex() {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
@@ -621,8 +633,10 @@ func (h *LambdaHandler) regenerateStorefront(userClaim map[string]interface{}, i
 	}
 
 	// Authorization - Admin or the company itself
-	role := userClaim["role"].(string)
-	userID := userClaim["id"].(string)
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 	if role != storage.RoleAdmin && userID != targetID.Hex() {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
@@ -846,7 +860,10 @@ func (h *LambdaHandler) updateCustomerConfiguration(userClaim map[string]interfa
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid customer ID"), nil
 	}
-	companyID := userClaim["id"].(string)
+	companyID, _ := userClaim["id"].(string)
+	if companyID == "" {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var config storage.CustomerConfiguration
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
@@ -865,8 +882,10 @@ func (h *LambdaHandler) associateCustomerWithCompany(userClaim map[string]interf
 		return h.errorResponse(http.StatusBadRequest, "Invalid customer ID"), nil
 	}
 
-	role := userClaim["role"].(string)
-	actorID := userClaim["id"].(string)
+	role, actorID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
 
 	var entry *storage.CustomerCodeEntry
 
@@ -1070,7 +1089,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	if req.CustomerID != "" {
 		if oid, err := primitive.ObjectIDFromHex(req.CustomerID); err == nil {
 			if acc, err := h.db.GetAccountByID(oid); err == nil {
-				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == "partner" {
+				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == storage.RolePartner {
 					return h.successResponse(map[string]string{"status": "skipped"}, http.StatusOK), nil
 				}
 			}

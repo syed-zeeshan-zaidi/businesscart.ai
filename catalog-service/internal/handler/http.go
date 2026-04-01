@@ -84,6 +84,14 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim is not a map"), nil
 	}
 
+	// Validate required claims exist
+	if role, _ := userClaim["role"].(string); role == "" {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
+	if id, _ := userClaim["id"].(string); id == "" {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
+
 	// Route the request
 	log.Printf("DEBUG [catalog-service]: Path=%s Method=%s", request.Path, request.HTTPMethod)
 	if strings.Contains(request.Path, "/products") {
@@ -125,7 +133,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 }
 
 func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
-	if userClaim["role"] != "company" && userClaim["role"] != "admin" {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+	if claimRole != "company" && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
 	}
 
@@ -138,7 +148,7 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 	}
 
-	product.SellerID = userClaim["id"].(string)
+	product.SellerID = claimID
 	product.Name = strings.TrimSpace(product.Name)
 	if strings.Contains(product.Name, "/") {
 		return h.errorResponse(http.StatusBadRequest, "Product name cannot contain '/'"), nil
@@ -163,8 +173,8 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 }
 
 func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
-	role := userClaim["role"].(string)
-	accountID := userClaim["id"].(string)
+	role, _ := userClaim["role"].(string)
+	accountID, _ := userClaim["id"].(string)
 
 	var filter bson.M
 	switch role {
@@ -227,6 +237,9 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 }
 
 func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
@@ -238,11 +251,11 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 	}
 
 	// Authorization check for non-admin roles
-	if userClaim["role"] != "admin" {
-		isOwner := product.SellerID == userClaim["id"].(string)
+	if claimRole != "admin" {
+		isOwner := product.SellerID == claimID
 
 		isAssociatedCustomer := false
-		if userClaim["role"] == "customer" || userClaim["role"] == "b2c" {
+		if claimRole == "customer" || claimRole == "b2c" {
 			if assocCompanies, ok := userClaim["associate_company_ids"].([]interface{}); ok {
 				for _, companyID := range assocCompanies {
 					if companyID.(string) == product.SellerID {
@@ -267,6 +280,9 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 }
 
 func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr string, body string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
@@ -277,7 +293,7 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	if product.SellerID != userClaim["id"].(string) && userClaim["role"] != "admin" {
+	if product.SellerID != claimID && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to update this product"), nil
 	}
 
@@ -363,6 +379,9 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 }
 
 func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
@@ -373,7 +392,7 @@ func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	if product.SellerID != userClaim["id"].(string) && userClaim["role"] != "admin" {
+	if product.SellerID != claimID && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this product"), nil
 	}
 
@@ -387,7 +406,8 @@ func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr st
 // --- Image Upload Endpoints ---
 
 func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
-	if userClaim["role"] != "company" && userClaim["role"] != "admin" {
+	claimRole, _ := userClaim["role"].(string)
+	if claimRole != "company" && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
 	}
 
@@ -407,7 +427,7 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 		return h.errorResponse(http.StatusBadRequest, "contentType and fileExtension are required"), nil
 	}
 
-	sellerID := userClaim["id"].(string)
+	sellerID, _ := userClaim["id"].(string)
 	imageID := uuid.New().String()
 	ext := req.FileExtension
 	key := fmt.Sprintf("%s/%s/image.%s", sellerID, imageID, ext)
