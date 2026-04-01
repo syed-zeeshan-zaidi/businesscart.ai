@@ -308,15 +308,13 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	filter := bson.M{"visitorId": visitor.VisitorID}
 
 	setOnInsert := bson.M{
-		"attribution":    visitor.Attribution,
-		"firstVisit":     now,
-		"createdAt":      now,
-		"totalSessions":  0,
-		"totalPageViews": 0,
-		"registered":     false,
-		"ordered":        false,
-		"totalOrders":    0,
-		"totalRevenue":   0,
+		"attribution": visitor.Attribution,
+		"firstVisit":  now,
+		"createdAt":   now,
+		"registered":  false,
+		"ordered":     false,
+		"totalOrders": 0,
+		"totalRevenue": 0,
 	}
 	if visitor.SellerID != "" {
 		setOnInsert["sellerId"] = visitor.SellerID
