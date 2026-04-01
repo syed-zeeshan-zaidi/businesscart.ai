@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"business-cart/account-service/internal/auth"
 	"business-cart/account-service/internal/generator"
@@ -235,6 +236,11 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	}
 	if _, err := h.db.GetAccountByEmail(email); err == nil {
 		return h.errorResponse(http.StatusConflict, "An account with this email already exists"), nil
+	}
+
+	// Validate password strength
+	if err := validatePassword(req.Password); err != nil {
+		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 	}
 
 	hashedPassword, err := auth.HashPassword(req.Password)
@@ -1305,6 +1311,38 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 		"page":     page,
 		"perPage":  perPage,
 	}, http.StatusOK), nil
+}
+
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("Password must be at least 8 characters")
+	}
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, c := range password {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsDigit(c):
+			hasDigit = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
+		}
+	}
+	if !hasUpper {
+		return fmt.Errorf("Password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("Password must contain at least one lowercase letter")
+	}
+	if !hasDigit {
+		return fmt.Errorf("Password must contain at least one digit")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("Password must contain at least one special character")
+	}
+	return nil
 }
 
 func parseUserAgent(ua string) (browser, os string) {
