@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -57,13 +58,19 @@ func NewDB(mongoURI string) (*DB, error) {
 	// Ensure indexes (idempotent)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	accounts.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.M{"email": 1},
-		Options: options.Index().SetUnique(true),
-	})
-	visitors.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.M{"visitorId": 1},
-	})
+	indexes := []struct {
+		coll  *mongo.Collection
+		model mongo.IndexModel
+	}{
+		{accounts, mongo.IndexModel{Keys: bson.M{"email": 1}, Options: options.Index().SetUnique(true)}},
+		{visitors, mongo.IndexModel{Keys: bson.M{"visitorId": 1}}},
+		{visitors, mongo.IndexModel{Keys: bson.M{"sellerId": 1}}},
+	}
+	for _, idx := range indexes {
+		if _, err := idx.coll.Indexes().CreateOne(ctx, idx.model); err != nil {
+			log.Printf("WARN: index creation failed: %v", err)
+		}
+	}
 
 	return &DB{
 		client:            c,
