@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { getVisitorStats, getVisitors } from '../api';
+import { useAuth } from '../hooks/useAuth';
+import { getVisitorStats, getVisitors, getAccounts } from '../api';
+import { Account } from '../types';
 import {
   UsersIcon,
   GlobeAltIcon,
@@ -105,6 +107,11 @@ const formatLocation = (geo: { country?: string; region?: string; city?: string 
   [geo?.city, geo?.region, geo?.country].filter(Boolean).join(', ') || '-';
 
 const Analytics: React.FC = () => {
+  const { decodeJWT } = useAuth();
+  const token = localStorage.getItem('accessToken');
+  const user = token ? decodeJWT(token) : null;
+  const isAdmin = user?.role === 'admin';
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [total, setTotal] = useState(0);
@@ -114,20 +121,23 @@ const Analytics: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Visitor | null>(null);
+  const [scope, setScope] = useState('');
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const perPage = 50;
 
-  const loadStats = async () => {
+  const loadStats = async (sellerId?: string) => {
     try {
-      const data = await getVisitorStats();
+      const data = await getVisitorStats(sellerId);
       setStats(data);
     } catch (err: any) {
       toast.error('Failed to load stats');
     }
   };
 
-  const loadVisitors = async (p: number, f: Record<string, string>) => {
+  const loadVisitors = async (p: number, f: Record<string, string>, sellerId?: string) => {
     try {
       const params: Record<string, string> = { page: String(p), perPage: String(perPage) };
+      if (sellerId) params.sellerId = sellerId;
       Object.entries(f).forEach(([k, v]) => { if (v) params[k] = v; });
       const data = await getVisitors(params);
       setVisitors(data.visitors || []);
@@ -140,32 +150,45 @@ const Analytics: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([loadStats(), loadVisitors(1, {})]);
+      if (isAdmin) {
+        try {
+          const accounts = await getAccounts();
+          setCompanies(accounts.filter((a: Account) => a.role === 'company').map((a: Account) => ({ id: a._id, name: a.company?.name || a.name })));
+        } catch { /* ignore */ }
+      }
+      await Promise.all([loadStats(scope || undefined), loadVisitors(1, {}, scope || undefined)]);
       setLoading(false);
     };
     init();
   }, []);
 
+  const handleScopeChange = async (newScope: string) => {
+    setScope(newScope);
+    setPage(1);
+    setFilters({});
+    await Promise.all([loadStats(newScope || undefined), loadVisitors(1, {}, newScope || undefined)]);
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadStats(), loadVisitors(page, filters)]);
+    await Promise.all([loadStats(scope || undefined), loadVisitors(page, filters, scope || undefined)]);
     setRefreshing(false);
   };
 
   const handlePageChange = async (newPage: number) => {
     setPage(newPage);
-    await loadVisitors(newPage, filters);
+    await loadVisitors(newPage, filters, scope || undefined);
   };
 
   const applyFilters = async () => {
     setPage(1);
-    await loadVisitors(1, filters);
+    await loadVisitors(1, filters, scope || undefined);
   };
 
   const clearFilters = async () => {
     setFilters({});
     setPage(1);
-    await loadVisitors(1, {});
+    await loadVisitors(1, {}, scope || undefined);
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -190,7 +213,22 @@ const Analytics: React.FC = () => {
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Visitor Analytics</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-gray-800">Visitor Analytics</h1>
+              {isAdmin && (
+                <select
+                  value={scope}
+                  onChange={(e) => handleScopeChange(e.target.value)}
+                  className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white"
+                >
+                  <option value="">All (Portal + Storefronts)</option>
+                  <option value="portal">Portal Only</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 bg-teal-700 text-white rounded-lg hover:bg-teal-800 disabled:opacity-50">
               <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh

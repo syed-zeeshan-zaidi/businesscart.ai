@@ -355,8 +355,9 @@ export const associateCompany = async (customerCode: string): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/associate`, { customerCode });
 };
 
-export const getVisitorStats = async (): Promise<any> => {
-  const response = await api.get(`${API_URL}/visitors/stats`);
+export const getVisitorStats = async (sellerId?: string): Promise<any> => {
+  const query = sellerId ? `?sellerId=${sellerId}` : '';
+  const response = await api.get(`${API_URL}/visitors/stats${query}`);
   return response.data;
 };
 

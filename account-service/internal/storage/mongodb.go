@@ -411,7 +411,9 @@ func (db *DB) GetVisitorStats(sellerID string) (map[string]interface{}, error) {
 	ctx := context.Background()
 
 	base := bson.M{}
-	if sellerID != "" {
+	if sellerID == "portal" {
+		base["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
+	} else if sellerID != "" {
 		base["sellerId"] = sellerID
 	}
 

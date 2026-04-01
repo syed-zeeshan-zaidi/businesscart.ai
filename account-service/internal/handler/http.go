@@ -1237,13 +1237,17 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 		return h.errorResponse(http.StatusForbidden, "Access denied"), nil
 	}
 
-	// Company users can only see their own storefront visitors
+	// Determine sellerId scope
+	// Admin: no param = all data, ?sellerId=portal = portal only, ?sellerId=X = company X
+	// Company: forced to their own sellerId
 	sellerID := ""
 	if role == storage.RoleCompany {
 		sellerID, _ = userClaim["id"].(string)
 		if sellerID == "" {
 			return h.errorResponse(http.StatusForbidden, "Invalid account"), nil
 		}
+	} else if role == storage.RoleAdmin {
+		sellerID = request.QueryStringParameters["sellerId"]
 	}
 
 	switch {
@@ -1266,7 +1270,9 @@ func (h *LambdaHandler) getVisitorStats(sellerID string) (events.APIGatewayProxy
 
 func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, sellerID string) (events.APIGatewayProxyResponse, error) {
 	filter := bson.M{}
-	if sellerID != "" {
+	if sellerID == "portal" {
+		filter["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
+	} else if sellerID != "" {
 		filter["sellerId"] = sellerID
 	}
 
