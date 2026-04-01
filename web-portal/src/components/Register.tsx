@@ -45,7 +45,7 @@ const Register = () => {
         password: formData.password,
         role: formData.role,
         code: formData.code,
-        customerCodes: formData.customerCodes.split(',').map(c => c.trim()),
+        customerCodes: formData.customerCodes.split(',').map(c => c.trim()).filter(Boolean),
         phoneNumber: formData.phoneNumber,
       });
       localStorage.setItem('accessToken', accessToken);
