@@ -50,15 +50,30 @@ func NewDB(mongoURI string) (*DB, error) {
 		return nil, err
 	}
 	db := c.Database("AccountService")
+
+	accounts := db.Collection("accounts")
+	visitors := db.Collection("visitors")
+
+	// Ensure indexes (idempotent)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	accounts.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.M{"email": 1},
+		Options: options.Index().SetUnique(true),
+	})
+	visitors.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.M{"visitorId": 1},
+	})
+
 	return &DB{
 		client:            c,
-		accounts:          db.Collection("accounts"),
+		accounts:          accounts,
 		codes:             db.Collection("codes"),
 		refreshtokens:     db.Collection("refreshtokens"),
 		blacklistedtokens: db.Collection("blacklistedtokens"),
 		companyLocations:  db.Collection("company_locations"),
 		customerAddresses: db.Collection("customer_addresses"),
-		visitors:          db.Collection("visitors"),
+		visitors:          visitors,
 	}, nil
 }
 

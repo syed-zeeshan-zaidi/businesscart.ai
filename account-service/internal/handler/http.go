@@ -228,6 +228,15 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
+	// Check for duplicate email
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
+		return h.errorResponse(http.StatusBadRequest, "Email is required"), nil
+	}
+	if _, err := h.db.GetAccountByEmail(email); err == nil {
+		return h.errorResponse(http.StatusConflict, "An account with this email already exists"), nil
+	}
+
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to hash password"), nil
