@@ -389,6 +389,23 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		updates["attributes"] = attrs
 	}
 
+	// Delete removed images from S3
+	if newImages, ok := updates["images"].([]interface{}); ok {
+		newSet := make(map[string]bool)
+		for _, img := range newImages {
+			if s, ok := img.(string); ok {
+				newSet[s] = true
+			}
+		}
+		var removed []string
+		for _, oldUrl := range product.Images {
+			if !newSet[oldUrl] {
+				removed = append(removed, oldUrl)
+			}
+		}
+		h.deleteProductImages(removed)
+	}
+
 	if err := h.db.UpdateProduct(id, updates); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update product"), nil
 	}
@@ -414,11 +431,34 @@ func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this product"), nil
 	}
 
+	// Delete images from S3
+	h.deleteProductImages(product.Images)
+
 	if err := h.db.DeleteProduct(id); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to delete product"), nil
 	}
 
 	return h.successResponse(nil), nil
+}
+
+func (h *LambdaHandler) deleteProductImages(imageUrls []string) {
+	if h.s3Client == nil || h.s3Bucket == "" || len(imageUrls) == 0 {
+		return
+	}
+	prefix := "https://" + h.cdnDomain + "/"
+	for _, url := range imageUrls {
+		key := strings.TrimPrefix(url, prefix)
+		if key == url || key == "" {
+			continue
+		}
+		_, err := h.s3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+			Bucket: aws.String(h.s3Bucket),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			log.Printf("WARN: failed to delete S3 image %s: %v", key, err)
+		}
+	}
 }
 
 // --- Image Upload Endpoints ---
@@ -436,6 +476,7 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 	var req struct {
 		ContentType   string `json:"contentType"`
 		FileExtension string `json:"fileExtension"`
+		Slug          string `json:"slug"`
 	}
 	if err := json.Unmarshal([]byte(body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -448,7 +489,11 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 	sellerID, _ := userClaim["id"].(string)
 	imageID := uuid.New().String()
 	ext := req.FileExtension
-	key := fmt.Sprintf("%s/%s/image.%s", sellerID, imageID, ext)
+	filename := "image-" + imageID[:8]
+	if req.Slug != "" {
+		filename = req.Slug + "-" + imageID[:8]
+	}
+	key := fmt.Sprintf("%s/%s/%s.%s", sellerID, imageID, filename, ext)
 
 	presignClient := s3.NewPresignClient(h.s3Client)
 	presignReq, err := presignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
@@ -461,7 +506,7 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 		return h.errorResponse(http.StatusInternalServerError, "Failed to generate upload URL"), nil
 	}
 
-	imageUrl := fmt.Sprintf("https://%s/%s/%s/image.%s", h.cdnDomain, sellerID, imageID, ext)
+	imageUrl := fmt.Sprintf("https://%s/%s/%s/%s.%s", h.cdnDomain, sellerID, imageID, filename, ext)
 	resp := map[string]string{
 		"uploadUrl": presignReq.URL,
 		"imageUrl":  imageUrl,

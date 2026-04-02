@@ -132,11 +132,11 @@ export const getCodes = async (): Promise<any[]> => {
   return response.data;
 };
 
-export const getUploadUrl = async (contentType: string, fileExtension: string): Promise<{
+export const getUploadUrl = async (contentType: string, fileExtension: string, slug?: string): Promise<{
   uploadUrl: string;
   imageUrl: string;
 }> => {
-  const response = await api.post(`${API_URL}/products/upload-url`, { contentType, fileExtension });
+  const response = await api.post(`${API_URL}/products/upload-url`, { contentType, fileExtension, slug });
   return response.data;
 };
 

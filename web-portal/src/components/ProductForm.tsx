@@ -4,7 +4,8 @@ import { Product, Account, Attribute } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -39,6 +40,7 @@ const ProductForm = () => {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -254,7 +256,7 @@ const ProductForm = () => {
     const uploadedUrls: string[] = [];
     for (const file of pendingFiles) {
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const { uploadUrl, imageUrl } = await getUploadUrl(file.type, ext);
+      const { uploadUrl, imageUrl } = await getUploadUrl(file.type, ext, formData.slug);
       await uploadFileToS3(uploadUrl, file);
       uploadedUrls.push(imageUrl);
     }
@@ -266,6 +268,15 @@ const ProductForm = () => {
       ...prev,
       images: (prev.images || []).filter((_, i) => i !== index),
     }));
+  };
+
+  const setMainImage = (index: number) => {
+    setFormData(prev => {
+      const imgs = [...(prev.images || [])];
+      const [moved] = imgs.splice(index, 1);
+      imgs.unshift(moved);
+      return { ...prev, images: imgs };
+    });
   };
 
   const openModal = () => {
@@ -582,35 +593,46 @@ const ProductForm = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Images</label>
                         {((formData.images || []).length > 0 || pendingFiles.length > 0) && (
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-2 grid grid-cols-4 gap-3">
                             {(formData.images || []).map((url, i) => (
-                              <div key={`existing-${i}`} className="relative group w-20 h-20">
-                                <img src={url} alt={`Product ${i + 1}`} className="w-20 h-20 object-cover rounded-md border" />
-                                <button
-                                  type="button"
-                                  onClick={() => removeImage(i)}
-                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <XMarkIcon className="h-3 w-3" />
-                                </button>
+                              <div key={`existing-${i}`} className={`relative group rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-teal-700' : 'border-gray-200'} hover:border-teal-500 transition-colors`}>
+                                <div className="aspect-square cursor-pointer" onClick={() => setPreviewImage(url)}>
+                                  <img src={url} alt={`Product ${i + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                                {i === 0 && (
+                                  <span className="absolute top-1 left-1 flex items-center gap-0.5 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">
+                                    <StarIconSolid className="h-3 w-3" /> Main
+                                  </span>
+                                )}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
+                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {i !== 0 && (
+                                    <button type="button" onClick={() => setMainImage(i)} className="bg-white text-teal-700 rounded-full p-1 shadow hover:bg-teal-50" title="Set as main">
+                                      <StarIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  <button type="button" onClick={() => removeImage(i)} className="bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50" title="Remove">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                             {pendingFiles.map((file, i) => (
-                              <div key={`pending-${i}`} className="relative group w-20 h-20">
-                                <img src={URL.createObjectURL(file)} alt={`New ${i + 1}`} className="w-20 h-20 object-cover rounded-md border border-teal-700" />
-                                <button
-                                  type="button"
-                                  onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))}
-                                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <XMarkIcon className="h-3 w-3" />
-                                </button>
-                                <span className="absolute bottom-0 left-0 right-0 bg-teal-700 text-white text-xs text-center rounded-b-md">New</span>
+                              <div key={`pending-${i}`} className="relative group rounded-lg overflow-hidden border-2 border-dashed border-teal-500">
+                                <div className="aspect-square">
+                                  <img src={URL.createObjectURL(file)} alt={`New ${i + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                                <span className="absolute top-1 left-1 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">Pending</span>
+                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))} className="bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50" title="Remove">
+                                    <XMarkIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
                         )}
-                        <label className="mt-2 flex items-center justify-center w-full h-16 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-teal-500 transition-colors">
+                        <label className="mt-3 flex items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-teal-500 hover:bg-teal-50/50 transition-all">
                           <input
                             type="file"
                             accept="image/webp,image/jpeg,image/png"
@@ -618,9 +640,9 @@ const ProductForm = () => {
                             className="hidden"
                             disabled={isLoading}
                           />
-                          <div className="flex items-center space-x-2 text-sm text-gray-500">
-                            <PhotoIcon className="h-5 w-5" />
-                            <span>Add image</span>
+                          <div className="flex flex-col items-center text-sm text-gray-500">
+                            <PhotoIcon className="h-6 w-6 mb-1" />
+                            <span>Click to add image</span>
                           </div>
                         </label>
                         <div className="mt-2 flex items-center space-x-2">
@@ -800,6 +822,37 @@ const ProductForm = () => {
           </Dialog>
         </Transition>
       </div>
+      {previewImage && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4" onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}>
+          <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+            <button onClick={() => setPreviewImage(null)} className="absolute -top-3 -right-3 bg-white text-gray-700 rounded-full p-1.5 shadow-lg hover:bg-gray-100">
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            {(formData.images || []).length > 1 && (() => {
+              const imgs = formData.images || [];
+              const idx = imgs.indexOf(previewImage);
+              return (
+                <>
+                  {idx > 0 && (
+                    <button onClick={() => setPreviewImage(imgs[idx - 1])} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-700 rounded-full p-2 shadow-lg hover:bg-white">
+                      <ChevronLeftIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                  {idx < imgs.length - 1 && (
+                    <button onClick={() => setPreviewImage(imgs[idx + 1])} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-700 rounded-full p-2 shadow-lg hover:bg-white">
+                      <ChevronRightIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+                    {idx + 1} / {imgs.length}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
