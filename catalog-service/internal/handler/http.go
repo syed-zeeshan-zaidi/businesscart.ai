@@ -489,9 +489,9 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 	sellerID, _ := userClaim["id"].(string)
 	imageID := uuid.New().String()
 	ext := req.FileExtension
-	filename := "image"
+	filename := "image-" + imageID[:8]
 	if req.Slug != "" {
-		filename = req.Slug
+		filename = req.Slug + "-" + imageID[:8]
 	}
 	key := fmt.Sprintf("%s/%s/%s.%s", sellerID, imageID, filename, ext)
 
