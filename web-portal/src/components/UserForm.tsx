@@ -227,8 +227,12 @@ const UserForm = () => {
   };
 
   const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setConfigData(prev => ({ ...prev, [name]: type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setConfigData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setConfigData(prev => ({ ...prev, [name]: type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value }));
+    }
   };
 
   const handleConfigMultiSelectChange = (e: React.ChangeEvent<HTMLSelectElement>, field: keyof CustomerConfiguration) => {
@@ -419,32 +423,95 @@ const UserForm = () => {
             </Transition.Child>
             <div className="fixed inset-0 flex items-center justify-center p-4">
               <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100">
-                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
                   <Dialog.Title className="text-lg font-medium mb-4">Configuration for {configuringCustomer?.name}</Dialog.Title>
                   <div className="space-y-4">
+                    <p className="text-xs text-gray-500 italic">Leave fields blank to use company defaults. Set a value to override for this customer only.</p>
+
                     <div>
                       <label className="block text-sm font-medium">Discount Percentage (%)</label>
-                      <input type="number" name="discountPercentage" value={configData.discountPercentage || ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 10.5" />
-                      <p className="text-xs text-gray-500">Leave blank to use company default.</p>
+                      <input type="number" name="discountPercentage" value={configData.discountPercentage ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 10.5" />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Credit Limit ($)</label>
+                      <input type="number" name="creditLimit" value={configData.creditLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Min Order Amount ($)</label>
+                        <input type="number" name="minOrderAmountLimit" value={configData.minOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Max Order Amount ($)</label>
+                        <input type="number" name="maxOrderAmountLimit" value={configData.maxOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no max" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Min Order Quantity</label>
+                        <input type="number" name="minOrderQuantityLimit" value={configData.minOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Max Order Quantity</label>
+                        <input type="number" name="maxOrderQuantityLimit" value={configData.maxOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no max" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Monthly Order Limit</label>
+                        <input type="number" name="monthlyOrderLimit" value={configData.monthlyOrderLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Yearly Order Limit</label>
+                        <input type="number" name="yearlyOrderLimit" value={configData.yearlyOrderLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Lead Time (days)</label>
+                      <input type="number" name="leadTime" value={configData.leadTime ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 3" />
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" name="quotesAllowed" checked={configData.quotesAllowed ?? true} onChange={handleConfigChange} className="rounded" />
+                        <span className="text-sm font-medium">Quotes Allowed</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" name="taxableGoods" checked={configData.taxableGoods ?? true} onChange={handleConfigChange} className="rounded" />
+                        <span className="text-sm font-medium">Taxable Goods</span>
+                      </label>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium">Allowed Payment Methods (Override)</label>
-                      <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-32 p-2 border rounded">
+                      <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-28 p-2 border rounded">
                         <option value="credit_card">Credit Card</option>
                         <option value="purchase_order">Purchase Order</option>
                         <option value="on_account">On Account</option>
                         <option value="stripe_pay">Stripe</option>
                       </select>
-                      <p className="text-xs text-gray-500">Select methods to override company defaults. If empty, defaults are used.</p>
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium">Allowed Delivery Methods (Override)</label>
-                      <select multiple name="deliveryMethods" value={configData.deliveryMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'deliveryMethods')} className="w-full h-24 p-2 border rounded">
+                      <select multiple name="deliveryMethods" value={configData.deliveryMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'deliveryMethods')} className="w-full h-20 p-2 border rounded">
                         <option value="pickup">Pickup</option>
                         <option value="dropoff">Dropoff</option>
                         <option value="shipping_out">Shipping Out</option>
                       </select>
-                      <p className="text-xs text-gray-500">Select methods to override company defaults. If empty, defaults are used.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Shipping Out Options (Override)</label>
+                      <select multiple name="shippingOutOptions" value={configData.shippingOutOptions || []} onChange={(e) => handleConfigMultiSelectChange(e, 'shippingOutOptions')} className="w-full h-16 p-2 border rounded">
+                        <option value="standard">Standard</option>
+                        <option value="express">Express</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex justify-end space-x-2 pt-6">

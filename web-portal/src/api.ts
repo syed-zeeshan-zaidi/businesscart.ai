@@ -170,6 +170,10 @@ export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/checkout/orders/${id}`);
 };
 
+export const deleteCode = async (code: string): Promise<void> => {
+  await api.delete(`${API_URL}/codes/${code}`);
+};
+
 export const createOrder = async (data: {
   quoteId: string;
   paymentMethod: string;

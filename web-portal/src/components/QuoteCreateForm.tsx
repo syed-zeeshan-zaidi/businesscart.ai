@@ -144,18 +144,28 @@ const QuoteCreateForm: React.FC = () => {
       const customerConfig = customerAccount.customer?.customerConfigs?.find((c: CustomerCodeEntry) => c.codeId === currentCompanyId);
       const configurations = customerConfig?.configuration ? [customerConfig.configuration] : [];
 
+      const company = companyAccount.company;
       const newQuote: CreateQuoteRequest = {
         sellerId: currentCompanyId,
         accountId: selectedCustomer,
-        quotesAllowed: companyAccount.company?.quotesAllowed || true,
-        paymentMethods: companyAccount.company?.paymentMethods || [],
-        deliveryMethods: companyAccount.company?.deliveryMethods || [],
-        shippingOutOptions: companyAccount.company?.shippingOutOptions || [],
+        quotesAllowed: company?.quotesAllowed || true,
+        paymentMethods: company?.paymentMethods || [],
+        deliveryMethods: company?.deliveryMethods || [],
+        shippingOutOptions: company?.shippingOutOptions || [],
         companyLocations: companyLocations,
         customerAddresses: customerAccount.customer?.customerAddresses || [],
         configurations: configurations,
         quoteType: 'negotiable',
         status: 'draft',
+        creditLimit: company?.creditLimit || 0,
+        minOrderAmountLimit: company?.minOrderAmountLimit || 0,
+        maxOrderAmountLimit: company?.maxOrderAmountLimit || 0,
+        minOrderQuantityLimit: company?.minOrderQuantityLimit || 0,
+        maxOrderQuantityLimit: company?.maxOrderQuantityLimit || 0,
+        monthlyOrderLimit: company?.monthlyOrderLimit || 0,
+        yearlyOrderLimit: company?.yearlyOrderLimit || 0,
+        taxableGoods: company?.taxableGoods ?? true,
+        leadTime: company?.leadTime || 0,
       };
 
       const createdQuote = await createQuote(newQuote);

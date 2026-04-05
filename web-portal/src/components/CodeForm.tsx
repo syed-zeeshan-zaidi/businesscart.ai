@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { getCodes, createCodes } from '../api';
+import { getCodes, createCodes, deleteCode } from '../api';
 import Navbar from './Navbar';
+import { TrashIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -52,6 +53,17 @@ const CodeForm: React.FC = () => {
     }
   };
 
+  const handleDeleteCode = async (companyCode: string) => {
+    if (!window.confirm(`Delete code "${companyCode}" and its associated customer/partner codes?`)) return;
+    try {
+      await deleteCode(companyCode);
+      toast.success('Code deleted');
+      fetchCodes();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete code');
+    }
+  };
+
   if (!user || user.role !== 'admin') {
     return <div>You are not authorized to view this page.</div>;
   }
@@ -93,6 +105,7 @@ const CodeForm: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Is Claimed</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -105,6 +118,11 @@ const CodeForm: React.FC = () => {
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${code.isClaimed ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                         {code.isClaimed ? 'Yes' : 'No'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:text-red-800">
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

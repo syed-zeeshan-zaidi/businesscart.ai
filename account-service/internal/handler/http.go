@@ -124,6 +124,25 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+// resolveFloat returns the customer override if set, else the company default (nil if zero).
+func resolveFloat(companyDefault float64, customerOverride *float64) *float64 {
+	if customerOverride != nil {
+		return customerOverride
+	}
+	if companyDefault != 0 {
+		return &companyDefault
+	}
+	return nil
+}
+
+// override safely extracts a *float64 field from a possibly-nil CustomerConfiguration.
+func override(cfg *storage.CustomerConfiguration, getter func(*storage.CustomerConfiguration) *float64) *float64 {
+	if cfg == nil {
+		return nil
+	}
+	return getter(cfg)
+}
+
 func extractClaim(userClaim map[string]interface{}) (role, userID string, err error) {
 	role, _ = userClaim["role"].(string)
 	userID, _ = userClaim["id"].(string)
@@ -201,8 +220,13 @@ func (h *LambdaHandler) handleCodes(userClaim map[string]interface{}, request ev
 			return h.createCode(userClaim, request.Body)
 		}
 	}
-	if code, ok := request.PathParameters["code"]; ok && request.HTTPMethod == "GET" {
-		return h.getCode(userClaim, code)
+	if code, ok := request.PathParameters["code"]; ok {
+		switch request.HTTPMethod {
+		case "GET":
+			return h.getCode(userClaim, code)
+		case "DELETE":
+			return h.deleteCode(userClaim, code)
+		}
 	}
 	return h.errorResponse(http.StatusMethodNotAllowed, "Method not allowed"), nil
 }
@@ -366,16 +390,61 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 	if (user.Role == storage.RoleCustomer || user.Role == storage.RoleB2C) && user.CustomerData != nil {
 		for _, e := range user.CustomerData.CustomerConfigs {
 			assocIDs = append(assocIDs, e.CodeID)
-			if e.Configuration != nil {
-				configs = append(configs, auth.CustomerConfiguration{
-					CompanyID:          e.CodeID,
-					DiscountPercentage: e.Configuration.DiscountPercentage,
-					PaymentMethods:     e.Configuration.PaymentMethods,
-					DeliveryMethods:    e.Configuration.DeliveryMethods,
-					ShippingOutOptions: e.Configuration.ShippingOutOptions,
-					QuotesAllowed:      e.Configuration.QuotesAllowed,
-				})
+		}
+
+		// Fetch associated company data to resolve enforcement defaults
+		companyMap := make(map[string]*storage.CompanyData)
+		if len(assocIDs) > 0 {
+			companyIDs := make([]primitive.ObjectID, 0, len(assocIDs))
+			for _, id := range assocIDs {
+				if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+					companyIDs = append(companyIDs, oid)
+				}
 			}
+			if companies, err := h.db.GetAccountCompaniesDataByIDs(companyIDs); err != nil {
+				log.Printf("Warning: Failed to fetch company data for JWT enforcement: %v", err)
+			} else {
+				for _, c := range companies {
+					if c.CompanyData != nil {
+						companyMap[c.ID.Hex()] = c.CompanyData
+					}
+				}
+			}
+		}
+
+		for _, e := range user.CustomerData.CustomerConfigs {
+			config := auth.CustomerConfiguration{CompanyID: e.CodeID}
+
+			// Existing 5 fields: customer override only (backward compatible)
+			if e.Configuration != nil {
+				config.DiscountPercentage = e.Configuration.DiscountPercentage
+				config.PaymentMethods = e.Configuration.PaymentMethods
+				config.DeliveryMethods = e.Configuration.DeliveryMethods
+				config.ShippingOutOptions = e.Configuration.ShippingOutOptions
+				config.QuotesAllowed = e.Configuration.QuotesAllowed
+			}
+
+			// New 8 float fields: resolved (company default + customer override)
+			// TaxableGoods excluded — CompanyData uses plain bool, can't distinguish
+			// "never set" (false) from "explicitly disabled" (false). Checkout defaults
+			// to taxable when absent. Customer override still carried if set.
+			company := companyMap[e.CodeID]
+			if company != nil {
+				config.CreditLimit = resolveFloat(company.CreditLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.CreditLimit }))
+				config.MinOrderAmountLimit = resolveFloat(company.MinOrderAmountLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MinOrderAmountLimit }))
+				config.MaxOrderAmountLimit = resolveFloat(company.MaxOrderAmountLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MaxOrderAmountLimit }))
+				config.MinOrderQuantityLimit = resolveFloat(company.MinOrderQuantityLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MinOrderQuantityLimit }))
+				config.MaxOrderQuantityLimit = resolveFloat(company.MaxOrderQuantityLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MaxOrderQuantityLimit }))
+				config.MonthlyOrderLimit = resolveFloat(company.MonthlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MonthlyOrderLimit }))
+				config.YearlyOrderLimit = resolveFloat(company.YearlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.YearlyOrderLimit }))
+				config.LeadTime = resolveFloat(company.LeadTime, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.LeadTime }))
+			}
+			// TaxableGoods: customer override only (same as existing 5 fields)
+			if e.Configuration != nil {
+				config.TaxableGoods = e.Configuration.TaxableGoods
+			}
+
+			configs = append(configs, config)
 		}
 	}
 
@@ -514,19 +583,27 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 						}
 
 						attached = append(attached, storage.AttachedCompaniesData{
-							Name:               c.CompanyData.Name,
-							LogoURL:            c.CompanyData.LogoURL,
-							CompanyCodeID:      c.CompanyData.CompanyCodeID,
-							CompanyCode:        c.CompanyData.CompanyCode,
-							SaleRepresentative: c.CompanyData.SaleRepresentative,
-							Address:            c.CompanyData.Address,
-							CreditLimit:        c.CompanyData.CreditLimit,
-							QuotesAllowed:      c.CompanyData.QuotesAllowed,
-							Status:             c.CompanyData.Status,
-							ShippingOutOptions: c.CompanyData.ShippingOutOptions,
-							PaymentMethods:     c.CompanyData.PaymentMethods,
-							DeliveryMethods:    c.CompanyData.DeliveryMethods,
-							CompanyLocations:   plainLocations,
+							Name:                  c.CompanyData.Name,
+							LogoURL:               c.CompanyData.LogoURL,
+							CompanyCodeID:         c.CompanyData.CompanyCodeID,
+							CompanyCode:           c.CompanyData.CompanyCode,
+							SaleRepresentative:    c.CompanyData.SaleRepresentative,
+							Address:               c.CompanyData.Address,
+							CreditLimit:           c.CompanyData.CreditLimit,
+							LeadTime:              c.CompanyData.LeadTime,
+							MinOrderAmountLimit:   c.CompanyData.MinOrderAmountLimit,
+							MaxOrderAmountLimit:   c.CompanyData.MaxOrderAmountLimit,
+							MinOrderQuantityLimit: c.CompanyData.MinOrderQuantityLimit,
+							MaxOrderQuantityLimit: c.CompanyData.MaxOrderQuantityLimit,
+							MonthlyOrderLimit:     c.CompanyData.MonthlyOrderLimit,
+							YearlyOrderLimit:      c.CompanyData.YearlyOrderLimit,
+							TaxableGoods:          c.CompanyData.TaxableGoods,
+							QuotesAllowed:         c.CompanyData.QuotesAllowed,
+							Status:                c.CompanyData.Status,
+							ShippingOutOptions:    c.CompanyData.ShippingOutOptions,
+							PaymentMethods:        c.CompanyData.PaymentMethods,
+							DeliveryMethods:       c.CompanyData.DeliveryMethods,
+							CompanyLocations:      plainLocations,
 						})
 					}
 				}
@@ -837,6 +914,24 @@ func (h *LambdaHandler) getCode(userClaim map[string]interface{}, code string) (
 		return h.errorResponse(http.StatusNotFound, "code not found"), nil
 	}
 	return h.successResponse(doc, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) deleteCode(userClaim map[string]interface{}, code string) (events.APIGatewayProxyResponse, error) {
+	if userClaim["role"] != storage.RoleAdmin {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+	doc, err := h.db.GetCode(bson.M{"$or": []bson.M{
+		{"companyCode": code},
+		{"customerCode": code},
+		{"partnerCode": code},
+	}})
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "code not found"), nil
+	}
+	if err := h.db.DeleteCode(doc.ID); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "failed to delete code"), nil
+	}
+	return h.successResponse(nil, http.StatusNoContent), nil
 }
 
 func (h *LambdaHandler) getCodes(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {

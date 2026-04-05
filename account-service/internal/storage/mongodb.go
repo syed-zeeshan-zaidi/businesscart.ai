@@ -102,6 +102,11 @@ func (db *DB) UpdateCode(id primitive.ObjectID, update bson.M) error {
 	return err
 }
 
+func (db *DB) DeleteCode(id primitive.ObjectID) error {
+	_, err := db.codes.DeleteOne(context.Background(), bson.M{"_id": id})
+	return err
+}
+
 func (db *DB) CountCodes(filter bson.M) (int64, error) {
 	return db.codes.CountDocuments(context.Background(), filter)
 }

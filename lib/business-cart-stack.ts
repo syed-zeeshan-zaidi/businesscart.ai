@@ -182,6 +182,7 @@ export class BusinessCartStack extends cdk.Stack {
     codes.addMethod('GET', accountInteg);
     const codeByCode = codes.addResource('{code}');
     codeByCode.addMethod('GET', accountInteg);
+    codeByCode.addMethod('DELETE', accountInteg);
     const customers = api.root.addResource('customers');
     const customerById = customers.addResource('{customerId}');
     const customerConfig = customerById.addResource('configuration');
@@ -226,6 +227,8 @@ export class BusinessCartStack extends cdk.Stack {
     const orders = checkoutRoot.addResource('orders');
     orders.addMethod('POST', checkoutInteg);
     orders.addMethod('GET', checkoutInteg);
+    const orderById = orders.addResource('{orderId}');
+    orderById.addMethod('DELETE', checkoutInteg);
 
     // Gateway config management (company/admin)
     const gateways = checkoutRoot.addResource('gateways');

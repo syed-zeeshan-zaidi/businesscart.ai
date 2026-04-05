@@ -5,8 +5,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Order as OrderType, Account as AccountType, CompanyData } from '../types';
-import { getOrders, getAccount } from '../api';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { getOrders, getAccount, deleteOrder } from '../api';
+import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const OrderHistory: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -17,6 +17,7 @@ const OrderHistory: React.FC = () => {
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string, logoUrl?: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async (userId: string) => {
     setLoading(true);
@@ -59,6 +60,7 @@ const OrderHistory: React.FC = () => {
       navigate('/login');
       return;
     }
+    setUserRole(decodedUser.role);
 
     const cachedOrders = localStorage.getItem('orderHistory');
     const cachedAccount = localStorage.getItem('account');
@@ -100,6 +102,18 @@ const OrderHistory: React.FC = () => {
     });
   }, [orders, selectedCompanyId, account]);
 
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm('Delete this order? This action cannot be undone.')) return;
+    try {
+      await deleteOrder(orderId);
+      toast.success('Order deleted');
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      localStorage.removeItem('orderHistory');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete order');
+    }
+  };
 
   const handleRefresh = () => {
     const token = localStorage.getItem('accessToken');
@@ -192,10 +206,17 @@ const OrderHistory: React.FC = () => {
                       <p className="text-sm text-gray-500">Company: {getCompanyName(order.sellerId)}</p>
                     </div>
                     <div className="mt-2 sm:mt-0 text-left sm:text-right">
-                      Status:
-                      <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {order.status}
-                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <span>Status:</span>
+                        <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {order.status}
+                        </span>
+                        {userRole === 'admin' && (
+                          <button onClick={() => handleDeleteOrder(order.id)} className="text-red-500 hover:text-red-700 ml-2" title="Delete order">
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                       <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
                     </div>
                   </div>

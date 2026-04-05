@@ -146,6 +146,7 @@ export interface Quote {
   discountPercentage?: number;
   discountAmount?: number;
   notes?: string;
+  leadTime?: number;
 }
 
 export type DeliveryMethod = 'pickup' | 'dropoff' | 'shipping_out';
@@ -243,17 +244,21 @@ export interface CustomerAddress {
 export type PaymentMethod = 'credit_card' | 'purchase_order' | 'on_account' | 'stripe_pay';
 
 export interface CustomerConfiguration {
-
   company_id: string;
-
   discountPercentage?: number;
-
   paymentMethods?: PaymentMethod[];
-
   deliveryMethods?: DeliveryMethod[];
-
   shippingOutOptions?: ShippingOutOption[];
-
+  quotesAllowed?: boolean;
+  creditLimit?: number;
+  minOrderAmountLimit?: number;
+  maxOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  maxOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  leadTime?: number;
 }
 
 
@@ -275,51 +280,24 @@ export interface DecodedUser {
 
 
 export interface CreateQuoteRequest {
-
-
-
   sellerId: string;
-
-
-
-  accountId?: string; // Made optional
-
-
-
+  accountId?: string;
   quotesAllowed: boolean;
-
-
-
   paymentMethods: string[];
-
-
-
   deliveryMethods: string[];
-
-
-
   shippingOutOptions: string[];
-
-
-
   companyLocations: CompanyLocation[];
-
-
-
   customerAddresses: CustomerAddress[];
-
-
-
   configurations?: CustomerConfiguration[];
-
-
-
   quoteType?: 'standard' | 'negotiable';
-
-
-
   status?: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
-
-
-
+  creditLimit?: number;
+  minOrderAmountLimit?: number;
+  maxOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  maxOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  leadTime?: number;
 }

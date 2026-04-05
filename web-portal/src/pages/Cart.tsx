@@ -150,40 +150,40 @@ const Cart: React.FC = () => {
     }
   };
 
-  const handleCheckout = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Please select a company to checkout.');
-      return;
-    }
-    
-    if (!cart || cart.items.length === 0) {
-      toast.error('Your cart is empty.');
-      return;
-    }
-
+  const buildQuoteRequest = async (quoteType: 'standard' | 'negotiable') => {
     const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
-    const paymentMethods = company?.paymentMethods || [];
-    const deliveryMethods = company?.deliveryMethods || [];
-    const shippingOutOptions = company?.shippingOutOptions || [];
-    const quotesAllowed = company?.quotesAllowed || false;
-    const companyLocations = company?.companyLocations || [];
-    const customerAddresses = account?.customer?.customerAddresses || [];
     const configurations = await getCustomerConfigurations();
+    return {
+      sellerId: selectedCompanyId!,
+      quotesAllowed: company?.quotesAllowed || false,
+      paymentMethods: company?.paymentMethods || [],
+      deliveryMethods: company?.deliveryMethods || [],
+      shippingOutOptions: company?.shippingOutOptions || [],
+      companyLocations: company?.companyLocations || [],
+      customerAddresses: account?.customer?.customerAddresses || [],
+      configurations,
+      quoteType,
+      ...(quoteType === 'negotiable' && { status: 'draft' as const }),
+      creditLimit: company?.creditLimit || 0,
+      minOrderAmountLimit: company?.minOrderAmountLimit || 0,
+      maxOrderAmountLimit: company?.maxOrderAmountLimit || 0,
+      minOrderQuantityLimit: company?.minOrderQuantityLimit || 0,
+      maxOrderQuantityLimit: company?.maxOrderQuantityLimit || 0,
+      monthlyOrderLimit: company?.monthlyOrderLimit || 0,
+      yearlyOrderLimit: company?.yearlyOrderLimit || 0,
+      taxableGoods: company?.taxableGoods ?? true,
+      leadTime: company?.leadTime || 0,
+    };
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedCompanyId) { toast.error('Please select a company to checkout.'); return; }
+    if (!cart || cart.items.length === 0) { toast.error('Your cart is empty.'); return; }
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote({ 
-        sellerId: selectedCompanyId,
-        paymentMethods: paymentMethods,
-        deliveryMethods: deliveryMethods,
-        shippingOutOptions: shippingOutOptions,
-        quotesAllowed: quotesAllowed,
-        companyLocations: companyLocations,
-        customerAddresses: customerAddresses,
-        configurations,
-        quoteType: 'standard',
-      });
+      const quote = await createQuote(await buildQuoteRequest('standard'));
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);
     } catch (err: any) {
@@ -194,40 +194,13 @@ const Cart: React.FC = () => {
   };
 
   const handleRequestQuote = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Please select a company to request a quote.');
-      return;
-    }
-    
-    if (!cart || cart.items.length === 0) {
-      toast.error('Your cart is empty.');
-      return;
-    }
-
-    const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
-    const paymentMethods = company?.paymentMethods || [];
-    const deliveryMethods = company?.deliveryMethods || [];
-    const shippingOutOptions = company?.shippingOutOptions || [];
-    const quotesAllowed = company?.quotesAllowed || false;
-    const companyLocations = company?.companyLocations || [];
-    const customerAddresses = account?.customer?.customerAddresses || [];
-    const configurations = await getCustomerConfigurations();
+    if (!selectedCompanyId) { toast.error('Please select a company to request a quote.'); return; }
+    if (!cart || cart.items.length === 0) { toast.error('Your cart is empty.'); return; }
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote({
-        sellerId: selectedCompanyId,
-        paymentMethods: paymentMethods,
-        deliveryMethods: deliveryMethods,
-        shippingOutOptions: shippingOutOptions,
-        companyLocations: companyLocations,
-        customerAddresses: customerAddresses,
-        configurations,
-        quoteType: 'negotiable',
-        status: 'draft', // Set initial status to draft
-        quotesAllowed: quotesAllowed,
-      });
+      const quote = await createQuote(await buildQuoteRequest('negotiable'));
       toast.success('Quote requested successfully!', { id: toastId });
       navigate(`/quote/${quote.id}`);
     } catch (err: any) {

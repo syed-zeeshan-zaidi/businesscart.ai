@@ -151,28 +151,45 @@ type CompanyData struct {
 
 // GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.
 type AttachedCompaniesData struct {
-	Name               string              `json:"name"`
-	LogoURL            string              `json:"logoUrl"`
-	CompanyCodeID      string              `json:"companyCodeId,omitempty"`
-	CompanyCode        string              `json:"companyCode"`
-	SaleRepresentative string              `json:"saleRepresentative"`
-	Address            Address             `json:"address"`
-	CreditLimit        float64             `json:"creditLimit"`
-	Status             string              `json:"status"`
-	QuotesAllowed      bool                `bson:"quotesAllowed" json:"quotesAllowed"`
-	ShippingOutOptions []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
-	PaymentMethods     []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
-	DeliveryMethods    []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
-	CompanyLocations   []CompanyLocation   `json:"companyLocations,omitempty"`
+	Name                  string              `json:"name"`
+	LogoURL               string              `json:"logoUrl"`
+	CompanyCodeID         string              `json:"companyCodeId,omitempty"`
+	CompanyCode           string              `json:"companyCode"`
+	SaleRepresentative    string              `json:"saleRepresentative"`
+	Address               Address             `json:"address"`
+	CreditLimit           float64             `json:"creditLimit"`
+	LeadTime              float64             `json:"leadTime"`
+	MinOrderAmountLimit   float64             `json:"minOrderAmountLimit"`
+	MaxOrderAmountLimit   float64             `json:"maxOrderAmountLimit"`
+	MinOrderQuantityLimit float64             `json:"minOrderQuantityLimit"`
+	MaxOrderQuantityLimit float64             `json:"maxOrderQuantityLimit"`
+	MonthlyOrderLimit     float64             `json:"monthlyOrderLimit"`
+	YearlyOrderLimit      float64             `json:"yearlyOrderLimit"`
+	TaxableGoods          bool                `json:"taxableGoods"`
+	Status                string              `json:"status"`
+	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
+	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
+	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
+	CompanyLocations      []CompanyLocation   `json:"companyLocations,omitempty"`
 }
 
 // CustomerConfiguration defines specific settings that override a company's defaults for a single customer.
 type CustomerConfiguration struct {
-	DiscountPercentage *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
-	PaymentMethods     *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
-	DeliveryMethods    *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
-	ShippingOutOptions *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
-	QuotesAllowed      *bool                `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
+	DiscountPercentage    *float64             `bson:"discountPercentage,omitempty" json:"discountPercentage,omitempty"`
+	PaymentMethods        *[]PaymentMethod     `bson:"paymentMethods,omitempty" json:"paymentMethods,omitempty"`
+	DeliveryMethods       *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
+	ShippingOutOptions    *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
+	QuotesAllowed         *bool                `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
+	CreditLimit           *float64             `bson:"creditLimit,omitempty" json:"creditLimit,omitempty"`
+	MinOrderAmountLimit   *float64             `bson:"minOrderAmountLimit,omitempty" json:"minOrderAmountLimit,omitempty"`
+	MaxOrderAmountLimit   *float64             `bson:"maxOrderAmountLimit,omitempty" json:"maxOrderAmountLimit,omitempty"`
+	MinOrderQuantityLimit *float64             `bson:"minOrderQuantityLimit,omitempty" json:"minOrderQuantityLimit,omitempty"`
+	MaxOrderQuantityLimit *float64             `bson:"maxOrderQuantityLimit,omitempty" json:"maxOrderQuantityLimit,omitempty"`
+	MonthlyOrderLimit     *float64             `bson:"monthlyOrderLimit,omitempty" json:"monthlyOrderLimit,omitempty"`
+	YearlyOrderLimit      *float64             `bson:"yearlyOrderLimit,omitempty" json:"yearlyOrderLimit,omitempty"`
+	TaxableGoods          *bool                `bson:"taxableGoods,omitempty" json:"taxableGoods,omitempty"`
+	LeadTime              *float64             `bson:"leadTime,omitempty" json:"leadTime,omitempty"`
 }
 
 type CustomerCodeEntry struct {
