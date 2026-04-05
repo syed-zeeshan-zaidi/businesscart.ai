@@ -5,8 +5,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Order as OrderType, Account as AccountType, CompanyData } from '../types';
-import { getOrders, getAccount, deleteOrder } from '../api';
-import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { getOrders, getAccount, deleteOrder, clearCart, addItemToCart } from '../api';
+import { ChevronDownIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const OrderHistory: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -115,6 +115,30 @@ const OrderHistory: React.FC = () => {
     }
   };
 
+  const handleReorder = async (order: OrderType) => {
+    const toastId = toast.loading('Preparing reorder...');
+    try {
+      await clearCart(order.sellerId);
+      for (const item of order.items) {
+        await addItemToCart({
+          entity: {
+            productId: item.productId,
+            quantity: item.quantity,
+            sellerId: order.sellerId,
+            name: item.name,
+            price: item.price,
+            discountedPrice: item.discountedPrice,
+            image: item.image,
+          }
+        });
+      }
+      toast.success('Items added to cart!', { id: toastId });
+      navigate('/cart');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reorder', { id: toastId });
+    }
+  };
+
   const handleRefresh = () => {
     const token = localStorage.getItem('accessToken');
     if (token) {
@@ -218,6 +242,9 @@ const OrderHistory: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
+                      <button onClick={() => handleReorder(order)} className="mt-2 inline-flex items-center gap-1 text-sm text-teal-700 hover:text-teal-900 font-medium">
+                        <ArrowPathIcon className="h-4 w-4" /> Reorder
+                      </button>
                     </div>
                   </div>
                   <div className="border-t border-gray-200 pt-4 mt-4">
