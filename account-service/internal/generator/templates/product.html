@@ -331,6 +331,24 @@
                 [[.Product.Description]]
             </div>
 
+            [[if .Product.PriceTiers]]
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 1.5rem; margin-top: 1rem">
+                <h2 style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 900; margin-bottom: 1rem; color: var(--text); opacity: 0.7">Volume Pricing</h2>
+                <table style="width:100%; border-collapse:collapse; font-size:0.95rem">
+                    <tr style="border-bottom:1px solid #e2e8f0">
+                        <td style="padding:0.5rem 0; color:#64748b">1[[if .Product.PriceTiers]]–[[subtract (index .Product.PriceTiers 0).MinQty 1]][[end]] units</td>
+                        <td style="padding:0.5rem 0; text-align:right; font-weight:700">$[[printf "%.2f" .Product.Price]]</td>
+                    </tr>
+                    [[range .Product.PriceTiers]]
+                    <tr style="border-bottom:1px solid #e2e8f0">
+                        <td style="padding:0.5rem 0; color:#64748b">[[.MinQty]]+ units</td>
+                        <td style="padding:0.5rem 0; text-align:right; font-weight:700; color:var(--primary)">$[[printf "%.2f" .Price]]</td>
+                    </tr>
+                    [[end]]
+                </table>
+            </div>
+            [[end]]
+
             [[if .Product.Attributes]]
             <div style="border-top: 1px solid #e2e8f0; padding-top: 3rem; margin-top: 1rem">
                 <h2
@@ -348,7 +366,7 @@
             [[end]]
 
             <button class="cta-btn"
-                onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]'})">
+                onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]]})">
                 Add to Cart
             </button>
 

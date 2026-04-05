@@ -40,6 +40,11 @@ export interface Attribute {
   type?: 'filterable' | 'system';
 }
 
+export interface PriceTier {
+  minQty: number;
+  price: number;
+}
+
 export interface Product {
   _id: string;
   name: string;
@@ -56,6 +61,7 @@ export interface Product {
   stock?: number;
   active?: boolean;
   featured?: boolean;
+  priceTiers?: PriceTier[];
   attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;

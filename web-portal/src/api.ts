@@ -249,7 +249,7 @@ export const getCart = async (sellerId: string, accountId?: string): Promise<Car
   return response.data;
 };
 
-export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, sellerId: string, accountId?: string): Promise<Cart> => {
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number; price?: number; discountedPrice?: number } }, sellerId: string, accountId?: string): Promise<Cart> => {
   let url = `${API_URL}/checkout/cart/${itemId}?sellerId=${sellerId}`;
   if (accountId) {
     url += `&accountId=${accountId}`;

@@ -574,6 +574,165 @@ class BackendFlowTest:
 
         self.run_test("Get orders per role", test_get_orders)
 
+    # ── Phase 5b: Tiered pricing tests ─────────────────────────────
+
+    def phase5b_tiered_pricing(self):
+        phase("PHASE 5b: Tiered Pricing")
+
+        c1_id = self.ids["company1"]
+
+        # Create a product with tiers
+        def test_create_tiered_product():
+            self.use_token("company1")
+            resp = self.api.post("/products", {
+                "name": f"{PREFIX} Tiered Product",
+                "slug": "test-tiered-product",
+                "price": 20.00,
+                "description": "Product with volume pricing",
+                "priceTiers": [
+                    {"minQty": 5, "price": 16.00},
+                    {"minQty": 20, "price": 12.00},
+                ],
+            })
+            assert_status_in(resp, [200, 201], "Create tiered product")
+            ok("Tiered product created: base=$20, 5+=$16, 20+=$12")
+
+            # Re-fetch to get real ID
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Fetch products")
+            tiered = [p for p in resp.json() if p.get("name") == f"{PREFIX} Tiered Product"]
+            if not tiered:
+                raise AssertionError("Tiered product not found after creation")
+            self._tiered_product_id = tiered[0]["_id"]
+            self.tracker.track_product("company1", self._tiered_product_id)
+
+            # Verify tiers are stored
+            tiers = tiered[0].get("priceTiers", [])
+            if len(tiers) != 2:
+                raise AssertionError(f"Expected 2 tiers, got {len(tiers)}")
+            ok(f"Product has {len(tiers)} tiers stored correctly")
+
+        self.run_test("Create product with price tiers", test_create_tiered_product)
+
+        # Validate tier validation rejects bad input
+        def test_tier_validation():
+            self.use_token("company1")
+            # First tier minQty=1 should fail
+            resp = self.api.post("/products", {
+                "name": f"{PREFIX} Bad Tier",
+                "slug": "test-bad-tier",
+                "price": 10.00,
+                "description": "Should fail",
+                "priceTiers": [{"minQty": 1, "price": 8.00}],
+            })
+            assert_status(resp, 400, "Tier with minQty=1 rejected")
+            ok("Validation: first tier minQty=1 rejected")
+
+            # Unsorted tiers should fail
+            resp = self.api.post("/products", {
+                "name": f"{PREFIX} Bad Tier 2",
+                "slug": "test-bad-tier-2",
+                "price": 10.00,
+                "description": "Should fail",
+                "priceTiers": [{"minQty": 10, "price": 8.00}, {"minQty": 5, "price": 6.00}],
+            })
+            assert_status(resp, 400, "Unsorted tiers rejected")
+            ok("Validation: unsorted tiers rejected")
+
+        self.run_test("Tier validation rules", test_tier_validation)
+
+        # Test cart with tiered product — qty below tier
+        def test_cart_base_price():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, self._tiered_product_id, 2)
+
+            self.use_token("customer")
+            resp = self.api.get(f"/checkout/cart", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Get cart")
+            cart = resp.json()
+            item = cart["items"][0]
+            # qty=2 < first tier minQty=5 → base price $20
+            if abs(item.get("price", 0) - 20.0) > 0.01:
+                raise AssertionError(f"Expected base price $20.00, got ${item.get('price')}")
+            ok(f"Cart qty=2: price=${item['price']} (base price)")
+
+        self.run_test("Cart at base price (qty below tier)", test_cart_base_price)
+
+        # Test cart with tiered product — update qty into tier
+        def test_cart_tier_price():
+            self.use_token("customer")
+            cart_resp = self.api.get(f"/checkout/cart", params={"sellerId": c1_id})
+            cart = cart_resp.json()
+            item_id = cart["items"][0]["id"]
+
+            # Update to qty=5 → should hit first tier at $16
+            resp = self.api.put(f"/checkout/cart/{item_id}",
+                json_data={"entity": {"quantity": 5, "price": 16.00, "discountedPrice": 16.00}},
+                params={"sellerId": c1_id})
+            assert_status(resp, 200, "Update qty to 5")
+            updated = resp.json()
+            item = updated["items"][0]
+            if abs(item.get("price", 0) - 16.0) > 0.01:
+                raise AssertionError(f"Expected tier price $16.00, got ${item.get('price')}")
+            expected_total = 16.0 * 5
+            if abs(item.get("lineItemTotal", 0) - expected_total) > 0.01:
+                raise AssertionError(f"Expected lineItemTotal ${expected_total}, got ${item.get('lineItemTotal')}")
+            ok(f"Cart qty=5: price=${item['price']}, lineItemTotal=${item['lineItemTotal']} (tier 1)")
+
+        self.run_test("Cart tier price on qty update", test_cart_tier_price)
+
+        # Test quote with tiered pricing
+        def test_quote_with_tiers():
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "taxableGoods": True,
+            })
+            assert_status(resp, 200, "Quote with tiered product")
+            quote = resp.json()
+            # subtotal should be 5 * $16 = $80
+            if abs(quote.get("subtotal", 0) - 80.0) > 0.01:
+                raise AssertionError(f"Expected subtotal $80.00, got ${quote.get('subtotal')}")
+            ok(f"Quote subtotal=${quote['subtotal']} (5 × $16 tier price)")
+
+        self.run_test("Quote reflects tier pricing", test_quote_with_tiers)
+
+        # B2C tier test — storefront customer buys tiered product
+        def test_b2c_tier_pricing():
+            self.re_login("b2c")
+            self._clear_cart("b2c", c1_id)
+
+            # B2C adds tiered product at qty=5 with tier price (simulating D2C cart.js resolution)
+            self.use_token("b2c")
+            resp = self.api.post("/checkout/cart", {"entity": {
+                "productId": self._tiered_product_id,
+                "sellerId": c1_id,
+                "quantity": 5,
+                "name": f"{PREFIX} Tiered Product",
+                "price": 16.00,          # tier price, resolved client-side by cart.js
+                "discountedPrice": 16.00,
+            }})
+            assert_status(resp, 200, "B2C add tiered item to cart")
+
+            # Create quote — verify subtotal = 5 × $16 = $80
+            resp = self.api.post("/checkout/quotes", {
+                "sellerId": c1_id,
+                "paymentMethods": ["credit_card"],
+                "deliveryMethods": ["shipping_out"],
+                "shippingOutOptions": ["standard"],
+                "quotesAllowed": False,
+                "companyLocations": [],
+                "customerAddresses": [],
+                "quoteType": "standard",
+            })
+            assert_status(resp, 200, "B2C quote with tiered product")
+            quote = resp.json()
+            if abs(quote.get("subtotal", 0) - 80.0) > 0.01:
+                raise AssertionError(f"B2C subtotal: expected $80.00, got ${quote.get('subtotal')}")
+            assert_gt(quote.get("taxAmount", 0), 0, "B2C tax should be > 0")
+            ok(f"B2C quote: subtotal=${quote['subtotal']}, tax=${quote['taxAmount']}, total=${quote['grandTotal']}")
+
+        self.run_test("B2C storefront tier pricing", test_b2c_tier_pricing)
+
     # ── Phase 6: Enforcement tests ───────────────────────────────
 
     # Base config that clears all limits (0 = no limit) so tests don't cascade
@@ -941,6 +1100,7 @@ class BackendFlowTest:
             self.phase3_catalog()
             self.phase4_jwt_verification()
             self.phase5_happy_path()
+            self.phase5b_tiered_pricing()
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()

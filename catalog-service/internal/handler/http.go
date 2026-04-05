@@ -167,6 +167,9 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 		product.Attributes[i].Key = strings.TrimSpace(product.Attributes[i].Key)
 		product.Attributes[i].Value = strings.TrimSpace(product.Attributes[i].Value)
 	}
+	if err := validatePriceTiers(product.PriceTiers); err != nil {
+		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+	}
 
 	if err := h.db.CreateProduct(&product); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create product"), nil
@@ -389,6 +392,31 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		updates["attributes"] = attrs
 	}
 
+	// Validate priceTiers if present
+	if rawTiers, ok := updates["priceTiers"]; ok {
+		if rawTiers == nil {
+			// Explicitly setting to nil clears tiers — allowed
+		} else if tiersSlice, ok := rawTiers.([]interface{}); ok {
+			var tiers []storage.PriceTier
+			for _, t := range tiersSlice {
+				if m, ok := t.(map[string]interface{}); ok {
+					minQty := 0
+					if v, ok := m["minQty"].(float64); ok {
+						minQty = int(v)
+					}
+					price := 0.0
+					if v, ok := m["price"].(float64); ok {
+						price = v
+					}
+					tiers = append(tiers, storage.PriceTier{MinQty: minQty, Price: price})
+				}
+			}
+			if err := validatePriceTiers(tiers); err != nil {
+				return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+			}
+		}
+	}
+
 	// Delete removed images from S3
 	if newImages, ok := updates["images"].([]interface{}); ok {
 		newSet := make(map[string]bool)
@@ -513,6 +541,23 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 	}
 
 	return h.successResponse(resp), nil
+}
+
+func validatePriceTiers(tiers []storage.PriceTier) error {
+	for i, t := range tiers {
+		if i == 0 && t.MinQty < 2 {
+			return fmt.Errorf("first price tier minQty must be >= 2 (base price covers qty 1)")
+		} else if t.MinQty < 1 {
+			return fmt.Errorf("price tier %d: minQty must be >= 1", i+1)
+		}
+		if t.Price <= 0 {
+			return fmt.Errorf("price tier %d: price must be > 0", i+1)
+		}
+		if i > 0 && t.MinQty <= tiers[i-1].MinQty {
+			return fmt.Errorf("price tiers must be sorted by ascending minQty (tier %d)", i+1)
+		}
+	}
+	return nil
 }
 
 func (h *LambdaHandler) errorResponse(statusCode int, message string) events.APIGatewayProxyResponse {

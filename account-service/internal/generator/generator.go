@@ -48,6 +48,11 @@ type Attribute struct {
 	Value string `json:"value"`
 }
 
+type PriceTier struct {
+	MinQty int     `json:"minQty"`
+	Price  float64 `json:"price"`
+}
+
 type ProductData struct {
 	ID              string      `json:"_id,omitempty"`
 	Name            string      `json:"name"`
@@ -55,6 +60,7 @@ type ProductData struct {
 	Price           float64     `json:"price"`
 	DealPrice       float64     `json:"dealPrice,omitempty"`
 	DiscountedPrice float64     `json:"discountedPrice,omitempty"`
+	PriceTiers      []PriceTier `json:"priceTiers,omitempty"`
 	Images          []string    `json:"images,omitempty"`
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`

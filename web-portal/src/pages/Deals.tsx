@@ -256,6 +256,9 @@ const Deals: React.FC = () => {
                           ${product.price.toFixed(2)}
                         </p>
                       )}
+                      {product.priceTiers && product.priceTiers.length > 0 && (
+                        <p className="text-xs text-teal-600 font-medium">Bulk pricing available</p>
+                      )}
                     </div>
                     <AddToCartButton product={product} quantity={1} />
                   </div>

@@ -973,6 +973,12 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		for i, item := range currentCart.Items {
 			if item.ID == objID {
 				currentCart.Items[i].Quantity = req.Entity.Quantity
+				if req.Entity.Price > 0 {
+					currentCart.Items[i].Price = req.Entity.Price
+				}
+				if req.Entity.DiscountedPrice > 0 {
+					currentCart.Items[i].DiscountedPrice = req.Entity.DiscountedPrice
+				}
 				found = true
 				break
 			}

@@ -12,6 +12,11 @@ type Attribute struct {
 	Type  string `bson:"type,omitempty" json:"type,omitempty"`
 }
 
+type PriceTier struct {
+	MinQty int     `bson:"minQty" json:"minQty"`
+	Price  float64 `bson:"price" json:"price"`
+}
+
 type Product struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Name            string             `bson:"name" json:"name"`
@@ -28,6 +33,7 @@ type Product struct {
 	Stock           int                `bson:"stock" json:"stock"`
 	Active          *bool              `bson:"active,omitempty" json:"active,omitempty"`
 	Featured        bool               `bson:"featured,omitempty" json:"featured,omitempty"`
+	PriceTiers      []PriceTier        `bson:"priceTiers,omitempty" json:"priceTiers,omitempty"`
 	Attributes      []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt       time.Time          `bson:"updatedAt" json:"updatedAt"`
