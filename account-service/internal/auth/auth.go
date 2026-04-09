@@ -35,6 +35,8 @@ type CustomerConfiguration struct {
 	YearlyOrderLimit      *float64                     `json:"yearlyOrderLimit,omitempty"`
 	TaxableGoods          *bool                        `json:"taxableGoods,omitempty"`
 	LeadTime              *float64                     `json:"leadTime,omitempty"`
+	GroupID               string                       `json:"groupID,omitempty"`
+	GroupPriceDiscount    *float64                     `json:"groupPriceDiscount,omitempty"`
 }
 
 // UserClaims represents the user-specific data within the JWT.

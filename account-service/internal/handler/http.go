@@ -26,6 +26,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// MaxCustomerGroups is the hard limit on customer groups per company.
+// Frontend mirrors this constant — both sides validate without an API call.
+const MaxCustomerGroups = 5
+
 type LambdaHandler struct {
 	db               *storage.DB
 	jwtSecret        string
@@ -438,6 +442,21 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 				config.MonthlyOrderLimit = resolveFloat(company.MonthlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MonthlyOrderLimit }))
 				config.YearlyOrderLimit = resolveFloat(company.YearlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.YearlyOrderLimit }))
 				config.LeadTime = resolveFloat(company.LeadTime, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.LeadTime }))
+
+				// Resolve customer's group → embed groupID + groupPriceDiscount.
+				// Stale/missing group ID → silently no embed (falls back to base pricing).
+				if e.GroupID != "" {
+					for _, g := range company.CustomerGroups {
+						if g.ID == e.GroupID {
+							config.GroupID = e.GroupID
+							if g.GroupPriceDiscount > 0 {
+								d := g.GroupPriceDiscount
+								config.GroupPriceDiscount = &d
+							}
+							break
+						}
+					}
+				}
 			}
 			// TaxableGoods: customer override only (same as existing 5 fields)
 			if e.Configuration != nil {
@@ -647,7 +666,47 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		}
 	}
 
+	// Validate customerGroups (max MaxCustomerGroups, valid fields)
+	if rawGroups, ok := payload.Company["customerGroups"]; ok && rawGroups != nil {
+		groups, ok := rawGroups.([]interface{})
+		if !ok {
+			return h.errorResponse(http.StatusBadRequest, "customerGroups must be an array"), nil
+		}
+		if len(groups) > MaxCustomerGroups {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Maximum %d customer groups allowed per company", MaxCustomerGroups)), nil
+		}
+		seenIDs := make(map[string]bool)
+		for i, g := range groups {
+			gMap, ok := g.(map[string]interface{})
+			if !ok {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] is not an object", i)), nil
+			}
+			id, _ := gMap["id"].(string)
+			name, _ := gMap["name"].(string)
+			id = strings.TrimSpace(id)
+			name = strings.TrimSpace(name)
+			if id == "" {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] missing id", i)), nil
+			}
+			if name == "" {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] missing name", i)), nil
+			}
+			if seenIDs[id] {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups: duplicate id %q", id)), nil
+			}
+			seenIDs[id] = true
+			if discount, ok := gMap["groupPriceDiscount"].(float64); ok {
+				if discount < 0 || discount > 100 {
+					return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] groupPriceDiscount must be 0-100", i)), nil
+				}
+			}
+			gMap["id"] = id
+			gMap["name"] = name
+		}
+	}
+
 	setFields := bson.M{}
+	unsetFields := bson.M{}
 	for k, v := range payload.Company {
 		// Only admin can change company codes
 		if (k == "companyCode" || k == "companyCodeId") && role != storage.RoleAdmin {
@@ -679,14 +738,22 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 			}
 		}
 
+		// Storage rule: empty array → unset (don't store empty arrays)
+		if k == "customerGroups" {
+			if arr, ok := v.([]interface{}); ok && len(arr) == 0 {
+				unsetFields["company.customerGroups"] = ""
+				continue
+			}
+		}
+
 		setFields["company."+k] = v
 	}
 
-	if len(setFields) == 0 {
+	if len(setFields) == 0 && len(unsetFields) == 0 {
 		return h.errorResponse(http.StatusBadRequest, "Nothing to update"), nil
 	}
 
-	if err := h.db.UpdateAccount(targetID, setFields); err != nil {
+	if err := h.db.UpdateAccount(targetID, setFields, unsetFields); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Update failed"), nil
 	}
 
@@ -961,12 +1028,48 @@ func (h *LambdaHandler) updateCustomerConfiguration(userClaim map[string]interfa
 		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
 	}
 
-	var config storage.CustomerConfiguration
-	if err := json.Unmarshal([]byte(body), &config); err != nil {
+	// Parse raw body to handle both config fields and groupID together
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &raw); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config); err != nil {
+	// Re-marshal/unmarshal into typed CustomerConfiguration so existing fields populate
+	var config storage.CustomerConfiguration
+	if cfgBytes, err := json.Marshal(raw); err == nil {
+		_ = json.Unmarshal(cfgBytes, &config)
+	}
+
+	// Parse and validate groupID (if present in request)
+	var groupIDPtr *string
+	if rawGID, exists := raw["groupID"]; exists {
+		gidStr, _ := rawGID.(string)
+		gidStr = strings.TrimSpace(gidStr)
+		if gidStr != "" {
+			// Validate the group exists in this company
+			companyOID, err := primitive.ObjectIDFromHex(companyID)
+			if err != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid company ID in token"), nil
+			}
+			companyAcc, err := h.db.GetAccountByID(companyOID)
+			if err != nil || companyAcc.CompanyData == nil {
+				return h.errorResponse(http.StatusNotFound, "Company not found"), nil
+			}
+			found := false
+			for _, g := range companyAcc.CompanyData.CustomerGroups {
+				if g.ID == gidStr {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return h.errorResponse(http.StatusBadRequest, "groupID does not exist in company's customer groups"), nil
+			}
+		}
+		groupIDPtr = &gidStr
+	}
+
+	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config, groupIDPtr); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update configuration"), nil
 	}
 	return h.successResponse(nil, http.StatusOK), nil

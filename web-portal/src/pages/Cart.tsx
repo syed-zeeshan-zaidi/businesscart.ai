@@ -114,18 +114,23 @@ const Cart: React.FC = () => {
   const resolveTierPrice = (productId: string, quantity: number): { price: number; discountedPrice: number } | null => {
     const product = productMap[productId];
     if (!product) return null;
+
+    // Layer 1: base price → tier price based on quantity
     let effectivePrice = product.price;
     if (product.priceTiers && product.priceTiers.length > 0) {
       for (const tier of product.priceTiers) {
         if (quantity >= tier.minQty) effectivePrice = tier.price;
       }
     }
+
+    // Layer 2: dealPrice (universal product promo, applies to everyone)
+    // Layer 3: customer/group discount (catalog API computes discountedPrice with priority:
+    //          legacy override > group's groupPriceDiscount > none).
+    //          We apply the same discount ratio to the tier price.
     let discounted = effectivePrice;
     if (product.dealPrice) {
       discounted = effectivePrice * (1 - product.dealPrice / 100);
     } else if (product.discountedPrice && product.discountedPrice < product.price) {
-      // Customer discount from API (already calculated server-side on base price)
-      // Re-apply discount ratio to tier price
       const ratio = product.discountedPrice / product.price;
       discounted = effectivePrice * ratio;
     }

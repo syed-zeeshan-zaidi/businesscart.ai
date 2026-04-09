@@ -142,8 +142,18 @@ func (db *DB) GetAccountByID(id primitive.ObjectID) (*Account, error) {
 	return &acc, err
 }
 
-func (db *DB) UpdateAccount(id primitive.ObjectID, updates map[string]interface{}) error {
-	_, err := db.accounts.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": updates})
+func (db *DB) UpdateAccount(id primitive.ObjectID, updates map[string]interface{}, unset ...map[string]interface{}) error {
+	ops := bson.M{}
+	if len(updates) > 0 {
+		ops["$set"] = updates
+	}
+	if len(unset) > 0 && len(unset[0]) > 0 {
+		ops["$unset"] = unset[0]
+	}
+	if len(ops) == 0 {
+		return nil
+	}
+	_, err := db.accounts.UpdateOne(context.Background(), bson.M{"_id": id}, ops)
 	return err
 }
 
@@ -182,11 +192,22 @@ func (db *DB) GetAccountCompaniesDataByIDs(ids []primitive.ObjectID) ([]*Account
 	return out, nil
 }
 
-func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, companyID string, config *CustomerConfiguration) error {
+// UpdateCustomerConfiguration updates the per-company configuration for a customer.
+// groupID semantics:
+//
+//	nil  → leave existing groupID untouched
+//	&""  → explicitly $unset the groupID
+//	&"x" → set groupID to "x"
+func (db *DB) UpdateCustomerConfiguration(customerID primitive.ObjectID, companyID string, config *CustomerConfiguration, groupID *string) error {
 	filter := bson.M{"_id": customerID}
-	update := bson.M{
-		"$set": bson.M{"customer.customerConfigs.$[elem].configuration": config},
+	setOps := bson.M{"customer.customerConfigs.$[elem].configuration": config}
+	update := bson.M{}
+	if groupID != nil && *groupID == "" {
+		update["$unset"] = bson.M{"customer.customerConfigs.$[elem].groupID": ""}
+	} else if groupID != nil {
+		setOps["customer.customerConfigs.$[elem].groupID"] = *groupID
 	}
+	update["$set"] = setOps
 	arrayFilters := options.Update().SetArrayFilters(options.ArrayFilters{
 		Filters: []interface{}{
 			bson.M{"elem.codeId": companyID},

@@ -170,6 +170,7 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	if err := validatePriceTiers(product.PriceTiers); err != nil {
 		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 	}
+	product.GroupIDs = sanitizeGroupIDs(product.GroupIDs)
 
 	if err := h.db.CreateProduct(&product); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create product"), nil
@@ -188,10 +189,38 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		filter = bson.M{}
 	case "company":
 		filter = bson.M{"sellerID": accountID}
-	case "customer", "b2c":
+	case "customer":
 		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
 		if !ok {
-			// If associate_company_ids is not present, this customer can't see any products.
+			return h.successResponse([]*storage.Product{}), nil
+		}
+		var companyIDs []string
+		for _, id := range associateCompanyIDs {
+			companyIDs = append(companyIDs, id.(string))
+		}
+		// B2B group visibility: customer sees ungrouped products + products tagged with their group(s)
+		customerGroupIDs := extractCustomerGroupIDs(userClaim)
+		visibilityOr := []bson.M{
+			{"groupIDs": bson.M{"$exists": false}},
+			{"groupIDs": bson.M{"$size": 0}},
+		}
+		if len(customerGroupIDs) > 0 {
+			visibilityOr = append(visibilityOr, bson.M{"groupIDs": bson.M{"$in": customerGroupIDs}})
+		}
+		filter = bson.M{
+			"sellerID": bson.M{"$in": companyIDs},
+			"$and": []bson.M{
+				{"$or": []bson.M{
+					{"active": true},
+					{"active": bson.M{"$exists": false}},
+				}},
+				{"$or": visibilityOr},
+			},
+		}
+	case "b2c":
+		// B2C bypasses group visibility entirely — sees all active products from associated companies.
+		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
+		if !ok {
 			return h.successResponse([]*storage.Product{}), nil
 		}
 		var companyIDs []string
@@ -219,20 +248,37 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		return h.successResponse([]*storage.Product{}), nil
 	}
 
-	if role == "customer" || role == "b2c" {
+	// Discount resolution for B2B customers (B2C never has discounts).
+	// Priority: legacy discountPercentage override > group's groupPriceDiscount > none.
+	if role == "customer" {
 		if customerConfigs, ok := userClaim["configurations"].([]interface{}); ok {
-			discountMap := make(map[string]float64)
+			legacyDiscountMap := make(map[string]float64)
+			groupDiscountMap := make(map[string]float64)
 			for _, config := range customerConfigs {
-				if configMap, ok := config.(map[string]interface{}); ok {
-					companyID, _ := configMap["company_id"].(string)
-					if discount, ok := configMap["discount"].(float64); ok && companyID != "" {
-						discountMap[companyID] = discount
-					}
+				configMap, ok := config.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				companyID, _ := configMap["company_id"].(string)
+				if companyID == "" {
+					continue
+				}
+				if d, ok := configMap["discount"].(float64); ok && d > 0 {
+					legacyDiscountMap[companyID] = d
+				}
+				if d, ok := configMap["groupPriceDiscount"].(float64); ok && d > 0 {
+					groupDiscountMap[companyID] = d
 				}
 			}
 
 			for _, product := range products {
-				if discount, ok := discountMap[product.SellerID]; ok {
+				var discount float64
+				if d, ok := legacyDiscountMap[product.SellerID]; ok {
+					discount = d
+				} else if d, ok := groupDiscountMap[product.SellerID]; ok {
+					discount = d
+				}
+				if discount > 0 {
 					product.DiscountedPrice = product.Price * (1 - discount/100)
 				}
 			}
@@ -392,6 +438,30 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		updates["attributes"] = attrs
 	}
 
+	// Sanitize groupIDs if present (trim, dedupe).
+	// Empty result → unsetFields so the key is removed from the doc (honors omitempty rule).
+	unsetFields := bson.M{}
+	if rawGroupIDs, ok := updates["groupIDs"]; ok {
+		if rawGroupIDs == nil {
+			delete(updates, "groupIDs")
+			unsetFields["groupIDs"] = ""
+		} else if arr, ok := rawGroupIDs.([]interface{}); ok {
+			ids := make([]string, 0, len(arr))
+			for _, v := range arr {
+				if s, ok := v.(string); ok {
+					ids = append(ids, s)
+				}
+			}
+			cleaned := sanitizeGroupIDs(ids)
+			if cleaned == nil {
+				delete(updates, "groupIDs")
+				unsetFields["groupIDs"] = ""
+			} else {
+				updates["groupIDs"] = cleaned
+			}
+		}
+	}
+
 	// Validate priceTiers if present
 	if rawTiers, ok := updates["priceTiers"]; ok {
 		if rawTiers == nil {
@@ -434,7 +504,7 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		h.deleteProductImages(removed)
 	}
 
-	if err := h.db.UpdateProduct(id, updates); err != nil {
+	if err := h.db.UpdateProduct(id, updates, unsetFields); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update product"), nil
 	}
 
@@ -541,6 +611,47 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 	}
 
 	return h.successResponse(resp), nil
+}
+
+// extractCustomerGroupIDs collects all customer group IDs from JWT configurations
+// (one per company association). Used by catalog visibility filter.
+func extractCustomerGroupIDs(userClaim map[string]interface{}) []string {
+	configs, ok := userClaim["configurations"].([]interface{})
+	if !ok {
+		return nil
+	}
+	var ids []string
+	for _, c := range configs {
+		if cm, ok := c.(map[string]interface{}); ok {
+			if gid, ok := cm["groupID"].(string); ok && gid != "" {
+				ids = append(ids, gid)
+			}
+		}
+	}
+	return ids
+}
+
+// sanitizeGroupIDs trims, removes empty entries, dedupes.
+// Format-only validation — no cross-service check (frontend ensures IDs match company groups).
+// Returns nil for empty result so omitempty can drop the field.
+func sanitizeGroupIDs(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, id := range in {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func validatePriceTiers(tiers []storage.PriceTier) error {

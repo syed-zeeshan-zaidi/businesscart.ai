@@ -34,6 +34,7 @@ type Product struct {
 	Active          *bool              `bson:"active,omitempty" json:"active,omitempty"`
 	Featured        bool               `bson:"featured,omitempty" json:"featured,omitempty"`
 	PriceTiers      []PriceTier        `bson:"priceTiers,omitempty" json:"priceTiers,omitempty"`
+	GroupIDs        []string           `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
 	Attributes      []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`
 	CreatedAt       time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt       time.Time          `bson:"updatedAt" json:"updatedAt"`

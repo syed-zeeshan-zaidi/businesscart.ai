@@ -1,7 +1,7 @@
 // src/components/UserForm.tsx
 import React, { useState, useEffect } from 'react';
-import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration } from '../api';
-import { Account, CustomerConfiguration } from '../types';
+import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration, getAccount } from '../api';
+import { Account, CustomerConfiguration, CustomerGroup } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -53,6 +53,9 @@ const UserForm = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [configuringCustomer, setConfiguringCustomer] = useState<Account | null>(null);
   const [configData, setConfigData] = useState<Partial<CustomerConfiguration>>({});
+  const [configGroupID, setConfigGroupID] = useState<string>('');
+  // Company's defined groups (loaded once for the dropdown)
+  const [companyGroups, setCompanyGroups] = useState<CustomerGroup[]>([]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -61,6 +64,15 @@ const UserForm = () => {
         try {
           const decoded = decodeJWT(token);
           setCurrentUser(decoded);
+          // If logged-in user is a company, load their customer groups for the config modal dropdown
+          if (decoded?.role === 'company' && decoded?.id) {
+            try {
+              const acc = await getAccount(decoded.id);
+              setCompanyGroups(acc?.company?.customerGroups || []);
+            } catch {
+              // Non-fatal — modal will simply show "(no group)" only
+            }
+          }
         } catch (err) {
           console.error('Error decoding JWT', err);
         }
@@ -201,9 +213,10 @@ const UserForm = () => {
   const handleOpenConfigModal = (account: Account) => {
     if (!currentUser || currentUser.role !== 'company') return;
     const companyId = currentUser.id;
-    const customerConfig = account.customer?.customerConfigs?.find(c => c.codeId === companyId);
-    const existingConfig = customerConfig?.configuration;
+    const customerEntry = account.customer?.customerConfigs?.find(c => c.codeId === companyId);
+    const existingConfig = customerEntry?.configuration;
     setConfigData(existingConfig || { discountPercentage: 0 });
+    setConfigGroupID(customerEntry?.groupID || '');
     setConfiguringCustomer(account);
     setIsConfigModalOpen(true);
   };
@@ -212,7 +225,12 @@ const UserForm = () => {
     if (!configuringCustomer) return;
     const loadingToast = toast.loading('Saving configuration...');
     try {
-      await updateCustomerConfiguration(configuringCustomer._id, configData);
+      // Backend accepts groupID alongside configuration fields in one call (Step 4)
+      const payload: Partial<CustomerConfiguration> & { groupID?: string } = {
+        ...configData,
+        groupID: configGroupID, // empty string explicitly clears the group
+      };
+      await updateCustomerConfiguration(configuringCustomer._id, payload);
       toast.dismiss(loadingToast);
       toast.success('Configuration saved!');
       setIsConfigModalOpen(false);
@@ -424,12 +442,42 @@ const UserForm = () => {
             <div className="fixed inset-0 flex items-center justify-center p-4">
               <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100">
                 <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                  <Dialog.Title className="text-lg font-medium mb-4">Configuration for {configuringCustomer?.name}</Dialog.Title>
-                  <div className="space-y-4">
-                    <p className="text-xs text-gray-500 italic">Leave fields blank to use company defaults. Set a value to override for this customer only.</p>
+                  <Dialog.Title className="text-lg font-medium mb-4">Customer Settings — {configuringCustomer?.name}</Dialog.Title>
 
+                  {/* SEGMENT — primary mechanism, prominent at top */}
+                  <div className="mb-6">
+                    <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Segment</h4>
+                    <div className="bg-teal-50 border border-teal-200 rounded-md p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Group</label>
+                      <select
+                        value={configGroupID}
+                        onChange={(e) => setConfigGroupID(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded bg-white"
+                      >
+                        <option value="">(no group — uses base prices)</option>
+                        {companyGroups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}{g.groupPriceDiscount ? ` — ${g.groupPriceDiscount}% off` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {companyGroups.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic mt-2">No groups defined. Add groups in Company Settings → Customer Groups.</p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-2">Group determines this customer&apos;s price discount and which restricted products they can see.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ADVANCED OVERRIDES — rare exceptions */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Advanced Overrides</h4>
+                    <p className="text-xs text-gray-500 italic mb-3">Optional. Override company defaults for this customer only. Leave fields blank to use defaults.</p>
+                  </div>
+
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium">Discount Percentage (%)</label>
+                      <label className="block text-sm font-medium">Discount Percentage (%) <span className="text-xs text-gray-400">(overrides group discount)</span></label>
                       <input type="number" name="discountPercentage" value={configData.discountPercentage ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 10.5" />
                     </div>
 

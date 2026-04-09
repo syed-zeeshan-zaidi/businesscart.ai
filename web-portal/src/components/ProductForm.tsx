@@ -38,6 +38,7 @@ const ProductForm = () => {
     featured: false,
     attributes: [],
     priceTiers: [],
+    groupIDs: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -164,6 +165,7 @@ const ProductForm = () => {
         featured: false,
         attributes: [],
         priceTiers: [],
+        groupIDs: [],
       });
       setEditingId(null);
       setPendingFiles([]);
@@ -229,6 +231,14 @@ const ProductForm = () => {
     setFormData({ ...formData, priceTiers: tiers });
   };
 
+  const toggleGroup = (groupId: string) => {
+    const current = formData.groupIDs || [];
+    const next = current.includes(groupId)
+      ? current.filter((id) => id !== groupId)
+      : [...current, groupId];
+    setFormData({ ...formData, groupIDs: next });
+  };
+
   const handleEdit = (product: Product) => {
     setFormData({
       name: product.name,
@@ -246,6 +256,7 @@ const ProductForm = () => {
       featured: product.featured || false,
       attributes: product.attributes || [],
       priceTiers: product.priceTiers || [],
+      groupIDs: product.groupIDs || [],
     });
     setEditingId(product._id);
     setPendingFiles([]);
@@ -603,6 +614,37 @@ const ProductForm = () => {
                           </div>
                         ))}
                         <button type="button" onClick={addTier} className="text-sm text-teal-700 hover:text-teal-900 font-medium">+ Add tier</button>
+                      </div>
+
+                      {/* Visibility Groups (B2B) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">B2B Visibility Groups</label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Restrict this product to specific B2B customer groups. Leave all unchecked = visible to everyone (B2B + B2C). B2C storefront customers always see this product regardless of groups.
+                        </p>
+                        {(account?.company?.customerGroups || []).length === 0 ? (
+                          <p className="text-xs text-gray-400 italic">No groups defined. Add groups in Company Settings → Customer Groups.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {(account?.company?.customerGroups || []).map((g) => {
+                              const checked = (formData.groupIDs || []).includes(g.id);
+                              return (
+                                <label key={g.id} className="flex items-center space-x-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleGroup(g.id)}
+                                    className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {g.name}
+                                    {g.groupPriceDiscount ? <span className="text-xs text-gray-400 ml-2">{g.groupPriceDiscount}% off</span> : null}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-3 pt-2">

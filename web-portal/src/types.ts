@@ -45,6 +45,14 @@ export interface PriceTier {
   price: number;
 }
 
+export interface CustomerGroup {
+  id: string;
+  name: string;
+  groupPriceDiscount?: number;
+}
+
+export const MAX_CUSTOMER_GROUPS = 5;
+
 export interface Product {
   _id: string;
   name: string;
@@ -62,6 +70,7 @@ export interface Product {
   active?: boolean;
   featured?: boolean;
   priceTiers?: PriceTier[];
+  groupIDs?: string[];
   attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
@@ -188,6 +197,7 @@ export interface CompanyData {
   };
   address: Address;
   d2c?: D2CConfig;
+  customerGroups?: CustomerGroup[];
 }
 
 export interface D2CConfig {
@@ -217,6 +227,7 @@ export interface D2CConfig {
 export interface CustomerCodeEntry {
   codeId: string;
   customerCode: string;
+  groupID?: string;
   configuration?: CustomerConfiguration;
 }
 
@@ -265,6 +276,8 @@ export interface CustomerConfiguration {
   yearlyOrderLimit?: number;
   taxableGoods?: boolean;
   leadTime?: number;
+  groupID?: string;
+  groupPriceDiscount?: number;
 }
 
 

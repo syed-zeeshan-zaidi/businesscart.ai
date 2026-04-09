@@ -349,7 +349,10 @@ export const deleteCustomerAddress = async (customerId: string, addressId: strin
   await api.delete(`${API_URL}/accounts/locations/${customerId}/${addressId}`);
 };
 
-export const updateCustomerConfiguration = async (customerId: string, config: Partial<CustomerConfiguration>): Promise<void> => {
+export const updateCustomerConfiguration = async (
+  customerId: string,
+  config: Partial<CustomerConfiguration> & { groupID?: string }
+): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/configuration`, config);
 };
 

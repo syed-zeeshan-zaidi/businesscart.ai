@@ -119,6 +119,14 @@ type CustomerAddress struct {
 	UpdatedAt         time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
+// CustomerGroup defines a B2B customer segment with a uniform discount.
+// Stored on CompanyData as a small embedded array (max 5 enforced at handler).
+type CustomerGroup struct {
+	ID                 string  `bson:"id" json:"id"`
+	Name               string  `bson:"name" json:"name"`
+	GroupPriceDiscount float64 `bson:"groupPriceDiscount,omitempty" json:"groupPriceDiscount,omitempty"`
+}
+
 // Full company data sub-docs for Account role companies
 type CompanyData struct {
 	Name                  string              `bson:"name" json:"name"`
@@ -145,8 +153,9 @@ type CompanyData struct {
 		Radius float64 `bson:"radius" json:"radius"`
 		Center Coords  `bson:"center" json:"center"`
 	} `bson:"sellingArea" json:"sellingArea"`
-	Address Address    `bson:"address" json:"address"` // Company's primary address
-	D2C     *D2CConfig `bson:"d2c,omitempty" json:"d2c,omitempty"`
+	Address        Address         `bson:"address" json:"address"` // Company's primary address
+	D2C            *D2CConfig      `bson:"d2c,omitempty" json:"d2c,omitempty"`
+	CustomerGroups []CustomerGroup `bson:"customerGroups,omitempty" json:"customerGroups,omitempty"`
 }
 
 // GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.
@@ -195,6 +204,7 @@ type CustomerConfiguration struct {
 type CustomerCodeEntry struct {
 	CodeID        string                 `bson:"codeId" json:"codeId"`
 	Code          string                 `bson:"customerCode" json:"customerCode"`
+	GroupID       string                 `bson:"groupID,omitempty" json:"groupID,omitempty"`
 	Configuration *CustomerConfiguration `bson:"configuration,omitempty" json:"configuration,omitempty"`
 }
 

@@ -764,6 +764,248 @@ class BackendFlowTest:
         self._add_to_cart("customer", seller_id, product_id, qty)
         return self._create_quote("customer", seller_id, quote_type, extra_fields=extra_fields)
 
+    # ── Phase 5c: Customer Groups (visibility + group price discount) ─
+
+    def phase5c_groups(self):
+        phase("PHASE 5c: Customer Groups (B2B)")
+
+        c1_id = self.ids["company1"]
+        cust_id = self.ids["customer"]
+        cust2_id = self.ids["customer2"]
+        b2c_id = self.ids["b2c"]
+        product_a = self.product_ids["company1"][0]
+        product_b = self.product_ids["company1"][1]
+
+        # Stable test group IDs (UUID format expected by frontend, but backend just stores strings)
+        group_wholesale = "test-grp-wholesale"
+        group_vip = "test-grp-vip"
+
+        # 5c-1. Company creates 2 customer groups
+        def test_create_groups():
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "company": {
+                    "customerGroups": [
+                        {"id": group_wholesale, "name": "Wholesale", "groupPriceDiscount": 25},
+                        {"id": group_vip, "name": "VIP", "groupPriceDiscount": 35},
+                    ]
+                }
+            })
+            assert_status(resp, 200, "Create 2 customer groups")
+            ok("Created 2 groups: Wholesale (25%), VIP (35%)")
+
+        self.run_test("5c-1. Create customer groups", test_create_groups)
+
+        # 5c-2. Validation: max 5 groups
+        def test_max_5_groups():
+            self.use_token("company1")
+            too_many = [{"id": f"g{i}", "name": f"G{i}", "groupPriceDiscount": 5} for i in range(6)]
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": too_many}
+            })
+            assert_status(resp, 400, "Max 5 groups enforced")
+            ok("Validation: 6 groups rejected (max 5)")
+            # Restore the original 2 groups
+            self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": [
+                    {"id": group_wholesale, "name": "Wholesale", "groupPriceDiscount": 25},
+                    {"id": group_vip, "name": "VIP", "groupPriceDiscount": 35},
+                ]}
+            })
+
+        self.run_test("5c-2. Max 5 groups validation", test_max_5_groups)
+
+        # 5c-3. Validation: missing name
+        def test_missing_name():
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": [{"id": "g-bad", "name": "", "groupPriceDiscount": 10}]}
+            })
+            assert_status(resp, 400, "Missing group name rejected")
+            ok("Validation: empty name rejected")
+            # Restore
+            self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": [
+                    {"id": group_wholesale, "name": "Wholesale", "groupPriceDiscount": 25},
+                    {"id": group_vip, "name": "VIP", "groupPriceDiscount": 35},
+                ]}
+            })
+
+        self.run_test("5c-3. Group name required", test_missing_name)
+
+        # 5c-4. Validation: discount out of range
+        def test_discount_out_of_range():
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": [{"id": "g-bad", "name": "Bad", "groupPriceDiscount": 150}]}
+            })
+            assert_status(resp, 400, "Discount > 100 rejected")
+            ok("Validation: groupPriceDiscount > 100 rejected")
+            # Restore
+            self.api.patch(f"/accounts/{c1_id}", {
+                "company": {"customerGroups": [
+                    {"id": group_wholesale, "name": "Wholesale", "groupPriceDiscount": 25},
+                    {"id": group_vip, "name": "VIP", "groupPriceDiscount": 35},
+                ]}
+            })
+
+        self.run_test("5c-4. Discount range 0-100 validation", test_discount_out_of_range)
+
+        # 5c-5. Assign customer to a group, re-login, verify JWT carries group fields
+        def test_assign_customer_to_group():
+            self.use_token("company1")
+            # Reset configuration AND set group
+            resp = self.api.patch(f"/customers/{cust_id}/configuration", {
+                "creditLimit": 0,
+                "minOrderAmountLimit": 0,
+                "maxOrderAmountLimit": 0,
+                "groupID": group_wholesale,
+            })
+            assert_status(resp, 200, "Assign customer to wholesale group")
+
+            # Re-login customer to get fresh JWT
+            self.re_login("customer")
+            configs = self._get_configs_from_jwt(self.jwts["customer"])
+            config = next((c for c in configs if c.get("company_id") == c1_id), None)
+            if not config:
+                raise AssertionError("No JWT config found for company1")
+            if config.get("groupID") != group_wholesale:
+                raise AssertionError(f"JWT groupID: expected {group_wholesale}, got {config.get('groupID')}")
+            if config.get("groupPriceDiscount") != 25:
+                raise AssertionError(f"JWT groupPriceDiscount: expected 25, got {config.get('groupPriceDiscount')}")
+            ok(f"Customer JWT carries groupID={group_wholesale}, groupPriceDiscount=25")
+
+        self.run_test("5c-5. Assign customer to group, JWT resolves", test_assign_customer_to_group)
+
+        # 5c-6. Reject invalid groupID assignment
+        def test_invalid_group_assignment():
+            self.use_token("company1")
+            resp = self.api.patch(f"/customers/{cust_id}/configuration", {
+                "groupID": "non-existent-group",
+            })
+            assert_status(resp, 400, "Invalid groupID rejected")
+            ok("Validation: invalid groupID rejected")
+            # Restore wholesale assignment
+            self.api.patch(f"/customers/{cust_id}/configuration", {"groupID": group_wholesale})
+            self.re_login("customer")
+
+        self.run_test("5c-6. Invalid groupID rejected", test_invalid_group_assignment)
+
+        # 5c-7. Tag product_a with wholesale visibility
+        def test_tag_product_visibility():
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{product_a}", {
+                "groupIDs": [group_wholesale],
+            })
+            assert_status_in(resp, [200, 204], "Tag product with wholesale group")
+            ok(f"Product A tagged: visible to wholesale only")
+
+        self.run_test("5c-7. Tag product with group", test_tag_product_visibility)
+
+        # 5c-8. Visibility: customer in wholesale SEES tagged product
+        def test_visibility_in_group():
+            self.use_token("customer")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Get products as wholesale customer")
+            products = resp.json() or []
+            tagged = next((p for p in products if p["_id"] == product_a), None)
+            if not tagged:
+                raise AssertionError("Wholesale customer should see tagged product")
+            ok("Wholesale customer sees the tagged product")
+
+        self.run_test("5c-8. Visibility: in-group sees tagged", test_visibility_in_group)
+
+        # 5c-9. Visibility: customer2 (no group at company1) does NOT see tagged product
+        def test_visibility_no_group():
+            # customer2 has no groupID at company1 — re-login to make sure JWT is fresh
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Get products as customer2")
+            products = resp.json() or []
+            tagged = next((p for p in products if p["_id"] == product_a), None)
+            if tagged:
+                raise AssertionError("Customer with no group should NOT see tagged product")
+            ok("Customer2 (no group) does NOT see tagged product")
+
+        self.run_test("5c-9. Visibility: no-group hidden", test_visibility_no_group)
+
+        # 5c-10. Visibility: B2C SEES tagged product (bypass)
+        def test_visibility_b2c():
+            self.re_login("b2c")
+            self.use_token("b2c")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Get products as B2C")
+            products = resp.json() or []
+            tagged = next((p for p in products if p["_id"] == product_a), None)
+            if not tagged:
+                raise AssertionError("B2C should see tagged product (group filter bypass)")
+            ok("B2C sees the tagged product (bypass works)")
+
+        self.run_test("5c-10. Visibility: B2C bypasses group filter", test_visibility_b2c)
+
+        # 5c-11. Pricing: wholesale customer gets 25% off
+        def test_group_pricing():
+            self.use_token("customer")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Get products as wholesale customer")
+            products = resp.json() or []
+            tagged = next((p for p in products if p["_id"] == product_a), None)
+            if not tagged:
+                raise AssertionError("Tagged product missing")
+            base_price = tagged.get("price", 0)
+            discounted = tagged.get("discountedPrice", 0)
+            expected = base_price * 0.75
+            if abs(discounted - expected) > 0.01:
+                raise AssertionError(f"Expected discountedPrice={expected:.2f} (25% off {base_price}), got {discounted:.2f}")
+            ok(f"Wholesale pricing: base ${base_price:.2f} → discounted ${discounted:.2f} (25% off)")
+
+        self.run_test("5c-11. Group pricing applied", test_group_pricing)
+
+        # 5c-12. Legacy discountPercentage override beats group discount
+        def test_legacy_override_wins():
+            self.use_token("company1")
+            self.api.patch(f"/customers/{cust_id}/configuration", {
+                "discountPercentage": 50,
+                "groupID": group_wholesale,
+            })
+            self.re_login("customer")
+            self.use_token("customer")
+            resp = self.api.get("/products")
+            products = resp.json() or []
+            tagged = next((p for p in products if p["_id"] == product_a), None)
+            base = tagged.get("price", 0)
+            discounted = tagged.get("discountedPrice", 0)
+            expected = base * 0.5
+            if abs(discounted - expected) > 0.01:
+                raise AssertionError(f"Legacy override expected {expected:.2f}, got {discounted:.2f}")
+            ok(f"Legacy override (50%) wins over group discount (25%): ${discounted:.2f}")
+            # Cleanup: remove legacy override
+            self.api.patch(f"/customers/{cust_id}/configuration", {
+                "discountPercentage": 0,
+                "groupID": group_wholesale,
+            })
+
+        self.run_test("5c-12. Legacy override > group discount", test_legacy_override_wins)
+
+        # 5c-13. Untag product (clear groupIDs) — visible to all again
+        def test_untag_product():
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{product_a}", {"groupIDs": []})
+            assert_status_in(resp, [200, 204], "Untag product")
+
+            # Customer2 (no group) should now see it
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.get("/products")
+            products = resp.json() or []
+            untagged = next((p for p in products if p["_id"] == product_a), None)
+            if not untagged:
+                raise AssertionError("Untagged product should be visible to customer2")
+            ok("Untagged product visible to all again (storage rule: empty array unset)")
+
+        self.run_test("5c-13. Untag clears visibility restriction", test_untag_product)
+
     def phase6_enforcement(self):
         phase("PHASE 6: Enforcement Tests")
 
@@ -1101,6 +1343,7 @@ class BackendFlowTest:
             self.phase4_jwt_verification()
             self.phase5_happy_path()
             self.phase5b_tiered_pricing()
+            self.phase5c_groups()
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()
