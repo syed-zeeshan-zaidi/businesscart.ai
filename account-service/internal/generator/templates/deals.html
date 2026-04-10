@@ -113,6 +113,7 @@
             <a href="products/[[.Filename]].html"
                 class="product-card">
                 <div class="sale-badge">[[printf "%.0f" .DealPrice]]% OFF</div>
+                [[if .DealEndDate]]<div style="position:absolute;top:2.8rem;right:0.75rem;background:#fff;color:#64748b;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;z-index:2">Ends [[.DealEndDate.Format "Jan 2"]]</div>[[end]]
 
                 <div class="image-wrapper">
                     [[if .Image]]
@@ -131,7 +132,7 @@
                 </div>
 
                 <button class="cta-btn"
-                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]'})">
+                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]]})">
                     Add to Cart
                 </button>
             </a>

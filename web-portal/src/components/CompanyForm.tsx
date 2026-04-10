@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, GatewayConfigResponse } from '../api';
-import { Account, CompanyData } from '../types';
+import { Account, CompanyData, CustomerGroup, MAX_CUSTOMER_GROUPS } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
@@ -77,6 +77,7 @@ const PaymentIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" str
 const SalesIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 const LimitsIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
 const StorefrontIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>;
+const GroupsIcon = () => <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 
 /* ---------- gateway config panel per payment method ---------- */
 const GatewayConfigPanel: React.FC<{
@@ -347,7 +348,55 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     }
   };
 
+  /* ---------- Customer Groups handlers ---------- */
+  const addCustomerGroup = () => {
+    const groups = companyData.customerGroups || [];
+    if (groups.length >= MAX_CUSTOMER_GROUPS) {
+      toast.error(`Maximum ${MAX_CUSTOMER_GROUPS} customer groups allowed`);
+      return;
+    }
+    const newGroup: CustomerGroup = {
+      id: crypto.randomUUID(),
+      name: '',
+      groupPriceDiscount: 0,
+    };
+    setCompanyData(prev => ({ ...prev, customerGroups: [...(prev.customerGroups || []), newGroup] }));
+  };
+
+  const updateCustomerGroup = (idx: number, field: keyof CustomerGroup, value: string | number) => {
+    setCompanyData(prev => {
+      const groups = [...(prev.customerGroups || [])];
+      groups[idx] = { ...groups[idx], [field]: value };
+      return { ...prev, customerGroups: groups };
+    });
+  };
+
+  const removeCustomerGroup = (idx: number) => {
+    setCompanyData(prev => {
+      const groups = [...(prev.customerGroups || [])];
+      groups.splice(idx, 1);
+      return { ...prev, customerGroups: groups };
+    });
+  };
+
   const handleSave = async () => {
+    // Local validation: max groups, names, discount range
+    const groups = companyData.customerGroups || [];
+    if (groups.length > MAX_CUSTOMER_GROUPS) {
+      toast.error(`Maximum ${MAX_CUSTOMER_GROUPS} customer groups allowed`);
+      return;
+    }
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      if (!g.name?.trim()) {
+        toast.error(`Group #${i + 1}: name is required`);
+        return;
+      }
+      if (g.groupPriceDiscount !== undefined && (g.groupPriceDiscount < 0 || g.groupPriceDiscount > 100)) {
+        toast.error(`Group "${g.name}": discount must be 0-100`);
+        return;
+      }
+    }
     setIsSaving(true);
     try {
       const updatedAccount = await updateAccount(account._id, {
@@ -470,6 +519,61 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {renderInput('monthlyOrderLimit', 'Monthly Order Limit', '', false, 'number')}
               {renderInput('yearlyOrderLimit', 'Yearly Order Limit', '', false, 'number')}
             </div>
+          </Section>
+
+          <Section title="Customer Groups" icon={<GroupsIcon />}>
+            <p className="text-sm text-gray-500">
+              Define B2B customer segments. Each group has a uniform price discount applied to all visible products.
+              Maximum {MAX_CUSTOMER_GROUPS} groups per company. B2C storefront customers are not affected by groups.
+            </p>
+            {(companyData.customerGroups || []).length === 0 && (
+              <p className="text-sm text-gray-400 italic">No groups defined yet.</p>
+            )}
+            <div className="space-y-4">
+              {(companyData.customerGroups || []).map((g, idx) => (
+                <div key={g.id} className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 items-end">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Group Name</label>
+                    <input
+                      type="text"
+                      value={g.name}
+                      onChange={(e) => updateCustomerGroup(idx, 'name', e.target.value)}
+                      placeholder="e.g., Wholesale, VIP, Retail"
+                      className="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Price Discount (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={g.groupPriceDiscount ?? 0}
+                      onChange={(e) => updateCustomerGroup(idx, 'groupPriceDiscount', parseFloat(e.target.value) || 0)}
+                      className="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => removeCustomerGroup(idx)}
+                      className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addCustomerGroup}
+              disabled={(companyData.customerGroups || []).length >= MAX_CUSTOMER_GROUPS}
+              className="px-4 py-2 text-sm font-medium text-white bg-teal-700 rounded-md hover:bg-teal-800 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              + Add Group {(companyData.customerGroups || []).length >= MAX_CUSTOMER_GROUPS && `(max ${MAX_CUSTOMER_GROUPS} reached)`}
+            </button>
           </Section>
 
           <Section title="Configuration" icon={<ConfigIcon />}>

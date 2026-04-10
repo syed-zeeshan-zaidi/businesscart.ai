@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"business-cart/account-service/internal/auth"
+	mailer "business-cart/account-service/internal/email"
 	"business-cart/account-service/internal/generator"
 	"business-cart/account-service/internal/storage"
 
@@ -26,22 +27,28 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// MaxCustomerGroups is the hard limit on customer groups per company.
+// Frontend mirrors this constant — both sides validate without an API call.
+const MaxCustomerGroups = 5
+
 type LambdaHandler struct {
-	db               *storage.DB
-	jwtSecret        string
-	jwtRefreshSecret string
-	d2cBucketName      string
-	d2cDistributionId  string
-	requestOrigin      string // set per-request from Origin header
+	db                *storage.DB
+	jwtSecret         string
+	jwtRefreshSecret  string
+	d2cBucketName     string
+	d2cDistributionId string
+	emailSender       mailer.Sender
+	requestOrigin     string // set per-request from Origin header
 }
 
-func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string) *LambdaHandler {
+func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
-		db:                 db,
-		jwtSecret:          jwtSecret,
-		jwtRefreshSecret:   jwtRefreshSecret,
-		d2cBucketName:      d2cBucketName,
-		d2cDistributionId:  d2cDistributionId,
+		db:                db,
+		jwtSecret:         jwtSecret,
+		jwtRefreshSecret:  jwtRefreshSecret,
+		d2cBucketName:     d2cBucketName,
+		d2cDistributionId: d2cDistributionId,
+		emailSender:       emailSender,
 	}
 }
 
@@ -124,6 +131,25 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+// resolveFloat returns the customer override if set, else the company default (nil if zero).
+func resolveFloat(companyDefault float64, customerOverride *float64) *float64 {
+	if customerOverride != nil {
+		return customerOverride
+	}
+	if companyDefault != 0 {
+		return &companyDefault
+	}
+	return nil
+}
+
+// override safely extracts a *float64 field from a possibly-nil CustomerConfiguration.
+func override(cfg *storage.CustomerConfiguration, getter func(*storage.CustomerConfiguration) *float64) *float64 {
+	if cfg == nil {
+		return nil
+	}
+	return getter(cfg)
+}
+
 func extractClaim(userClaim map[string]interface{}) (role, userID string, err error) {
 	role, _ = userClaim["role"].(string)
 	userID, _ = userClaim["id"].(string)
@@ -148,6 +174,9 @@ func (h *LambdaHandler) handleAccounts(userClaim map[string]interface{}, request
 			}
 			return h.regenerateStorefront(userClaim, id, jwtToken)
 		}
+	}
+	if request.Path == "/accounts/export" && request.HTTPMethod == "GET" {
+		return h.exportCustomers(userClaim)
 	}
 	if request.Path == "/accounts" && request.HTTPMethod == "GET" {
 		return h.getAccounts(userClaim, request)
@@ -201,8 +230,13 @@ func (h *LambdaHandler) handleCodes(userClaim map[string]interface{}, request ev
 			return h.createCode(userClaim, request.Body)
 		}
 	}
-	if code, ok := request.PathParameters["code"]; ok && request.HTTPMethod == "GET" {
-		return h.getCode(userClaim, code)
+	if code, ok := request.PathParameters["code"]; ok {
+		switch request.HTTPMethod {
+		case "GET":
+			return h.getCode(userClaim, code)
+		case "DELETE":
+			return h.deleteCode(userClaim, code)
+		}
 	}
 	return h.errorResponse(http.StatusMethodNotAllowed, "Method not allowed"), nil
 }
@@ -347,6 +381,16 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		log.Printf("Failed to create account: %v", err)
 		return h.errorResponse(http.StatusInternalServerError, "failed to create account"), nil
 	}
+
+	// Non-blocking welcome email — failure is logged but never blocks registration.
+	if h.emailSender != nil {
+		go func(name, addr string) {
+			if err := h.emailSender.Send(context.Background(), mailer.WelcomeMessage(name, addr)); err != nil {
+				log.Printf("WARN: welcome email failed for %s: %v", addr, err)
+			}
+		}(acc.Name, acc.Email)
+	}
+
 	return h.successResponse(acc, http.StatusCreated), nil
 }
 
@@ -366,16 +410,76 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 	if (user.Role == storage.RoleCustomer || user.Role == storage.RoleB2C) && user.CustomerData != nil {
 		for _, e := range user.CustomerData.CustomerConfigs {
 			assocIDs = append(assocIDs, e.CodeID)
-			if e.Configuration != nil {
-				configs = append(configs, auth.CustomerConfiguration{
-					CompanyID:          e.CodeID,
-					DiscountPercentage: e.Configuration.DiscountPercentage,
-					PaymentMethods:     e.Configuration.PaymentMethods,
-					DeliveryMethods:    e.Configuration.DeliveryMethods,
-					ShippingOutOptions: e.Configuration.ShippingOutOptions,
-					QuotesAllowed:      e.Configuration.QuotesAllowed,
-				})
+		}
+
+		// Fetch associated company data to resolve enforcement defaults
+		companyMap := make(map[string]*storage.CompanyData)
+		if len(assocIDs) > 0 {
+			companyIDs := make([]primitive.ObjectID, 0, len(assocIDs))
+			for _, id := range assocIDs {
+				if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+					companyIDs = append(companyIDs, oid)
+				}
 			}
+			if companies, err := h.db.GetAccountCompaniesDataByIDs(companyIDs); err != nil {
+				log.Printf("Warning: Failed to fetch company data for JWT enforcement: %v", err)
+			} else {
+				for _, c := range companies {
+					if c.CompanyData != nil {
+						companyMap[c.ID.Hex()] = c.CompanyData
+					}
+				}
+			}
+		}
+
+		for _, e := range user.CustomerData.CustomerConfigs {
+			config := auth.CustomerConfiguration{CompanyID: e.CodeID}
+
+			// Existing 5 fields: customer override only (backward compatible)
+			if e.Configuration != nil {
+				config.DiscountPercentage = e.Configuration.DiscountPercentage
+				config.PaymentMethods = e.Configuration.PaymentMethods
+				config.DeliveryMethods = e.Configuration.DeliveryMethods
+				config.ShippingOutOptions = e.Configuration.ShippingOutOptions
+				config.QuotesAllowed = e.Configuration.QuotesAllowed
+			}
+
+			// New 8 float fields: resolved (company default + customer override)
+			// TaxableGoods excluded — CompanyData uses plain bool, can't distinguish
+			// "never set" (false) from "explicitly disabled" (false). Checkout defaults
+			// to taxable when absent. Customer override still carried if set.
+			company := companyMap[e.CodeID]
+			if company != nil {
+				config.CreditLimit = resolveFloat(company.CreditLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.CreditLimit }))
+				config.MinOrderAmountLimit = resolveFloat(company.MinOrderAmountLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MinOrderAmountLimit }))
+				config.MaxOrderAmountLimit = resolveFloat(company.MaxOrderAmountLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MaxOrderAmountLimit }))
+				config.MinOrderQuantityLimit = resolveFloat(company.MinOrderQuantityLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MinOrderQuantityLimit }))
+				config.MaxOrderQuantityLimit = resolveFloat(company.MaxOrderQuantityLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MaxOrderQuantityLimit }))
+				config.MonthlyOrderLimit = resolveFloat(company.MonthlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.MonthlyOrderLimit }))
+				config.YearlyOrderLimit = resolveFloat(company.YearlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.YearlyOrderLimit }))
+				config.LeadTime = resolveFloat(company.LeadTime, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.LeadTime }))
+
+				// Resolve customer's group → embed groupID + groupPriceDiscount.
+				// Stale/missing group ID → silently no embed (falls back to base pricing).
+				if e.GroupID != "" {
+					for _, g := range company.CustomerGroups {
+						if g.ID == e.GroupID {
+							config.GroupID = e.GroupID
+							if g.GroupPriceDiscount > 0 {
+								d := g.GroupPriceDiscount
+								config.GroupPriceDiscount = &d
+							}
+							break
+						}
+					}
+				}
+			}
+			// TaxableGoods: customer override only (same as existing 5 fields)
+			if e.Configuration != nil {
+				config.TaxableGoods = e.Configuration.TaxableGoods
+			}
+
+			configs = append(configs, config)
 		}
 	}
 
@@ -446,6 +550,50 @@ func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request ev
 	return h.successResponse(accounts, http.StatusOK), nil
 }
 
+func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
+	if role != storage.RoleCompany && role != storage.RoleAdmin {
+		return h.errorResponse(http.StatusForbidden, "Only company or admin can export"), nil
+	}
+
+	var filter bson.M
+	if role == storage.RoleAdmin {
+		filter = bson.M{"role": bson.M{"$in": []string{"customer", "b2c"}}}
+	} else {
+		filter = bson.M{"customer.customerConfigs.codeId": userID}
+	}
+
+	accounts, err := h.db.GetAccounts(filter)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve accounts"), nil
+	}
+
+	var b strings.Builder
+	b.WriteString("Name,Email,Role,Created\n")
+	for _, a := range accounts {
+		created := ""
+		if !a.CreatedAt.IsZero() {
+			created = a.CreatedAt.Format("2006-01-02")
+		}
+		name := strings.ReplaceAll(a.Name, ",", " ")
+		email := strings.ReplaceAll(a.Email, ",", " ")
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s\n", name, email, a.Role, created))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":        "text/csv",
+			"Content-Disposition": "attachment; filename=customers.csv",
+			"Access-Control-Allow-Origin": h.requestOrigin,
+		},
+		Body: b.String(),
+	}, nil
+}
+
 func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id string) (events.APIGatewayProxyResponse, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -514,19 +662,27 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 						}
 
 						attached = append(attached, storage.AttachedCompaniesData{
-							Name:               c.CompanyData.Name,
-							LogoURL:            c.CompanyData.LogoURL,
-							CompanyCodeID:      c.CompanyData.CompanyCodeID,
-							CompanyCode:        c.CompanyData.CompanyCode,
-							SaleRepresentative: c.CompanyData.SaleRepresentative,
-							Address:            c.CompanyData.Address,
-							CreditLimit:        c.CompanyData.CreditLimit,
-							QuotesAllowed:      c.CompanyData.QuotesAllowed,
-							Status:             c.CompanyData.Status,
-							ShippingOutOptions: c.CompanyData.ShippingOutOptions,
-							PaymentMethods:     c.CompanyData.PaymentMethods,
-							DeliveryMethods:    c.CompanyData.DeliveryMethods,
-							CompanyLocations:   plainLocations,
+							Name:                  c.CompanyData.Name,
+							LogoURL:               c.CompanyData.LogoURL,
+							CompanyCodeID:         c.CompanyData.CompanyCodeID,
+							CompanyCode:           c.CompanyData.CompanyCode,
+							SaleRepresentative:    c.CompanyData.SaleRepresentative,
+							Address:               c.CompanyData.Address,
+							CreditLimit:           c.CompanyData.CreditLimit,
+							LeadTime:              c.CompanyData.LeadTime,
+							MinOrderAmountLimit:   c.CompanyData.MinOrderAmountLimit,
+							MaxOrderAmountLimit:   c.CompanyData.MaxOrderAmountLimit,
+							MinOrderQuantityLimit: c.CompanyData.MinOrderQuantityLimit,
+							MaxOrderQuantityLimit: c.CompanyData.MaxOrderQuantityLimit,
+							MonthlyOrderLimit:     c.CompanyData.MonthlyOrderLimit,
+							YearlyOrderLimit:      c.CompanyData.YearlyOrderLimit,
+							TaxableGoods:          c.CompanyData.TaxableGoods,
+							QuotesAllowed:         c.CompanyData.QuotesAllowed,
+							Status:                c.CompanyData.Status,
+							ShippingOutOptions:    c.CompanyData.ShippingOutOptions,
+							PaymentMethods:        c.CompanyData.PaymentMethods,
+							DeliveryMethods:       c.CompanyData.DeliveryMethods,
+							CompanyLocations:      plainLocations,
 						})
 					}
 				}
@@ -570,7 +726,47 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		}
 	}
 
+	// Validate customerGroups (max MaxCustomerGroups, valid fields)
+	if rawGroups, ok := payload.Company["customerGroups"]; ok && rawGroups != nil {
+		groups, ok := rawGroups.([]interface{})
+		if !ok {
+			return h.errorResponse(http.StatusBadRequest, "customerGroups must be an array"), nil
+		}
+		if len(groups) > MaxCustomerGroups {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Maximum %d customer groups allowed per company", MaxCustomerGroups)), nil
+		}
+		seenIDs := make(map[string]bool)
+		for i, g := range groups {
+			gMap, ok := g.(map[string]interface{})
+			if !ok {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] is not an object", i)), nil
+			}
+			id, _ := gMap["id"].(string)
+			name, _ := gMap["name"].(string)
+			id = strings.TrimSpace(id)
+			name = strings.TrimSpace(name)
+			if id == "" {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] missing id", i)), nil
+			}
+			if name == "" {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] missing name", i)), nil
+			}
+			if seenIDs[id] {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups: duplicate id %q", id)), nil
+			}
+			seenIDs[id] = true
+			if discount, ok := gMap["groupPriceDiscount"].(float64); ok {
+				if discount < 0 || discount > 100 {
+					return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("customerGroups[%d] groupPriceDiscount must be 0-100", i)), nil
+				}
+			}
+			gMap["id"] = id
+			gMap["name"] = name
+		}
+	}
+
 	setFields := bson.M{}
+	unsetFields := bson.M{}
 	for k, v := range payload.Company {
 		// Only admin can change company codes
 		if (k == "companyCode" || k == "companyCodeId") && role != storage.RoleAdmin {
@@ -602,14 +798,22 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 			}
 		}
 
+		// Storage rule: empty array → unset (don't store empty arrays)
+		if k == "customerGroups" {
+			if arr, ok := v.([]interface{}); ok && len(arr) == 0 {
+				unsetFields["company.customerGroups"] = ""
+				continue
+			}
+		}
+
 		setFields["company."+k] = v
 	}
 
-	if len(setFields) == 0 {
+	if len(setFields) == 0 && len(unsetFields) == 0 {
 		return h.errorResponse(http.StatusBadRequest, "Nothing to update"), nil
 	}
 
-	if err := h.db.UpdateAccount(targetID, setFields); err != nil {
+	if err := h.db.UpdateAccount(targetID, setFields, unsetFields); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Update failed"), nil
 	}
 
@@ -839,6 +1043,24 @@ func (h *LambdaHandler) getCode(userClaim map[string]interface{}, code string) (
 	return h.successResponse(doc, http.StatusOK), nil
 }
 
+func (h *LambdaHandler) deleteCode(userClaim map[string]interface{}, code string) (events.APIGatewayProxyResponse, error) {
+	if userClaim["role"] != storage.RoleAdmin {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+	doc, err := h.db.GetCode(bson.M{"$or": []bson.M{
+		{"companyCode": code},
+		{"customerCode": code},
+		{"partnerCode": code},
+	}})
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "code not found"), nil
+	}
+	if err := h.db.DeleteCode(doc.ID); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "failed to delete code"), nil
+	}
+	return h.successResponse(nil, http.StatusNoContent), nil
+}
+
 func (h *LambdaHandler) getCodes(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
 	if userClaim["role"] != "admin" {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized"), nil
@@ -866,12 +1088,48 @@ func (h *LambdaHandler) updateCustomerConfiguration(userClaim map[string]interfa
 		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
 	}
 
-	var config storage.CustomerConfiguration
-	if err := json.Unmarshal([]byte(body), &config); err != nil {
+	// Parse raw body to handle both config fields and groupID together
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &raw); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config); err != nil {
+	// Re-marshal/unmarshal into typed CustomerConfiguration so existing fields populate
+	var config storage.CustomerConfiguration
+	if cfgBytes, err := json.Marshal(raw); err == nil {
+		_ = json.Unmarshal(cfgBytes, &config)
+	}
+
+	// Parse and validate groupID (if present in request)
+	var groupIDPtr *string
+	if rawGID, exists := raw["groupID"]; exists {
+		gidStr, _ := rawGID.(string)
+		gidStr = strings.TrimSpace(gidStr)
+		if gidStr != "" {
+			// Validate the group exists in this company
+			companyOID, err := primitive.ObjectIDFromHex(companyID)
+			if err != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid company ID in token"), nil
+			}
+			companyAcc, err := h.db.GetAccountByID(companyOID)
+			if err != nil || companyAcc.CompanyData == nil {
+				return h.errorResponse(http.StatusNotFound, "Company not found"), nil
+			}
+			found := false
+			for _, g := range companyAcc.CompanyData.CustomerGroups {
+				if g.ID == gidStr {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return h.errorResponse(http.StatusBadRequest, "groupID does not exist in company's customer groups"), nil
+			}
+		}
+		groupIDPtr = &gidStr
+	}
+
+	if err := h.db.UpdateCustomerConfiguration(customerID, companyID, &config, groupIDPtr); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update configuration"), nil
 	}
 	return h.successResponse(nil, http.StatusOK), nil

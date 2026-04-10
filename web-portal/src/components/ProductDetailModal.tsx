@@ -61,6 +61,30 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
               )}
             </div>
             <p className="text-gray-600 mt-4">{product.description}</p>
+            {product.priceTiers && product.priceTiers.length > 0 && (
+              <div className="mt-4 border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">Quantity</th>
+                      <th className="px-3 py-2 text-right font-medium text-gray-600">Price per unit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="px-3 py-2 text-gray-700">1{product.priceTiers[0].minQty > 1 ? `–${product.priceTiers[0].minQty - 1}` : '+'}</td>
+                      <td className="px-3 py-2 text-right font-medium">${product.price.toFixed(2)}</td>
+                    </tr>
+                    {product.priceTiers.map((tier, i) => (
+                      <tr key={i}>
+                        <td className="px-3 py-2 text-gray-700">{tier.minQty}+ units</td>
+                        <td className="px-3 py-2 text-right font-medium text-teal-700">${tier.price.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div className="mt-6">
               <h3 className="text-lg font-semibold">Attributes</h3>
               <div className="mt-2 space-y-2">

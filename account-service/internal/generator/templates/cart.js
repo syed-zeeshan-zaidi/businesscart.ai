@@ -21,12 +21,30 @@ class D2CCart {
         this.render();
     }
 
+    resolveTierPrice(item) {
+        if (!item.basePrice) item.basePrice = item.price;
+        var price = item.basePrice;
+        if (item.priceTiers && item.priceTiers.length > 0) {
+            for (var i = 0; i < item.priceTiers.length; i++) {
+                if (item.quantity >= item.priceTiers[i].minQty) price = item.priceTiers[i].price;
+            }
+        }
+        var discounted = price;
+        if (item.dealPrice) {
+            discounted = price * (1 - item.dealPrice / 100);
+        }
+        item.price = price;
+        item.discountedPrice = discounted;
+    }
+
     addItem(product) {
         const existing = this.items.find(item => item._id === product._id);
         if (existing) {
             existing.quantity = (existing.quantity || 1) + 1;
+            this.resolveTierPrice(existing);
         } else {
-            this.items.push({ ...product, quantity: 1 });
+            var newItem = { ...product, quantity: 1, basePrice: product.price };
+            this.items.push(newItem);
         }
         this.saveCart();
         this.showDrawer();
@@ -43,6 +61,7 @@ class D2CCart {
         const item = this.items.find(item => item._id === productId);
         if (item) {
             item.quantity = Math.max(1, (item.quantity || 1) + delta);
+            this.resolveTierPrice(item);
             this.saveCart();
         }
     }

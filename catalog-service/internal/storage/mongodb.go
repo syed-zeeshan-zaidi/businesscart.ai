@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,10 +29,25 @@ func NewDB(uri string) (*DB, error) {
 		return nil, err
 	}
 
-	db := client.Database("ProductService")
+	database := client.Database("ProductService")
+	products := database.Collection("products")
+
+	// Ensure indexes (idempotent — safe to call on every cold start)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	indexes := []mongo.IndexModel{
+		// Compound index covers: company own products, customer/b2c associated products,
+		// and any sellerID-prefixed query. Leading sellerID makes the index usable for
+		// {sellerID:X}, {sellerID:X, active:Y}, and {sellerID:{$in:[...]}, active:...}.
+		{Keys: bson.D{{Key: "sellerID", Value: 1}, {Key: "active", Value: 1}}},
+	}
+	if _, err := products.Indexes().CreateMany(ctx, indexes); err != nil {
+		log.Printf("WARN: catalog index creation failed: %v", err)
+	}
+
 	return &DB{
 		client:   client,
-		products: db.Collection("products"),
+		products: products,
 	}, nil
 }
 
@@ -62,12 +78,16 @@ func (db *DB) GetProducts(filter bson.M) ([]*Product, error) {
 	return products, nil
 }
 
-func (db *DB) UpdateProduct(id primitive.ObjectID, update bson.M) error {
+func (db *DB) UpdateProduct(id primitive.ObjectID, update bson.M, unset bson.M) error {
 	update["updatedAt"] = time.Now()
+	ops := bson.M{"$set": update}
+	if len(unset) > 0 {
+		ops["$unset"] = unset
+	}
 	_, err := db.products.UpdateOne(
 		context.Background(),
 		bson.M{"_id": id},
-		bson.M{"$set": update},
+		ops,
 	)
 	return err
 }

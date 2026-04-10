@@ -20,12 +20,23 @@ func CheckPasswordHash(password, hash string) bool {
 
 // CustomerConfiguration represents the set of rules for a customer-company relationship in the JWT.
 type CustomerConfiguration struct {
-	CompanyID          string                       `json:"company_id"`
-	DiscountPercentage *float64                     `json:"discount,omitempty"`
-	PaymentMethods     *[]storage.PaymentMethod     `json:"paymentMethods,omitempty"`
-	DeliveryMethods    *[]storage.DeliveryMethod    `json:"deliveryMethods,omitempty"`
-	ShippingOutOptions *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
-	QuotesAllowed      *bool                        `json:"quotesAllowed,omitempty"`
+	CompanyID             string                       `json:"company_id"`
+	DiscountPercentage    *float64                     `json:"discount,omitempty"`
+	PaymentMethods        *[]storage.PaymentMethod     `json:"paymentMethods,omitempty"`
+	DeliveryMethods       *[]storage.DeliveryMethod    `json:"deliveryMethods,omitempty"`
+	ShippingOutOptions    *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
+	QuotesAllowed         *bool                        `json:"quotesAllowed,omitempty"`
+	CreditLimit           *float64                     `json:"creditLimit,omitempty"`
+	MinOrderAmountLimit   *float64                     `json:"minOrderAmountLimit,omitempty"`
+	MaxOrderAmountLimit   *float64                     `json:"maxOrderAmountLimit,omitempty"`
+	MinOrderQuantityLimit *float64                     `json:"minOrderQuantityLimit,omitempty"`
+	MaxOrderQuantityLimit *float64                     `json:"maxOrderQuantityLimit,omitempty"`
+	MonthlyOrderLimit     *float64                     `json:"monthlyOrderLimit,omitempty"`
+	YearlyOrderLimit      *float64                     `json:"yearlyOrderLimit,omitempty"`
+	TaxableGoods          *bool                        `json:"taxableGoods,omitempty"`
+	LeadTime              *float64                     `json:"leadTime,omitempty"`
+	GroupID               string                       `json:"groupID,omitempty"`
+	GroupPriceDiscount    *float64                     `json:"groupPriceDiscount,omitempty"`
 }
 
 // UserClaims represents the user-specific data within the JWT.

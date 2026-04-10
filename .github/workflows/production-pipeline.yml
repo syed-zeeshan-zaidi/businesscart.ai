@@ -43,6 +43,12 @@ jobs:
       - name: CDK Synth
         run: npx cdk synth --all --context stage=prod
 
+      - name: Clean stale assets (older than 7 days)
+        run: |
+          aws s3 ls s3://web-portal-bucket-prod/assets/ --recursive \
+            | awk '$1 < "'$(date -d '7 days ago' +%Y-%m-%d)'" {print $4}' \
+            | xargs -r -I{} aws s3 rm s3://web-portal-bucket-prod/{}
+
       - name: CDK Deploy
         run: npx cdk deploy --all --context stage=prod --require-approval never
 

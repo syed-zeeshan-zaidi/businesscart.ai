@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/syed/businesscart/checkout-service/internal/cart"
+	mailer "github.com/syed/businesscart/checkout-service/internal/email"
 	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/order"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
@@ -35,12 +36,21 @@ type CartItemRequest struct {
 
 // CustomerConfiguration represents a customer-specific configuration.
 type CustomerConfiguration struct {
-	CompanyID          string   `json:"company_id"`
-	DiscountPercentage *float64 `json:"discount,omitempty"`
-	PaymentMethods     []string `json:"paymentMethods,omitempty"`
-	DeliveryMethods    []string `json:"deliveryMethods,omitempty"`
-	ShippingOutOptions []string `json:"shippingOutOptions,omitempty"`
-	QuotesAllowed      *bool    `json:"quotesAllowed,omitempty"`
+	CompanyID             string   `json:"company_id"`
+	DiscountPercentage    *float64 `json:"discount,omitempty"`
+	PaymentMethods        []string `json:"paymentMethods,omitempty"`
+	DeliveryMethods       []string `json:"deliveryMethods,omitempty"`
+	ShippingOutOptions    []string `json:"shippingOutOptions,omitempty"`
+	QuotesAllowed         *bool    `json:"quotesAllowed,omitempty"`
+	CreditLimit           *float64 `json:"creditLimit,omitempty"`
+	MinOrderAmountLimit   *float64 `json:"minOrderAmountLimit,omitempty"`
+	MaxOrderAmountLimit   *float64 `json:"maxOrderAmountLimit,omitempty"`
+	MinOrderQuantityLimit *float64 `json:"minOrderQuantityLimit,omitempty"`
+	MaxOrderQuantityLimit *float64 `json:"maxOrderQuantityLimit,omitempty"`
+	MonthlyOrderLimit     *float64 `json:"monthlyOrderLimit,omitempty"`
+	YearlyOrderLimit      *float64 `json:"yearlyOrderLimit,omitempty"`
+	TaxableGoods          *bool    `json:"taxableGoods,omitempty"`
+	LeadTime              *float64 `json:"leadTime,omitempty"`
 }
 
 // PatchRequest defines the structure for all PATCH operations
@@ -51,18 +61,20 @@ type PatchRequest struct {
 
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
-	requestOrigin   string
-	cartService     *cart.Service
-	quoteService    *quote.Service
-	orderService    *order.Service
-	gatewayStore    *gateway.Store
-	gatewayRegistry *gateway.Registry
-	jwtSecret       string
-	apiBaseURL      string
+	requestOrigin    string
+	requestUserEmail string // set per-request from JWT
+	cartService      *cart.Service
+	quoteService     *quote.Service
+	orderService     *order.Service
+	gatewayStore     *gateway.Store
+	gatewayRegistry  *gateway.Registry
+	jwtSecret        string
+	apiBaseURL       string
+	emailSender      mailer.Sender
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
 		cartService:     cartService,
 		quoteService:    quoteService,
@@ -71,6 +83,7 @@ func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, or
 		gatewayRegistry: gatewayRegistry,
 		jwtSecret:       jwtSecret,
 		apiBaseURL:      apiBaseURL,
+		emailSender:     emailSender,
 	}
 }
 
@@ -131,6 +144,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Role missing"), nil
 	}
 
+	// Capture email for outbound notifications. Optional — not all tokens have it.
+	h.requestUserEmail, _ = userClaim["email"].(string)
+
 	// Add this block to safely extract associate_company_ids
 	var associateCompanyIDs []string
 	if ids, ok := userClaim["associate_company_ids"].([]interface{}); ok {
@@ -174,6 +190,36 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 						}
 					}
 				}
+				if qa, ok := configMap["quotesAllowed"].(bool); ok {
+					customerConfig.QuotesAllowed = &qa
+				}
+				if v, ok := configMap["creditLimit"].(float64); ok {
+					customerConfig.CreditLimit = &v
+				}
+				if v, ok := configMap["minOrderAmountLimit"].(float64); ok {
+					customerConfig.MinOrderAmountLimit = &v
+				}
+				if v, ok := configMap["maxOrderAmountLimit"].(float64); ok {
+					customerConfig.MaxOrderAmountLimit = &v
+				}
+				if v, ok := configMap["minOrderQuantityLimit"].(float64); ok {
+					customerConfig.MinOrderQuantityLimit = &v
+				}
+				if v, ok := configMap["maxOrderQuantityLimit"].(float64); ok {
+					customerConfig.MaxOrderQuantityLimit = &v
+				}
+				if v, ok := configMap["monthlyOrderLimit"].(float64); ok {
+					customerConfig.MonthlyOrderLimit = &v
+				}
+				if v, ok := configMap["yearlyOrderLimit"].(float64); ok {
+					customerConfig.YearlyOrderLimit = &v
+				}
+				if v, ok := configMap["taxableGoods"].(bool); ok {
+					customerConfig.TaxableGoods = &v
+				}
+				if v, ok := configMap["leadTime"].(float64); ok {
+					customerConfig.LeadTime = &v
+				}
 				configurations = append(configurations, customerConfig)
 			}
 		}
@@ -195,11 +241,15 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 }
 
 func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "POST" {
 		return h.handlePlaceOrderRequest(request, accountID)
 	}
 	if request.HTTPMethod == "GET" {
 		return h.handleGetOrdersRequest(request, accountID, role)
+	}
+	if request.HTTPMethod == "DELETE" && len(parts) == 4 { // /checkout/orders/{orderId}
+		return h.handleDeleteOrderRequest(parts[3], role)
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
@@ -557,6 +607,28 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 		_ = h.quoteService.DeleteQuote(q.ID.Hex())
 	}
 
+	// Non-blocking order confirmation email to the customer.
+	if h.emailSender != nil && h.requestUserEmail != "" {
+		items := make([]mailer.OrderItemView, 0, len(createdOrder.Items))
+		for _, it := range createdOrder.Items {
+			items = append(items, mailer.OrderItemView{
+				Name:     it.Name,
+				Quantity: it.Quantity,
+				Price:    it.Price,
+			})
+		}
+		go func(to, oid string, total float64, its []mailer.OrderItemView) {
+			msg := mailer.OrderConfirmationMessage(to, mailer.OrderConfirmationData{
+				OrderID:    oid,
+				GrandTotal: total,
+				Items:      its,
+			})
+			if err := h.emailSender.Send(context.Background(), msg); err != nil {
+				log.Printf("WARN: order confirmation email failed for %s: %v", to, err)
+			}
+		}(h.requestUserEmail, createdOrder.ID.Hex(), createdOrder.GrandTotal, items)
+	}
+
 	return h.successResponse(createdOrder), nil
 }
 
@@ -578,39 +650,73 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	}, nil
 }
 
+func (h *LambdaHandler) handleDeleteOrderRequest(orderIDStr string, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
+	}
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid order ID"), nil
+	}
+	if err := h.orderService.DeleteOrder(orderID); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to delete order"), nil
+	}
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusNoContent,
+		Headers:    corsHeaders(h.requestOrigin),
+	}, nil
+}
+
 func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		CartID             string                  `json:"cartId"`
-		SellerID           string                  `json:"sellerId"`
-		AccountID          string                  `json:"accountId"` // This is the customer ID for whom the quote is created
-		PaymentMethods     []string                `json:"paymentMethods"`
-		DeliveryMethods    []string                `json:"deliveryMethods"`
-		ShippingOutOptions []string                `json:"shippingOutOptions"`
-		CompanyLocations   []quote.CompanyLocation `json:"companyLocations"`
-		CustomerAddresses  []quote.CustomerAddress `json:"customerAddresses"`
-		QuoteType          string                  `json:"quoteType"` // New field
-		QuotesAllowed      bool                    `json:"quotesAllowed"`
+		CartID                string                  `json:"cartId"`
+		SellerID              string                  `json:"sellerId"`
+		AccountID             string                  `json:"accountId"`
+		PaymentMethods        []string                `json:"paymentMethods"`
+		DeliveryMethods       []string                `json:"deliveryMethods"`
+		ShippingOutOptions    []string                `json:"shippingOutOptions"`
+		CompanyLocations      []quote.CompanyLocation `json:"companyLocations"`
+		CustomerAddresses     []quote.CustomerAddress `json:"customerAddresses"`
+		QuoteType             string                  `json:"quoteType"`
+		QuotesAllowed         bool                    `json:"quotesAllowed"`
+		CreditLimit           float64                 `json:"creditLimit"`
+		MinOrderAmountLimit   float64                 `json:"minOrderAmountLimit"`
+		MaxOrderAmountLimit   float64                 `json:"maxOrderAmountLimit"`
+		MinOrderQuantityLimit float64                 `json:"minOrderQuantityLimit"`
+		MaxOrderQuantityLimit float64                 `json:"maxOrderQuantityLimit"`
+		MonthlyOrderLimit     float64                 `json:"monthlyOrderLimit"`
+		YearlyOrderLimit      float64                 `json:"yearlyOrderLimit"`
+		TaxableGoods          *bool                   `json:"taxableGoods,omitempty"`
+		LeadTime              float64                 `json:"leadTime"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	// Determine the effective AccountID for cart retrieval and quote creation
-	// If the caller is a company or admin, and an accountID is provided in the request body,
-	// use that accountID. Otherwise, use the accountID from the JWT (the caller's ID).
+	// Determine the effective AccountID
 	effectiveAccountID := accountID
 	if (role == "company" || role == "admin") && req.AccountID != "" {
-		// Authorization check: A company can only create a quote for a customer associated with it.
-		// This would typically involve a lookup in the account service to verify the association.
-		// For now, we'll assume the frontend sends a valid associated customer ID.
 		if role == "company" && req.SellerID != accountID {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Company can only create quotes for its own customers."), nil
 		}
 		effectiveAccountID = req.AccountID
 	}
 
-	// Check for customer-specific configuration
+	// Resolve effective config: start with company defaults, apply customer overrides from JWT
 	effectiveQuotesAllowed := req.QuotesAllowed
+	effectiveCreditLimit := req.CreditLimit
+	effectiveMinOrderAmount := req.MinOrderAmountLimit
+	effectiveMaxOrderAmount := req.MaxOrderAmountLimit
+	effectiveMinOrderQty := req.MinOrderQuantityLimit
+	effectiveMaxOrderQty := req.MaxOrderQuantityLimit
+	effectiveMonthlyLimit := req.MonthlyOrderLimit
+	effectiveYearlyLimit := req.YearlyOrderLimit
+	effectiveTaxable := true // default: charge tax unless explicitly disabled
+	if req.TaxableGoods != nil {
+		effectiveTaxable = *req.TaxableGoods
+	}
+	effectiveLeadTime := req.LeadTime
+
 	for _, config := range configurations {
 		if config.CompanyID == req.SellerID {
 			if config.PaymentMethods != nil {
@@ -624,6 +730,33 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 			}
 			if config.QuotesAllowed != nil {
 				effectiveQuotesAllowed = *config.QuotesAllowed
+			}
+			if config.CreditLimit != nil {
+				effectiveCreditLimit = *config.CreditLimit
+			}
+			if config.MinOrderAmountLimit != nil {
+				effectiveMinOrderAmount = *config.MinOrderAmountLimit
+			}
+			if config.MaxOrderAmountLimit != nil {
+				effectiveMaxOrderAmount = *config.MaxOrderAmountLimit
+			}
+			if config.MinOrderQuantityLimit != nil {
+				effectiveMinOrderQty = *config.MinOrderQuantityLimit
+			}
+			if config.MaxOrderQuantityLimit != nil {
+				effectiveMaxOrderQty = *config.MaxOrderQuantityLimit
+			}
+			if config.MonthlyOrderLimit != nil {
+				effectiveMonthlyLimit = *config.MonthlyOrderLimit
+			}
+			if config.YearlyOrderLimit != nil {
+				effectiveYearlyLimit = *config.YearlyOrderLimit
+			}
+			if config.TaxableGoods != nil {
+				effectiveTaxable = *config.TaxableGoods
+			}
+			if config.LeadTime != nil {
+				effectiveLeadTime = *config.LeadTime
 			}
 			break
 		}
@@ -642,11 +775,71 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		return h.errorResponse(http.StatusBadRequest, "Cart is empty"), nil
 	}
 
-	// Simple tax and shipping calculation (placeholders)
-	taxAmount := cart.TotalPrice * 0.0825 // 8.25% tax
-	shippingCost := 10.00                 // Flat rate shipping
+	// Calculate totals
+	taxAmount := cart.TotalPrice * 0.0825
+	if !effectiveTaxable {
+		taxAmount = 0
+	}
+	shippingCost := 10.00
+	grandTotal := cart.TotalPrice + shippingCost + taxAmount
 
-	initialStatus := "draft" // Default for negotiable
+	// Calculate total item quantity
+	var totalQuantity float64
+	for _, item := range cart.Items {
+		totalQuantity += float64(item.Quantity)
+	}
+
+	// Enforce order amount limits (0 = no limit)
+	if effectiveMinOrderAmount > 0 && grandTotal < effectiveMinOrderAmount {
+		return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Order total $%.2f is below the minimum of $%.2f.", grandTotal, effectiveMinOrderAmount)), nil
+	}
+	if effectiveMaxOrderAmount > 0 && grandTotal > effectiveMaxOrderAmount {
+		return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Order total $%.2f exceeds the maximum of $%.2f.", grandTotal, effectiveMaxOrderAmount)), nil
+	}
+
+	// Enforce order quantity limits (0 = no limit)
+	if effectiveMinOrderQty > 0 && totalQuantity < effectiveMinOrderQty {
+		return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Order quantity %.0f is below the minimum of %.0f.", totalQuantity, effectiveMinOrderQty)), nil
+	}
+	if effectiveMaxOrderQty > 0 && totalQuantity > effectiveMaxOrderQty {
+		return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Order quantity %.0f exceeds the maximum of %.0f.", totalQuantity, effectiveMaxOrderQty)), nil
+	}
+
+	// Enforce credit limit (0 = no limit)
+	if effectiveCreditLimit > 0 {
+		unpaidTotal, err := h.orderService.GetUnpaidOrdersTotal(effectiveAccountID, req.SellerID)
+		if err != nil {
+			log.Printf("Warning: Failed to check credit limit: %v", err)
+		} else if unpaidTotal+grandTotal > effectiveCreditLimit {
+			return h.errorResponse(http.StatusForbidden, fmt.Sprintf("Credit limit exceeded. Limit: $%.2f, Outstanding: $%.2f, This order: $%.2f.", effectiveCreditLimit, unpaidTotal, grandTotal)), nil
+		}
+	}
+
+	// Enforce monthly order limit (0 = no limit)
+	if effectiveMonthlyLimit > 0 {
+		now := time.Now()
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		count, err := h.orderService.CountOrdersSince(effectiveAccountID, req.SellerID, monthStart)
+		if err != nil {
+			log.Printf("Warning: Failed to check monthly order limit: %v", err)
+		} else if float64(count) >= effectiveMonthlyLimit {
+			return h.errorResponse(http.StatusForbidden, fmt.Sprintf("Monthly order limit of %.0f reached.", effectiveMonthlyLimit)), nil
+		}
+	}
+
+	// Enforce yearly order limit (0 = no limit)
+	if effectiveYearlyLimit > 0 {
+		now := time.Now()
+		yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		count, err := h.orderService.CountOrdersSince(effectiveAccountID, req.SellerID, yearStart)
+		if err != nil {
+			log.Printf("Warning: Failed to check yearly order limit: %v", err)
+		} else if float64(count) >= effectiveYearlyLimit {
+			return h.errorResponse(http.StatusForbidden, fmt.Sprintf("Yearly order limit of %.0f reached.", effectiveYearlyLimit)), nil
+		}
+	}
+
+	initialStatus := "draft"
 	if req.QuoteType == "standard" {
 		initialStatus = "approved"
 	}
@@ -659,19 +852,31 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		Subtotal:                    cart.TotalPrice,
 		ShippingCost:                shippingCost,
 		TaxAmount:                   taxAmount,
-		GrandTotal:                  cart.TotalPrice + shippingCost + taxAmount,
+		GrandTotal:                  grandTotal,
 		AvailablePaymentMethods:     req.PaymentMethods,
 		AvailableDeliveryMethods:    req.DeliveryMethods,
 		AvailableShippingOutOptions: req.ShippingOutOptions,
 		CompanyLocations:            req.CompanyLocations,
 		CustomerAddresses:           req.CustomerAddresses,
-		QuoteType:                   req.QuoteType, // Assign the new field
-		Status:                      initialStatus, // Set initial status dynamically
+		QuoteType:                   req.QuoteType,
+		Status:                      initialStatus,
+		LeadTime:                    effectiveLeadTime,
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
+	}
+
+	// Non-blocking quote-requested email — only for negotiable quotes initiated by the customer.
+	// Standard quotes go straight to checkout and are confirmed via the order email instead.
+	if h.emailSender != nil && h.requestUserEmail != "" && req.QuoteType == "negotiable" && role == "customer" {
+		go func(to, qid string) {
+			msg := mailer.QuoteRequestedMessage(to, mailer.QuoteRequestedData{QuoteID: qid})
+			if err := h.emailSender.Send(context.Background(), msg); err != nil {
+				log.Printf("WARN: quote requested email failed for %s: %v", to, err)
+			}
+		}(h.requestUserEmail, createdQuote.ID.Hex())
 	}
 
 	respBody, _ := json.Marshal(createdQuote)
@@ -808,6 +1013,12 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		for i, item := range currentCart.Items {
 			if item.ID == objID {
 				currentCart.Items[i].Quantity = req.Entity.Quantity
+				if req.Entity.Price > 0 {
+					currentCart.Items[i].Price = req.Entity.Price
+				}
+				if req.Entity.DiscountedPrice > 0 {
+					currentCart.Items[i].DiscountedPrice = req.Entity.DiscountedPrice
+				}
 				found = true
 				break
 			}

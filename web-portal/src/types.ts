@@ -40,12 +40,27 @@ export interface Attribute {
   type?: 'filterable' | 'system';
 }
 
+export interface PriceTier {
+  minQty: number;
+  price: number;
+}
+
+export interface CustomerGroup {
+  id: string;
+  name: string;
+  groupPriceDiscount?: number;
+}
+
+export const MAX_CUSTOMER_GROUPS = 5;
+
 export interface Product {
   _id: string;
   name: string;
   description?: string;
   price: number;
   dealPrice?: number;
+  dealStartDate?: string;
+  dealEndDate?: string;
   discountedPrice?: number;
   sellerID: string;
   images?: string[];
@@ -56,6 +71,8 @@ export interface Product {
   stock?: number;
   active?: boolean;
   featured?: boolean;
+  priceTiers?: PriceTier[];
+  groupIDs?: string[];
   attributes?: Attribute[];
   createdAt: Date;
   updatedAt: Date;
@@ -146,6 +163,7 @@ export interface Quote {
   discountPercentage?: number;
   discountAmount?: number;
   notes?: string;
+  leadTime?: number;
 }
 
 export type DeliveryMethod = 'pickup' | 'dropoff' | 'shipping_out';
@@ -181,6 +199,7 @@ export interface CompanyData {
   };
   address: Address;
   d2c?: D2CConfig;
+  customerGroups?: CustomerGroup[];
 }
 
 export interface D2CConfig {
@@ -210,6 +229,7 @@ export interface D2CConfig {
 export interface CustomerCodeEntry {
   codeId: string;
   customerCode: string;
+  groupID?: string;
   configuration?: CustomerConfiguration;
 }
 
@@ -243,17 +263,23 @@ export interface CustomerAddress {
 export type PaymentMethod = 'credit_card' | 'purchase_order' | 'on_account' | 'stripe_pay';
 
 export interface CustomerConfiguration {
-
   company_id: string;
-
   discountPercentage?: number;
-
   paymentMethods?: PaymentMethod[];
-
   deliveryMethods?: DeliveryMethod[];
-
   shippingOutOptions?: ShippingOutOption[];
-
+  quotesAllowed?: boolean;
+  creditLimit?: number;
+  minOrderAmountLimit?: number;
+  maxOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  maxOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  leadTime?: number;
+  groupID?: string;
+  groupPriceDiscount?: number;
 }
 
 
@@ -275,51 +301,24 @@ export interface DecodedUser {
 
 
 export interface CreateQuoteRequest {
-
-
-
   sellerId: string;
-
-
-
-  accountId?: string; // Made optional
-
-
-
+  accountId?: string;
   quotesAllowed: boolean;
-
-
-
   paymentMethods: string[];
-
-
-
   deliveryMethods: string[];
-
-
-
   shippingOutOptions: string[];
-
-
-
   companyLocations: CompanyLocation[];
-
-
-
   customerAddresses: CustomerAddress[];
-
-
-
   configurations?: CustomerConfiguration[];
-
-
-
   quoteType?: 'standard' | 'negotiable';
-
-
-
   status?: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
-
-
-
+  creditLimit?: number;
+  minOrderAmountLimit?: number;
+  maxOrderAmountLimit?: number;
+  minOrderQuantityLimit?: number;
+  maxOrderQuantityLimit?: number;
+  monthlyOrderLimit?: number;
+  yearlyOrderLimit?: number;
+  taxableGoods?: boolean;
+  leadTime?: number;
 }

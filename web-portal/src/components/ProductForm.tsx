@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3 } from '../api';
-import { Product, Account, Attribute } from '../types';
+import { Product, Account, Attribute, PriceTier } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -37,6 +37,8 @@ const ProductForm = () => {
     active: true,
     featured: false,
     attributes: [],
+    priceTiers: [],
+    groupIDs: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -112,6 +114,15 @@ const ProductForm = () => {
     }
     if (formData.stock !== undefined && formData.stock < 0) newErrors.push('Stock cannot be negative');
     if (!formData.description) newErrors.push('Description is required');
+    if (formData.priceTiers && formData.priceTiers.length > 0) {
+      for (let i = 0; i < formData.priceTiers.length; i++) {
+        const t = formData.priceTiers[i];
+        if (i === 0 && (!t.minQty || t.minQty < 2)) { newErrors.push('First tier: Min qty must be >= 2 (base price covers qty 1)'); }
+        else if (!t.minQty || t.minQty < 1) { newErrors.push(`Tier ${i + 1}: Min qty must be >= 1`); }
+        if (!t.price || t.price <= 0) newErrors.push(`Tier ${i + 1}: Price must be > 0`);
+        if (i > 0 && t.minQty <= formData.priceTiers[i - 1].minQty) newErrors.push(`Tier ${i + 1}: Min qty must be greater than previous tier`);
+      }
+    }
     return newErrors;
   };
 
@@ -151,8 +162,10 @@ const ProductForm = () => {
         barcode: '',
         stock: 0,
         active: true,
-    featured: false,
+        featured: false,
         attributes: [],
+        priceTiers: [],
+        groupIDs: [],
       });
       setEditingId(null);
       setPendingFiles([]);
@@ -199,11 +212,40 @@ const ProductForm = () => {
     setFormData({ ...formData, attributes: newAttributes });
   };
 
+  const handleTierChange = (index: number, field: keyof PriceTier, value: string) => {
+    const tiers = [...(formData.priceTiers || [])];
+    tiers[index] = { ...tiers[index], [field]: field === 'minQty' ? parseInt(value) || 0 : parseFloat(value) || 0 };
+    setFormData({ ...formData, priceTiers: tiers });
+  };
+
+  const addTier = () => {
+    const tiers = [...(formData.priceTiers || [])];
+    const lastMinQty = tiers.length > 0 ? tiers[tiers.length - 1].minQty : 0;
+    tiers.push({ minQty: lastMinQty + 10, price: 0 });
+    setFormData({ ...formData, priceTiers: tiers });
+  };
+
+  const removeTier = (index: number) => {
+    const tiers = [...(formData.priceTiers || [])];
+    tiers.splice(index, 1);
+    setFormData({ ...formData, priceTiers: tiers });
+  };
+
+  const toggleGroup = (groupId: string) => {
+    const current = formData.groupIDs || [];
+    const next = current.includes(groupId)
+      ? current.filter((id) => id !== groupId)
+      : [...current, groupId];
+    setFormData({ ...formData, groupIDs: next });
+  };
+
   const handleEdit = (product: Product) => {
     setFormData({
       name: product.name,
       price: product.price,
       dealPrice: product.dealPrice,
+      dealStartDate: product.dealStartDate,
+      dealEndDate: product.dealEndDate,
       description: product.description,
       sellerID: product.sellerID,
       images: product.images || [],
@@ -215,6 +257,8 @@ const ProductForm = () => {
       active: product.active !== false,
       featured: product.featured || false,
       attributes: product.attributes || [],
+      priceTiers: product.priceTiers || [],
+      groupIDs: product.groupIDs || [],
     });
     setEditingId(product._id);
     setPendingFiles([]);
@@ -372,7 +416,18 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.dealPrice ? (
+                          <>
+                            {product.dealPrice}%
+                            {product.dealEndDate && (
+                              <span className={`ml-1 text-xs ${new Date(product.dealEndDate) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                                {new Date(product.dealEndDate) < new Date() ? '(expired)' : `(until ${new Date(product.dealEndDate).toLocaleDateString()})`}
+                              </span>
+                            )}
+                          </>
+                        ) : 'N/A'}
+                      </td>
 
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -559,6 +614,78 @@ const ProductForm = () => {
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
+                      {formData.dealPrice && formData.dealPrice > 0 && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Deal Start Date</label>
+                            <input
+                              name="dealStartDate"
+                              type="datetime-local"
+                              value={formData.dealStartDate ? new Date(formData.dealStartDate).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, dealStartDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for immediate start.</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Deal End Date</label>
+                            <input
+                              name="dealEndDate"
+                              type="datetime-local"
+                              value={formData.dealEndDate ? new Date(formData.dealEndDate).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, dealEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for no expiry.</p>
+                          </div>
+                        </div>
+                      )}
+                      {/* Price Tiers */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>
+                        <p className="text-xs text-gray-500 mb-2">Optional. Set lower prices for bulk orders. Base price applies below the first tier.</p>
+                        {(formData.priceTiers || []).map((tier, i) => (
+                          <div key={i} className="flex items-center gap-2 mb-2">
+                            <input type="number" min="1" value={tier.minQty || ''} onChange={(e) => handleTierChange(i, 'minQty', e.target.value)} placeholder="Min qty" className="w-24 p-2 border border-gray-300 rounded-md text-sm" />
+                            <span className="text-sm text-gray-500">+ units @</span>
+                            <input type="number" min="0.01" step="0.01" value={tier.price || ''} onChange={(e) => handleTierChange(i, 'price', e.target.value)} placeholder="Price" className="w-28 p-2 border border-gray-300 rounded-md text-sm" />
+                            <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={addTier} className="text-sm text-teal-700 hover:text-teal-900 font-medium">+ Add tier</button>
+                      </div>
+
+                      {/* Visibility Groups (B2B) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">B2B Visibility Groups</label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Restrict this product to specific B2B customer groups. Leave all unchecked = visible to everyone (B2B + B2C). B2C storefront customers always see this product regardless of groups.
+                        </p>
+                        {(account?.company?.customerGroups || []).length === 0 ? (
+                          <p className="text-xs text-gray-400 italic">No groups defined. Add groups in Company Settings → Customer Groups.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {(account?.company?.customerGroups || []).map((g) => {
+                              const checked = (formData.groupIDs || []).includes(g.id);
+                              return (
+                                <label key={g.id} className="flex items-center space-x-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleGroup(g.id)}
+                                    className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {g.name}
+                                    {g.groupPriceDiscount ? <span className="text-xs text-gray-400 ml-2">{g.groupPriceDiscount}% off</span> : null}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex items-center space-x-3 pt-2">
                         <input
                           type="checkbox"

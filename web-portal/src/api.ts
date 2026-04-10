@@ -100,6 +100,16 @@ export const getAccounts = async (): Promise<Account[]> => {
   return response.data;
 };
 
+export const exportCustomers = async (): Promise<void> => {
+  const response = await api.get(`${API_URL}/accounts/export`, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'customers.csv';
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getAccount = async (id: string): Promise<Account> => {
   const response = await api.get(`${API_URL}/accounts/${id}`);
   return response.data;
@@ -168,6 +178,10 @@ export const deleteProduct = async (id: string): Promise<void> => {
 
 export const deleteOrder = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/checkout/orders/${id}`);
+};
+
+export const deleteCode = async (code: string): Promise<void> => {
+  await api.delete(`${API_URL}/codes/${code}`);
 };
 
 export const createOrder = async (data: {
@@ -245,7 +259,7 @@ export const getCart = async (sellerId: string, accountId?: string): Promise<Car
   return response.data;
 };
 
-export const updateCartItem = async (itemId: string, data: { entity: { quantity: number } }, sellerId: string, accountId?: string): Promise<Cart> => {
+export const updateCartItem = async (itemId: string, data: { entity: { quantity: number; price?: number; discountedPrice?: number } }, sellerId: string, accountId?: string): Promise<Cart> => {
   let url = `${API_URL}/checkout/cart/${itemId}?sellerId=${sellerId}`;
   if (accountId) {
     url += `&accountId=${accountId}`;
@@ -345,7 +359,10 @@ export const deleteCustomerAddress = async (customerId: string, addressId: strin
   await api.delete(`${API_URL}/accounts/locations/${customerId}/${addressId}`);
 };
 
-export const updateCustomerConfiguration = async (customerId: string, config: Partial<CustomerConfiguration>): Promise<void> => {
+export const updateCustomerConfiguration = async (
+  customerId: string,
+  config: Partial<CustomerConfiguration> & { groupID?: string }
+): Promise<void> => {
   await api.patch(`${API_URL}/customers/${customerId}/configuration`, config);
 };
 

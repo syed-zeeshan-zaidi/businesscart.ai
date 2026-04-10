@@ -54,7 +54,13 @@ const Deals: React.FC = () => {
         getAccount(decodedUser.id),
       ]);
       
-      const deals = fetchedProducts.filter(product => product.dealPrice !== undefined && product.dealPrice > 0);
+      const now = new Date();
+      const deals = fetchedProducts.filter(product => {
+        if (!product.dealPrice || product.dealPrice <= 0) return false;
+        if (product.dealStartDate && new Date(product.dealStartDate) > now) return false;
+        if (product.dealEndDate && new Date(product.dealEndDate) < now) return false;
+        return true;
+      });
       setProducts(deals);
 
       if (fetchedAccount.role === 'customer' && fetchedAccount.customer?.attachedCompanies) {
@@ -238,9 +244,16 @@ const Deals: React.FC = () => {
                   <div className="mt-4 flex justify-between items-center">
                     <div>
                       {product.dealPrice && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-medium text-red-800 mr-2">
-                          {product.dealPrice}% OFF
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1 mb-1">
+                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-medium text-red-800">
+                            {product.dealPrice}% OFF
+                          </span>
+                          {product.dealEndDate && (
+                            <span className="text-xs text-gray-500">
+                              Ends {new Date(product.dealEndDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
                       )}
                       {product.discountedPrice && product.discountedPrice < product.price ? (
                         <>
@@ -255,6 +268,9 @@ const Deals: React.FC = () => {
                         <p className="text-teal-700 font-bold text-lg">
                           ${product.price.toFixed(2)}
                         </p>
+                      )}
+                      {product.priceTiers && product.priceTiers.length > 0 && (
+                        <p className="text-xs text-teal-600 font-medium">Bulk pricing available</p>
                       )}
                     </div>
                     <AddToCartButton product={product} quantity={1} />

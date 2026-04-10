@@ -4,8 +4,8 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
-import { Cart as CartType, Account } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations } from '../api';
+import { Cart as CartType, Account, Product } from '../types';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts } from '../api';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
@@ -20,6 +20,7 @@ const Cart: React.FC = () => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [productMap, setProductMap] = useState<Record<string, Product>>({});
 
   const invalidateCache = (companyId: string) => {
     localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
@@ -86,6 +87,14 @@ const Cart: React.FC = () => {
         } else {
           toast.error('No companies available for shopping');
         }
+
+        // Fetch products for tier pricing lookup
+        const prods = await getProducts();
+        if (Array.isArray(prods)) {
+          const map: Record<string, Product> = {};
+          prods.forEach((p: Product) => { map[p._id] = p; });
+          setProductMap(map);
+        }
       } catch (err: any) {
         toast.error(err.message || 'Failed to load data');
       } finally {
@@ -102,12 +111,47 @@ const Cart: React.FC = () => {
     }
   }, [selectedCompanyId, initialLoadComplete, fetchCart]);
 
+  const resolveTierPrice = (productId: string, quantity: number): { price: number; discountedPrice: number } | null => {
+    const product = productMap[productId];
+    if (!product) return null;
+
+    // Layer 1: base price → tier price based on quantity
+    let effectivePrice = product.price;
+    if (product.priceTiers && product.priceTiers.length > 0) {
+      for (const tier of product.priceTiers) {
+        if (quantity >= tier.minQty) effectivePrice = tier.price;
+      }
+    }
+
+    // Layer 2: dealPrice (universal product promo, applies to everyone)
+    // Layer 3: customer/group discount (catalog API computes discountedPrice with priority:
+    //          legacy override > group's groupPriceDiscount > none).
+    //          We apply the same discount ratio to the tier price.
+    let discounted = effectivePrice;
+    if (product.dealPrice) {
+      discounted = effectivePrice * (1 - product.dealPrice / 100);
+    } else if (product.discountedPrice && product.discountedPrice < product.price) {
+      const ratio = product.discountedPrice / product.price;
+      discounted = effectivePrice * ratio;
+    }
+    return { price: effectivePrice, discountedPrice: discounted };
+  };
+
   const handleUpdateQuantity = async (itemId: string, quantity: number) => {
     if (!selectedCompanyId || quantity < 1) return;
-    
+
+    // Resolve tier price for the new quantity
+    const item = cart?.items.find(i => i.id === itemId);
+    const tierPrices = item ? resolveTierPrice(item.productId, quantity) : null;
+    const entity: { quantity: number; price?: number; discountedPrice?: number } = { quantity };
+    if (tierPrices) {
+      entity.price = tierPrices.price;
+      entity.discountedPrice = tierPrices.discountedPrice;
+    }
+
     setLoading(true);
     try {
-      const updatedCart = await updateCartItem(itemId, { entity: { quantity } }, selectedCompanyId);
+      const updatedCart = await updateCartItem(itemId, { entity }, selectedCompanyId);
       setCart(updatedCart);
       toast.success('Item quantity updated!');
       invalidateCache(selectedCompanyId);
@@ -150,40 +194,40 @@ const Cart: React.FC = () => {
     }
   };
 
-  const handleCheckout = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Please select a company to checkout.');
-      return;
-    }
-    
-    if (!cart || cart.items.length === 0) {
-      toast.error('Your cart is empty.');
-      return;
-    }
-
+  const buildQuoteRequest = async (quoteType: 'standard' | 'negotiable') => {
     const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
-    const paymentMethods = company?.paymentMethods || [];
-    const deliveryMethods = company?.deliveryMethods || [];
-    const shippingOutOptions = company?.shippingOutOptions || [];
-    const quotesAllowed = company?.quotesAllowed || false;
-    const companyLocations = company?.companyLocations || [];
-    const customerAddresses = account?.customer?.customerAddresses || [];
     const configurations = await getCustomerConfigurations();
+    return {
+      sellerId: selectedCompanyId!,
+      quotesAllowed: company?.quotesAllowed || false,
+      paymentMethods: company?.paymentMethods || [],
+      deliveryMethods: company?.deliveryMethods || [],
+      shippingOutOptions: company?.shippingOutOptions || [],
+      companyLocations: company?.companyLocations || [],
+      customerAddresses: account?.customer?.customerAddresses || [],
+      configurations,
+      quoteType,
+      ...(quoteType === 'negotiable' && { status: 'draft' as const }),
+      creditLimit: company?.creditLimit || 0,
+      minOrderAmountLimit: company?.minOrderAmountLimit || 0,
+      maxOrderAmountLimit: company?.maxOrderAmountLimit || 0,
+      minOrderQuantityLimit: company?.minOrderQuantityLimit || 0,
+      maxOrderQuantityLimit: company?.maxOrderQuantityLimit || 0,
+      monthlyOrderLimit: company?.monthlyOrderLimit || 0,
+      yearlyOrderLimit: company?.yearlyOrderLimit || 0,
+      taxableGoods: company?.taxableGoods ?? true,
+      leadTime: company?.leadTime || 0,
+    };
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedCompanyId) { toast.error('Please select a company to checkout.'); return; }
+    if (!cart || cart.items.length === 0) { toast.error('Your cart is empty.'); return; }
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote({ 
-        sellerId: selectedCompanyId,
-        paymentMethods: paymentMethods,
-        deliveryMethods: deliveryMethods,
-        shippingOutOptions: shippingOutOptions,
-        quotesAllowed: quotesAllowed,
-        companyLocations: companyLocations,
-        customerAddresses: customerAddresses,
-        configurations,
-        quoteType: 'standard',
-      });
+      const quote = await createQuote(await buildQuoteRequest('standard'));
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);
     } catch (err: any) {
@@ -194,40 +238,13 @@ const Cart: React.FC = () => {
   };
 
   const handleRequestQuote = async () => {
-    if (!selectedCompanyId) {
-      toast.error('Please select a company to request a quote.');
-      return;
-    }
-    
-    if (!cart || cart.items.length === 0) {
-      toast.error('Your cart is empty.');
-      return;
-    }
-
-    const company = account?.customer?.attachedCompanies?.find(c => c.companyCodeId === selectedCompanyId);
-    const paymentMethods = company?.paymentMethods || [];
-    const deliveryMethods = company?.deliveryMethods || [];
-    const shippingOutOptions = company?.shippingOutOptions || [];
-    const quotesAllowed = company?.quotesAllowed || false;
-    const companyLocations = company?.companyLocations || [];
-    const customerAddresses = account?.customer?.customerAddresses || [];
-    const configurations = await getCustomerConfigurations();
+    if (!selectedCompanyId) { toast.error('Please select a company to request a quote.'); return; }
+    if (!cart || cart.items.length === 0) { toast.error('Your cart is empty.'); return; }
 
     setLoading(true);
     const toastId = toast.loading('Creating quote...');
     try {
-      const quote = await createQuote({
-        sellerId: selectedCompanyId,
-        paymentMethods: paymentMethods,
-        deliveryMethods: deliveryMethods,
-        shippingOutOptions: shippingOutOptions,
-        companyLocations: companyLocations,
-        customerAddresses: customerAddresses,
-        configurations,
-        quoteType: 'negotiable',
-        status: 'draft', // Set initial status to draft
-        quotesAllowed: quotesAllowed,
-      });
+      const quote = await createQuote(await buildQuoteRequest('negotiable'));
       toast.success('Quote requested successfully!', { id: toastId });
       navigate(`/quote/${quote.id}`);
     } catch (err: any) {

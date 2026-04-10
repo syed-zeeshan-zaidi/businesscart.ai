@@ -459,7 +459,7 @@
                 </div>
 
                 <button class="cta-btn"
-                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]'})">
+                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]]})">
                     Add to Cart
                 </button>
             </a>

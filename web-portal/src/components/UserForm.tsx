@@ -1,7 +1,7 @@
 // src/components/UserForm.tsx
 import React, { useState, useEffect } from 'react';
-import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration } from '../api';
-import { Account, CustomerConfiguration } from '../types';
+import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration, getAccount, exportCustomers } from '../api';
+import { Account, CustomerConfiguration, CustomerGroup } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -53,6 +53,9 @@ const UserForm = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [configuringCustomer, setConfiguringCustomer] = useState<Account | null>(null);
   const [configData, setConfigData] = useState<Partial<CustomerConfiguration>>({});
+  const [configGroupID, setConfigGroupID] = useState<string>('');
+  // Company's defined groups (loaded once for the dropdown)
+  const [companyGroups, setCompanyGroups] = useState<CustomerGroup[]>([]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -61,6 +64,15 @@ const UserForm = () => {
         try {
           const decoded = decodeJWT(token);
           setCurrentUser(decoded);
+          // If logged-in user is a company, load their customer groups for the config modal dropdown
+          if (decoded?.role === 'company' && decoded?.id) {
+            try {
+              const acc = await getAccount(decoded.id);
+              setCompanyGroups(acc?.company?.customerGroups || []);
+            } catch {
+              // Non-fatal — modal will simply show "(no group)" only
+            }
+          }
         } catch (err) {
           console.error('Error decoding JWT', err);
         }
@@ -201,9 +213,10 @@ const UserForm = () => {
   const handleOpenConfigModal = (account: Account) => {
     if (!currentUser || currentUser.role !== 'company') return;
     const companyId = currentUser.id;
-    const customerConfig = account.customer?.customerConfigs?.find(c => c.codeId === companyId);
-    const existingConfig = customerConfig?.configuration;
+    const customerEntry = account.customer?.customerConfigs?.find(c => c.codeId === companyId);
+    const existingConfig = customerEntry?.configuration;
     setConfigData(existingConfig || { discountPercentage: 0 });
+    setConfigGroupID(customerEntry?.groupID || '');
     setConfiguringCustomer(account);
     setIsConfigModalOpen(true);
   };
@@ -212,7 +225,12 @@ const UserForm = () => {
     if (!configuringCustomer) return;
     const loadingToast = toast.loading('Saving configuration...');
     try {
-      await updateCustomerConfiguration(configuringCustomer._id, configData);
+      // Backend accepts groupID alongside configuration fields in one call (Step 4)
+      const payload: Partial<CustomerConfiguration> & { groupID?: string } = {
+        ...configData,
+        groupID: configGroupID, // empty string explicitly clears the group
+      };
+      await updateCustomerConfiguration(configuringCustomer._id, payload);
       toast.dismiss(loadingToast);
       toast.success('Configuration saved!');
       setIsConfigModalOpen(false);
@@ -227,8 +245,12 @@ const UserForm = () => {
   };
 
   const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setConfigData(prev => ({ ...prev, [name]: type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setConfigData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setConfigData(prev => ({ ...prev, [name]: type === 'number' ? (value === '' ? undefined : parseFloat(value)) : value }));
+    }
   };
 
   const handleConfigMultiSelectChange = (e: React.ChangeEvent<HTMLSelectElement>, field: keyof CustomerConfiguration) => {
@@ -251,9 +273,19 @@ const UserForm = () => {
           <div className="flex space-x-2">
             <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
-              <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
-                <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
-              </button>
+              <>
+                <button
+                  onClick={async () => {
+                    try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
+                  }}
+                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                >
+                  Export CSV
+                </button>
+                <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
+                  <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -419,32 +451,125 @@ const UserForm = () => {
             </Transition.Child>
             <div className="fixed inset-0 flex items-center justify-center p-4">
               <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100">
-                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
-                  <Dialog.Title className="text-lg font-medium mb-4">Configuration for {configuringCustomer?.name}</Dialog.Title>
+                <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                  <Dialog.Title className="text-lg font-medium mb-4">Customer Settings — {configuringCustomer?.name}</Dialog.Title>
+
+                  {/* SEGMENT — primary mechanism, prominent at top */}
+                  <div className="mb-6">
+                    <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Segment</h4>
+                    <div className="bg-teal-50 border border-teal-200 rounded-md p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Group</label>
+                      <select
+                        value={configGroupID}
+                        onChange={(e) => setConfigGroupID(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded bg-white"
+                      >
+                        <option value="">(no group — uses base prices)</option>
+                        {companyGroups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}{g.groupPriceDiscount ? ` — ${g.groupPriceDiscount}% off` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {companyGroups.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic mt-2">No groups defined. Add groups in Company Settings → Customer Groups.</p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-2">Group determines this customer&apos;s price discount and which restricted products they can see.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ADVANCED OVERRIDES — rare exceptions */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Advanced Overrides</h4>
+                    <p className="text-xs text-gray-500 italic mb-3">Optional. Override company defaults for this customer only. Leave fields blank to use defaults.</p>
+                  </div>
+
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium">Discount Percentage (%)</label>
-                      <input type="number" name="discountPercentage" value={configData.discountPercentage || ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 10.5" />
-                      <p className="text-xs text-gray-500">Leave blank to use company default.</p>
+                      <label className="block text-sm font-medium">Discount Percentage (%) <span className="text-xs text-gray-400">(overrides group discount)</span></label>
+                      <input type="number" name="discountPercentage" value={configData.discountPercentage ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 10.5" />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Credit Limit ($)</label>
+                      <input type="number" name="creditLimit" value={configData.creditLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Min Order Amount ($)</label>
+                        <input type="number" name="minOrderAmountLimit" value={configData.minOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Max Order Amount ($)</label>
+                        <input type="number" name="maxOrderAmountLimit" value={configData.maxOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no max" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Min Order Quantity</label>
+                        <input type="number" name="minOrderQuantityLimit" value={configData.minOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Max Order Quantity</label>
+                        <input type="number" name="maxOrderQuantityLimit" value={configData.maxOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no max" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Monthly Order Limit</label>
+                        <input type="number" name="monthlyOrderLimit" value={configData.monthlyOrderLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Yearly Order Limit</label>
+                        <input type="number" name="yearlyOrderLimit" value={configData.yearlyOrderLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Lead Time (days)</label>
+                      <input type="number" name="leadTime" value={configData.leadTime ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 3" />
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" name="quotesAllowed" checked={configData.quotesAllowed ?? true} onChange={handleConfigChange} className="rounded" />
+                        <span className="text-sm font-medium">Quotes Allowed</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" name="taxableGoods" checked={configData.taxableGoods ?? true} onChange={handleConfigChange} className="rounded" />
+                        <span className="text-sm font-medium">Taxable Goods</span>
+                      </label>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium">Allowed Payment Methods (Override)</label>
-                      <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-32 p-2 border rounded">
+                      <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-28 p-2 border rounded">
                         <option value="credit_card">Credit Card</option>
                         <option value="purchase_order">Purchase Order</option>
                         <option value="on_account">On Account</option>
                         <option value="stripe_pay">Stripe</option>
                       </select>
-                      <p className="text-xs text-gray-500">Select methods to override company defaults. If empty, defaults are used.</p>
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium">Allowed Delivery Methods (Override)</label>
-                      <select multiple name="deliveryMethods" value={configData.deliveryMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'deliveryMethods')} className="w-full h-24 p-2 border rounded">
+                      <select multiple name="deliveryMethods" value={configData.deliveryMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'deliveryMethods')} className="w-full h-20 p-2 border rounded">
                         <option value="pickup">Pickup</option>
                         <option value="dropoff">Dropoff</option>
                         <option value="shipping_out">Shipping Out</option>
                       </select>
-                      <p className="text-xs text-gray-500">Select methods to override company defaults. If empty, defaults are used.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium">Shipping Out Options (Override)</label>
+                      <select multiple name="shippingOutOptions" value={configData.shippingOutOptions || []} onChange={(e) => handleConfigMultiSelectChange(e, 'shippingOutOptions')} className="w-full h-16 p-2 border rounded">
+                        <option value="standard">Standard</option>
+                        <option value="express">Express</option>
+                      </select>
                     </div>
                   </div>
                   <div className="flex justify-end space-x-2 pt-6">

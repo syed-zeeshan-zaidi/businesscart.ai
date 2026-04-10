@@ -174,6 +174,28 @@
             } catch { return []; }
         },
 
+        async reorder(orderId) {
+            if (!this.token || !window.D2C_CART) return;
+            var orders = await this.getOrders();
+            var order = orders.find(function(o) { return (o._id || o.id) === orderId; });
+            if (!order || !order.items || order.items.length === 0) return;
+            window.D2C_CART.clear();
+            for (var i = 0; i < order.items.length; i++) {
+                var item = order.items[i];
+                window.D2C_CART.items.push({
+                    _id: item.productId,
+                    name: item.name,
+                    price: item.price,
+                    discountedPrice: item.discountedPrice || 0,
+                    image: item.image || '',
+                    quantity: item.quantity
+                });
+            }
+            window.D2C_CART.saveCart();
+            this.hideDashboard();
+            window.D2C_CART.showDrawer();
+        },
+
         createDashboardUI() {
             const overlay = document.createElement('div');
             overlay.id = 'customer-overlay';
@@ -1057,7 +1079,10 @@
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center">
                             <span class="dash-badge" style="background:${color}15; color:${color}">${o.status}</span>
-                            <span style="font-size:0.75rem; color:#94a3b8">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}</span>
+                            <div style="display:flex; align-items:center; gap:0.5rem">
+                                <span style="font-size:0.75rem; color:#94a3b8">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}</span>
+                                <button onclick="D2C_CUSTOMER.reorder('${o._id || o.id}')" style="font-size:0.75rem; color:var(--primary); font-weight:600; background:none; border:none; cursor:pointer; text-decoration:underline">Reorder</button>
+                            </div>
                         </div>
                     </div>`;
             }).join('')}

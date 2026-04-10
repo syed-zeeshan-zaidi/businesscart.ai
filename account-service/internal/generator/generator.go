@@ -48,13 +48,21 @@ type Attribute struct {
 	Value string `json:"value"`
 }
 
+type PriceTier struct {
+	MinQty int     `json:"minQty"`
+	Price  float64 `json:"price"`
+}
+
 type ProductData struct {
 	ID              string      `json:"_id,omitempty"`
 	Name            string      `json:"name"`
 	Description     string      `json:"description"`
 	Price           float64     `json:"price"`
 	DealPrice       float64     `json:"dealPrice,omitempty"`
+	DealStartDate   *time.Time  `json:"dealStartDate,omitempty"`
+	DealEndDate     *time.Time  `json:"dealEndDate,omitempty"`
 	DiscountedPrice float64     `json:"discountedPrice,omitempty"`
+	PriceTiers      []PriceTier `json:"priceTiers,omitempty"`
 	Images          []string    `json:"images,omitempty"`
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`
@@ -177,9 +185,16 @@ func (g *Generator) Generate(data StorefrontData) error {
 		}
 	}
 
-	// Deal products: products with DealPrice > 0
+	// Deal products: products with active deals (DealPrice > 0, within date range if set)
+	now := time.Now()
 	for _, p := range data.Products {
 		if p.DealPrice > 0 {
+			if p.DealStartDate != nil && p.DealStartDate.After(now) {
+				continue
+			}
+			if p.DealEndDate != nil && p.DealEndDate.Before(now) {
+				continue
+			}
 			data.DealProducts = append(data.DealProducts, p)
 		}
 	}
