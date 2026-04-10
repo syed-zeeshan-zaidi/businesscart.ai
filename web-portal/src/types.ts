@@ -59,6 +59,8 @@ export interface Product {
   description?: string;
   price: number;
   dealPrice?: number;
+  dealStartDate?: string;
+  dealEndDate?: string;
   discountedPrice?: number;
   sellerID: string;
   images?: string[];

@@ -36,7 +36,7 @@ const Industries: React.FC = () => {
       problem: 'D2C brands that have built their initial audience on platforms like Etsy, Amazon, or food delivery apps are losing a significant portion of their revenue to commissions and have no direct relationship with their customers.',
       solution: [
         'Create a commission-free, private e-commerce store that you control.',
-        'Own your customer data from day one, allowing you to build email lists and loyalty programs.',
+        'Own your customer data from day one. Export your customer list anytime — no platform lock-in.',
         'Create a unique, branded experience that tells your story and sets you apart from the competition.',
       ],
     },
@@ -46,7 +46,7 @@ const Industries: React.FC = () => {
       solution: [
         'Launch your own online ordering system for pickup and local delivery, with zero commission fees.',
         'Offer daily specials and promotions that you control.',
-        'Build a direct line of communication with your most loyal customers.',
+        'Customers receive order confirmations and updates directly from your store.',
       ],
     },
   ];

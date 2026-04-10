@@ -1,6 +1,6 @@
 // src/components/UserForm.tsx
 import React, { useState, useEffect } from 'react';
-import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration, getAccount } from '../api';
+import { getAccounts, register, updateAccount, deleteAccount, updateCustomerConfiguration, getAccount, exportCustomers } from '../api';
 import { Account, CustomerConfiguration, CustomerGroup } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
@@ -273,9 +273,19 @@ const UserForm = () => {
           <div className="flex space-x-2">
             <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
-              <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
-                <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
-              </button>
+              <>
+                <button
+                  onClick={async () => {
+                    try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
+                  }}
+                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                >
+                  Export CSV
+                </button>
+                <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
+                  <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
+                </button>
+              </>
             )}
           </div>
         </div>

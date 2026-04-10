@@ -175,8 +175,13 @@ const Catalog: React.FC = () => {
       });
       return nameMatch && companyMatch && categoryMatch && attributeMatch;
     }).map(product => {
-      if (product.dealPrice !== undefined && product.dealPrice !== null) {
-        return { ...product, discountedPrice: product.price * (1 - product.dealPrice / 100) };
+      if (product.dealPrice !== undefined && product.dealPrice !== null && product.dealPrice > 0) {
+        const now = new Date();
+        const dealActive = (!product.dealStartDate || new Date(product.dealStartDate) <= now) &&
+                           (!product.dealEndDate || new Date(product.dealEndDate) >= now);
+        if (dealActive) {
+          return { ...product, discountedPrice: product.price * (1 - product.dealPrice / 100) };
+        }
       }
       return product;
     });

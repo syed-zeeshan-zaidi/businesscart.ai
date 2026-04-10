@@ -175,6 +175,9 @@ func (h *LambdaHandler) handleAccounts(userClaim map[string]interface{}, request
 			return h.regenerateStorefront(userClaim, id, jwtToken)
 		}
 	}
+	if request.Path == "/accounts/export" && request.HTTPMethod == "GET" {
+		return h.exportCustomers(userClaim)
+	}
 	if request.Path == "/accounts" && request.HTTPMethod == "GET" {
 		return h.getAccounts(userClaim, request)
 	}
@@ -545,6 +548,53 @@ func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request ev
 	}
 
 	return h.successResponse(accounts, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
+	role, userID, err := extractClaim(userClaim)
+	if err != nil {
+		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
+	}
+	if role != storage.RoleCompany && role != storage.RoleAdmin {
+		return h.errorResponse(http.StatusForbidden, "Only company or admin can export"), nil
+	}
+
+	var filter bson.M
+	if role == storage.RoleAdmin {
+		filter = bson.M{"role": bson.M{"$in": []string{"customer", "b2c"}}}
+	} else {
+		filter = bson.M{"customer.customerConfigs.codeId": userID}
+	}
+
+	accounts, err := h.db.GetAccounts(filter)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve accounts"), nil
+	}
+
+	var b strings.Builder
+	b.WriteString("Name,Email,Role,Created\n")
+	for _, a := range accounts {
+		created := ""
+		if !a.CreatedAt.IsZero() {
+			created = a.CreatedAt.Format("2006-01-02")
+		}
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s\n",
+			strings.ReplaceAll(a.Name, ",", " "),
+			a.Email,
+			a.Role,
+			created,
+		))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":        "text/csv",
+			"Content-Disposition": "attachment; filename=customers.csv",
+			"Access-Control-Allow-Origin": h.requestOrigin,
+		},
+		Body: b.String(),
+	}, nil
 }
 
 func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id string) (events.APIGatewayProxyResponse, error) {

@@ -100,6 +100,16 @@ export const getAccounts = async (): Promise<Account[]> => {
   return response.data;
 };
 
+export const exportCustomers = async (): Promise<void> => {
+  const response = await api.get(`${API_URL}/accounts/export`, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'customers.csv';
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getAccount = async (id: string): Promise<Account> => {
   const response = await api.get(`${API_URL}/accounts/${id}`);
   return response.data;

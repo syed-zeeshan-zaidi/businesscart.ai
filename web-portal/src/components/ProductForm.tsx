@@ -244,6 +244,8 @@ const ProductForm = () => {
       name: product.name,
       price: product.price,
       dealPrice: product.dealPrice,
+      dealStartDate: product.dealStartDate,
+      dealEndDate: product.dealEndDate,
       description: product.description,
       sellerID: product.sellerID,
       images: product.images || [],
@@ -414,7 +416,18 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.dealPrice ? `${product.dealPrice}%` : 'N/A'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.dealPrice ? (
+                          <>
+                            {product.dealPrice}%
+                            {product.dealEndDate && (
+                              <span className={`ml-1 text-xs ${new Date(product.dealEndDate) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                                {new Date(product.dealEndDate) < new Date() ? '(expired)' : `(until ${new Date(product.dealEndDate).toLocaleDateString()})`}
+                              </span>
+                            )}
+                          </>
+                        ) : 'N/A'}
+                      </td>
 
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -601,6 +614,32 @@ const ProductForm = () => {
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
+                      {formData.dealPrice && formData.dealPrice > 0 && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Deal Start Date</label>
+                            <input
+                              name="dealStartDate"
+                              type="datetime-local"
+                              value={formData.dealStartDate ? new Date(formData.dealStartDate).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, dealStartDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for immediate start.</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Deal End Date</label>
+                            <input
+                              name="dealEndDate"
+                              type="datetime-local"
+                              value={formData.dealEndDate ? new Date(formData.dealEndDate).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setFormData({ ...formData, dealEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for no expiry.</p>
+                          </div>
+                        </div>
+                      )}
                       {/* Price Tiers */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>

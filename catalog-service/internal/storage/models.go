@@ -23,6 +23,8 @@ type Product struct {
 	Description     string             `bson:"description,omitempty" json:"description,omitempty"`
 	Price           float64            `bson:"price" json:"price"`
 	DealPrice       float64            `bson:"dealPrice,omitempty" json:"dealPrice,omitempty" validate:"gte=0,lte=50"`
+	DealStartDate   *time.Time         `bson:"dealStartDate,omitempty" json:"dealStartDate,omitempty"`
+	DealEndDate     *time.Time         `bson:"dealEndDate,omitempty" json:"dealEndDate,omitempty"`
 	DiscountedPrice float64            `bson:"-" json:"discountedPrice,omitempty"`
 	SellerID        string             `bson:"sellerID" json:"sellerID"`
 	Images          []string           `bson:"images,omitempty" json:"images,omitempty"`
