@@ -400,25 +400,6 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		}
 		updates["dealPrice"] = n
 	}
-	// Coerce deal date strings to time.Time
-	if ds, ok := updates["dealStartDate"].(string); ok {
-		if ds == "" {
-			delete(updates, "dealStartDate")
-		} else if t, err := time.Parse(time.RFC3339, ds); err == nil {
-			updates["dealStartDate"] = t
-		} else {
-			return h.errorResponse(http.StatusBadRequest, "Invalid dealStartDate, use RFC3339 format"), nil
-		}
-	}
-	if de, ok := updates["dealEndDate"].(string); ok {
-		if de == "" {
-			delete(updates, "dealEndDate")
-		} else if t, err := time.Parse(time.RFC3339, de); err == nil {
-			updates["dealEndDate"] = t
-		} else {
-			return h.errorResponse(http.StatusBadRequest, "Invalid dealEndDate, use RFC3339 format"), nil
-		}
-	}
 	// Coerce booleans
 	if active, ok := updates["active"].(string); ok {
 		updates["active"] = active == "true"
@@ -478,6 +459,28 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 			} else {
 				updates["groupIDs"] = cleaned
 			}
+		}
+	}
+
+	// Coerce deal date strings to time.Time (empty → $unset from MongoDB)
+	if ds, ok := updates["dealStartDate"].(string); ok {
+		if ds == "" {
+			delete(updates, "dealStartDate")
+			unsetFields["dealStartDate"] = ""
+		} else if t, err := time.Parse(time.RFC3339, ds); err == nil {
+			updates["dealStartDate"] = t
+		} else {
+			return h.errorResponse(http.StatusBadRequest, "Invalid dealStartDate, use RFC3339 format"), nil
+		}
+	}
+	if de, ok := updates["dealEndDate"].(string); ok {
+		if de == "" {
+			delete(updates, "dealEndDate")
+			unsetFields["dealEndDate"] = ""
+		} else if t, err := time.Parse(time.RFC3339, de); err == nil {
+			updates["dealEndDate"] = t
+		} else {
+			return h.errorResponse(http.StatusBadRequest, "Invalid dealEndDate, use RFC3339 format"), nil
 		}
 	}
 

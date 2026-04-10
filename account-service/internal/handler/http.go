@@ -578,12 +578,9 @@ func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (event
 		if !a.CreatedAt.IsZero() {
 			created = a.CreatedAt.Format("2006-01-02")
 		}
-		b.WriteString(fmt.Sprintf("%s,%s,%s,%s\n",
-			strings.ReplaceAll(a.Name, ",", " "),
-			a.Email,
-			a.Role,
-			created,
-		))
+		name := strings.ReplaceAll(a.Name, ",", " ")
+		email := strings.ReplaceAll(a.Email, ",", " ")
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s\n", name, email, a.Role, created))
 	}
 
 	return events.APIGatewayProxyResponse{
