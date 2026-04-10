@@ -1200,6 +1200,91 @@ class BackendFlowTest:
 
         self.run_test("D2C storefront: minimal payload, tax charged", test_storefront_minimal)
 
+    # ── Phase 8b: Time-based deals & CSV export ──────────────────
+
+    def phase8b_deals_and_export(self):
+        phase("PHASE 8b: Time-Based Deals & CSV Export")
+
+        c1_id = self.ids["company1"]
+        product_a = self.product_ids["company1"][0]
+
+        def test_active_deal():
+            """Set deal with future end date → deal should be active"""
+            self.use_token("company1")
+            from datetime import datetime, timedelta, timezone
+            start = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            end = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            resp = self.api.put(f"/products/{product_a}", {
+                "dealPrice": 15,
+                "dealStartDate": start,
+                "dealEndDate": end,
+            })
+            assert_status(resp, 200, "Set active deal with dates")
+
+            # Customer should see dealPrice on this product
+            self.use_token("customer")
+            resp = self.api.get(f"/products/{product_a}")
+            assert_status(resp, 200, "Get product as customer")
+            data = resp.json()
+            assert data.get("dealPrice") == 15, f"Expected dealPrice=15, got {data.get('dealPrice')}"
+            assert data.get("dealEndDate") is not None, "Expected dealEndDate to be set"
+            ok(f"Active deal: dealPrice={data['dealPrice']}%, ends={data['dealEndDate'][:10]}")
+
+        self.run_test("Active deal with date range", test_active_deal)
+
+        def test_expired_deal():
+            """Set deal with past end date → product still has dealPrice but dates indicate expired"""
+            self.use_token("company1")
+            from datetime import datetime, timedelta, timezone
+            start = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            end = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            resp = self.api.put(f"/products/{product_a}", {
+                "dealPrice": 10,
+                "dealStartDate": start,
+                "dealEndDate": end,
+            })
+            assert_status(resp, 200, "Set expired deal")
+
+            # Product still has dealPrice in DB, but frontend/storefront filters it out
+            self.use_token("customer")
+            resp = self.api.get(f"/products/{product_a}")
+            assert_status(resp, 200, "Get product with expired deal")
+            data = resp.json()
+            assert data.get("dealPrice") == 10, f"Expected dealPrice=10, got {data.get('dealPrice')}"
+            # Verify end date is in the past
+            from datetime import datetime, timezone
+            end_dt = datetime.fromisoformat(data["dealEndDate"].replace("Z", "+00:00"))
+            assert end_dt < datetime.now(timezone.utc), "Expected dealEndDate in the past"
+            ok(f"Expired deal stored: dealPrice={data['dealPrice']}%, ended={data['dealEndDate'][:10]}")
+
+        self.run_test("Expired deal (stored but filtered client-side)", test_expired_deal)
+
+        def test_clear_deal():
+            """Clear deal dates and price"""
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{product_a}", {
+                "dealPrice": 0,
+                "dealStartDate": "",
+                "dealEndDate": "",
+            })
+            assert_status(resp, 200, "Clear deal")
+            ok("Deal cleared")
+
+        self.run_test("Clear deal dates", test_clear_deal)
+
+        def test_csv_export():
+            """Company exports customer list as CSV"""
+            self.use_token("company1")
+            resp = self.api.get("/accounts/export")
+            assert_status(resp, 200, "CSV export")
+            body = resp.text
+            assert "Name,Email,Role,Created" in body, f"Expected CSV header, got: {body[:100]}"
+            lines = [l for l in body.strip().split("\n") if l]
+            assert len(lines) >= 2, f"Expected at least header + 1 row, got {len(lines)} lines"
+            ok(f"CSV export: {len(lines) - 1} customer rows")
+
+        self.run_test("Customer CSV export (company)", test_csv_export)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -1347,6 +1432,7 @@ class BackendFlowTest:
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()
+            self.phase8b_deals_and_export()
         finally:
             self.cleanup()
 
