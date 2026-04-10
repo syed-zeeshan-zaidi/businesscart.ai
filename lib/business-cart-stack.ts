@@ -314,6 +314,11 @@ export class BusinessCartStack extends cdk.Stack {
         }),
       ],
       destinationBucket: portalBucket,
+      cacheControl: [
+        s3deploy.CacheControl.maxAge(cdk.Duration.hours(1)),
+        s3deploy.CacheControl.setPublic(),
+      ],
+      prune: false,
     });
     new cdk.CfnOutput(this, 'ViteApiUrlFromSsm', { value: viteApiUrl });
 
