@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
+	mailer "business-cart/account-service/internal/email"
 	"business-cart/account-service/internal/handler"
 	"business-cart/account-service/internal/storage"
 
@@ -28,6 +30,16 @@ func main() {
 
 	d2cBucketName := os.Getenv("D2C_BUCKET_NAME")
 	d2cDistributionId := os.Getenv("D2C_DISTRIBUTION_ID")
-	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId)
+
+	// Email sender — uses SMTP (stdlib net/smtp). Falls back to no-op if any config missing.
+	emailSender := mailer.NewSender(context.Background(), mailer.Config{
+		From:     os.Getenv("EMAIL_FROM_ADDRESS"),
+		Host:     os.Getenv("EMAIL_SMTP_HOST"),
+		Port:     os.Getenv("EMAIL_SMTP_PORT"),
+		Username: os.Getenv("EMAIL_SMTP_USERNAME"),
+		Password: os.Getenv("EMAIL_SMTP_PASSWORD"),
+	})
+
+	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId, emailSender)
 	lambda.Start(h.HandleRequest)
 }

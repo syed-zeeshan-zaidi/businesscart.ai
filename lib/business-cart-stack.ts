@@ -28,6 +28,33 @@ export class BusinessCartStack extends cdk.Stack {
     const jwtSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_SECRET`);
     const jwtRefreshSecret = ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/JWT_REFRESH_SECRET`);
 
+    // Email/SMTP config — local stage uses empty (no-op sender), other stages read from SSM.
+    // Same pattern as JWT_SECRET, MONGO_URI, CORS_ALLOWED_ORIGINS above.
+    // Before deploying to a non-local stage, create these 5 SSM parameters:
+    //   /BusinessCart/{stage}/EMAIL_FROM_ADDRESS    e.g., "noreply@businesscart.ai"
+    //   /BusinessCart/{stage}/EMAIL_SMTP_HOST       e.g., "email-smtp.us-east-1.amazonaws.com"
+    //   /BusinessCart/{stage}/EMAIL_SMTP_PORT       e.g., "587"
+    //   /BusinessCart/{stage}/EMAIL_SMTP_USERNAME   SES SMTP username
+    //   /BusinessCart/{stage}/EMAIL_SMTP_PASSWORD   SES SMTP password
+    // If you're not ready to send real emails, set the values to empty strings —
+    // the Lambda code falls back to a no-op sender automatically.
+    // See process_email_setup.md for full setup instructions.
+    const emailFromAddress = props.stage === 'local'
+      ? ''
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_FROM_ADDRESS`);
+    const emailSmtpHost = props.stage === 'local'
+      ? ''
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_SMTP_HOST`);
+    const emailSmtpPort = props.stage === 'local'
+      ? ''
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_SMTP_PORT`);
+    const emailSmtpUsername = props.stage === 'local'
+      ? ''
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_SMTP_USERNAME`);
+    const emailSmtpPassword = props.stage === 'local'
+      ? ''
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_SMTP_PASSWORD`);
+
     const corsAllowedOrigins =
       props.stage === 'local'
         ? '*'
@@ -56,6 +83,12 @@ export class BusinessCartStack extends cdk.Stack {
         // Define CATALOG_SERVICE_URL based on the stage
         CATALOG_SERVICE_URL: props.stage === 'local' ? 'http://host.docker.internal:3000' : catalogServiceUrlFromSsm,
         API_BASE_URL: props.stage === 'local' ? 'http://localhost:3000' : catalogServiceUrlFromSsm,
+        // Email/SMTP — optional. Empty values trigger no-op sender (graceful local dev).
+        EMAIL_FROM_ADDRESS: emailFromAddress,
+        EMAIL_SMTP_HOST: emailSmtpHost,
+        EMAIL_SMTP_PORT: emailSmtpPort,
+        EMAIL_SMTP_USERNAME: emailSmtpUsername,
+        EMAIL_SMTP_PASSWORD: emailSmtpPassword,
       },
     };
 

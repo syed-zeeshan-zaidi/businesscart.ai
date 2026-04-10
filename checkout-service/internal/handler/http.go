@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/syed/businesscart/checkout-service/internal/cart"
+	mailer "github.com/syed/businesscart/checkout-service/internal/email"
 	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/order"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
@@ -60,18 +61,20 @@ type PatchRequest struct {
 
 // LambdaHandler handles AWS Lambda requests.
 type LambdaHandler struct {
-	requestOrigin   string
-	cartService     *cart.Service
-	quoteService    *quote.Service
-	orderService    *order.Service
-	gatewayStore    *gateway.Store
-	gatewayRegistry *gateway.Registry
-	jwtSecret       string
-	apiBaseURL      string
+	requestOrigin    string
+	requestUserEmail string // set per-request from JWT
+	cartService      *cart.Service
+	quoteService     *quote.Service
+	orderService     *order.Service
+	gatewayStore     *gateway.Store
+	gatewayRegistry  *gateway.Registry
+	jwtSecret        string
+	apiBaseURL       string
+	emailSender      mailer.Sender
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
 		cartService:     cartService,
 		quoteService:    quoteService,
@@ -80,6 +83,7 @@ func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, or
 		gatewayRegistry: gatewayRegistry,
 		jwtSecret:       jwtSecret,
 		apiBaseURL:      apiBaseURL,
+		emailSender:     emailSender,
 	}
 }
 
@@ -139,6 +143,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: Role missing"), nil
 	}
+
+	// Capture email for outbound notifications. Optional — not all tokens have it.
+	h.requestUserEmail, _ = userClaim["email"].(string)
 
 	// Add this block to safely extract associate_company_ids
 	var associateCompanyIDs []string
@@ -600,6 +607,28 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 		_ = h.quoteService.DeleteQuote(q.ID.Hex())
 	}
 
+	// Non-blocking order confirmation email to the customer.
+	if h.emailSender != nil && h.requestUserEmail != "" {
+		items := make([]mailer.OrderItemView, 0, len(createdOrder.Items))
+		for _, it := range createdOrder.Items {
+			items = append(items, mailer.OrderItemView{
+				Name:     it.Name,
+				Quantity: it.Quantity,
+				Price:    it.Price,
+			})
+		}
+		go func(to, oid string, total float64, its []mailer.OrderItemView) {
+			msg := mailer.OrderConfirmationMessage(to, mailer.OrderConfirmationData{
+				OrderID:    oid,
+				GrandTotal: total,
+				Items:      its,
+			})
+			if err := h.emailSender.Send(context.Background(), msg); err != nil {
+				log.Printf("WARN: order confirmation email failed for %s: %v", to, err)
+			}
+		}(h.requestUserEmail, createdOrder.ID.Hex(), createdOrder.GrandTotal, items)
+	}
+
 	return h.successResponse(createdOrder), nil
 }
 
@@ -837,6 +866,17 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
+	}
+
+	// Non-blocking quote-requested email — only for negotiable quotes initiated by the customer.
+	// Standard quotes go straight to checkout and are confirmed via the order email instead.
+	if h.emailSender != nil && h.requestUserEmail != "" && req.QuoteType == "negotiable" && role == "customer" {
+		go func(to, qid string) {
+			msg := mailer.QuoteRequestedMessage(to, mailer.QuoteRequestedData{QuoteID: qid})
+			if err := h.emailSender.Send(context.Background(), msg); err != nil {
+				log.Printf("WARN: quote requested email failed for %s: %v", to, err)
+			}
+		}(h.requestUserEmail, createdQuote.ID.Hex())
 	}
 
 	respBody, _ := json.Marshal(createdQuote)

@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"business-cart/account-service/internal/auth"
+	mailer "business-cart/account-service/internal/email"
 	"business-cart/account-service/internal/generator"
 	"business-cart/account-service/internal/storage"
 
@@ -31,21 +32,23 @@ import (
 const MaxCustomerGroups = 5
 
 type LambdaHandler struct {
-	db               *storage.DB
-	jwtSecret        string
-	jwtRefreshSecret string
-	d2cBucketName      string
-	d2cDistributionId  string
-	requestOrigin      string // set per-request from Origin header
+	db                *storage.DB
+	jwtSecret         string
+	jwtRefreshSecret  string
+	d2cBucketName     string
+	d2cDistributionId string
+	emailSender       mailer.Sender
+	requestOrigin     string // set per-request from Origin header
 }
 
-func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string) *LambdaHandler {
+func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
-		db:                 db,
-		jwtSecret:          jwtSecret,
-		jwtRefreshSecret:   jwtRefreshSecret,
-		d2cBucketName:      d2cBucketName,
-		d2cDistributionId:  d2cDistributionId,
+		db:                db,
+		jwtSecret:         jwtSecret,
+		jwtRefreshSecret:  jwtRefreshSecret,
+		d2cBucketName:     d2cBucketName,
+		d2cDistributionId: d2cDistributionId,
+		emailSender:       emailSender,
 	}
 }
 
@@ -375,6 +378,16 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		log.Printf("Failed to create account: %v", err)
 		return h.errorResponse(http.StatusInternalServerError, "failed to create account"), nil
 	}
+
+	// Non-blocking welcome email — failure is logged but never blocks registration.
+	if h.emailSender != nil {
+		go func(name, addr string) {
+			if err := h.emailSender.Send(context.Background(), mailer.WelcomeMessage(name, addr)); err != nil {
+				log.Printf("WARN: welcome email failed for %s: %v", addr, err)
+			}
+		}(acc.Name, acc.Email)
+	}
+
 	return h.successResponse(acc, http.StatusCreated), nil
 }
 
