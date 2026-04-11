@@ -189,7 +189,7 @@ export class BusinessCartStack extends cdk.Stack {
       },
     });
 
-    const accountInteg = new apigw.LambdaIntegration(accountService);
+    const accountInteg = new apigw.LambdaIntegration(accountService, { allowTestInvoke: false });
 
     const accountsRoot = api.root.addResource('accounts');
     accountsRoot.addResource('register').addMethod('POST', accountInteg);
@@ -231,7 +231,7 @@ export class BusinessCartStack extends cdk.Stack {
     const visitorStats = visitors.addResource('stats');
     visitorStats.addMethod('GET', accountInteg);
 
-    const catalogInteg = new apigw.LambdaIntegration(catalogService);
+    const catalogInteg = new apigw.LambdaIntegration(catalogService, { allowTestInvoke: false });
     const products = api.root.addResource('products');
     products.addMethod('POST', catalogInteg);
     products.addMethod('GET', catalogInteg);
@@ -242,7 +242,7 @@ export class BusinessCartStack extends cdk.Stack {
     productId.addMethod('PUT', catalogInteg);
     productId.addMethod('DELETE', catalogInteg);
 
-    const checkoutInteg = new apigw.LambdaIntegration(checkoutService);
+    const checkoutInteg = new apigw.LambdaIntegration(checkoutService, { allowTestInvoke: false });
     const checkoutRoot = api.root.addResource('checkout');
     checkoutRoot.addMethod('POST', checkoutInteg);
     const cart = checkoutRoot.addResource('cart');
