@@ -156,6 +156,7 @@ type CompanyData struct {
 	Address        Address         `bson:"address" json:"address"` // Company's primary address
 	D2C            *D2CConfig      `bson:"d2c,omitempty" json:"d2c,omitempty"`
 	CustomerGroups []CustomerGroup `bson:"customerGroups,omitempty" json:"customerGroups,omitempty"`
+	Feeds          []string        `bson:"feeds,omitempty" json:"feeds,omitempty"`
 }
 
 // GetAccountCompaniesDataByIDs retrieves company data for multiple accounts by their IDs. Transactional data retrieval for accounts role customers.

@@ -804,6 +804,63 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
             </div>
           </Section>
 
+          {companyData.d2c?.enabled && (
+            <Section title="Shopping Channel Feeds" icon={<StorefrontIcon />}>
+              <p className="text-sm text-gray-500 mb-4">
+                Enable feeds to list your products on shopping channels. After enabling, copy the feed URL and submit it to the channel's merchant center.
+              </p>
+              <div className="space-y-3">
+                {['google', 'facebook', 'bing', 'pinterest', 'tiktok'].map((channel) => {
+                  const enabled = (companyData.feeds || []).includes(channel);
+                  const domain = companyData.d2c?.customDomain || companyData.d2c?.previewDomain;
+                  const prefixMap: Record<string, { prefix: string; ext: string; label: string }> = {
+                    google: { prefix: 'gs', ext: '.xml', label: 'Google Shopping' },
+                    facebook: { prefix: 'fb', ext: '.csv', label: 'Facebook / Instagram' },
+                    bing: { prefix: 'bg', ext: '.tsv', label: 'Bing / Microsoft' },
+                    pinterest: { prefix: 'pt', ext: '.csv', label: 'Pinterest' },
+                    tiktok: { prefix: 'tt', ext: '.csv', label: 'TikTok Shop' },
+                  };
+                  const info = prefixMap[channel];
+                  const feedUrl = domain && companyData.uniqueIdentifier
+                    ? `https://${domain}/feeds/${info.prefix}-${companyData.uniqueIdentifier}${info.ext}`
+                    : '';
+                  return (
+                    <div key={channel} className="flex items-center justify-between bg-white p-3 rounded-md border border-gray-200">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={() => {
+                            const current = companyData.feeds || [];
+                            const next = enabled
+                              ? current.filter((f: string) => f !== channel)
+                              : [...current, channel];
+                            setCompanyData(prev => ({ ...prev, feeds: next }));
+                          }}
+                          className="h-5 w-5 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm font-medium text-gray-800">{info.label}</span>
+                      </label>
+                      {enabled && feedUrl && (
+                        <div className="flex items-center space-x-2">
+                          <code className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded max-w-xs truncate">{feedUrl}</code>
+                          <button
+                            type="button"
+                            onClick={() => { navigator.clipboard.writeText(feedUrl); toast.success('Feed URL copied!'); }}
+                            className="text-xs text-teal-700 hover:text-teal-500 font-medium whitespace-nowrap"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-3">Feeds regenerate automatically when you update products. Save changes and regenerate storefront to create feed files.</p>
+            </Section>
+          )}
+
           <Section title="Payment & Delivery Options" icon={<PaymentIcon />}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <MultiSelect
