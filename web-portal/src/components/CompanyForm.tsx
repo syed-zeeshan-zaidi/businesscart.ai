@@ -813,12 +813,12 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                 {['google', 'facebook', 'bing', 'pinterest', 'tiktok'].map((channel) => {
                   const enabled = (companyData.feeds || []).includes(channel);
                   const domain = companyData.d2c?.customDomain || companyData.d2c?.previewDomain;
-                  const prefixMap: Record<string, { prefix: string; ext: string; label: string }> = {
-                    google: { prefix: 'gs', ext: '.xml', label: 'Google Shopping' },
-                    facebook: { prefix: 'fb', ext: '.csv', label: 'Facebook / Instagram' },
-                    bing: { prefix: 'bg', ext: '.tsv', label: 'Bing / Microsoft' },
-                    pinterest: { prefix: 'pt', ext: '.csv', label: 'Pinterest' },
-                    tiktok: { prefix: 'tt', ext: '.csv', label: 'TikTok Shop' },
+                  const prefixMap: Record<string, { prefix: string; ext: string; label: string; submitUrl: string }> = {
+                    google: { prefix: 'gs', ext: '.xml', label: 'Google Shopping', submitUrl: 'https://merchants.google.com/' },
+                    facebook: { prefix: 'fb', ext: '.csv', label: 'Facebook / Instagram', submitUrl: 'https://business.facebook.com/commerce/' },
+                    bing: { prefix: 'bg', ext: '.tsv', label: 'Bing / Microsoft', submitUrl: 'https://merchants.ads.microsoft.com/' },
+                    pinterest: { prefix: 'pt', ext: '.csv', label: 'Pinterest', submitUrl: 'https://business.pinterest.com/catalogs/' },
+                    tiktok: { prefix: 'tt', ext: '.csv', label: 'TikTok Shop', submitUrl: 'https://seller-us.tiktok.com/' },
                   };
                   const info = prefixMap[channel];
                   const feedUrl = domain && companyData.uniqueIdentifier
@@ -851,6 +851,14 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                           >
                             Copy
                           </button>
+                          <a
+                            href={info.submitUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-gray-400 hover:text-teal-500 font-medium whitespace-nowrap"
+                          >
+                            Submit &rarr;
+                          </a>
                         </div>
                       )}
                     </div>
