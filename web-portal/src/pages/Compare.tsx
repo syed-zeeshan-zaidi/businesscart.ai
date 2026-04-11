@@ -140,6 +140,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace-controlled</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Shopping Channel Feeds</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — Google, Facebook, Bing, Pinterest, TikTok</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-100/mo)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Requires plugin ($0-200/yr)</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Locked in — no feed export</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Customer-Company Association</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — code-based access control</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>

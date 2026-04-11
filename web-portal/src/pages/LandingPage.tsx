@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { BanknotesIcon, UserGroupIcon, PuzzlePieceIcon, CloudArrowUpIcon, CogIcon, ServerIcon, UserCircleIcon, AdjustmentsHorizontalIcon, CommandLineIcon, CpuChipIcon, CheckIcon, ClipboardDocumentListIcon, GlobeAltIcon, CubeIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, UserGroupIcon, PuzzlePieceIcon, CloudArrowUpIcon, CogIcon, ServerIcon, UserCircleIcon, AdjustmentsHorizontalIcon, CommandLineIcon, CpuChipIcon, CheckIcon, ClipboardDocumentListIcon, GlobeAltIcon, CubeIcon, ShareIcon } from '@heroicons/react/24/outline';
 import { ShoppingCartIcon } from '@heroicons/react/24/solid';
 
 const LandingPage: React.FC = () => {
@@ -325,11 +325,11 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CommandLineIcon className="h-6 w-6" />
+                  <ShareIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">AI & LLM Ready</h3>
+                <h3 className="mt-5 text-lg font-medium text-gray-900">AI, LLM & Shopping Channel Ready</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Your product catalog is structured for AI tools and voice assistants to understand — giving your store visibility in the next generation of search.
+                  Your catalog is structured for AI assistants, voice search, and shopping channels. Built-in feeds for Google Shopping, Facebook, Pinterest, TikTok, and Bing — no apps, no plugins, no extra cost.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center">
