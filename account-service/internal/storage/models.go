@@ -236,7 +236,9 @@ type Account struct {
 	CompanyData   *CompanyData       `bson:"company,omitempty" json:"company,omitempty"`
 	CustomerData  *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
 	PartnerData   *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
-	Address       *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
+	Address          *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
+	ResetToken       string             `bson:"resetToken,omitempty" json:"-"`
+	ResetTokenExpiry *time.Time         `bson:"resetTokenExpiry,omitempty" json:"-"`
 }
 
 // ---------- visitor analytics ----------

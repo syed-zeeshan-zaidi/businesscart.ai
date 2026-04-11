@@ -38,6 +38,39 @@ func WelcomeMessage(name, to string) Message {
 	}
 }
 
+// ───────────────────── Password Reset ─────────────────────
+
+// PasswordResetMessage builds the password reset email.
+func PasswordResetMessage(name, to, resetURL string) Message {
+	if name == "" {
+		name = "there"
+	}
+	return Message{
+		To:      to,
+		Subject: "Reset your password",
+		HTMLBody: renderHTML(passwordResetHTMLTmpl, struct {
+			Name     string
+			ResetURL string
+		}{name, resetURL}),
+		TextBody: fmt.Sprintf("Hi %s,\n\nWe received a request to reset your password.\n\nReset your password: %s\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— BusinessCart\n", name, resetURL),
+	}
+}
+
+const passwordResetHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Reset your password</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">Reset your password</h1>
+  <p style="font-size:16px;line-height:1.5">Hi {{.Name}}, we received a request to reset your password.</p>
+  <p style="margin:24px 0">
+    <a href="{{.ResetURL}}" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px">Reset Password</a>
+  </p>
+  <p style="font-size:14px;color:#64748b">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+</body>
+</html>`
+
 const welcomeHTMLTmpl = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><title>Welcome to BusinessCart</title></head>

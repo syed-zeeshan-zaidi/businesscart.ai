@@ -4,6 +4,7 @@ import { login } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { AxiosError } from 'axios';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const Login: React.FC = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -86,14 +88,19 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-            />
+            <div className="relative">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                className="mt-1 w-full p-2 pr-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
@@ -103,12 +110,15 @@ const handleSubmit = async (e: React.FormEvent) => {
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p className="text-center text-gray-600 mt-4">
-          Don’t have an account?{' '}
-          <Link to="/register" className="text-teal-700 hover:underline">
-            Register
-          </Link>
-        </p>
+        <div className="text-center mt-4 space-y-2">
+          <p className="text-sm">
+            <Link to="/forgot-password" className="text-teal-700 hover:underline">Forgot password?</Link>
+          </p>
+          <p className="text-gray-600">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-teal-700 hover:underline">Register</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

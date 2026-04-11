@@ -1143,7 +1143,8 @@
                             </div>
                             <div class="form-group">
                                 <label>Password</label>
-                                <input type="password" name="password" required placeholder="••••••••">
+                                ${this.pwField('password', '••••••••')}
+                                ${this.forgotLink()}
                             </div>
                             <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Sign In</button>
                         </form>
@@ -1186,7 +1187,14 @@
                     font-size: 1rem; transition: border-color 0.2s; box-sizing: border-box;
                 }
                 .form-group input:focus { outline: none; border-color: var(--primary); }
-                
+                .pw-wrapper { position: relative; }
+                .pw-wrapper input { padding-right: 2.5rem; }
+                .pw-toggle { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #94a3b8; padding: 0; }
+                .pw-toggle:hover { color: #475569; }
+                .forgot-link { text-align: right; margin-top: 0.25rem; }
+                .forgot-link a { font-size: 0.8rem; color: var(--primary); text-decoration: none; font-weight: 600; }
+                .forgot-link a:hover { text-decoration: underline; }
+
                 #customer-nav button:hover {
                     color: white !important;
                 }
@@ -1197,9 +1205,69 @@
             document.head.appendChild(style);
         },
 
+        togglePassword(btn) {
+            const input = btn.parentElement.querySelector('input');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            btn.innerHTML = isHidden
+                ? '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>'
+                : '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178a1.01 1.01 0 010 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>';
+        },
+
+        pwField(name, placeholder, minlength) {
+            const ml = minlength ? ` minlength="${minlength}"` : '';
+            return `<div class="pw-wrapper">
+                <input type="password" name="${name}" required placeholder="${placeholder}"${ml}>
+                <button type="button" class="pw-toggle" onclick="D2C_CUSTOMER.togglePassword(this)">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178a1.01 1.01 0 010 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
+            </div>`;
+        },
+
+        forgotLink() {
+            return `<div class="forgot-link"><a href="#" onclick="event.preventDefault(); D2C_CUSTOMER.toggleAuthMode('forgot')">Forgot password?</a></div>`;
+        },
+
+        async handleForgotPassword(e) {
+            e.preventDefault();
+            const email = new FormData(e.target).get('email');
+            if (!email) { this.showToast('Please enter your email', 'error'); return; }
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                await fetch(`${API_BASE}/accounts/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+            } catch (_) { /* always show success */ }
+            const safe = String(email).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const container = document.getElementById('auth-form-container');
+            container.innerHTML = `
+                <h2>Check Your Email</h2>
+                <p>If an account with <strong>${safe}</strong> exists, we've sent a password reset link.</p>
+                <p style="font-size:0.875rem; color:#64748b">The link expires in 1 hour.</p>
+                <button onclick="D2C_CUSTOMER.toggleAuthMode('login')" class="checkout-btn" style="width:100%; padding:1rem; margin-top:1.5rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Back to Sign In</button>
+            `;
+        },
+
         toggleAuthMode(mode) {
             const container = document.getElementById('auth-form-container');
-            if (mode === 'register') {
+            if (mode === 'forgot') {
+                container.innerHTML = `
+                    <h2>Reset Password</h2>
+                    <p>Enter your email and we'll send a reset link.</p>
+                    <form onsubmit="D2C_CUSTOMER.handleForgotPassword(event)">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" name="email" required placeholder="you@example.com">
+                        </div>
+                        <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Send Reset Link</button>
+                    </form>
+                    <p class="toggle-auth" style="text-align:center; margin-top:1.5rem; font-size:0.875rem"><a href="#" style="color:var(--primary); font-weight:700; text-decoration:none" onclick="D2C_CUSTOMER.toggleAuthMode('login')">Back to Sign In</a></p>
+                `;
+            } else if (mode === 'register') {
                 container.innerHTML = `
                     <h2>Join Us</h2>
                     <p>Create an account at ${window.D2C_CONFIG.companyName}</p>
@@ -1214,7 +1282,7 @@
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            <input type="password" name="password" required placeholder="••••••••" minlength="8">
+                            ${this.pwField('password', '••••••••', '8')}
                             <small style="color:#64748b;font-size:0.75rem">Min 8 characters with uppercase, lowercase, digit, and special character.</small>
                         </div>
                         <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Create Account</button>
@@ -1232,7 +1300,8 @@
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            <input type="password" name="password" required placeholder="••••••••">
+                            ${this.pwField('password', '••••••••')}
+                            ${this.forgotLink()}
                         </div>
                         <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Sign In</button>
                     </form>

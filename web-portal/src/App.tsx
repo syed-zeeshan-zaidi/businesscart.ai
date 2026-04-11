@@ -38,6 +38,8 @@ const QuoteDetailForm = lazy(() => import('./components/QuoteDetailForm'));
 const QuoteHistory = lazy(() => import('./pages/QuoteHistory'));
 const QuoteCreateForm = lazy(() => import('./components/QuoteCreateForm'));
 const Compare = lazy(() => import('./pages/Compare'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Industries = lazy(() => import('./pages/Industries'));
 const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
@@ -230,6 +232,8 @@ const AppContent = () => {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/industries" element={<Industries />} />
               <Route path="/blog" element={<Blog />} />

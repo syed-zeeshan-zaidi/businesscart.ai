@@ -136,6 +136,12 @@ func (db *DB) GetAccountByEmail(email string) (*Account, error) {
 	return &acc, err
 }
 
+func (db *DB) GetAccountByResetToken(token string) (*Account, error) {
+	var acc Account
+	err := db.accounts.FindOne(context.Background(), bson.M{"resetToken": token}).Decode(&acc)
+	return &acc, err
+}
+
 func (db *DB) GetAccountByID(id primitive.ObjectID) (*Account, error) {
 	var acc Account
 	err := db.accounts.FindOne(context.Background(), bson.M{"_id": id}).Decode(&acc)

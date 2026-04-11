@@ -38,6 +38,7 @@ const Industries: React.FC = () => {
         'Create a commission-free, private e-commerce store that you control.',
         'Own your customer data from day one. Export your customer list anytime — no platform lock-in.',
         'Create a unique, branded experience that tells your story and sets you apart from the competition.',
+        'List your products on Google Shopping, Facebook, Pinterest, and TikTok with built-in feeds — no apps or extra cost.',
       ],
     },
     {

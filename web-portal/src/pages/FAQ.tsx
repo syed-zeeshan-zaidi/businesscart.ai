@@ -143,6 +143,11 @@ const sections: Section[] = [
         question: 'What does "AI-ready" mean?',
         answer: 'Your storefront is built as plain HTML that AI assistants like ChatGPT, Google, and Alexa can read directly. Most e-commerce platforms use JavaScript to render products, which AI cannot read. Your store is visible to the next generation of shopping — AI-powered discovery and voice search.',
       },
+      {
+        id: 'shopping-feeds',
+        question: 'How do I list my products on Google Shopping, Facebook, Pinterest, etc.?',
+        answer: 'Go to your company settings and enable the shopping channels you want. BusinessCart auto-generates product feeds for Google Shopping, Facebook/Instagram, Bing, Pinterest, and TikTok. Copy the feed URL and submit it to each channel\'s merchant center — feeds update automatically whenever you update products. No apps, no plugins, no extra cost.',
+      },
     ],
   },
   {

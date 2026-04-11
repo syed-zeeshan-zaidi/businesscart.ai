@@ -1285,6 +1285,54 @@ class BackendFlowTest:
 
         self.run_test("Customer CSV export (company)", test_csv_export)
 
+    # ── Phase 8c: Password reset & email case ───────────────────
+
+    def phase8c_password_reset(self):
+        phase("PHASE 8c: Password Reset & Email Case")
+
+        def test_forgot_password():
+            """Forgot password returns 200 with generic message"""
+            resp = self.api.post("/accounts/forgot-password", {
+                "email": USERS["customer"]["email"]
+            })
+            assert_status(resp, 200, "Forgot password")
+            msg = resp.json().get("message", "")
+            assert "If an account" in msg, f"Expected generic message, got: {msg}"
+            ok(f"Forgot password: {msg[:60]}")
+
+        self.run_test("Forgot password endpoint", test_forgot_password)
+
+        def test_forgot_nonexistent():
+            """Forgot password with unknown email still returns 200 (no enumeration)"""
+            resp = self.api.post("/accounts/forgot-password", {
+                "email": "nonexistent@nowhere.com"
+            })
+            assert_status(resp, 200, "Forgot password (nonexistent)")
+            ok("Nonexistent email returns 200 (no enumeration)")
+
+        self.run_test("Forgot password no enumeration", test_forgot_nonexistent)
+
+        def test_reset_bad_token():
+            """Reset password with invalid token returns 400"""
+            resp = self.api.post("/accounts/reset-password", {
+                "token": "invalidtoken123",
+                "password": "New@Secure1"
+            })
+            assert_status(resp, 400, "Reset bad token")
+            ok("Bad token rejected")
+
+        self.run_test("Reset password bad token", test_reset_bad_token)
+
+        def test_email_case_login():
+            """Login with different case should work (email normalized)"""
+            email = USERS["customer"]["email"]
+            upper = email.upper()
+            resp = self.api.post("/accounts/login", {"email": upper, "password": PASSWORD})
+            assert_status(resp, 200, "Login with uppercase email")
+            ok(f"Login with {upper} works (normalized to lowercase)")
+
+        self.run_test("Email case-insensitive login", test_email_case_login)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -1433,6 +1481,7 @@ class BackendFlowTest:
             self.phase7_company_side()
             self.phase8_storefront()
             self.phase8b_deals_and_export()
+            self.phase8c_password_reset()
         finally:
             self.cleanup()
 

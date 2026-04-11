@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -79,6 +81,14 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	case "/accounts/logout":
 		if request.HTTPMethod == "POST" {
 			return h.logoutUser(request)
+		}
+	case "/accounts/forgot-password":
+		if request.HTTPMethod == "POST" {
+			return h.forgotPassword(request)
+		}
+	case "/accounts/reset-password":
+		if request.HTTPMethod == "POST" {
+			return h.resetPassword(request)
 		}
 	case "/visitors/event":
 		if request.HTTPMethod == "POST" {
@@ -273,7 +283,7 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	}
 
 	// Check for duplicate email
-	email := strings.TrimSpace(req.Email)
+	email := strings.TrimSpace(strings.ToLower(req.Email))
 	if email == "" {
 		return h.errorResponse(http.StatusBadRequest, "Email is required"), nil
 	}
@@ -294,7 +304,7 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	acc := &storage.Account{
 		ID:            primitive.NewObjectID(),
 		Name:          strings.TrimSpace(req.Name),
-		Email:         strings.TrimSpace(req.Email),
+		Email:         email,
 		PhoneNumber:   strings.TrimSpace(req.PhoneNumber),
 		Password:      hashedPassword,
 		Role:          req.Role,
@@ -400,6 +410,7 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
 	}
 
+	creds.Email = strings.TrimSpace(strings.ToLower(creds.Email))
 	user, err := h.db.GetAccountByEmail(creds.Email)
 	if err != nil || !auth.CheckPasswordHash(creds.Password, user.Password) {
 		return h.errorResponse(http.StatusUnauthorized, "Invalid credentials"), nil
@@ -509,6 +520,124 @@ func (h *LambdaHandler) logoutUser(request events.APIGatewayProxyRequest) (event
 	// In a stateless Lambda architecture, logout is primarily a client-side operation (deleting the token).
 	// A stateful implementation would involve a token blacklist.
 	return h.successResponse(map[string]string{"message": "Logged out"}, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) forgotPassword(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+	if req.Email == "" {
+		return h.errorResponse(http.StatusBadRequest, "Email is required"), nil
+	}
+
+	// Always return success to prevent email enumeration
+	successMsg := map[string]string{"message": "If an account with that email exists, a reset link has been sent."}
+
+	acc, err := h.db.GetAccountByEmail(req.Email)
+	if err != nil {
+		return h.successResponse(successMsg, http.StatusOK), nil
+	}
+
+	// Generate 32-byte random token
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		log.Printf("WARN: failed to generate reset token: %v", err)
+		return h.successResponse(successMsg, http.StatusOK), nil
+	}
+	token := hex.EncodeToString(tokenBytes)
+	expiry := time.Now().Add(1 * time.Hour)
+
+	// Store token + expiry on account
+	if err := h.db.UpdateAccount(acc.ID, map[string]interface{}{
+		"resetToken":       token,
+		"resetTokenExpiry": expiry,
+	}); err != nil {
+		log.Printf("WARN: failed to save reset token for %s: %v", req.Email, err)
+		return h.successResponse(successMsg, http.StatusOK), nil
+	}
+
+	// Determine reset URL based on request origin
+	origin := h.requestOrigin
+	if origin == "" {
+		origin = "https://businesscart.ai"
+	}
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", origin, token)
+
+	// Non-blocking email — failure is logged but never blocks response
+	if h.emailSender != nil {
+		go func(name, addr, url string) {
+			if err := h.emailSender.Send(context.Background(), mailer.PasswordResetMessage(name, addr, url)); err != nil {
+				log.Printf("WARN: password reset email failed for %s: %v", addr, err)
+			}
+		}(acc.Name, acc.Email, resetURL)
+	}
+
+	return h.successResponse(successMsg, http.StatusOK), nil
+}
+
+func (h *LambdaHandler) resetPassword(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	var req struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+	if req.Token == "" || req.Password == "" {
+		return h.errorResponse(http.StatusBadRequest, "Token and password are required"), nil
+	}
+
+	// Validate password strength (same rules as registration)
+	if len(req.Password) < 8 {
+		return h.errorResponse(http.StatusBadRequest, "Password must be at least 8 characters"), nil
+	}
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, c := range req.Password {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsDigit(c):
+			hasDigit = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
+		return h.errorResponse(http.StatusBadRequest, "Password must contain uppercase, lowercase, digit, and special character"), nil
+	}
+
+	// Find account by reset token
+	acc, err := h.db.GetAccountByResetToken(req.Token)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid or expired reset token"), nil
+	}
+
+	// Check expiry
+	if acc.ResetTokenExpiry == nil || acc.ResetTokenExpiry.Before(time.Now()) {
+		return h.errorResponse(http.StatusBadRequest, "Invalid or expired reset token"), nil
+	}
+
+	// Hash new password
+	hashed, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to process password"), nil
+	}
+
+	// Update password and clear reset token
+	if err := h.db.UpdateAccount(acc.ID,
+		map[string]interface{}{"password": hashed},
+		map[string]interface{}{"resetToken": "", "resetTokenExpiry": ""},
+	); err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to update password"), nil
+	}
+
+	return h.successResponse(map[string]string{"message": "Password has been reset successfully."}, http.StatusOK), nil
 }
 
 // --- Protected Handlers ---

@@ -348,6 +348,18 @@ Every storefront automatically includes:
 - Customer login, registration, and order history
 - Mobile-responsive design
 
+### Multi-Channel Shopping Feeds
+
+Companies can enable auto-generated product feeds for shopping channels. Feeds regenerate automatically when products are updated.
+
+- **Google Shopping** — XML (RSS 2.0 with Google namespace)
+- **Facebook / Instagram** — CSV (Meta Commerce Manager format)
+- **Bing / Microsoft** — TSV (Microsoft Merchant Center format)
+- **Pinterest** — CSV (Pinterest Catalog format)
+- **TikTok Shop** — CSV (TikTok product catalog format)
+
+Each feed uses unguessable URLs unique to the company. No apps, plugins, or extra cost — built into the platform.
+
 ---
 
 ## Pillar 4: AI-Powered Operations (Premium, Coming Soon)
