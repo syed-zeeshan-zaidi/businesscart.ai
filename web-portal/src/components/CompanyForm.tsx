@@ -420,7 +420,11 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     setIsGenerating(true);
     try {
       await regenerateStorefront(account._id);
-      toast.success('Storefront generation triggered successfully!');
+      const feedCount = (companyData.feeds || []).length;
+      toast.success(feedCount > 0
+        ? `Storefront and ${feedCount} feed(s) generated successfully!`
+        : 'Storefront generation triggered successfully!'
+      );
       // It's a background process, so we might want to refresh the account data later
       // or just let the user know it's in progress.
       // For now, let's just refresh the account data after a short delay

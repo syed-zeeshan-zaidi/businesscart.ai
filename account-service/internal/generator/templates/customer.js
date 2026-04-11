@@ -1225,12 +1225,49 @@
         },
 
         forgotLink() {
-            return `<div class="forgot-link"><a href="https://businesscart.ai/forgot-password" target="_blank">Forgot password?</a></div>`;
+            return `<div class="forgot-link"><a href="#" onclick="event.preventDefault(); D2C_CUSTOMER.toggleAuthMode('forgot')">Forgot password?</a></div>`;
+        },
+
+        async handleForgotPassword(e) {
+            e.preventDefault();
+            const email = new FormData(e.target).get('email');
+            if (!email) { this.showToast('Please enter your email', 'error'); return; }
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                await fetch(`${API_BASE}/accounts/forgot-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+            } catch (_) { /* always show success */ }
+            const safe = String(email).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const container = document.getElementById('auth-form-container');
+            container.innerHTML = `
+                <h2>Check Your Email</h2>
+                <p>If an account with <strong>${safe}</strong> exists, we've sent a password reset link.</p>
+                <p style="font-size:0.875rem; color:#64748b">The link expires in 1 hour.</p>
+                <button onclick="D2C_CUSTOMER.toggleAuthMode('login')" class="checkout-btn" style="width:100%; padding:1rem; margin-top:1.5rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Back to Sign In</button>
+            `;
         },
 
         toggleAuthMode(mode) {
             const container = document.getElementById('auth-form-container');
-            if (mode === 'register') {
+            if (mode === 'forgot') {
+                container.innerHTML = `
+                    <h2>Reset Password</h2>
+                    <p>Enter your email and we'll send a reset link.</p>
+                    <form onsubmit="D2C_CUSTOMER.handleForgotPassword(event)">
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" name="email" required placeholder="you@example.com">
+                        </div>
+                        <button type="submit" class="checkout-btn" style="width:100%; padding:1rem; background:var(--primary); color:white; border:none; border-radius:12px; font-weight:700; cursor:pointer">Send Reset Link</button>
+                    </form>
+                    <p class="toggle-auth" style="text-align:center; margin-top:1.5rem; font-size:0.875rem"><a href="#" style="color:var(--primary); font-weight:700; text-decoration:none" onclick="D2C_CUSTOMER.toggleAuthMode('login')">Back to Sign In</a></p>
+                `;
+            } else if (mode === 'register') {
                 container.innerHTML = `
                     <h2>Join Us</h2>
                     <p>Create an account at ${window.D2C_CONFIG.companyName}</p>
