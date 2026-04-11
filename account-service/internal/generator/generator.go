@@ -412,6 +412,9 @@ func (g *Generator) Generate(data StorefrontData) error {
 		}
 	}
 
+	// Shopping channel feeds — isolated, never breaks storefront
+	g.generateFeeds(data, companyDir)
+
 	// Delete old S3 files before uploading fresh set
 	if err := g.DeleteStorefront(data.Company.UniqueIdentifier); err != nil {
 		log.Printf("WARN: failed to clean old S3 files: %v", err)

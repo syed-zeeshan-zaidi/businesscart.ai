@@ -200,6 +200,7 @@ export interface CompanyData {
   address: Address;
   d2c?: D2CConfig;
   customerGroups?: CustomerGroup[];
+  feeds?: string[];
 }
 
 export interface D2CConfig {
