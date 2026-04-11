@@ -806,66 +806,57 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
 
           {companyData.d2c?.enabled && (
             <Section title="Shopping Channel Feeds" icon={<StorefrontIcon />}>
-              <p className="text-sm text-gray-500 mb-4">
-                Enable feeds to list your products on shopping channels. After enabling, copy the feed URL and submit it to the channel's merchant center.
-              </p>
-              <div className="space-y-3">
-                {['google', 'facebook', 'bing', 'pinterest', 'tiktok'].map((channel) => {
-                  const enabled = (companyData.feeds || []).includes(channel);
-                  const domain = companyData.d2c?.customDomain || companyData.d2c?.previewDomain;
-                  const prefixMap: Record<string, { prefix: string; ext: string; label: string; submitUrl: string }> = {
-                    google: { prefix: 'gs', ext: '.xml', label: 'Google Shopping', submitUrl: 'https://merchants.google.com/' },
-                    facebook: { prefix: 'fb', ext: '.csv', label: 'Facebook / Instagram', submitUrl: 'https://business.facebook.com/commerce/' },
-                    bing: { prefix: 'bg', ext: '.tsv', label: 'Bing / Microsoft', submitUrl: 'https://merchants.ads.microsoft.com/' },
-                    pinterest: { prefix: 'pt', ext: '.csv', label: 'Pinterest', submitUrl: 'https://business.pinterest.com/catalogs/' },
-                    tiktok: { prefix: 'tt', ext: '.csv', label: 'TikTok Shop', submitUrl: 'https://seller-us.tiktok.com/' },
-                  };
-                  const info = prefixMap[channel];
-                  const feedUrl = domain && companyData.uniqueIdentifier
-                    ? `https://${domain}/feeds/${info.prefix}-${companyData.uniqueIdentifier}${info.ext}`
-                    : '';
-                  return (
-                    <div key={channel} className="flex items-center justify-between bg-white p-3 rounded-md border border-gray-200">
-                      <label className="flex items-center space-x-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={() => {
-                            const current = companyData.feeds || [];
-                            const next = enabled
-                              ? current.filter((f: string) => f !== channel)
-                              : [...current, channel];
-                            setCompanyData(prev => ({ ...prev, feeds: next }));
-                          }}
-                          className="h-5 w-5 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm font-medium text-gray-800">{info.label}</span>
-                      </label>
-                      {enabled && feedUrl && (
-                        <div className="flex items-center space-x-2">
-                          <code className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded max-w-xs truncate">{feedUrl}</code>
-                          <button
-                            type="button"
-                            onClick={() => { navigator.clipboard.writeText(feedUrl); toast.success('Feed URL copied!'); }}
-                            className="text-xs text-teal-700 hover:text-teal-500 font-medium whitespace-nowrap"
-                          >
-                            Copy
-                          </button>
-                          <a
-                            href={info.submitUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-gray-400 hover:text-teal-500 font-medium whitespace-nowrap"
-                          >
-                            Submit &rarr;
-                          </a>
-                        </div>
-                      )}
+              {(() => {
+                const channels = [
+                  { key: 'google', prefix: 'gs', ext: '.xml', label: 'Google', submitUrl: 'https://merchants.google.com/' },
+                  { key: 'facebook', prefix: 'fb', ext: '.csv', label: 'Facebook', submitUrl: 'https://business.facebook.com/commerce/' },
+                  { key: 'bing', prefix: 'bg', ext: '.tsv', label: 'Bing', submitUrl: 'https://merchants.ads.microsoft.com/' },
+                  { key: 'pinterest', prefix: 'pt', ext: '.csv', label: 'Pinterest', submitUrl: 'https://business.pinterest.com/catalogs/' },
+                  { key: 'tiktok', prefix: 'tt', ext: '.csv', label: 'TikTok', submitUrl: 'https://seller-us.tiktok.com/' },
+                ];
+                const enabledFeeds = companyData.feeds || [];
+                const domain = companyData.d2c?.customDomain || companyData.d2c?.previewDomain;
+                return (
+                  <>
+                    <div className="flex flex-wrap gap-4 mb-3">
+                      {channels.map(ch => (
+                        <label key={ch.key} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enabledFeeds.includes(ch.key)}
+                            onChange={() => {
+                              const next = enabledFeeds.includes(ch.key)
+                                ? enabledFeeds.filter((f: string) => f !== ch.key)
+                                : [...enabledFeeds, ch.key];
+                              setCompanyData(prev => ({ ...prev, feeds: next }));
+                            }}
+                            className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">{ch.label}</span>
+                        </label>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-400 mt-3">Feeds regenerate automatically when you update products. Save changes and regenerate storefront to create feed files.</p>
+                    {enabledFeeds.length > 0 && domain && companyData.uniqueIdentifier && (
+                      <div className="bg-gray-50 rounded-md p-3 space-y-2">
+                        {channels.filter(ch => enabledFeeds.includes(ch.key)).map(ch => {
+                          const url = `https://${domain}/feeds/${ch.prefix}-${companyData.uniqueIdentifier}${ch.ext}`;
+                          return (
+                            <div key={ch.key} className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600 font-medium w-20">{ch.label}</span>
+                              <code className="text-gray-500 bg-white px-2 py-0.5 rounded truncate flex-1 mx-2">{url}</code>
+                              <div className="flex space-x-2">
+                                <button type="button" onClick={() => { navigator.clipboard.writeText(url); toast.success('Copied!'); }} className="text-teal-700 hover:text-teal-500 font-medium">Copy</button>
+                                <a href={ch.submitUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-teal-500 font-medium">Submit&rarr;</a>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">Feeds regenerate automatically with products. Save and regenerate storefront to create files.</p>
+                  </>
+                );
+              })()}
             </Section>
           )}
 
