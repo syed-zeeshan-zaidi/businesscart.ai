@@ -289,9 +289,13 @@ Full negotiation workflow for B2B orders:
 - Every operation available via REST API.
 - The portal is one interface — companies can build their own, integrate with existing systems, or use the provided portal.
 
+### Customer Groups & Custom Catalogs
+
+- **Customer Groups** — Define B2B customer segments with uniform price discounts. Assign products to groups for visibility control — customers see only ungrouped products and products tagged with their group.
+- **Custom Catalogs** — Assign specific products and categories to each customer group. Company-level catalog isolation built-in.
+
 ### Planned B2B Features
 
-- **Custom Catalogs** (coming soon) — Assign specific products and categories to each customer.
 - **Multi-Language & Currency** (coming soon) — Support for multiple languages and currencies.
 
 ---
