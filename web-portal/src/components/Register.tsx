@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { register } from '../api';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Register = () => {
     customerCodes: '',
   });
   const [errors, setErrors] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   const validateForm = () => {
     const errors: string[] = [];
@@ -101,14 +103,19 @@ const Register = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></label>
-              <input
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="securepassword"
-                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-              />
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="securepassword"
+                  className="mt-1 w-full p-2 pr-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+              </div>
               <p className="mt-1 text-xs text-gray-500">Min 8 characters with uppercase, lowercase, digit, and special character.</p>
             </div>
             <div>
