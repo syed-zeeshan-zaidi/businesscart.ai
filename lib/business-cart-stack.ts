@@ -196,6 +196,8 @@ export class BusinessCartStack extends cdk.Stack {
     accountsRoot.addResource('login').addMethod('POST', accountInteg);
     accountsRoot.addResource('refresh').addMethod('POST', accountInteg);
     accountsRoot.addResource('logout').addMethod('POST', accountInteg);
+    accountsRoot.addResource('forgot-password').addMethod('POST', accountInteg);
+    accountsRoot.addResource('reset-password').addMethod('POST', accountInteg);
     accountsRoot.addMethod('GET', accountInteg);
     const accountById = accountsRoot.addResource('{id}');
     accountById.addMethod('GET', accountInteg);

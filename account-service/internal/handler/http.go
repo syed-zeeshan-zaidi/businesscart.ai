@@ -304,7 +304,7 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	acc := &storage.Account{
 		ID:            primitive.NewObjectID(),
 		Name:          strings.TrimSpace(req.Name),
-		Email:         strings.TrimSpace(req.Email),
+		Email:         email,
 		PhoneNumber:   strings.TrimSpace(req.PhoneNumber),
 		Password:      hashedPassword,
 		Role:          req.Role,
