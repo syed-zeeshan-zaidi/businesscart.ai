@@ -95,6 +95,14 @@ export const logout = async (): Promise<void> => {
   }
 };
 
+export const forgotPassword = async (email: string): Promise<void> => {
+  await api.post(`${API_URL}/accounts/forgot-password`, { email });
+};
+
+export const resetPassword = async (token: string, password: string): Promise<void> => {
+  await api.post(`${API_URL}/accounts/reset-password`, { token, password });
+};
+
 export const getAccounts = async (): Promise<Account[]> => {
   const response = await api.get(`${API_URL}/accounts`);
   return response.data;
