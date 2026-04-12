@@ -1029,7 +1029,7 @@ const CompanyForm = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">
             {userRole === 'admin' ? 'Company Directory' : 'Your Company Details'}
@@ -1075,8 +1075,8 @@ const AdminView: React.FC<AdminViewProps> = ({ accounts, onEdit }) => {
     );
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+      <table className="min-w-[500px] w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>

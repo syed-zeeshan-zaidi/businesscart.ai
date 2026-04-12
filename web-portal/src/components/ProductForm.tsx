@@ -356,15 +356,15 @@ const ProductForm = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Products</h2>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Products</h2>
           <button
             onClick={openModal}
-            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
+            className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-1"
           >
-            <PlusIcon className="h-5 w-5" />
+            <PlusIcon className="h-4 w-4" />
             <span>Add Product</span>
           </button>
         </div>
@@ -393,7 +393,7 @@ const ProductForm = () => {
             <div className="p-6 text-center text-gray-600">No products found.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-[750px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
 
@@ -432,14 +432,14 @@ const ProductForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => handleEdit(product)}
-                          className="text-yellow-600 hover:text-yellow-800 mr-4"
+                          className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1"
                           aria-label={`Edit ${product.name}`}
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => openDeleteConfirm(product._id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:bg-red-50 rounded p-2"
                           aria-label={`Delete ${product.name}`}
                         >
                           <TrashIcon className="h-5 w-5" />
@@ -615,7 +615,7 @@ const ProductForm = () => {
                         />
                       </div>
                       {formData.dealPrice && formData.dealPrice > 0 && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700">Deal Start Date</label>
                             <input

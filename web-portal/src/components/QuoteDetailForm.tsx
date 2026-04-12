@@ -131,7 +131,7 @@ const QuoteDetailForm: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col">
         <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
           </div>
@@ -144,7 +144,7 @@ const QuoteDetailForm: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col">
         <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Quote not found</h2>
             <p className="text-gray-600 mb-4">The quote you are looking for does not exist or you do not have access.</p>

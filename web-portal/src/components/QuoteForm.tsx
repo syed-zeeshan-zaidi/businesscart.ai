@@ -121,13 +121,13 @@ const QuoteForm = () => {
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-gray-800">Quotes</h1>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Quotes</h1>
           {currentUser && (currentUser.role === 'company' || currentUser.role === 'admin') && (
             <button
               onClick={() => navigate('/quote-create')}
-              className="px-4 py-2 bg-teal-700 text-white rounded-md hover:bg-teal-800"
+              className="px-3 py-1.5 text-sm bg-teal-700 text-white rounded-md hover:bg-teal-800"
             >
               Create Quote
             </button>
@@ -152,7 +152,7 @@ const QuoteForm = () => {
         </section>
 
         {/* Table */}
-        <section className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <section className="bg-white rounded-lg shadow-lg overflow-x-auto">
           {isLoading ? (
             <div className="p-6 flex justify-center">
               <span className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
@@ -161,7 +161,7 @@ const QuoteForm = () => {
             <p className="p-6 text-center text-gray-500">No quotes found.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-[650px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

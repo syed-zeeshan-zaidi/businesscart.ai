@@ -271,14 +271,13 @@ const LandingPage: React.FC = () => {
                   Every operation available via REST API. The portal is one interface — build your own, integrate with existing systems, or use ours.
                 </p>
               </div>
-              <div className="flex flex-col items-center text-center relative">
-                <span className="absolute -top-2 right-0 bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-0.5 rounded-full">Coming Soon</span>
+              <div className="flex flex-col items-center text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
                   <CubeIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-5 text-lg font-medium text-gray-900">Custom Catalogs</h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Assign specific products and categories to each customer. Company-level catalog isolation is available today.
+                  Assign specific products and categories to each customer group. Control visibility so each customer sees only what's relevant to them.
                 </p>
               </div>
               <div className="flex flex-col items-center text-center relative">
