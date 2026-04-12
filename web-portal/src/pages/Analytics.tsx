@@ -34,6 +34,7 @@ interface Stats {
 
 interface Visitor {
   visitorId: string;
+  sellerId: string;
   attribution: { source: string; medium: string; campaign: string; content: string; landingPage: string; referrer: string };
   geo: { country: string; region: string; city: string; timezone: string; ip: string; asn: string };
   device: string;
@@ -70,32 +71,47 @@ const StatCard = ({ icon: Icon, label, value, sub }: { icon: React.ElementType; 
   </div>
 );
 
-const BreakdownTable = ({ title, data }: { title: string; data: { _id: string; count: number }[] }) => (
-  <div className="bg-white rounded-lg shadow p-5">
-    <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-    {!data || data.length === 0 ? (
-      <p className="text-sm text-gray-400">No data yet</p>
-    ) : (
-      <div className="space-y-2">
-        {data.map((item) => {
-          const max = data[0]?.count || 1;
-          const pct = Math.round((item.count / max) * 100);
-          return (
-            <div key={item._id || 'unknown'}>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-700">{item._id || 'Unknown'}</span>
-                <span className="text-gray-500">{item.count}</span>
+const BreakdownTable = ({ title, data }: { title: string; data: { _id: string; count: number }[] }) => {
+  const [expanded, setExpanded] = useState(false);
+  const limit = 5;
+  const visible = expanded ? data : data?.slice(0, limit);
+  const hasMore = data && data.length > limit;
+
+  return (
+    <div className="bg-white rounded-lg shadow p-5">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+      {!data || data.length === 0 ? (
+        <p className="text-sm text-gray-400">No data yet</p>
+      ) : (
+        <div className="space-y-2">
+          {visible.map((item) => {
+            const max = data[0]?.count || 1;
+            const pct = Math.round((item.count / max) * 100);
+            return (
+              <div key={item._id || 'unknown'}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-700">{item._id || 'Unknown'}</span>
+                  <span className="text-gray-500">{item.count}</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="bg-teal-700 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                </div>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div className="bg-teal-700 h-2 rounded-full" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-);
+            );
+          })}
+          {hasMore && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-teal-700 hover:text-teal-800 mt-1"
+            >
+              {expanded ? 'Show less' : `Show all ${data.length}`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const formatDate = (d: string) => {
   if (!d) return '-';
@@ -121,23 +137,26 @@ const Analytics: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Visitor | null>(null);
-  const [scope, setScope] = useState('');
+  const [scope, setScope] = useState(isAdmin ? 'portal' : '');
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [timeRange, setTimeRange] = useState('');
   const perPage = 50;
 
-  const loadStats = async (sellerId?: string) => {
+  const loadStats = async (sellerId?: string, since?: string) => {
     try {
-      const data = await getVisitorStats(sellerId);
+      const data = await getVisitorStats(sellerId, since || undefined);
       setStats(data);
     } catch (err: any) {
       toast.error('Failed to load stats');
     }
   };
 
-  const loadVisitors = async (p: number, f: Record<string, string>, sellerId?: string) => {
+  const loadVisitors = async (p: number, f: Record<string, string>, sellerId?: string, since?: string) => {
     try {
       const params: Record<string, string> = { page: String(p), perPage: String(perPage) };
       if (sellerId) params.sellerId = sellerId;
+      if (since) params.since = since;
       Object.entries(f).forEach(([k, v]) => { if (v) params[k] = v; });
       const data = await getVisitors(params);
       setVisitors(data.visitors || []);
@@ -156,7 +175,7 @@ const Analytics: React.FC = () => {
           setCompanies(accounts.filter((a: Account) => a.role === 'company').map((a: Account) => ({ id: a._id, name: a.company?.name || a.name })));
         } catch { /* ignore */ }
       }
-      await Promise.all([loadStats(scope || undefined), loadVisitors(1, {}, scope || undefined)]);
+      await Promise.all([loadStats(scope || undefined, timeRange), loadVisitors(1, {}, scope || undefined, timeRange)]);
       setLoading(false);
     };
     init();
@@ -166,29 +185,41 @@ const Analytics: React.FC = () => {
     setScope(newScope);
     setPage(1);
     setFilters({});
-    await Promise.all([loadStats(newScope || undefined), loadVisitors(1, {}, newScope || undefined)]);
+    setExpandedGroups(new Set());
+    setRefreshing(true);
+    await Promise.all([loadStats(newScope || undefined, timeRange), loadVisitors(1, {}, newScope || undefined, timeRange)]);
+    setRefreshing(false);
+  };
+
+  const handleTimeRangeChange = async (newRange: string) => {
+    setTimeRange(newRange);
+    setPage(1);
+    setExpandedGroups(new Set());
+    setRefreshing(true);
+    await Promise.all([loadStats(scope || undefined, newRange), loadVisitors(1, filters, scope || undefined, newRange)]);
+    setRefreshing(false);
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadStats(scope || undefined), loadVisitors(page, filters, scope || undefined)]);
+    await Promise.all([loadStats(scope || undefined, timeRange), loadVisitors(page, filters, scope || undefined, timeRange)]);
     setRefreshing(false);
   };
 
   const handlePageChange = async (newPage: number) => {
     setPage(newPage);
-    await loadVisitors(newPage, filters, scope || undefined);
+    await loadVisitors(newPage, filters, scope || undefined, timeRange);
   };
 
   const applyFilters = async () => {
     setPage(1);
-    await loadVisitors(1, filters, scope || undefined);
+    await loadVisitors(1, filters, scope || undefined, timeRange);
   };
 
   const clearFilters = async () => {
     setFilters({});
     setPage(1);
-    await loadVisitors(1, {}, scope || undefined);
+    await loadVisitors(1, {}, scope || undefined, timeRange);
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -228,6 +259,20 @@ const Analytics: React.FC = () => {
                   ))}
                 </select>
               )}
+              <div className="flex items-center gap-2">
+                <select
+                  value={timeRange}
+                  onChange={(e) => handleTimeRangeChange(e.target.value)}
+                  disabled={refreshing}
+                  className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white disabled:opacity-50"
+                >
+                  <option value="">All Time</option>
+                  <option value="24h">Last 24 Hours</option>
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                </select>
+                {refreshing && <ArrowPathIcon className="h-4 w-4 text-teal-700 animate-spin" />}
+              </div>
             </div>
             <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 bg-teal-700 text-white rounded-lg hover:bg-teal-800 disabled:opacity-50">
               <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -332,44 +377,97 @@ const Analytics: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {visitors.map((v) => (
-                    <tr key={v.visitorId} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(v)}>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-800">{v.attribution?.source || '-'}</div>
-                        <div className="text-xs text-gray-400">{v.attribution?.medium || ''}{v.attribution?.campaign ? ` / ${v.attribution.campaign}` : ''}</div>
-                        {v.isBot && <span className="inline-block mt-0.5 text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">{v.botName || 'Bot'}</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate" title={v.attribution?.landingPage || ''}>
-                        {v.attribution?.landingPage || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-800">{formatLocation(v.geo)}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-800">{v.device}</div>
-                        <div className="text-xs text-gray-400">{v.browser} / {v.os}</div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-gray-800">{v.totalPageViews}</span>
-                        <div className="text-xs text-gray-400">{v.totalSessions} sessions</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {v.ordered ? (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Ordered</span>
-                        ) : v.registered ? (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Registered</span>
-                        ) : (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Visitor</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center text-gray-800">{v.totalOrders || 0}</td>
-                      <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{v.totalRevenue ? `$${v.totalRevenue.toFixed(2)}` : '-'}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.firstVisit)}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.lastVisit)}</td>
-                    </tr>
-                  ))}
-                  {visitors.length === 0 && (
+                  {visitors.length === 0 ? (
                     <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">No visitors found</td></tr>
+                  ) : (
+                    Object.entries(
+                      visitors.reduce<Record<string, Visitor[]>>((groups, v) => {
+                        const key = v.attribution?.source || 'Unknown';
+                        (groups[key] = groups[key] || []).push(v);
+                        return groups;
+                      }, {})
+                    ).map(([source, group]) => {
+                      const isExpanded = expandedGroups.has(source);
+                      const totalPageViews = group.reduce((s, v) => s + (v.totalPageViews || 0), 0);
+                      const totalSessions = group.reduce((s, v) => s + (v.totalSessions || 0), 0);
+                      const totalOrders = group.reduce((s, v) => s + (v.totalOrders || 0), 0);
+                      const totalRevenue = group.reduce((s, v) => s + (v.totalRevenue || 0), 0);
+                      const registered = group.filter(v => v.registered).length;
+                      const ordered = group.filter(v => v.ordered).length;
+                      return (
+                        <React.Fragment key={source}>
+                          <tr
+                            className="bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => setExpandedGroups(prev => {
+                              const next = new Set(prev);
+                              if (next.has(source)) { next.delete(source); } else { next.add(source); }
+                              return next;
+                            })}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <ChevronRightIcon className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                <span className="font-medium text-gray-800">{source}</span>
+                                <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{group.length}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-gray-800">{totalPageViews}</span>
+                              <div className="text-xs text-gray-400">{totalSessions} sessions</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-1">
+                                {ordered > 0 && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">{ordered}</span>}
+                                {registered > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{registered}</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-800">{totalOrders}</td>
+                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{totalRevenue ? `$${totalRevenue.toFixed(2)}` : '-'}</td>
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
+                          </tr>
+                          {isExpanded && group.map((v) => (
+                            <tr key={v.visitorId} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(v)}>
+                              <td className="px-4 py-3 pl-10">
+                                <div className="text-gray-800">{v.attribution?.source || '-'}</div>
+                                <div className="text-xs text-gray-400">{v.attribution?.medium || ''}{v.attribution?.campaign ? ` / ${v.attribution.campaign}` : ''}</div>
+                                {v.isBot && <span className="inline-block mt-0.5 text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">{v.botName || 'Bot'}</span>}
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-600 max-w-[120px] truncate" title={v.attribution?.landingPage || ''}>
+                                {v.attribution?.landingPage || '-'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-gray-800">{formatLocation(v.geo)}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-gray-800">{v.device}</div>
+                                <div className="text-xs text-gray-400">{v.browser} / {v.os}</div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="text-gray-800">{v.totalPageViews}</span>
+                                <div className="text-xs text-gray-400">{v.totalSessions} sessions</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {v.ordered ? (
+                                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Ordered</span>
+                                ) : v.registered ? (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Registered</span>
+                                ) : (
+                                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Visitor</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center text-gray-800">{v.totalOrders || 0}</td>
+                              <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{v.totalRevenue ? `$${v.totalRevenue.toFixed(2)}` : '-'}</td>
+                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.firstVisit)}</td>
+                              <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.lastVisit)}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -410,6 +508,10 @@ const Analytics: React.FC = () => {
                   <div>
                     <p className="text-gray-500">Customer ID</p>
                     <p className="font-mono text-xs">{selected.customerId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Platform</p>
+                    <p>{selected.sellerId ? companies.find(c => c.id === selected.sellerId)?.name || selected.sellerId : 'Portal'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Type</p>
