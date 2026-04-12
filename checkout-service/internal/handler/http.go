@@ -50,6 +50,7 @@ type CustomerConfiguration struct {
 	MonthlyOrderLimit     *float64 `json:"monthlyOrderLimit,omitempty"`
 	YearlyOrderLimit      *float64 `json:"yearlyOrderLimit,omitempty"`
 	TaxableGoods          *bool    `json:"taxableGoods,omitempty"`
+	TaxRate               *float64 `json:"taxRate,omitempty"`
 	LeadTime              *float64 `json:"leadTime,omitempty"`
 }
 
@@ -216,6 +217,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 				}
 				if v, ok := configMap["taxableGoods"].(bool); ok {
 					customerConfig.TaxableGoods = &v
+				}
+				if v, ok := configMap["taxRate"].(float64); ok {
+					customerConfig.TaxRate = &v
 				}
 				if v, ok := configMap["leadTime"].(float64); ok {
 					customerConfig.LeadTime = &v
@@ -687,6 +691,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		MonthlyOrderLimit     float64                 `json:"monthlyOrderLimit"`
 		YearlyOrderLimit      float64                 `json:"yearlyOrderLimit"`
 		TaxableGoods          *bool                   `json:"taxableGoods,omitempty"`
+		TaxRate               float64                 `json:"taxRate"`
 		LeadTime              float64                 `json:"leadTime"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
@@ -715,6 +720,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	if req.TaxableGoods != nil {
 		effectiveTaxable = *req.TaxableGoods
 	}
+	effectiveTaxRate := req.TaxRate // company default (from JWT), 0 if not set
 	effectiveLeadTime := req.LeadTime
 
 	for _, config := range configurations {
@@ -755,6 +761,9 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 			if config.TaxableGoods != nil {
 				effectiveTaxable = *config.TaxableGoods
 			}
+			if config.TaxRate != nil {
+				effectiveTaxRate = *config.TaxRate
+			}
 			if config.LeadTime != nil {
 				effectiveLeadTime = *config.LeadTime
 			}
@@ -775,9 +784,9 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		return h.errorResponse(http.StatusBadRequest, "Cart is empty"), nil
 	}
 
-	// Calculate totals
-	taxAmount := cart.TotalPrice * 0.0825
-	if !effectiveTaxable {
+	// Calculate totals — taxRate is a percentage (e.g., 8.25 means 8.25%)
+	taxAmount := cart.TotalPrice * (effectiveTaxRate / 100)
+	if !effectiveTaxable || effectiveTaxRate <= 0 {
 		taxAmount = 0
 	}
 	shippingCost := 10.00
@@ -852,6 +861,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		Subtotal:                    cart.TotalPrice,
 		ShippingCost:                shippingCost,
 		TaxAmount:                   taxAmount,
+		TaxRate:                     effectiveTaxRate,
 		GrandTotal:                  grandTotal,
 		AvailablePaymentMethods:     req.PaymentMethods,
 		AvailableDeliveryMethods:    req.DeliveryMethods,

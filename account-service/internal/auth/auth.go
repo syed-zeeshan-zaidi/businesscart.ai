@@ -34,6 +34,7 @@ type CustomerConfiguration struct {
 	MonthlyOrderLimit     *float64                     `json:"monthlyOrderLimit,omitempty"`
 	YearlyOrderLimit      *float64                     `json:"yearlyOrderLimit,omitempty"`
 	TaxableGoods          *bool                        `json:"taxableGoods,omitempty"`
+	TaxRate               *float64                     `json:"taxRate,omitempty"`
 	LeadTime              *float64                     `json:"leadTime,omitempty"`
 	GroupID               string                       `json:"groupID,omitempty"`
 	GroupPriceDiscount    *float64                     `json:"groupPriceDiscount,omitempty"`

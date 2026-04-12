@@ -597,6 +597,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                 </select>
               </div>
               {renderInput('leadTime', 'Lead Time (days)', '', false, 'number')}
+              {renderInput('taxRate', 'Tax Rate (%)', 'e.g., 8.25', false, 'number')}
               <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {renderCheckbox('taxableGoods', 'Taxable Goods')}
                 {renderCheckbox('quotesAllowed', 'Quotes Allowed')}
