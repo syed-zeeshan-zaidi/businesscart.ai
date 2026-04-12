@@ -268,22 +268,22 @@ const UserForm = () => {
       <Toaster position="top-right" />
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Accounts</h2>
-          <div className="flex space-x-2">
-            <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Accounts</h2>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-3 py-1.5 text-sm rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
               <>
                 <button
                   onClick={async () => {
                     try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
                   }}
-                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                  className="bg-gray-100 text-gray-700 px-3 py-1.5 text-sm rounded-md hover:bg-gray-200"
                 >
                   Export CSV
                 </button>
-                <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800">
-                  <PlusIcon className="h-5 w-5 inline mr-1" /> Add Account
+                <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800">
+                  <PlusIcon className="h-4 w-4 inline mr-1" /> Add Account
                 </button>
               </>
             )}
@@ -294,11 +294,11 @@ const UserForm = () => {
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search accounts..." className="w-full p-2 pl-10 border rounded-md" />
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           {isLoading && accounts.length === 0 ? (
             <div className="p-8 text-center">Loading...</div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-[600px] w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
@@ -317,11 +317,11 @@ const UserForm = () => {
                     <td className="px-6 py-4">{account.accountStatus}</td>
                     {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
                       <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => handleEdit(account)} className="text-yellow-600"><PencilIcon className="h-4 w-4" /></button>
+                        <button onClick={() => handleEdit(account)} className="text-yellow-600 p-2 hover:bg-yellow-50 rounded"><PencilIcon className="h-4 w-4" /></button>
                         {currentUser?.role === 'company' && account.role === 'customer' && (
-                          <button onClick={() => handleOpenConfigModal(account)} className="text-blue-600"><Cog6ToothIcon className="h-4 w-4" /></button>
+                          <button onClick={() => handleOpenConfigModal(account)} className="text-blue-600 p-2 hover:bg-blue-50 rounded"><Cog6ToothIcon className="h-4 w-4" /></button>
                         )}
-                        <button onClick={() => { setAccountToDelete(account._id); setIsDeleteConfirmOpen(true); }} className="text-red-600"><TrashIcon className="h-4 w-4" /></button>
+                        <button onClick={() => { setAccountToDelete(account._id); setIsDeleteConfirmOpen(true); }} className="text-red-600 p-2 hover:bg-red-50 rounded"><TrashIcon className="h-4 w-4" /></button>
                       </td>
                     )}
                   </tr>
@@ -496,7 +496,7 @@ const UserForm = () => {
                       <input type="number" name="creditLimit" value={configData.creditLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium">Min Order Amount ($)</label>
                         <input type="number" name="minOrderAmountLimit" value={configData.minOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
@@ -507,7 +507,7 @@ const UserForm = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium">Min Order Quantity</label>
                         <input type="number" name="minOrderQuantityLimit" value={configData.minOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
@@ -518,7 +518,7 @@ const UserForm = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium">Monthly Order Limit</label>
                         <input type="number" name="monthlyOrderLimit" value={configData.monthlyOrderLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no limit" />

@@ -358,7 +358,7 @@ const Cart: React.FC = () => {
                           <div className="flex items-center">
                             <button
                               onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                              className="w-8 h-8 bg-gray-200 text-gray-600 rounded-l-md hover:bg-gray-300 disabled:opacity-50"
+                              className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-200 text-gray-600 rounded-l-md hover:bg-gray-300 disabled:opacity-50"
                               disabled={item.quantity <= 1 || loading}
                             >
                               -
@@ -366,7 +366,7 @@ const Cart: React.FC = () => {
                             <span className="px-4 py-1 border-t border-b border-gray-300 text-center">{item.quantity}</span>
                             <button
                               onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                              className="w-8 h-8 bg-gray-200 text-gray-600 rounded-r-md hover:bg-gray-300"
+                              className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-200 text-gray-600 rounded-r-md hover:bg-gray-300"
                               disabled={loading}
                             >
                               +

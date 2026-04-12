@@ -80,12 +80,12 @@ const CodeForm: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Codes</h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Codes</h2>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-teal-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800"
+            className="bg-teal-700 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-teal-800"
           >
             Create Code
           </button>
@@ -97,30 +97,30 @@ const CodeForm: React.FC = () => {
             <p className="text-gray-600 mt-2">There are currently no codes in the system.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+            <table className="min-w-[500px] w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Is Claimed</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Code</th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Code</th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Partner Code</th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed</th>
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {codes.map((code) => (
                   <tr key={code.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{code.companyCode}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{code.customerCode}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{code.partnerCode || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${code.isClaimed ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{code.companyCode}</td>
+                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">{code.customerCode}</td>
+                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{code.partnerCode || '-'}</td>
+                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${code.isClaimed ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                         {code.isClaimed ? 'Yes' : 'No'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:text-red-800">
+                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-right">
+                      <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:bg-red-50 rounded p-2">
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </td>

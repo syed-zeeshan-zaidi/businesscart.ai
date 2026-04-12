@@ -132,9 +132,9 @@ const OrderForm = () => {
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-gray-800">Orders</h1>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <header className="mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Orders</h1>
         </header>
 
         {/* Search */}
@@ -164,7 +164,7 @@ const OrderForm = () => {
             <p className="p-6 text-center text-gray-500">No orders found.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-[650px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -208,21 +208,21 @@ const OrderForm = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
                           onClick={() => console.log('Edit order', order.id)}
-                          className="text-yellow-600 hover:text-yellow-800 mr-4"
+                          className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1"
                           aria-label={`Edit order ${order.id}`}
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => console.log('Print order', order.id)}
-                          className="text-teal-700 hover:text-teal-800 mr-4"
+                          className="text-teal-700 hover:bg-teal-50 rounded p-2 mr-1"
                           aria-label={`Print order ${order.id}`}
                         >
                           <PrinterIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => openDeleteConfirm(order.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:bg-red-50 rounded p-2"
                           aria-label={`Delete order ${order.id}`}
                         >
                           <TrashIcon className="h-5 w-5" />

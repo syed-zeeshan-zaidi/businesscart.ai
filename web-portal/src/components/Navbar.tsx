@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon, TagIcon, HomeIcon, CubeIcon, UserCircleIcon, ClipboardDocumentListIcon, MapPinIcon, DocumentPlusIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ShoppingCartIcon, ArrowRightStartOnRectangleIcon, TagIcon, HomeIcon, CubeIcon, UserCircleIcon, ClipboardDocumentListIcon, MapPinIcon, DocumentPlusIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import { Toaster, toast } from 'react-hot-toast';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { useAuth } from '../hooks/useAuth';
@@ -113,6 +113,15 @@ const Navbar: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
+                {isAuthenticated && userRole !== 'customer' && (
+                  <button
+                    onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+                    className="lg:hidden text-gray-500 hover:text-gray-700 p-1 mr-2"
+                    aria-label="Open menu"
+                  >
+                    <Bars3Icon className="h-6 w-6" />
+                  </button>
+                )}
                 {userRole !== 'company' ? (
                   <Link to="/" className="flex items-center">
                     <span className="w-10 h-10 mr-2"><Logo /></span>

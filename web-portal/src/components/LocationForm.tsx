@@ -174,14 +174,14 @@ const LocationForm: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Manage Locations</h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Manage Locations</h2>
           <button
             onClick={openModal}
-            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
+            className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-1"
           >
-            <PlusIcon className="h-5 w-5" />
+            <PlusIcon className="h-4 w-4" />
             <span>Add Location</span>
           </button>
         </div>
@@ -225,8 +225,8 @@ const LocationForm: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">No locations found.</div>
         ) : (
           <>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="bg-white rounded-lg shadow overflow-x-auto">
+              <table className="min-w-[800px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
@@ -252,10 +252,10 @@ const LocationForm: React.FC = () => {
                         {loc.address.street}, {loc.address.city}, {loc.address.state} {loc.address.zip}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onClick={() => handleEdit(loc)} className="text-yellow-600 hover:text-yellow-800 mr-4">
+                        <button onClick={() => handleEdit(loc)} className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1">
                           <PencilIcon className="h-5 w-5" />
                         </button>
-                        <button onClick={() => openDeleteConfirm(loc.id)} className="text-red-600 hover:text-red-800">
+                        <button onClick={() => openDeleteConfirm(loc.id)} className="text-red-600 hover:bg-red-50 rounded p-2">
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </td>
