@@ -332,6 +332,7 @@ class BackendFlowTest:
                 "yearlyOrderLimit": 50,
                 "taxableGoods": True,
                 "taxRate": 8.25,
+                "shippingRate": 15.00,
                 "leadTime": 3,
                 "quotesAllowed": True,
                 "paymentMethods": ["credit_card", "purchase_order"],
@@ -1352,9 +1353,13 @@ class BackendFlowTest:
             assert rate == 8.25, f"Expected taxRate=8.25, got {rate}"
             expected_tax = round(subtotal * 0.0825, 2)
             assert abs(tax - expected_tax) < 0.02, f"Expected tax ~{expected_tax}, got {tax}"
-            ok(f"Tax correct: subtotal=${subtotal:.2f} × {rate}% = ${tax:.2f}")
+            shipping = data.get("shippingCost", 0)
+            shipping_rate = data.get("shippingRate", 0)
+            assert shipping_rate == 15.0, f"Expected shippingRate=15, got {shipping_rate}"
+            assert shipping == 15.0, f"Expected shippingCost=15, got {shipping}"
+            ok(f"Tax correct: ${subtotal:.2f} × {rate}% = ${tax:.2f}, shipping=${shipping:.2f}")
 
-        self.run_test("Tax rate from company config", test_tax_rate)
+        self.run_test("Tax and shipping rate from company config", test_tax_rate)
 
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 

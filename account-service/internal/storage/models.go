@@ -144,6 +144,7 @@ type CompanyData struct {
 	YearlyOrderLimit      float64             `bson:"yearlyOrderLimit" json:"yearlyOrderLimit"`
 	TaxableGoods          bool                `bson:"taxableGoods" json:"taxableGoods"`
 	TaxRate               float64             `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
+	ShippingRate          float64             `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
 	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
 	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
@@ -178,6 +179,7 @@ type AttachedCompaniesData struct {
 	YearlyOrderLimit      float64             `json:"yearlyOrderLimit"`
 	TaxableGoods          bool                `json:"taxableGoods"`
 	TaxRate               float64             `json:"taxRate,omitempty"`
+	ShippingRate          float64             `json:"shippingRate,omitempty"`
 	Status                string              `json:"status"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
@@ -202,6 +204,7 @@ type CustomerConfiguration struct {
 	YearlyOrderLimit      *float64             `bson:"yearlyOrderLimit,omitempty" json:"yearlyOrderLimit,omitempty"`
 	TaxableGoods          *bool                `bson:"taxableGoods,omitempty" json:"taxableGoods,omitempty"`
 	TaxRate               *float64             `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
+	ShippingRate          *float64             `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 	LeadTime              *float64             `bson:"leadTime,omitempty" json:"leadTime,omitempty"`
 }
 

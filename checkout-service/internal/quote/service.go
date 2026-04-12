@@ -46,6 +46,7 @@ func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
 			"items":                       quote.Items,
 			"subtotal":                    quote.Subtotal,
 			"shippingCost":                quote.ShippingCost,
+			"shippingRate":                quote.ShippingRate,
 			"taxAmount":                   quote.TaxAmount,
 			"taxRate":                     quote.TaxRate,
 			"grandTotal":                  quote.GrandTotal,

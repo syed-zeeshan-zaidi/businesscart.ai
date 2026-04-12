@@ -470,6 +470,7 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 				config.YearlyOrderLimit = resolveFloat(company.YearlyOrderLimit, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.YearlyOrderLimit }))
 				config.LeadTime = resolveFloat(company.LeadTime, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.LeadTime }))
 				config.TaxRate = resolveFloat(company.TaxRate, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.TaxRate }))
+				config.ShippingRate = resolveFloat(company.ShippingRate, override(e.Configuration, func(c *storage.CustomerConfiguration) *float64 { return c.ShippingRate }))
 
 				// Resolve customer's group → embed groupID + groupPriceDiscount.
 				// Stale/missing group ID → silently no embed (falls back to base pricing).
@@ -808,6 +809,7 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 							YearlyOrderLimit:      c.CompanyData.YearlyOrderLimit,
 							TaxableGoods:          c.CompanyData.TaxableGoods,
 							TaxRate:               c.CompanyData.TaxRate,
+							ShippingRate:          c.CompanyData.ShippingRate,
 							QuotesAllowed:         c.CompanyData.QuotesAllowed,
 							Status:                c.CompanyData.Status,
 							ShippingOutOptions:    c.CompanyData.ShippingOutOptions,
