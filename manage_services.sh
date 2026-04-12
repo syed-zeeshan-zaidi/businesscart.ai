@@ -77,9 +77,70 @@ stop_services() {
   echo "Services stopped and containers cleaned up."
 }
 
+validate_pwa() {
+  echo "═══════════════════════════════════════"
+  echo "  PWA Validation"
+  echo "═══════════════════════════════════════"
+
+  echo "Building web portal..."
+  (cd web-portal && npm run build) || { echo "❌ Portal build failed"; return 1; }
+
+  PASS=0
+  FAIL=0
+
+  check() {
+    if [ "$2" = "true" ]; then
+      echo "  ✓ $1"
+      PASS=$((PASS + 1))
+    else
+      echo "  ✗ $1"
+      FAIL=$((FAIL + 1))
+    fi
+  }
+
+  # Manifest
+  check "manifest.webmanifest exists" "$([ -f web-portal/dist/manifest.webmanifest ] && echo true || echo false)"
+  if [ -f web-portal/dist/manifest.webmanifest ]; then
+    check "manifest is valid JSON" "$(python3 -c 'import json; json.load(open("web-portal/dist/manifest.webmanifest"))' 2>/dev/null && echo true || echo false)"
+    check "manifest has name" "$(grep -q '"name"' web-portal/dist/manifest.webmanifest && echo true || echo false)"
+    check "manifest has icons" "$(grep -q '"icons"' web-portal/dist/manifest.webmanifest && echo true || echo false)"
+    check "manifest display=standalone" "$(grep -q '"standalone"' web-portal/dist/manifest.webmanifest && echo true || echo false)"
+  fi
+
+  # Service worker
+  check "sw.js exists" "$([ -f web-portal/dist/sw.js ] && echo true || echo false)"
+  check "registerSW.js exists" "$([ -f web-portal/dist/registerSW.js ] && echo true || echo false)"
+  if [ -f web-portal/dist/sw.js ]; then
+    check "SW has no NavigationRoute" "$(! grep -q 'NavigationRoute\|createHandlerBoundToURL' web-portal/dist/sw.js && echo true || echo false)"
+    check "SW has no HTML in precache" "$(! grep -q '"url":"[^"]*\.html"' web-portal/dist/sw.js && echo true || echo false)"
+    check "SW has NetworkFirst for pages" "$(grep -q 'NetworkFirst' web-portal/dist/sw.js && echo true || echo false)"
+    check "SW has NetworkOnly for API" "$(grep -q 'NetworkOnly' web-portal/dist/sw.js && echo true || echo false)"
+  fi
+
+  # Icons
+  check "icon-192x192.png exists" "$([ -f web-portal/dist/icon-192x192.png ] && echo true || echo false)"
+  check "icon-512x512.png exists" "$([ -f web-portal/dist/icon-512x512.png ] && echo true || echo false)"
+
+  # HTML meta tags
+  check "index.html has manifest link" "$(grep -q 'manifest.webmanifest' web-portal/dist/index.html && echo true || echo false)"
+  check "index.html has theme-color" "$(grep -q 'theme-color' web-portal/dist/index.html && echo true || echo false)"
+  check "index.html has apple-touch-icon" "$(grep -q 'apple-touch-icon' web-portal/dist/index.html && echo true || echo false)"
+
+  # Pre-rendered pages intact
+  check "sitemap.xml exists" "$([ -f web-portal/dist/sitemap.xml ] && echo true || echo false)"
+  check "robots.txt exists" "$([ -f web-portal/dist/robots.txt ] && echo true || echo false)"
+  check "llms.txt exists" "$([ -f web-portal/dist/llms.txt ] && echo true || echo false)"
+
+  echo ""
+  echo "  PASSED: $PASS  FAILED: $FAIL"
+  echo "═══════════════════════════════════════"
+  [ "$FAIL" -eq 0 ] && return 0 || return 1
+}
+
 case "$1" in
   start)
     start_services
+    validate_pwa
     ;;
   stop)
     stop_services
@@ -87,7 +148,8 @@ case "$1" in
   restart)
     stop_services
     start_services
-    ;; 
+    validate_pwa
+    ;;
   *)
     echo "Usage: $0 {start|stop|restart}"
     exit 1

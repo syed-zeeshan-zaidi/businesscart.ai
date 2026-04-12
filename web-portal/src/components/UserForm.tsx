@@ -529,9 +529,21 @@ const UserForm = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium">Lead Time (days)</label>
-                      <input type="number" name="leadTime" value={configData.leadTime ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 3" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Lead Time (days)</label>
+                        <input type="number" name="leadTime" value={configData.leadTime ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 3" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium">Tax Rate (%) Override</label>
+                        <input type="number" step="0.01" min="0" max="100" name="taxRate" value={configData.taxRate ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 0 for tax-exempt" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Shipping Rate ($) Override</label>
+                        <input type="number" step="0.01" min="0" name="shippingRate" value={configData.shippingRate ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 0 for free shipping" />
+                      </div>
                     </div>
 
                     <div className="flex items-center space-x-4">

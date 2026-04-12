@@ -46,7 +46,9 @@ func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
 			"items":                       quote.Items,
 			"subtotal":                    quote.Subtotal,
 			"shippingCost":                quote.ShippingCost,
+			"shippingRate":                quote.ShippingRate,
 			"taxAmount":                   quote.TaxAmount,
+			"taxRate":                     quote.TaxRate,
 			"grandTotal":                  quote.GrandTotal,
 			"availablePaymentMethods":     quote.AvailablePaymentMethods,
 			"availableDeliveryMethods":    quote.AvailableDeliveryMethods,
@@ -206,6 +208,9 @@ func (s *Service) UpdateQuoteStatus(quoteID primitive.ObjectID, status string) (
 			subtotal += item.Price * float64(item.Quantity)
 		}
 		quote.Subtotal = subtotal
+		if quote.TaxRate > 0 {
+			quote.TaxAmount = quote.Subtotal * (quote.TaxRate / 100)
+		}
 		quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
 	}
 
@@ -340,6 +345,9 @@ func (s *Service) UpdateQuoteBySeller(quoteID primitive.ObjectID, updates Seller
 	quote.Subtotal = subtotal
 	// Apply discount if any
 	quote.DiscountAmount = quote.Subtotal * (quote.DiscountPercentage / 100)
+	if quote.TaxRate > 0 {
+		quote.TaxAmount = quote.Subtotal * (quote.TaxRate / 100)
+	}
 	quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
 
 	// Add to history

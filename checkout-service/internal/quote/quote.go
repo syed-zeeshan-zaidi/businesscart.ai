@@ -66,7 +66,9 @@ type Comment struct {
 		Items                       []cart.CartItem    `bson:"items" json:"items"`
 		Subtotal                    float64            `bson:"subtotal" json:"subtotal"`
 		ShippingCost                float64            `bson:"shippingCost" json:"shippingCost"`
+		ShippingRate                float64            `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 		TaxAmount                   float64            `bson:"taxAmount" json:"taxAmount"`
+		TaxRate                     float64            `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
 		GrandTotal                  float64            `bson:"grandTotal" json:"grandTotal"`
 		AvailablePaymentMethods     []string           `bson:"availablePaymentMethods" json:"availablePaymentMethods"`
 		AvailableDeliveryMethods    []string           `bson:"availableDeliveryMethods" json:"availableDeliveryMethods"`

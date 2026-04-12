@@ -331,6 +331,8 @@ class BackendFlowTest:
                 "monthlyOrderLimit": 10,
                 "yearlyOrderLimit": 50,
                 "taxableGoods": True,
+                "taxRate": 8.25,
+                "shippingRate": 15.00,
                 "leadTime": 3,
                 "quotesAllowed": True,
                 "paymentMethods": ["credit_card", "purchase_order"],
@@ -1332,6 +1334,32 @@ class BackendFlowTest:
             ok(f"Login with {upper} works (normalized to lowercase)")
 
         self.run_test("Email case-insensitive login", test_email_case_login)
+
+        def test_tax_rate():
+            """Tax calculated using company taxRate, not hardcoded"""
+            c1_id = self.ids["company1"]
+            product_a = self.product_ids["company1"][0]
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 1)
+
+            resp = self._create_quote("customer", c1_id)
+            assert_status(resp, 200, "Quote with taxRate")
+            data = resp.json()
+            subtotal = data.get("subtotal", 0)
+            tax = data.get("taxAmount", 0)
+            rate = data.get("taxRate", 0)
+            assert rate == 8.25, f"Expected taxRate=8.25, got {rate}"
+            expected_tax = round(subtotal * 0.0825, 2)
+            assert abs(tax - expected_tax) < 0.02, f"Expected tax ~{expected_tax}, got {tax}"
+            shipping = data.get("shippingCost", 0)
+            shipping_rate = data.get("shippingRate", 0)
+            assert shipping_rate == 15.0, f"Expected shippingRate=15, got {shipping_rate}"
+            assert shipping == 15.0, f"Expected shippingCost=15, got {shipping}"
+            ok(f"Tax correct: ${subtotal:.2f} × {rate}% = ${tax:.2f}, shipping=${shipping:.2f}")
+
+        self.run_test("Tax and shipping rate from company config", test_tax_rate)
 
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 

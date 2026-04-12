@@ -165,6 +165,8 @@ const QuoteCreateForm: React.FC = () => {
         monthlyOrderLimit: company?.monthlyOrderLimit || 0,
         yearlyOrderLimit: company?.yearlyOrderLimit || 0,
         taxableGoods: company?.taxableGoods ?? true,
+        taxRate: company?.taxRate || 0,
+        shippingRate: company?.shippingRate || 0,
         leadTime: company?.leadTime || 0,
       };
 

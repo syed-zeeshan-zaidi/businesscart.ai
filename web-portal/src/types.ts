@@ -190,6 +190,8 @@ export interface CompanyData {
   monthlyOrderLimit?: number;
   yearlyOrderLimit?: number;
   taxableGoods?: boolean;
+  taxRate?: number;
+  shippingRate?: number;
   quotesAllowed?: boolean;
   companyCodeId?: string;
   companyCode: string;
@@ -278,6 +280,8 @@ export interface CustomerConfiguration {
   monthlyOrderLimit?: number;
   yearlyOrderLimit?: number;
   taxableGoods?: boolean;
+  taxRate?: number;
+  shippingRate?: number;
   leadTime?: number;
   groupID?: string;
   groupPriceDiscount?: number;
@@ -321,5 +325,7 @@ export interface CreateQuoteRequest {
   monthlyOrderLimit?: number;
   yearlyOrderLimit?: number;
   taxableGoods?: boolean;
+  taxRate?: number;
+  shippingRate?: number;
   leadTime?: number;
 }
