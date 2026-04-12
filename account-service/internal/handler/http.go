@@ -1641,17 +1641,19 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 		sellerID = request.QueryStringParameters["sellerId"]
 	}
 
+	since := request.QueryStringParameters["since"]
+
 	switch {
 	case request.Path == "/visitors/stats" && request.HTTPMethod == "GET":
-		return h.getVisitorStats(sellerID)
+		return h.getVisitorStats(sellerID, since)
 	case request.Path == "/visitors" && request.HTTPMethod == "GET":
-		return h.getVisitors(request, sellerID)
+		return h.getVisitors(request, sellerID, since)
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) getVisitorStats(sellerID string) (events.APIGatewayProxyResponse, error) {
-	stats, err := h.db.GetVisitorStats(sellerID)
+func (h *LambdaHandler) getVisitorStats(sellerID, since string) (events.APIGatewayProxyResponse, error) {
+	stats, err := h.db.GetVisitorStats(sellerID, since)
 	if err != nil {
 		log.Printf("ERROR: GetVisitorStats: %v", err)
 		return h.errorResponse(http.StatusInternalServerError, "Failed to get visitor stats"), nil
@@ -1659,12 +1661,28 @@ func (h *LambdaHandler) getVisitorStats(sellerID string) (events.APIGatewayProxy
 	return h.successResponse(stats, http.StatusOK), nil
 }
 
-func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, sellerID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, sellerID, since string) (events.APIGatewayProxyResponse, error) {
 	filter := bson.M{}
 	if sellerID == "portal" {
 		filter["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
 	} else if sellerID != "" {
 		filter["sellerId"] = sellerID
+	}
+
+	// Time range filter
+	if since != "" {
+		var sinceTime time.Time
+		switch since {
+		case "24h":
+			sinceTime = time.Now().Add(-24 * time.Hour)
+		case "7d":
+			sinceTime = time.Now().AddDate(0, 0, -7)
+		case "30d":
+			sinceTime = time.Now().AddDate(0, 0, -30)
+		}
+		if !sinceTime.IsZero() {
+			filter["lastVisit"] = bson.M{"$gte": sinceTime}
+		}
 	}
 
 	q := request.QueryStringParameters

@@ -437,7 +437,7 @@ func (db *DB) GetVisitors(filter bson.M, skip, limit int64) ([]*Visitor, int64, 
 	return visitors, total, nil
 }
 
-func (db *DB) GetVisitorStats(sellerID string) (map[string]interface{}, error) {
+func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, error) {
 	ctx := context.Background()
 
 	base := bson.M{}
@@ -445,6 +445,22 @@ func (db *DB) GetVisitorStats(sellerID string) (map[string]interface{}, error) {
 		base["sellerId"] = bson.M{"$in": []interface{}{nil, ""}}
 	} else if sellerID != "" {
 		base["sellerId"] = sellerID
+	}
+
+	// Time range filter
+	if since != "" {
+		var sinceTime time.Time
+		switch since {
+		case "24h":
+			sinceTime = time.Now().Add(-24 * time.Hour)
+		case "7d":
+			sinceTime = time.Now().AddDate(0, 0, -7)
+		case "30d":
+			sinceTime = time.Now().AddDate(0, 0, -30)
+		}
+		if !sinceTime.IsZero() {
+			base["lastVisit"] = bson.M{"$gte": sinceTime}
+		}
 	}
 
 	withBase := func(extra bson.M) bson.M {
