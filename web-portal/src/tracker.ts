@@ -43,10 +43,21 @@ function getAttribution(): Record<string, string> {
     utm_medium: params.get('utm_medium') || '',
     utm_campaign: params.get('utm_campaign') || '',
     utm_content: params.get('utm_content') || '',
+    utm_term: params.get('utm_term') || '',
   };
 
   safeLocalSet(ATTR_KEY, JSON.stringify(attribution));
   return attribution;
+}
+
+function isInternalUser(): boolean {
+  try {
+    const token = safeLocalGet('accessToken');
+    if (!token) return false;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const role = payload?.user?.role || '';
+    return role === 'admin' || role === 'company' || role === 'partner';
+  } catch { return false; }
 }
 
 let sessionTracked = false;
@@ -56,6 +67,7 @@ export function trackPageView(page: string) {
     if (sessionTracked) return;
     if (!isPublicPage(page)) return;
     if (!API_URL) return;
+    if (isInternalUser()) return;
 
     sessionTracked = true;
 
@@ -73,6 +85,11 @@ export function trackPageView(page: string) {
         utm_medium: attribution.utm_medium,
         utm_campaign: attribution.utm_campaign,
         utm_content: attribution.utm_content,
+        utm_term: attribution.utm_term,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        screenWidth: window.screen?.width || 0,
+        screenHeight: window.screen?.height || 0,
+        language: navigator.language || '',
       }),
       keepalive: true,
     }).catch(() => {});

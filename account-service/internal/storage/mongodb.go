@@ -360,7 +360,16 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 		"os":        visitor.OS,
 		"browser":   visitor.Browser,
 		"isBot":     visitor.IsBot,
-		"botName":   visitor.BotName,
+	}
+	if visitor.BotName != "" {
+		setFields["botName"] = visitor.BotName
+	}
+	if visitor.ScreenWidth > 0 {
+		setFields["screenWidth"] = visitor.ScreenWidth
+		setFields["screenHeight"] = visitor.ScreenHeight
+	}
+	if visitor.Language != "" {
+		setFields["language"] = visitor.Language
 	}
 	if visitor.CustomerID != "" {
 		setFields["customerId"] = visitor.CustomerID

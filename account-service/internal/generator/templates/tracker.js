@@ -36,7 +36,8 @@
             utm_source: p.get('utm_source') || '',
             utm_medium: p.get('utm_medium') || '',
             utm_campaign: p.get('utm_campaign') || '',
-            utm_content: p.get('utm_content') || ''
+            utm_content: p.get('utm_content') || '',
+            utm_term: p.get('utm_term') || ''
         };
         lsSet(ATTR_KEY, JSON.stringify(attr));
         return attr;
@@ -66,6 +67,11 @@
                 utm_medium: attr.utm_medium,
                 utm_campaign: attr.utm_campaign,
                 utm_content: attr.utm_content,
+                utm_term: attr.utm_term,
+                timezone: (function() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e) { return ''; } })(),
+                screenWidth: window.screen ? window.screen.width : 0,
+                screenHeight: window.screen ? window.screen.height : 0,
+                language: navigator.language || '',
                 customerId: customerId(),
                 sellerId: SELLER
             };
@@ -79,13 +85,7 @@
         } catch (e) {}
     }
 
-    // Track page view only once per session
-    if (!ssGet(SESSION_KEY)) {
-        ssSet(SESSION_KEY, '1');
-        send('page_view', window.location.pathname);
-    }
-
-    // Expose for cart.js and customer.js to call
+    // Expose for cart.js and customer.js to call (must be defined before any early return)
     window.D2C_TRACKER = {
         trackAddToCart: function (productId, productName, price) {
             try { send('add_to_cart', window.location.pathname, { productId: productId, productName: productName, price: price }); } catch (e) {}
@@ -100,4 +100,14 @@
             try { send('login', window.location.pathname, { customerId: customerId }); } catch (e) {}
         }
     };
+
+    // Skip tracking for local/dev environments
+    var proto = window.location.protocol;
+    if (proto === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
+
+    // Track page view only once per session
+    if (!ssGet(SESSION_KEY)) {
+        ssSet(SESSION_KEY, '1');
+        send('page_view', window.location.pathname);
+    }
 })();
