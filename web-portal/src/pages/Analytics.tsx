@@ -560,8 +560,8 @@ const Analytics: React.FC = () => {
                         )}
                         {step.done && i > 0 && (
                           <p className="text-[10px] text-gray-400">
-                            {step.label === 'Registered' && selected.daysToRegister != null ? `${selected.daysToRegister}d` : ''}
-                            {step.label === 'Ordered' && selected.daysToOrder != null ? `${selected.daysToOrder}d` : ''}
+                            {step.label === 'Registered' && selected.daysToRegister !== null && selected.daysToRegister !== undefined ? `${selected.daysToRegister}d` : ''}
+                            {step.label === 'Ordered' && selected.daysToOrder !== null && selected.daysToOrder !== undefined ? `${selected.daysToOrder}d` : ''}
                           </p>
                         )}
                       </div>
