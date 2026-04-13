@@ -1668,6 +1668,15 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 		return h.getVisitorStats(sellerID, since)
 	case request.Path == "/visitors" && request.HTTPMethod == "GET":
 		return h.getVisitors(request, sellerID, since)
+	case request.Path == "/visitors" && request.HTTPMethod == "DELETE" && role == storage.RoleAdmin:
+		vid := request.QueryStringParameters["visitorId"]
+		if vid == "" {
+			return h.errorResponse(http.StatusBadRequest, "visitorId required"), nil
+		}
+		if err := h.db.DeleteVisitor(vid); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to delete visitor"), nil
+		}
+		return h.successResponse(map[string]string{"status": "deleted"}, http.StatusOK), nil
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }

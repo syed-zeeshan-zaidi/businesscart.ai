@@ -400,6 +400,11 @@ func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) 
 	return err
 }
 
+func (db *DB) DeleteVisitor(visitorID string) error {
+	_, err := db.visitors.DeleteOne(context.Background(), bson.M{"visitorId": visitorID})
+	return err
+}
+
 func (db *DB) UpdateVisitorConversion(visitorID string, fields bson.M) error {
 	filter := bson.M{"visitorId": visitorID}
 	update := bson.M{"$set": fields}

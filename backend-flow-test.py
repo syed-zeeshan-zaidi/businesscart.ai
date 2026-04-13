@@ -165,6 +165,7 @@ class Tracker:
         self.products = []   # (owner_role_key, product_id)
         self.orders = []     # order_id
         self.codes = []      # company_code string (used for DELETE /codes/{code})
+        self.visitors = []   # visitor_id string
 
     def track_account(self, role_key, account_id):
         self.accounts.append((role_key, account_id))
@@ -174,6 +175,10 @@ class Tracker:
 
     def track_order(self, order_id):
         self.orders.append(order_id)
+
+    def track_visitor(self, visitor_id):
+        if visitor_id not in self.visitors:
+            self.visitors.append(visitor_id)
 
     def track_code(self, company_code):
         if company_code not in self.codes:
@@ -1367,6 +1372,7 @@ class BackendFlowTest:
         phase("PHASE 8d: Visitor Tracking")
 
         test_vid = "v___test__" + str(int(time.time()))
+        self.tracker.track_visitor(test_vid)
 
         # Test 1: Normal visitor event captures all fields
         def test_visitor_event():
@@ -1583,6 +1589,20 @@ class BackendFlowTest:
                         warn(f"Failed to delete code {code}: HTTP {resp.status_code}")
                 except Exception as e:
                     warn(f"Error deleting code {code}: {e}")
+
+        # Delete test visitors
+        step("Deleting test visitors")
+        if "admin" in self.jwts:
+            self.use_token("admin")
+            for vid in self.tracker.visitors:
+                try:
+                    resp = self.api.delete(f"/visitors?visitorId={vid}")
+                    if resp.status_code == 200:
+                        ok(f"Deleted visitor {vid}")
+                    else:
+                        warn(f"Failed to delete visitor {vid}: HTTP {resp.status_code}")
+                except Exception as e:
+                    warn(f"Error deleting visitor {vid}: {e}")
 
         step("Cleanup complete")
 
