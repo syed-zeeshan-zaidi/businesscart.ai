@@ -102,11 +102,22 @@
             <p>Explore our complete catalog of [[len .Products]] products.</p>
         </header>
 
+        [[if .Categories]]
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-bottom:2.5rem">
+            <a href="products.html" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.5rem 1.25rem;border-radius:100px;background:var(--primary);color:#fff;text-decoration:none;font-size:0.85rem;font-weight:700">All <span style="opacity:0.7">([[len .Products]])</span></a>
+            [[range .Categories]]
+            <a href="category/[[slugify .]].html" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.5rem 1.25rem;border-radius:100px;background:#fff;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:600;border:1px solid #e2e8f0">[[.]] <span style="color:#94a3b8;font-weight:400">([[catCount $.CategoryCounts .]])</span></a>
+            [[end]]
+        </div>
+        [[end]]
+
         <section class="product-grid">
             [[range .Products]]
             <a href="products/[[.Filename]].html"
                 class="product-card">
-                [[if and .DealPrice (gt .DealPrice 0.0)]]
+                [[if eq .Stock 0]]
+                <div class="sale-badge" style="background:#64748b">SOLD OUT</div>
+                [[else if and .DealPrice (gt .DealPrice 0.0)]]
                 <div class="sale-badge">SALE</div>
                 [[end]]
 
@@ -130,10 +141,16 @@
                     [[end]]
                 </div>
 
+                [[if gt .Stock 0]]
                 <button class="cta-btn"
                     onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]]})">
                     Add to Cart
                 </button>
+                [[else]]
+                <button class="cta-btn" disabled style="opacity:0.5;cursor:not-allowed;box-shadow:none" onclick="event.preventDefault()">
+                    Sold Out
+                </button>
+                [[end]]
             </a>
             [[end]]
         </section>

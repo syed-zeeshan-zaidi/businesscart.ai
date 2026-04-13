@@ -82,6 +82,8 @@ type D2CConfig struct {
 	PrivacyText    string `bson:"privacyText" json:"privacyText"`
 	TermsText      string `bson:"termsText" json:"termsText"`
 	ShippingText   string `bson:"shippingText" json:"shippingText"`
+	ShippingBadge  string `bson:"shippingBadge,omitempty" json:"shippingBadge,omitempty"` // Product page trust signal (default: "Shipping Available")
+	ReturnsBadge   string `bson:"returnsBadge,omitempty" json:"returnsBadge,omitempty"` // Product page trust signal (default: "Returns & Refunds")
 	WhatsappNumber string `bson:"whatsappNumber" json:"whatsappNumber"`
 	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
 	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`

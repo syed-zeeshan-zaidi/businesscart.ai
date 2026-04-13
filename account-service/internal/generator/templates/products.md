@@ -11,6 +11,7 @@
 ### [[.Name]]
 - **Price**: $[[printf "%.2f" .Price]][[if .DealPrice]] (Sale: $[[printf "%.2f" .DiscountedPrice]] — [[printf "%.0f" .DealPrice]]% off)[[end]]
 - **Category**: [[.Category]]
+- **Availability**: [[if gt .Stock 0]]In Stock[[else]]Out of Stock[[end]]
 - **Description**: [[.Description]]
 [[if .Attributes]]- **Specifications**:
 [[range .Attributes]]  - [[.Key]]: [[.Value]]

@@ -37,13 +37,14 @@ class D2CCart {
         item.discountedPrice = discounted;
     }
 
-    addItem(product) {
+    addItem(product, qty) {
+        var addQty = qty || 1;
         const existing = this.items.find(item => item._id === product._id);
         if (existing) {
-            existing.quantity = (existing.quantity || 1) + 1;
+            existing.quantity = (existing.quantity || 1) + addQty;
             this.resolveTierPrice(existing);
         } else {
-            var newItem = { ...product, quantity: 1, basePrice: product.price };
+            var newItem = { ...product, quantity: addQty, basePrice: product.price };
             this.items.push(newItem);
         }
         this.saveCart();

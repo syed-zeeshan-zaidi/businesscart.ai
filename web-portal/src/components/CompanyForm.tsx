@@ -757,6 +757,30 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Shipping Badge (optional)</label>
+                  <input
+                    name="d2c.shippingBadge"
+                    value={companyData.d2c?.shippingBadge || ''}
+                    onChange={handleChange}
+                    placeholder="e.g., Free Shipping Over $50"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Shown on product pages. Default: "Shipping Available"</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Returns Badge (optional)</label>
+                  <input
+                    name="d2c.returnsBadge"
+                    value={companyData.d2c?.returnsBadge || ''}
+                    onChange={handleChange}
+                    placeholder="e.g., 30-Day Money Back Guarantee"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Shown on product pages. Default: "Returns & Refunds"</p>
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Social Media Links (optional)</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
