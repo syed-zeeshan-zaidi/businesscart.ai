@@ -2,9 +2,33 @@ import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { UserIcon, HomeIcon, BuildingOffice2Icon, ShoppingBagIcon, ClipboardDocumentListIcon, DocumentPlusIcon, MapPinIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  HomeIcon,
+  ShoppingBagIcon,
+  ClipboardDocumentListIcon,
+  DocumentTextIcon,
+  BuildingOffice2Icon,
+  UserIcon,
+  KeyIcon,
+  MapPinIcon,
+  ChartBarIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
+
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ElementType;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const APP_VERSION = '1.0.0';
 
 const Sidebar = () => {
   const { decodeJWT } = useAuth();
@@ -18,56 +42,116 @@ const Sidebar = () => {
     return () => window.removeEventListener('toggle-sidebar', open);
   }, []);
 
-  const links = [
-    { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-    { name: 'Users', path: '/users', icon: UserIcon },
-    { name: 'Companies', path: '/companies', icon: BuildingOffice2Icon },
-    { name: 'Products', path: '/products', icon: ShoppingBagIcon },
-    { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
-    { name: 'Quotes', path: '/quotes', icon: DocumentPlusIcon },
+  const isAdmin = user?.role === 'admin';
+
+  // Pending order count from dashboard cache (no API calls)
+  const [pendingOrders, setPendingOrders] = useState(0);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('dash_orders');
+      if (raw) {
+        const { data } = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          setPendingOrders(data.filter((o: { status?: string }) => !o.status || o.status === 'pending').length);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [user]);
+
+  const sections: NavSection[] = [
+    {
+      label: '',
+      items: [
+        { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+      ],
+    },
+    {
+      label: 'Commerce',
+      items: [
+        { name: 'Products', path: '/products', icon: ShoppingBagIcon },
+        { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
+        { name: 'Quotes', path: '/quotes', icon: DocumentTextIcon },
+      ],
+    },
+    {
+      label: 'Management',
+      items: [
+        { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
+        { name: 'Users', path: '/users', icon: UserIcon },
+        ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
+        { name: 'Locations', path: '/locations', icon: MapPinIcon },
+      ],
+    },
+    {
+      label: 'Insights',
+      items: [
+        { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+      ],
+    },
   ];
 
-  if (user && user.role === 'admin') {
-    links.splice(1, 0, { name: 'Codes', path: '/codes', icon: DocumentPlusIcon });
-  }
-
-  if (user && (user.role === 'admin' || user.role === 'company')) {
-    links.push({ name: 'Analytics', path: '/analytics', icon: ChartBarIcon });
-  }
-
-  if (user && (user.role === 'admin' || user.role === 'company')) {
-    links.push({ name: 'Locations', path: '/locations', icon: MapPinIcon });
-  }
-
   const navContent = (
-    <>
-      <div className="p-6 flex items-center">
-        <span className="w-10 h-10"><Logo /></span>
-        <h1 className="text-2xl font-semibold text-gray-400 p-1">BusinessCart</h1>
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="p-5 flex items-center gap-2">
+        <span className="w-8 h-8"><Logo /></span>
+        <span className="text-lg font-bold text-gray-400">BusinessCart</span>
       </div>
-      <nav className="mt-4">
-        {links.map((link) => (
-          <NavLink
-            key={link.name}
-            to={link.path}
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center px-6 py-3 text-gray-200 hover:bg-gray-700 transition-colors ${
-                isActive ? 'bg-gray-900 text-white border-l-4 border-teal-500' : ''
-              }`
-            }
-          >
-            <link.icon className="h-5 w-5 mr-3" />
-            <span>{link.name}</span>
-          </NavLink>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 space-y-4 mt-2">
+        {sections.map((section) => (
+          <div key={section.label || 'main'}>
+            {section.label && (
+              <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">{section.label}</p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((link) => (
+                <NavLink
+                  key={link.name}
+                  to={link.path}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-teal-700/20 text-teal-400'
+                        : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
+                    }`
+                  }
+                >
+                  <link.icon className="h-5 w-5 shrink-0" />
+                  <span className="flex-1">{link.name}</span>
+                  {link.name === 'Orders' && pendingOrders > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{pendingOrders}</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
-    </>
+
+      {/* User + Version */}
+      <div className="p-4 border-t border-gray-700/50 mt-auto">
+        {user && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-teal-700/30 flex items-center justify-center text-teal-400 text-sm font-bold shrink-0">
+              {(user.name || user.email || '?')[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-300 truncate">{user.name || user.email}</p>
+              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+            </div>
+          </div>
+        )}
+        <p className="text-[10px] text-gray-600">v{APP_VERSION}</p>
+      </div>
+    </div>
   );
 
   return (
     <>
-      {/* Mobile slide-over — opened via 'toggle-sidebar' event from Navbar */}
+      {/* Mobile slide-over */}
       <Transition show={mobileOpen} as={Fragment}>
         <Dialog onClose={() => setMobileOpen(false)} className="relative z-50 lg:hidden">
           <Transition.Child
@@ -91,7 +175,7 @@ const Sidebar = () => {
             leaveTo="-translate-x-full"
           >
             <Dialog.Panel className="fixed inset-y-0 left-0 w-64 bg-gray-800 shadow-xl overflow-y-auto">
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-4 right-4 z-10">
                 <button onClick={() => setMobileOpen(false)} className="text-gray-400 hover:text-white">
                   <XMarkIcon className="h-6 w-6" />
                 </button>
@@ -102,8 +186,8 @@ const Sidebar = () => {
         </Dialog>
       </Transition>
 
-      {/* Desktop sidebar — hidden on mobile */}
-      <div className="hidden lg:block w-64 bg-gray-800 shadow-lg h-screen sticky top-0 flex-shrink-0">
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block w-64 bg-gray-800 h-screen sticky top-0 flex-shrink-0">
         {navContent}
       </div>
     </>
