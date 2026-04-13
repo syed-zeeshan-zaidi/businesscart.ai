@@ -1464,7 +1464,12 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		UTMMedium  string `json:"utm_medium"`
 		UTMCampaign string `json:"utm_campaign"`
 		UTMContent string `json:"utm_content"`
-		CustomerID string `json:"customerId"`
+		UTMTerm    string `json:"utm_term"`
+		Timezone     string `json:"timezone"`
+		ScreenWidth  int    `json:"screenWidth"`
+		ScreenHeight int    `json:"screenHeight"`
+		Language     string `json:"language"`
+		CustomerID   string `json:"customerId"`
 		SellerID   string `json:"sellerId"`
 		Metadata   map[string]interface{} `json:"metadata"`
 	}
@@ -1494,7 +1499,13 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	region := headers["CloudFront-Viewer-Country-Region"]
 	city := headers["CloudFront-Viewer-City"]
 	timezone := headers["CloudFront-Viewer-Time-Zone"]
+	if timezone == "" {
+		timezone = req.Timezone
+	}
 	ip := headers["X-Forwarded-For"]
+	if i := strings.Index(ip, ","); i > 0 {
+		ip = strings.TrimSpace(ip[:i])
+	}
 	asn := headers["CloudFront-Viewer-ASN"]
 	userAgent := headers["User-Agent"]
 	if userAgent == "" {
@@ -1513,6 +1524,11 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 
 	// Parse browser and OS from User-Agent
 	browser, os := parseUserAgent(userAgent)
+
+	// Fix: iPhone/iPad requesting desktop site reports "Macintosh" in UA
+	if device == "mobile" && os == "macOS" {
+		os = "iOS"
+	}
 
 	// Detect bots
 	isBot, botName := detectBot(userAgent, asn)
@@ -1540,6 +1556,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 			Medium:      medium,
 			Campaign:    req.UTMCampaign,
 			Content:     req.UTMContent,
+			Term:        req.UTMTerm,
 			Referrer:    req.Referrer,
 			LandingPage: req.Page,
 		},
@@ -1556,8 +1573,11 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		Browser:    browser,
 		IsBot:      isBot,
 		BotName:    botName,
-		Pages:      []string{req.Page},
-		CustomerID: req.CustomerID,
+		ScreenWidth:  req.ScreenWidth,
+		ScreenHeight: req.ScreenHeight,
+		Language:     req.Language,
+		Pages:        []string{req.Page},
+		CustomerID:   req.CustomerID,
 	}
 
 	// Upsert visitor — if it fails, save a raw doc with error log
@@ -1648,6 +1668,15 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 		return h.getVisitorStats(sellerID, since)
 	case request.Path == "/visitors" && request.HTTPMethod == "GET":
 		return h.getVisitors(request, sellerID, since)
+	case request.Path == "/visitors" && request.HTTPMethod == "DELETE" && role == storage.RoleAdmin:
+		vid := request.QueryStringParameters["visitorId"]
+		if vid == "" {
+			return h.errorResponse(http.StatusBadRequest, "visitorId required"), nil
+		}
+		if err := h.db.DeleteVisitor(vid); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to delete visitor"), nil
+		}
+		return h.successResponse(map[string]string{"status": "deleted"}, http.StatusOK), nil
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
@@ -1865,6 +1894,18 @@ func inferSource(referrer string) (source, medium string) {
 		return "perplexity", "llm"
 	case strings.Contains(r, "claude.ai"):
 		return "claude", "llm"
+	case strings.Contains(r, "gemini.google.com"):
+		return "gemini", "llm"
+	case strings.Contains(r, "copilot.microsoft.com"):
+		return "copilot", "llm"
+	case strings.Contains(r, "meta.ai"):
+		return "meta-ai", "llm"
+	case strings.Contains(r, "grok.x.ai") || strings.Contains(r, "x.ai"):
+		return "grok", "llm"
+	case strings.Contains(r, "you.com"):
+		return "you", "llm"
+	case strings.Contains(r, "phind.com"):
+		return "phind", "llm"
 	case strings.Contains(r, "duckduckgo.com"):
 		return "duckduckgo", "organic"
 	case strings.Contains(r, "yahoo."):

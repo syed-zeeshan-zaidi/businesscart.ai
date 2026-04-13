@@ -82,6 +82,8 @@ type D2CConfig struct {
 	PrivacyText    string `bson:"privacyText" json:"privacyText"`
 	TermsText      string `bson:"termsText" json:"termsText"`
 	ShippingText   string `bson:"shippingText" json:"shippingText"`
+	ShippingBadge  string `bson:"shippingBadge,omitempty" json:"shippingBadge,omitempty"` // Product page trust signal (default: "Shipping Available")
+	ReturnsBadge   string `bson:"returnsBadge,omitempty" json:"returnsBadge,omitempty"` // Product page trust signal (default: "Returns & Refunds")
 	WhatsappNumber string `bson:"whatsappNumber" json:"whatsappNumber"`
 	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
 	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`
@@ -254,6 +256,7 @@ type VisitorAttribution struct {
 	Medium      string `bson:"medium" json:"medium"`
 	Campaign    string `bson:"campaign,omitempty" json:"campaign,omitempty"`
 	Content     string `bson:"content,omitempty" json:"content,omitempty"`
+	Term        string `bson:"term,omitempty" json:"term,omitempty"`
 	Referrer    string `bson:"referrer,omitempty" json:"referrer,omitempty"`
 	LandingPage string `bson:"landingPage" json:"landingPage"`
 }
@@ -283,6 +286,9 @@ type Visitor struct {
 	Device         string             `bson:"device" json:"device"`
 	OS             string             `bson:"os,omitempty" json:"os,omitempty"`
 	Browser        string             `bson:"browser,omitempty" json:"browser,omitempty"`
+	ScreenWidth    int                `bson:"screenWidth,omitempty" json:"screenWidth,omitempty"`
+	ScreenHeight   int                `bson:"screenHeight,omitempty" json:"screenHeight,omitempty"`
+	Language       string             `bson:"language,omitempty" json:"language,omitempty"`
 	IsBot          bool               `bson:"isBot" json:"isBot"`
 	BotName        string             `bson:"botName,omitempty" json:"botName,omitempty"`
 	FirstVisit     time.Time          `bson:"firstVisit" json:"firstVisit"`

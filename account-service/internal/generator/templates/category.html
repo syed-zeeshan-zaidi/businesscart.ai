@@ -13,6 +13,10 @@
     <meta property="og:description" content="Browse [[.Category]] products from [[.Company.Name]].">
     <meta property="og:url" content="https://[[.Domain]]/category/[[slugify .Category]].html">
     [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="[[.Category]] | [[.Company.Name]]">
+    <meta name="twitter:description" content="Browse [[.Category]] products from [[.Company.Name]].">
+    [[if .Company.LogoURL]]<meta name="twitter:image" content="[[.Company.LogoURL]]">[[end]]
     <style>
         :root {
             --primary: [[.Config.PrimaryColor]];
@@ -85,6 +89,17 @@
 
         [[template "global_css" .]]
     </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
+        { "@type": "ListItem", "position": 2, "name": "Products", "item": "https://[[.Domain]]/products.html" },
+        { "@type": "ListItem", "position": 3, "name": "[[.Category]]" }
+      ]
+    }
+    </script>
     <script>
         window.D2C_CONFIG = {
             sellerId: "[[.AccountID]]",
@@ -120,7 +135,9 @@
             [[range .Products]]
             <a href="../products/[[.Filename]].html"
                 class="product-card">
-                [[if and .DealPrice (gt .DealPrice 0.0)]]
+                [[if eq .Stock 0]]
+                <div class="sale-badge" style="background:#64748b">SOLD OUT</div>
+                [[else if and .DealPrice (gt .DealPrice 0.0)]]
                 <div class="sale-badge">SALE</div>
                 [[end]]
 
@@ -144,10 +161,16 @@
                     [[end]]
                 </div>
 
+                [[if gt .Stock 0]]
                 <button class="cta-btn"
                     onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]]})">
                     Add to Cart
                 </button>
+                [[else]]
+                <button class="cta-btn" disabled style="opacity:0.5;cursor:not-allowed;box-shadow:none" onclick="event.preventDefault()">
+                    Sold Out
+                </button>
+                [[end]]
             </a>
             [[end]]
         </section>

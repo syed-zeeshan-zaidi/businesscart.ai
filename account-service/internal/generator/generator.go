@@ -33,7 +33,8 @@ type StorefrontData struct {
 	Company          *storage.CompanyData
 	Config           *storage.D2CConfig
 	Products         []ProductData
-	Categories       []string      // Unique list of product categories
+	Categories       []string         // Unique list of product categories
+	CategoryCounts   map[string]int   // Product count per category
 	FeaturedProducts []ProductData // Subset of products for the homepage
 	DealProducts     []ProductData // Products with active deals (DealPrice > 0)
 	Year             int
@@ -160,14 +161,15 @@ func (g *Generator) Generate(data StorefrontData) error {
 		data.Products[i].Filename = slug + suffix
 	}
 
-	// Extract Categories and Featured Products
-	categoryMap := make(map[string]bool)
+	// Extract Categories with counts
+	categoryCounts := make(map[string]int)
 	for _, p := range data.Products {
 		if p.Category != "" {
-			categoryMap[p.Category] = true
+			categoryCounts[p.Category]++
 		}
 	}
-	for cat := range categoryMap {
+	data.CategoryCounts = categoryCounts
+	for cat := range categoryCounts {
 		data.Categories = append(data.Categories, cat)
 	}
 
@@ -279,23 +281,25 @@ func (g *Generator) Generate(data StorefrontData) error {
 			DealProducts []ProductData
 			Year         int
 			Timestamp    string
-			Categories   []string
-			BasePath     string
-			ApiBase      string
-			Domain       string
+			Categories     []string
+			CategoryCounts map[string]int
+			BasePath       string
+			ApiBase        string
+			Domain         string
 		}{
-			AccountID:    data.AccountID,
-			Company:      data.Company,
-			Config:       data.Config,
-			Category:     cat,
-			Products:     catProducts,
-			DealProducts: data.DealProducts,
-			Year:         data.Year,
-			Timestamp:    data.Timestamp,
-			Categories:   data.Categories,
-			BasePath:     "../",
-			ApiBase:      data.ApiBase,
-			Domain:       data.Domain,
+			AccountID:      data.AccountID,
+			Company:        data.Company,
+			Config:         data.Config,
+			Category:       cat,
+			Products:       catProducts,
+			DealProducts:   data.DealProducts,
+			Year:           data.Year,
+			Timestamp:      data.Timestamp,
+			Categories:     data.Categories,
+			CategoryCounts: data.CategoryCounts,
+			BasePath:       "../",
+			ApiBase:        data.ApiBase,
+			Domain:         data.Domain,
 		}
 
 		catFilename := fmt.Sprintf("%s.html", slugify(cat))
@@ -314,30 +318,45 @@ func (g *Generator) Generate(data StorefrontData) error {
 	for _, product := range data.Products {
 		filenameBase := product.Filename
 
+		// Related products: same category, exclude current, max 4
+		var related []ProductData
+		for _, p := range data.Products {
+			if p.ID != product.ID && p.Category == product.Category {
+				related = append(related, p)
+				if len(related) >= 4 {
+					break
+				}
+			}
+		}
+
 		productPageData := struct {
-			AccountID    string
-			Company      *storage.CompanyData
-			Config       *storage.D2CConfig
-			Product      ProductData
-			DealProducts []ProductData
-			Year         int
-			Timestamp    string
-			Categories   []string
-			BasePath     string
-			ApiBase      string
-			Domain       string
+			AccountID       string
+			Company         *storage.CompanyData
+			Config          *storage.D2CConfig
+			Product         ProductData
+			RelatedProducts []ProductData
+			DealProducts    []ProductData
+			Year            int
+			Timestamp       string
+			Categories      []string
+			CategoryCounts  map[string]int
+			BasePath        string
+			ApiBase         string
+			Domain          string
 		}{
-			AccountID:    data.AccountID,
-			Company:      data.Company,
-			Config:       data.Config,
-			Product:      product,
-			DealProducts: data.DealProducts,
-			Year:         data.Year,
-			Timestamp:    data.Timestamp,
-			Categories:   data.Categories,
-			BasePath:     "../",
-			ApiBase:      data.ApiBase,
-			Domain:       data.Domain,
+			AccountID:       data.AccountID,
+			Company:         data.Company,
+			Config:          data.Config,
+			Product:         product,
+			RelatedProducts: related,
+			DealProducts:    data.DealProducts,
+			Year:            data.Year,
+			Timestamp:       data.Timestamp,
+			Categories:      data.Categories,
+			CategoryCounts:  data.CategoryCounts,
+			BasePath:        "../",
+			ApiBase:         data.ApiBase,
+			Domain:          data.Domain,
 		}
 
 		// Product HTML
@@ -553,6 +572,15 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	sanitizedContent += g.sanitizeTemplate(string(content))
 
 	var buf bytes.Buffer
+	paymentLabels := map[string]string{
+		"credit_card": "Credit Card", "purchase_order": "Purchase Order",
+		"amazon_pay": "Amazon Pay", "google_pay": "Google Pay", "stripe_pay": "Stripe",
+		"pickup_&_pay": "Pay at Pickup", "deliver_pay": "Pay on Delivery",
+	}
+	deliveryLabels := map[string]string{
+		"pickup": "Pickup", "dropoff": "Local Delivery", "shipping_out": "Shipping",
+	}
+
 	funcMap := template.FuncMap{
 		"subtract": func(a, b int) int { return a - b },
 		"printf":   fmt.Sprintf,
@@ -560,6 +588,31 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 		"jsArray": func(v interface{}) template.JS {
 			b, _ := json.Marshal(v)
 			return template.JS(b)
+		},
+		"paymentLabel": func(s string) string {
+			if l, ok := paymentLabels[s]; ok {
+				return l
+			}
+			return s
+		},
+		"deliveryLabel": func(s string) string {
+			if l, ok := deliveryLabels[s]; ok {
+				return l
+			}
+			return s
+		},
+		"isOnlinePayment": func(s string) bool {
+			return s == "credit_card" || s == "amazon_pay" || s == "google_pay" || s == "stripe_pay"
+		},
+		"savingsPercent": func(original, discounted float64) int {
+			if original <= 0 {
+				return 0
+			}
+			return int(((original - discounted) / original) * 100)
+		},
+		"subtractFloat": func(a, b float64) float64 { return a - b },
+		"catCount": func(counts map[string]int, cat string) int {
+			return counts[cat]
 		},
 	}
 

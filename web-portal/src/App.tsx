@@ -111,7 +111,7 @@ const AppContent = () => {
         <div className="flex-1 min-w-0">
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
-              <Route path="/" element={<LandingPage />} /> {/* Moved to the top */}
+              <Route path="/" element={isAuthenticated ? <Navigate to={getRedirectPath()} replace /> : <LandingPage />} />
               <Route
                 path="/home"
                 element={isAuthenticated ? <Home /> : <Navigate to="/login" replace />}

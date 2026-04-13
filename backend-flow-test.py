@@ -165,6 +165,7 @@ class Tracker:
         self.products = []   # (owner_role_key, product_id)
         self.orders = []     # order_id
         self.codes = []      # company_code string (used for DELETE /codes/{code})
+        self.visitors = []   # visitor_id string
 
     def track_account(self, role_key, account_id):
         self.accounts.append((role_key, account_id))
@@ -174,6 +175,10 @@ class Tracker:
 
     def track_order(self, order_id):
         self.orders.append(order_id)
+
+    def track_visitor(self, visitor_id):
+        if visitor_id not in self.visitors:
+            self.visitors.append(visitor_id)
 
     def track_code(self, company_code):
         if company_code not in self.codes:
@@ -1361,6 +1366,145 @@ class BackendFlowTest:
 
         self.run_test("Tax and shipping rate from company config", test_tax_rate)
 
+    # ── Phase 8d: Visitor Tracking ─────────────────────────────────
+
+    def phase8d_visitor_tracking(self):
+        phase("PHASE 8d: Visitor Tracking")
+
+        test_vid = "v___test__" + str(int(time.time()))
+        self.tracker.track_visitor(test_vid)
+
+        # Test 1: Normal visitor event captures all fields
+        def test_visitor_event():
+            resp = self.api.post("/visitors/event", {
+                "visitorId": test_vid,
+                "event": "page_view",
+                "page": "/",
+                "referrer": "https://www.google.com/",
+                "utm_source": "google",
+                "utm_medium": "cpc",
+                "utm_campaign": "shopify-alt",
+                "utm_content": "ad-v1",
+                "utm_term": "shopify alternative no monthly fee",
+                "timezone": "America/New_York",
+                "screenWidth": 1920,
+                "screenHeight": 1080,
+                "language": "en-US",
+            })
+            assert_status(resp, 200, "Visitor event accepted")
+            ok("Visitor page_view event accepted")
+
+        self.run_test("Visitor event with all fields", test_visitor_event)
+
+        # Test 2: Admin visitor is skipped (when customerId is admin)
+        def test_admin_skipped():
+            admin_id = self.ids.get("admin", "")
+            resp = self.api.post("/visitors/event", {
+                "visitorId": "v___test__admin_skip",
+                "event": "page_view",
+                "page": "/",
+                "customerId": admin_id,
+            })
+            assert_status(resp, 200, "Admin event returns 200")
+            body = resp.json()
+            assert body.get("status") == "skipped", f"Expected skipped, got {body.get('status')}"
+            ok("Admin visitor correctly skipped")
+
+        self.run_test("Admin visitor skipped", test_admin_skipped)
+
+        # Test 3: Company visitor is skipped
+        def test_company_skipped():
+            company_id = self.ids.get("company1", "")
+            resp = self.api.post("/visitors/event", {
+                "visitorId": "v___test__company_skip",
+                "event": "page_view",
+                "page": "/",
+                "customerId": company_id,
+            })
+            assert_status(resp, 200, "Company event returns 200")
+            body = resp.json()
+            assert body.get("status") == "skipped", f"Expected skipped, got {body.get('status')}"
+            ok("Company visitor correctly skipped")
+
+        self.run_test("Company visitor skipped", test_company_skipped)
+
+        # Test 4: Retrieve visitor and verify all stored fields
+        def test_visitor_data():
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={test_vid}")
+            assert_status(resp, 200, "Get visitor by ID")
+            visitors = resp.json().get("visitors", [])
+            assert len(visitors) == 1, f"Expected 1 visitor, got {len(visitors)}"
+            v = visitors[0]
+
+            # Attribution
+            attr = v.get("attribution", {})
+            assert attr.get("source") == "google", f"source: {attr.get('source')}"
+            assert attr.get("medium") == "cpc", f"medium: {attr.get('medium')}"
+            assert attr.get("campaign") == "shopify-alt", f"campaign: {attr.get('campaign')}"
+            assert attr.get("content") == "ad-v1", f"content: {attr.get('content')}"
+            assert attr.get("term") == "shopify alternative no monthly fee", f"term: {attr.get('term')}"
+            assert attr.get("landingPage") == "/", f"landingPage: {attr.get('landingPage')}"
+            ok("Attribution fields correct (source, medium, campaign, content, term, landingPage)")
+
+            # Geo — timezone from browser fallback
+            geo = v.get("geo", {})
+            assert geo.get("timezone") == "America/New_York", f"timezone: {geo.get('timezone')}"
+            ok("Timezone captured from browser fallback")
+
+            # Device info
+            assert v.get("screenWidth") == 1920, f"screenWidth: {v.get('screenWidth')}"
+            assert v.get("screenHeight") == 1080, f"screenHeight: {v.get('screenHeight')}"
+            assert v.get("language") == "en-US", f"language: {v.get('language')}"
+            ok("Screen resolution and language captured")
+
+            # Activity
+            assert v.get("totalSessions") == 1, f"sessions: {v.get('totalSessions')}"
+            assert v.get("totalPageViews") == 1, f"pageViews: {v.get('totalPageViews')}"
+            assert "/" in v.get("pages", []), f"pages: {v.get('pages')}"
+            ok("Activity counters correct")
+
+        self.run_test("Visitor data verification", test_visitor_data)
+
+        # Test 5: Milestone event (add_to_cart)
+        def test_milestone():
+            resp = self.api.post("/visitors/event", {
+                "visitorId": test_vid,
+                "event": "add_to_cart",
+                "page": "/products/test.html",
+                "timezone": "America/New_York",
+                "screenWidth": 1920,
+                "screenHeight": 1080,
+                "language": "en-US",
+                "metadata": {"productId": "test123", "productName": "Test Product", "price": 29.99},
+            })
+            assert_status(resp, 200, "Add to cart event")
+
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={test_vid}")
+            v = resp.json().get("visitors", [])[0]
+            milestones = v.get("milestones", [])
+            assert len(milestones) >= 1, f"Expected milestones, got {len(milestones)}"
+            m = milestones[0]
+            assert m.get("event") == "add_to_cart", f"milestone event: {m.get('event')}"
+            assert m.get("metadata", {}).get("productName") == "Test Product", "milestone metadata"
+            ok("Milestone (add_to_cart) stored with metadata")
+
+        self.run_test("Visitor milestone event", test_milestone)
+
+        # Cleanup: delete test visitor
+        def test_cleanup_visitor():
+            # Direct DB cleanup not possible via API — visitor will be orphaned but harmless
+            # Just verify the skipped visitors weren't created
+            self.use_token("admin")
+            for skip_vid in ["v___test__admin_skip", "v___test__company_skip"]:
+                resp = self.api.get(f"/visitors?visitorId={skip_vid}")
+                visitors = resp.json().get("visitors") or []
+                assert len(visitors) == 0, f"Skipped visitor {skip_vid} should not exist, found {len(visitors)}"
+            ok("Skipped visitors confirmed not in database")
+
+        self.run_test("Verify skipped visitors not stored", test_cleanup_visitor)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -1446,6 +1590,20 @@ class BackendFlowTest:
                 except Exception as e:
                     warn(f"Error deleting code {code}: {e}")
 
+        # Delete test visitors
+        step("Deleting test visitors")
+        if "admin" in self.jwts:
+            self.use_token("admin")
+            for vid in self.tracker.visitors:
+                try:
+                    resp = self.api.delete(f"/visitors?visitorId={vid}")
+                    if resp.status_code == 200:
+                        ok(f"Deleted visitor {vid}")
+                    else:
+                        warn(f"Failed to delete visitor {vid}: HTTP {resp.status_code}")
+                except Exception as e:
+                    warn(f"Error deleting visitor {vid}: {e}")
+
         step("Cleanup complete")
 
     # ── Main ─────────────────────────────────────────────────────
@@ -1510,6 +1668,7 @@ class BackendFlowTest:
             self.phase8_storefront()
             self.phase8b_deals_and_export()
             self.phase8c_password_reset()
+            self.phase8d_visitor_tracking()
         finally:
             self.cleanup()
 

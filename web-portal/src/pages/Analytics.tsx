@@ -35,11 +35,14 @@ interface Stats {
 interface Visitor {
   visitorId: string;
   sellerId: string;
-  attribution: { source: string; medium: string; campaign: string; content: string; landingPage: string; referrer: string };
+  attribution: { source: string; medium: string; campaign: string; content: string; term: string; landingPage: string; referrer: string };
   geo: { country: string; region: string; city: string; timezone: string; ip: string; asn: string };
   device: string;
   os: string;
   browser: string;
+  screenWidth: number;
+  screenHeight: number;
+  language: string;
   isBot: boolean;
   botName: string;
   firstVisit: string;
@@ -243,38 +246,36 @@ const Analytics: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-800">Visitor Analytics</h1>
-              {isAdmin && (
-                <select
-                  value={scope}
-                  onChange={(e) => handleScopeChange(e.target.value)}
-                  className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white"
-                >
-                  <option value="">All (Portal + Storefronts)</option>
-                  <option value="portal">Portal Only</option>
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              )}
-              <div className="flex items-center gap-2">
-                <select
-                  value={timeRange}
-                  onChange={(e) => handleTimeRangeChange(e.target.value)}
-                  disabled={refreshing}
-                  className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white disabled:opacity-50"
-                >
-                  <option value="">All Time</option>
-                  <option value="24h">Last 24 Hours</option>
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                </select>
-                {refreshing && <ArrowPathIcon className="h-4 w-4 text-teal-700 animate-spin" />}
-              </div>
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <h1 className="text-2xl font-bold text-gray-800">Visitor Analytics</h1>
+            {isAdmin && (
+              <select
+                value={scope}
+                onChange={(e) => handleScopeChange(e.target.value)}
+                className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white"
+              >
+                <option value="">All (Portal + Storefronts)</option>
+                <option value="portal">Portal Only</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            <div className="flex items-center gap-2">
+              <select
+                value={timeRange}
+                onChange={(e) => handleTimeRangeChange(e.target.value)}
+                disabled={refreshing}
+                className="border rounded-lg px-3 py-1.5 text-sm text-gray-700 bg-white disabled:opacity-50"
+              >
+                <option value="">All Time</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+              </select>
+              {refreshing && <ArrowPathIcon className="h-4 w-4 text-teal-700 animate-spin" />}
             </div>
-            <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 bg-teal-700 text-white rounded-lg hover:bg-teal-800 disabled:opacity-50">
+            <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-3 py-1.5 bg-teal-700 text-white text-sm rounded-lg hover:bg-teal-800 disabled:opacity-50 ml-auto">
               <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </button>
@@ -490,189 +491,239 @@ const Analytics: React.FC = () => {
         </main>
       </div>
 
-      {selected && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b flex justify-between items-center">
-              <h3 className="font-semibold text-gray-800">Visitor Details</h3>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5" /></button>
-            </div>
-            <div className="p-5 space-y-5 text-sm">
-              <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identity</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-500">Visitor ID</p>
-                    <p className="font-mono text-xs break-all">{selected.visitorId}</p>
+      {selected && (() => {
+        const funnelSteps = [
+          { label: 'Visited', done: true, date: selected.firstVisit },
+          { label: 'Browsed', done: (selected.pages?.length || 0) > 1, date: selected.lastVisit },
+          { label: 'Registered', done: selected.registered, date: selected.registeredAt },
+          { label: 'Ordered', done: selected.ordered, date: selected.firstOrderAt },
+        ];
+        const statusColor = selected.ordered ? 'bg-green-500' : selected.registered ? 'bg-blue-500' : selected.isBot ? 'bg-yellow-500' : 'bg-gray-400';
+        const statusLabel = selected.ordered ? 'Customer' : selected.registered ? 'Registered' : selected.isBot ? (selected.botName || 'Bot') : 'Visitor';
+        const mediumColor: Record<string, string> = { organic: 'bg-green-100 text-green-700', social: 'bg-blue-100 text-blue-700', cpc: 'bg-purple-100 text-purple-700', llm: 'bg-orange-100 text-orange-700', bot: 'bg-yellow-100 text-yellow-700', direct: 'bg-gray-100 text-gray-600', referral: 'bg-indigo-100 text-indigo-700' };
+        const mColor = mediumColor[selected.attribution?.medium] || 'bg-gray-100 text-gray-600';
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
+            <div className="bg-gray-50 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+
+              {/* Header */}
+              <div className="bg-white rounded-t-xl p-5 border-b">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${statusColor}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-800">{statusLabel}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${mColor}`}>{selected.attribution?.source || 'direct'} / {selected.attribution?.medium || 'direct'}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{selected.sellerId ? companies.find(c => c.id === selected.sellerId)?.name || 'Storefront' : 'Portal'} &middot; {selected.device} &middot; {selected.browser} / {selected.os}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-gray-500">Customer ID</p>
-                    <p className="font-mono text-xs">{selected.customerId || '-'}</p>
+                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5" /></button>
+                </div>
+
+                {/* Key Metrics */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-gray-800">{selected.totalSessions}</p>
+                    <p className="text-xs text-gray-500">Sessions</p>
                   </div>
-                  <div>
-                    <p className="text-gray-500">Platform</p>
-                    <p>{selected.sellerId ? companies.find(c => c.id === selected.sellerId)?.name || selected.sellerId : 'Portal'}</p>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-gray-800">{selected.totalPageViews}</p>
+                    <p className="text-xs text-gray-500">Page Views</p>
                   </div>
-                  <div>
-                    <p className="text-gray-500">Type</p>
-                    <p>{selected.isBot ? <span className="text-yellow-700">{selected.botName || 'Bot'}</span> : 'Human'}</p>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-gray-800">{selected.totalOrders}</p>
+                    <p className="text-xs text-gray-500">Orders</p>
                   </div>
-                  <div>
-                    <p className="text-gray-500">Status</p>
-                    <p>{selected.ordered ? 'Ordered' : selected.registered ? 'Registered' : 'Visitor'}</p>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-teal-700">${selected.totalRevenue?.toFixed(2) || '0.00'}</p>
+                    <p className="text-xs text-gray-500">Revenue</p>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Attribution</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-500">Source / Medium</p>
-                    <p>{selected.attribution?.source || '-'} / {selected.attribution?.medium || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Campaign</p>
-                    <p>{selected.attribution?.campaign || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Content</p>
-                    <p>{selected.attribution?.content || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Landing Page</p>
-                    <p>{selected.attribution?.landingPage || '-'}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-500">Referrer</p>
-                    <p className="break-all">{selected.attribution?.referrer || '-'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Location & Device</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-500">Location</p>
-                    <p>{formatLocation(selected.geo)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Timezone</p>
-                    <p>{selected.geo?.timezone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">IP Address</p>
-                    <p className="font-mono text-xs">{selected.geo?.ip || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">ASN</p>
-                    <p>{selected.geo?.asn || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Device</p>
-                    <p>{selected.device || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Browser / OS</p>
-                    <p>{selected.browser || '-'} / {selected.os || '-'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-500">First Visit</p>
-                    <p>{formatDate(selected.firstVisit)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Last Visit</p>
-                    <p>{formatDate(selected.lastVisit)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Sessions</p>
-                    <p>{selected.totalSessions}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Page Views</p>
-                    <p>{selected.totalPageViews}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Conversion</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-500">Registered</p>
-                    <p>{selected.registered ? formatDate(selected.registeredAt) : 'No'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Days to Register</p>
-                    <p>{selected.daysToRegister !== null && selected.daysToRegister !== undefined ? selected.daysToRegister : '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">First Order</p>
-                    <p>{selected.ordered ? formatDate(selected.firstOrderAt) : 'No'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Days to Order</p>
-                    <p>{selected.daysToOrder !== null && selected.daysToOrder !== undefined ? selected.daysToOrder : '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Total Orders</p>
-                    <p>{selected.totalOrders}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Total Revenue</p>
-                    <p>${selected.totalRevenue?.toFixed(2) || '0.00'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {selected.pages && selected.pages.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pages Visited ({selected.pages.length})</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {selected.pages.map((p, i) => (
-                      <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{p}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selected.milestones && selected.milestones.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Milestones ({selected.milestones.length})</h4>
-                  <div className="space-y-2">
-                    {selected.milestones.map((m, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs">
-                        <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded shrink-0">{m.event}</span>
-                        <span className="text-gray-400 shrink-0">{formatDate(m.date)}</span>
-                        {m.page && <span className="text-gray-500">{m.page}</span>}
-                        {m.metadata && Object.keys(m.metadata).length > 0 && (
-                          <span className="text-gray-400">{Object.entries(m.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')}</span>
+              {/* Conversion Funnel */}
+              <div className="bg-white mx-4 mt-4 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Conversion Journey</h4>
+                <div className="flex items-center justify-between">
+                  {funnelSteps.map((step, i) => (
+                    <React.Fragment key={step.label}>
+                      <div className="flex flex-col items-center text-center flex-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step.done ? 'bg-teal-700 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                          {step.done ? '✓' : i + 1}
+                        </div>
+                        <p className={`text-xs mt-1 font-medium ${step.done ? 'text-teal-700' : 'text-gray-400'}`}>{step.label}</p>
+                        {step.done && step.date && (
+                          <p className="text-[10px] text-gray-400">{new Date(step.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                         )}
+                        {step.done && i > 0 && (
+                          <p className="text-[10px] text-gray-400">
+                            {step.label === 'Registered' && selected.daysToRegister !== null && selected.daysToRegister !== undefined ? `${selected.daysToRegister}d` : ''}
+                            {step.label === 'Ordered' && selected.daysToOrder !== null && selected.daysToOrder !== undefined ? `${selected.daysToOrder}d` : ''}
+                          </p>
+                        )}
+                      </div>
+                      {i < funnelSteps.length - 1 && (
+                        <div className={`h-0.5 flex-1 mx-1 ${funnelSteps[i + 1].done ? 'bg-teal-700' : 'bg-gray-200'}`} />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+
+              {/* Attribution */}
+              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Attribution</h4>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Landing Page</span>
+                    <span className="text-gray-700 text-right truncate ml-2 max-w-[200px]" title={selected.attribution?.landingPage || ''}>{selected.attribution?.landingPage || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Referrer</span>
+                    <span className="text-gray-700 text-right truncate ml-2 max-w-[200px]" title={selected.attribution?.referrer || ''}>{selected.attribution?.referrer || '-'}</span>
+                  </div>
+                  {selected.attribution?.campaign && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Campaign</span>
+                      <span className="text-gray-700">{selected.attribution.campaign}</span>
+                    </div>
+                  )}
+                  {selected.attribution?.content && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Content</span>
+                      <span className="text-gray-700">{selected.attribution.content}</span>
+                    </div>
+                  )}
+                  {selected.attribution?.term && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Keyword</span>
+                      <span className="text-gray-700">{selected.attribution.term}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location & Device */}
+              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Location & Device</h4>
+                <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-gray-400 text-xs">Location</span>
+                    <p className="text-gray-700">{formatLocation(selected.geo)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-xs">Timezone</span>
+                    <p className="text-gray-700">{selected.geo?.timezone || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-xs">IP / ASN</span>
+                    <p className="text-gray-700 font-mono text-xs">{selected.geo?.ip || '-'} {selected.geo?.asn ? `(${selected.geo.asn})` : ''}</p>
+                  </div>
+                  {selected.screenWidth > 0 && (
+                    <div>
+                      <span className="text-gray-400 text-xs">Screen</span>
+                      <p className="text-gray-700">{selected.screenWidth} × {selected.screenHeight}</p>
+                    </div>
+                  )}
+                  {selected.language && (
+                    <div>
+                      <span className="text-gray-400 text-xs">Language</span>
+                      <p className="text-gray-700">{selected.language}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Activity Timeline */}
+              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</h4>
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400 text-xs">First Visit</span>
+                    <p className="text-gray-700">{formatDate(selected.firstVisit)}</p>
+                  </div>
+                  <div className="flex-1 h-px bg-gray-200 relative">
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-700" />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-700" />
+                  </div>
+                  <div className="text-right">
+                    <span className="text-gray-400 text-xs">Last Visit</span>
+                    <p className="text-gray-700">{formatDate(selected.lastVisit)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pages */}
+              {selected.pages && selected.pages.length > 0 && (
+                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pages Visited ({selected.pages.length})</h4>
+                  <div className="space-y-1">
+                    {selected.pages.map((p, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <div className="w-1.5 h-1.5 rounded-full bg-teal-700 shrink-0" />
+                        <span className="text-gray-700 break-all">{p}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* Milestones Timeline */}
+              {selected.milestones && selected.milestones.length > 0 && (
+                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Milestones ({selected.milestones.length})</h4>
+                  <div className="relative pl-4 border-l-2 border-teal-200 space-y-4">
+                    {selected.milestones.map((m, i) => {
+                      const eventColor: Record<string, string> = { order: 'bg-green-500', register: 'bg-blue-500', add_to_cart: 'bg-orange-500', login: 'bg-purple-500', visit: 'bg-gray-400' };
+                      return (
+                        <div key={i} className="relative">
+                          <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full ${eventColor[m.event] || 'bg-gray-400'} ring-2 ring-white`} />
+                          <div className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-800 capitalize">{m.event.replace('_', ' ')}</span>
+                              <span className="text-xs text-gray-400">{formatDate(m.date)}</span>
+                            </div>
+                            {m.page && <p className="text-xs text-gray-500 mt-0.5">{m.page}</p>}
+                            {m.metadata && Object.keys(m.metadata).length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {Object.entries(m.metadata).map(([k, v]) => {
+                                  const display = (k === 'amount' || k === 'price') && typeof v === 'number' ? `$${v.toFixed(2)}` : String(v);
+                                  return <span key={k} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{k}: {display}</span>;
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Error Log */}
               {selected.errorLog && selected.errorLog.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Error Log ({selected.errorLog.length})</h4>
-                  <div className="bg-red-50 rounded p-2 text-xs text-red-700 space-y-1">
+                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
+                  <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Errors ({selected.errorLog.length})</h4>
+                  <div className="bg-red-50 rounded p-3 text-xs text-red-700 space-y-1 font-mono">
                     {selected.errorLog.map((e, i) => <div key={i}>{e}</div>)}
                   </div>
                 </div>
               )}
+
+              {/* IDs Footer */}
+              <div className="mx-4 mt-3 mb-4 px-4 py-3 bg-gray-100 rounded-lg text-[11px] text-gray-400 font-mono flex flex-wrap gap-x-6 gap-y-1">
+                <span>vid: {selected.visitorId}</span>
+                {selected.customerId && <span>cid: {selected.customerId}</span>}
+                {selected.sellerId && <span>sid: {selected.sellerId}</span>}
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

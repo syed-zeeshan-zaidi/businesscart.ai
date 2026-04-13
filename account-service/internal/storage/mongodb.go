@@ -360,7 +360,16 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 		"os":        visitor.OS,
 		"browser":   visitor.Browser,
 		"isBot":     visitor.IsBot,
-		"botName":   visitor.BotName,
+	}
+	if visitor.BotName != "" {
+		setFields["botName"] = visitor.BotName
+	}
+	if visitor.ScreenWidth > 0 {
+		setFields["screenWidth"] = visitor.ScreenWidth
+		setFields["screenHeight"] = visitor.ScreenHeight
+	}
+	if visitor.Language != "" {
+		setFields["language"] = visitor.Language
 	}
 	if visitor.CustomerID != "" {
 		setFields["customerId"] = visitor.CustomerID
@@ -388,6 +397,11 @@ func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) 
 		"$set":  bson.M{"updatedAt": time.Now()},
 	}
 	_, err := db.visitors.UpdateOne(context.Background(), filter, update)
+	return err
+}
+
+func (db *DB) DeleteVisitor(visitorID string) error {
+	_, err := db.visitors.DeleteOne(context.Background(), bson.M{"visitorId": visitorID})
 	return err
 }
 

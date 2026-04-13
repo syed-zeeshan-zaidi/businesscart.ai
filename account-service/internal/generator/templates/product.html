@@ -14,6 +14,10 @@
     <meta property="og:description" content="[[.Product.Description]]">
     <meta property="og:url" content="https://[[.Domain]]/products/[[.Product.Filename]].html">
     [[if .Product.Image]]<meta property="og:image" content="[[.Product.Image]]">[[end]]
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="[[.Product.Name]] | [[.Company.Name]]">
+    <meta name="twitter:description" content="[[.Product.Description]]">
+    [[if .Product.Image]]<meta name="twitter:image" content="[[.Product.Image]]">[[end]]
     <style>
         :root {
             --primary: [[.Config.PrimaryColor]];
@@ -216,6 +220,9 @@
             }
         }
 
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
         [[template "global_css" .]]
     </style>
     <script type="application/ld+json">
@@ -225,6 +232,8 @@
       "name": "[[.Product.Name]]",
       [[if .Product.Image]]"image": "[[.Product.Image]]",[[end]]
       "description": "[[.Product.Description]]",
+      [[if .Product.SKU]]"sku": "[[.Product.SKU]]",[[end]]
+      [[if .Product.Barcode]]"gtin": "[[.Product.Barcode]]",[[end]]
       "brand": {
         "@type": "Brand",
         "name": "[[.Company.Name]]"
@@ -234,7 +243,7 @@
         "url": "https://[[.Domain]]/products/[[.Product.Filename]].html",
         "priceCurrency": "USD",
         "price": "[[if .Product.DealPrice]][[printf "%.2f" .Product.DiscountedPrice]][[else]][[printf "%.2f" .Product.Price]][[end]]",
-        "availability": "https://schema.org/InStock"[[if .Product.DealPrice]],
+        "availability": "https://schema.org/[[if gt .Product.Stock 0]]InStock[[else]]OutOfStock[[end]]"[[if .Product.DealPrice]],
         "priceSpecification": {
           "@type": "PriceSpecification",
           "price": "[[printf "%.2f" .Product.DiscountedPrice]]",
@@ -251,7 +260,8 @@
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
         { "@type": "ListItem", "position": 2, "name": "Products", "item": "https://[[.Domain]]/products.html" },
-        { "@type": "ListItem", "position": 3, "name": "[[.Product.Name]]" }
+        { "@type": "ListItem", "position": 3, "name": "[[.Product.Category]]", "item": "https://[[.Domain]]/category/[[slugify .Product.Category]].html" },
+        { "@type": "ListItem", "position": 4, "name": "[[.Product.Name]]" }
       ]
     }
     </script>
@@ -275,6 +285,16 @@
 
 <body>
     [[template "nav" .]]
+
+    <nav aria-label="Breadcrumb" style="max-width:1400px;margin:0 auto;padding:1rem 5% 0;font-size:0.85rem;color:#94a3b8">
+        <a href="[[.BasePath]]index.html" style="color:#64748b;text-decoration:none">Home</a>
+        <span style="margin:0 0.5rem">›</span>
+        <a href="[[.BasePath]]products.html" style="color:#64748b;text-decoration:none">Products</a>
+        <span style="margin:0 0.5rem">›</span>
+        <a href="[[.BasePath]]category/[[slugify .Product.Category]].html" style="color:#64748b;text-decoration:none">[[.Product.Category]]</a>
+        <span style="margin:0 0.5rem">›</span>
+        <span style="color:#0f172a;font-weight:600">[[.Product.Name]]</span>
+    </nav>
 
     <main itemscope itemtype="https://schema.org/Product">
         <section class="image-section">
@@ -308,7 +328,7 @@
                     [[end]]
                 </div>
                 <h1 itemprop="name">[[.Product.Name]]</h1>
-                <div class="price" style="display:flex; align-items:center; gap:2rem">
+                <div class="price" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap">
                     [[if .Product.DealPrice]]
                     <span itemprop="offers" itemscope itemtype="https://schema.org/Offer">
                         <span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">[[printf "%.2f"
@@ -318,6 +338,9 @@
                         style="text-decoration:line-through; font-size:2rem; opacity:0.6; font-weight:700; color:var(--text)">
                         $[[printf "%.2f" .Product.Price]]
                     </span>
+                    <span style="font-size:0.95rem;font-weight:700;color:#16a34a;background:#f0fdf4;padding:0.25rem 0.75rem;border-radius:100px">
+                        Save $[[printf "%.2f" (subtractFloat .Product.Price .Product.DiscountedPrice)]] ([[savingsPercent .Product.Price .Product.DiscountedPrice]]%)
+                    </span>
                     [[else]]
                     <span itemprop="offers" itemscope itemtype="https://schema.org/Offer">
                         <span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">[[printf "%.2f"
@@ -325,6 +348,14 @@
                     </span>
                     [[end]]
                 </div>
+                [[if gt .Product.Stock 10]]
+                <div style="font-size:0.9rem;font-weight:700;color:#16a34a">✓ In Stock</div>
+                [[else if gt .Product.Stock 0]]
+                <div style="font-size:0.9rem;font-weight:700;color:#ea580c">Only [[.Product.Stock]] left</div>
+                [[else]]
+                <div style="font-size:0.9rem;font-weight:700;color:#dc2626">Out of Stock</div>
+                [[end]]
+                [[if .Product.SKU]]<div style="font-size:0.8rem;color:#94a3b8;margin-top:0.25rem">SKU: <span itemprop="sku">[[.Product.SKU]]</span></div>[[end]]
             </div>
 
             <div class="description" itemprop="description">
@@ -365,13 +396,84 @@
             </div>
             [[end]]
 
-            <button class="cta-btn"
-                onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]]})">
-                Add to Cart
+            [[if gt .Product.Stock 0]]
+            <div style="display:flex;align-items:center;gap:1rem">
+                <div style="display:flex;align-items:center;border:2px solid #e2e8f0;border-radius:12px;overflow:hidden">
+                    <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.max(1,Number(q.value)-1)" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">−</button>
+                    <input id="qty" type="number" value="1" min="1" max="[[.Product.Stock]]" style="width:52px;height:44px;border:none;text-align:center;font-size:1rem;font-weight:700;-moz-appearance:textfield;outline:none" oninput="this.value=Math.max(1,Math.min([[.Product.Stock]],Number(this.value)||1))">
+                    <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.min([[.Product.Stock]],Number(q.value)+1)" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">+</button>
+                </div>
+                <button class="cta-btn" style="flex:1"
+                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]]}, Number(document.getElementById('qty').value)||1)">
+                    Add to Cart
+                </button>
+            </div>
+            [[else]]
+            <button class="cta-btn" disabled style="opacity:0.5;cursor:not-allowed;box-shadow:none">
+                Out of Stock
             </button>
+            [[end]]
+
+            <!-- Trust Signals -->
+            <div style="display:flex;flex-wrap:wrap;gap:1.5rem;padding-top:1.5rem;border-top:1px solid #e2e8f0;margin-top:1rem">
+                <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#64748b">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span style="font-weight:600;color:#16a34a">Secure Checkout</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#64748b">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    <span>[[if .Config.ShippingBadge]][[.Config.ShippingBadge]][[else]]Shipping Available[[end]]</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#64748b">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    <span>[[if .Config.ReturnsBadge]][[.Config.ReturnsBadge]][[else]]Returns &amp; Refunds[[end]]</span>
+                </div>
+            </div>
+
+            <!-- Accepted Payments -->
+            <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;font-size:0.8rem;color:#94a3b8">
+                <span style="font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.7rem">Accepted</span>
+                [[range .Company.PaymentMethods]]
+                <span style="background:#f1f5f9;padding:0.35rem 0.75rem;border-radius:8px;font-weight:600;color:#475569;display:inline-flex;align-items:center;gap:0.4rem">
+                    [[if eq (printf "%s" .) "stripe_pay"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    [[else if eq (printf "%s" .) "credit_card"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    [[else if eq (printf "%s" .) "amazon_pay"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    [[else if eq (printf "%s" .) "pickup_&_pay"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    [[else if eq (printf "%s" .) "deliver_pay"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    [[else if eq (printf "%s" .) "purchase_order"]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    [[else]]<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    [[end]][[paymentLabel (printf "%s" .)]]</span>
+                [[end]]
+            </div>
 
         </section>
     </main>
+
+    [[if .RelatedProducts]]
+    <section style="max-width:1400px;margin:0 auto;padding:0 5% 4rem">
+        <h2 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.2em;font-weight:900;margin-bottom:2rem;color:var(--text);opacity:0.7">You May Also Like</h2>
+        <div class="product-grid">
+            [[range .RelatedProducts]]
+            <a href="[[.Filename]].html" class="product-card">
+                [[if .DealPrice]]<div class="sale-badge">SALE</div>[[end]]
+                <div class="image-wrapper">
+                    [[if .Image]]<img src="[[.Image]]" alt="[[.Name]]" class="product-image" loading="lazy" width="300" height="300">[[else]]<div style="opacity:0.2;font-weight:900">IMAGE PENDING</div>[[end]]
+                </div>
+                <div class="category-tag">[[.Category]]</div>
+                <h3 class="product-name">[[.Name]]</h3>
+                <div class="price-row">
+                    [[if .DealPrice]]
+                    <span class="price">$[[printf "%.2f" .DiscountedPrice]]</span>
+                    <span class="original-price">$[[printf "%.2f" .Price]]</span>
+                    [[else]]
+                    <span class="price">$[[printf "%.2f" .Price]]</span>
+                    [[end]]
+                </div>
+            </a>
+            [[end]]
+        </div>
+    </section>
+    [[end]]
 
     [[template "footer" .]]
 </body>

@@ -226,6 +226,7 @@ export class BusinessCartStack extends cdk.Stack {
     customerAssociate.addMethod('PATCH', accountInteg);
     const visitors = api.root.addResource('visitors');
     visitors.addMethod('GET', accountInteg);
+    visitors.addMethod('DELETE', accountInteg);
     const visitorEvent = visitors.addResource('event');
     visitorEvent.addMethod('POST', accountInteg);
     const visitorStats = visitors.addResource('stats');
