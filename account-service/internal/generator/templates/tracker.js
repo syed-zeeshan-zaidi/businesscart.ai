@@ -54,9 +54,11 @@
         } catch (e) { return ''; }
     }
 
+    var isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
     function send(event, page, metadata) {
         try {
-            if (!API) return;
+            if (!API || isLocal) return;
             var attr = attribution();
             var body = {
                 visitorId: visitorId(),
@@ -100,10 +102,6 @@
             try { send('login', window.location.pathname, { customerId: customerId }); } catch (e) {}
         }
     };
-
-    // Skip tracking for local/dev environments
-    var proto = window.location.protocol;
-    if (proto === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return;
 
     // Track page view only once per session
     if (!ssGet(SESSION_KEY)) {
