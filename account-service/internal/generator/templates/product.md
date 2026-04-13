@@ -18,7 +18,7 @@
 [[range .Product.Attributes]]- **[[.Key]]**: [[.Value]]
 [[end]][[end]]
 [[if .RelatedProducts]]## Related Products
-[[range .RelatedProducts]]- [[[.Name]]](../products/[[.Filename]].md) — $[[printf "%.2f" .Price]][[if .DealPrice]] (Sale: $[[printf "%.2f" .DiscountedPrice]])[[end]]
+[[range .RelatedProducts]]- [[.Name]] — $[[printf "%.2f" .Price]][[if .DealPrice]] (Sale: $[[printf "%.2f" .DiscountedPrice]])[[end]] — [View](../products/[[.Filename]].md)
 [[end]][[end]]
 ## Contextual Links
 - **Company**: [[.Company.Name]]
