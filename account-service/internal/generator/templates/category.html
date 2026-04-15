@@ -95,8 +95,10 @@
       "@type": "BreadcrumbList",
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
-        { "@type": "ListItem", "position": 2, "name": "Products", "item": "https://[[.Domain]]/products.html" },
-        { "@type": "ListItem", "position": 3, "name": "[[.Category]]" }
+        { "@type": "ListItem", "position": 2, "name": "Products", "item": "https://[[.Domain]]/products.html" }[[if .SubName]],
+        { "@type": "ListItem", "position": 3, "name": "[[.PrimaryName]]", "item": "https://[[.Domain]]/category/[[slugify .PrimaryName]].html" },
+        { "@type": "ListItem", "position": 4, "name": "[[.SubName]]" }[[else]],
+        { "@type": "ListItem", "position": 3, "name": "[[.Category]]" }[[end]]
       ]
     }
     </script>
@@ -125,11 +127,20 @@
     <main>
         <header class="page-header">
             <div class="breadcrumb">
-                <a href="../index.html">Home</a> / <a href="../products.html">Products</a> / [[.Category]]
+                <a href="../index.html">Home</a> / <a href="../products.html">Products</a>[[if .SubName]] / <a href="[[slugify .PrimaryName]].html">[[.PrimaryName]]</a> / [[.SubName]][[else]] / [[.Category]][[end]]
             </div>
-            <h1>[[.Category]]</h1>
-            <p>Showing [[len .Products]] products in this category.</p>
+            <h1>[[if .SubName]][[.PrimaryName]]: [[.SubName]][[else]][[.Category]][[end]]</h1>
+            <p>Showing [[len .Products]] products[[if .SubName]] in [[.SubName]][[end]].</p>
         </header>
+
+        [[if .IsPrimary]]
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-bottom:2.5rem">
+            <a href="[[slugify .PrimaryName]].html" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.5rem 1.25rem;border-radius:100px;background:var(--primary);color:#fff;text-decoration:none;font-size:0.85rem;font-weight:700">All <span style="opacity:0.7">([[len .Products]])</span></a>
+            [[range $sub := subsOf $.Categories $.PrimaryName]]
+            <a href="[[catSlug $.PrimaryName $sub]].html" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.5rem 1.25rem;border-radius:100px;background:#fff;color:var(--text);text-decoration:none;font-size:0.85rem;font-weight:600;border:1px solid #e2e8f0">[[$sub]] <span style="color:#94a3b8;font-weight:400">([[catCount $.CategoryCounts (printf "%s / %s" $.PrimaryName $sub)]])</span></a>
+            [[end]]
+        </div>
+        [[end]]
 
         <section class="product-grid">
             [[range .Products]]

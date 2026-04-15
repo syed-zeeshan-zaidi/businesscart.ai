@@ -375,8 +375,8 @@ box-shadow: 0 20px 40px -8px var(--primary);
         <div class="dropdown">
             <a href="#">Categories ▾</a>
             <div class="dropdown-content">
-                [[range .Categories]]
-                <a href="[[$.BasePath]]category/[[slugify .]].html" style="display:flex;justify-content:space-between;align-items:center">[[.]] [[if $.CategoryCounts]]<span style="font-size:0.75rem;color:#94a3b8;font-weight:400">([[catCount $.CategoryCounts .]])</span>[[end]]</a>
+                [[range $primary := uniquePrimaries .Categories]]
+                <a href="[[$.BasePath]]category/[[slugify $primary]].html">[[$primary]]</a>
                 [[end]]
             </div>
         </div>
@@ -425,12 +425,16 @@ box-shadow: 0 20px 40px -8px var(--primary);
             <p class="footer-heading">Shop</p>
             <a href="[[.BasePath]]products.html">All Products</a>
             [[if .DealProducts]]<a href="[[.BasePath]]deals.html">Today's Deals</a>[[end]]
-            [[range .Categories]]
+            [[range .TopCategories]]
             <a href="[[$.BasePath]]category/[[slugify .]].html">[[.]]</a>
+            [[end]]
+            [[if gt (len .Categories) (len .TopCategories)]]
+            <a href="[[.BasePath]]products.html" style="color:#cbd5e1;font-weight:600">View All Categories →</a>
             [[end]]
         </div>
         <div class="footer-col">
             <p class="footer-heading">Info</p>
+            [[if .Config.AboutText]]<a href="[[.BasePath]]about.html">About Us</a>[[end]]
             <a href="[[.BasePath]]contact.html">Contact Us</a>
             <a href="[[.BasePath]]shipping.html">Shipping & Returns</a>
             <a href="[[.BasePath]]privacy.html">Privacy Policy</a>
