@@ -260,8 +260,10 @@
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
         { "@type": "ListItem", "position": 2, "name": "Products", "item": "https://[[.Domain]]/products.html" },
-        { "@type": "ListItem", "position": 3, "name": "[[.Product.Category]]", "item": "https://[[.Domain]]/category/[[slugify .Product.Category]].html" },
-        { "@type": "ListItem", "position": 4, "name": "[[.Product.Name]]" }
+        { "@type": "ListItem", "position": 3, "name": "[[primaryOf .Product.Category]]", "item": "https://[[.Domain]]/category/[[slugify (primaryOf .Product.Category)]].html" }[[if subOf .Product.Category]],
+        { "@type": "ListItem", "position": 4, "name": "[[subOf .Product.Category]]", "item": "https://[[.Domain]]/category/[[catSlug (primaryOf .Product.Category) (subOf .Product.Category)]].html" },
+        { "@type": "ListItem", "position": 5, "name": "[[.Product.Name]]" }[[else]],
+        { "@type": "ListItem", "position": 4, "name": "[[.Product.Name]]" }[[end]]
       ]
     }
     </script>
@@ -291,7 +293,9 @@
         <span style="margin:0 0.5rem">›</span>
         <a href="[[.BasePath]]products.html" style="color:#64748b;text-decoration:none">Products</a>
         <span style="margin:0 0.5rem">›</span>
-        <a href="[[.BasePath]]category/[[slugify .Product.Category]].html" style="color:#64748b;text-decoration:none">[[.Product.Category]]</a>
+        <a href="[[.BasePath]]category/[[slugify (primaryOf .Product.Category)]].html" style="color:#64748b;text-decoration:none">[[primaryOf .Product.Category]]</a>
+        [[if subOf .Product.Category]]<span style="margin:0 0.5rem">›</span>
+        <a href="[[.BasePath]]category/[[catSlug (primaryOf .Product.Category) (subOf .Product.Category)]].html" style="color:#64748b;text-decoration:none">[[subOf .Product.Category]]</a>[[end]]
         <span style="margin:0 0.5rem">›</span>
         <span style="color:#0f172a;font-weight:600">[[.Product.Name]]</span>
     </nav>

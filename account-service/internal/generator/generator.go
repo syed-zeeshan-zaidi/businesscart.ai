@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	texttemplate "text/template"
 	"time"
@@ -34,6 +35,7 @@ type StorefrontData struct {
 	Config           *storage.D2CConfig
 	Products         []ProductData
 	Categories       []string         // Unique list of product categories
+	TopCategories    []string         // Top 6 categories by product count (for footer)
 	CategoryCounts   map[string]int   // Product count per category
 	FeaturedProducts []ProductData // Subset of products for the homepage
 	DealProducts     []ProductData // Products with active deals (DealPrice > 0)
@@ -161,16 +163,41 @@ func (g *Generator) Generate(data StorefrontData) error {
 		data.Products[i].Filename = slug + suffix
 	}
 
-	// Extract Categories with counts
+	// Extract Categories with counts (normalize "Gloves/BBQ" → "Gloves / BBQ")
 	categoryCounts := make(map[string]int)
-	for _, p := range data.Products {
+	for i, p := range data.Products {
 		if p.Category != "" {
-			categoryCounts[p.Category]++
+			primary, sub := parseCategoryParts(p.Category)
+			normalized := primary
+			if sub != "" {
+				normalized = primary + " / " + sub
+			}
+			data.Products[i].Category = normalized // normalize on product too
+			categoryCounts[normalized]++
 		}
 	}
 	data.CategoryCounts = categoryCounts
 	for cat := range categoryCounts {
 		data.Categories = append(data.Categories, cat)
+	}
+
+	// Top primary categories by product count (for footer — max 6)
+	primaryCounts := map[string]int{}
+	for _, cat := range data.Categories {
+		p, _ := parseCategoryParts(cat)
+		primaryCounts[p] += categoryCounts[cat]
+	}
+	var primaries []string
+	for p := range primaryCounts {
+		primaries = append(primaries, p)
+	}
+	sort.Slice(primaries, func(i, j int) bool {
+		return primaryCounts[primaries[i]] > primaryCounts[primaries[j]]
+	})
+	if len(primaries) > 6 {
+		data.TopCategories = primaries[:6]
+	} else {
+		data.TopCategories = primaries
 	}
 
 	// Featured products: use products marked as featured, fallback to first 3
@@ -263,25 +290,36 @@ func (g *Generator) Generate(data StorefrontData) error {
 		return fmt.Errorf("shipping.html: %w", err)
 	}
 
-	// Generate Category Pages
-	for _, cat := range data.Categories {
-		var catProducts []ProductData
-		for _, p := range data.Products {
-			if p.Category == cat {
-				catProducts = append(catProducts, p)
-			}
+	// Generate About Page (only if aboutText is configured)
+	if data.Config != nil && data.Config.AboutText != "" {
+		if err := g.renderTemplate("about.html", filepath.Join(companyDir, "about.html"), data, true); err != nil {
+			return fmt.Errorf("about.html: %w", err)
 		}
+	}
 
-		catData := struct {
-			AccountID    string
-			Company      *storage.CompanyData
-			Config       *storage.D2CConfig
-			Category     string
-			Products     []ProductData
-			DealProducts []ProductData
-			Year         int
-			Timestamp    string
+	// Generate Category Pages (with primary/sub hierarchy)
+	// Group categories by primary name
+	primaryToRaw := map[string][]string{}
+	for _, cat := range data.Categories {
+		p, _ := parseCategoryParts(cat)
+		primaryToRaw[p] = append(primaryToRaw[p], cat)
+	}
+
+	buildCatData := func(category string, products []ProductData, isPrimary bool, primaryName, subName string) interface{} {
+		return struct {
+			AccountID      string
+			Company        *storage.CompanyData
+			Config         *storage.D2CConfig
+			Category       string
+			IsPrimary      bool
+			PrimaryName    string
+			SubName        string
+			Products       []ProductData
+			DealProducts   []ProductData
+			Year           int
+			Timestamp      string
 			Categories     []string
+			TopCategories  []string
 			CategoryCounts map[string]int
 			BasePath       string
 			ApiBase        string
@@ -290,27 +328,78 @@ func (g *Generator) Generate(data StorefrontData) error {
 			AccountID:      data.AccountID,
 			Company:        data.Company,
 			Config:         data.Config,
-			Category:       cat,
-			Products:       catProducts,
+			Category:       category,
+			IsPrimary:      isPrimary,
+			PrimaryName:    primaryName,
+			SubName:        subName,
+			Products:       products,
 			DealProducts:   data.DealProducts,
 			Year:           data.Year,
 			Timestamp:      data.Timestamp,
 			Categories:     data.Categories,
+			TopCategories:  data.TopCategories,
 			CategoryCounts: data.CategoryCounts,
 			BasePath:       "../",
 			ApiBase:        data.ApiBase,
 			Domain:         data.Domain,
 		}
+	}
 
-		catFilename := fmt.Sprintf("%s.html", slugify(cat))
+	for primary, rawCats := range primaryToRaw {
+		hasSubs := false
+		for _, rc := range rawCats {
+			if _, s := parseCategoryParts(rc); s != "" {
+				hasSubs = true
+				break
+			}
+		}
 
-		if err := g.renderTemplate(
-			"category.html",
-			filepath.Join(categoryDir, catFilename),
-			catData,
-			true,
-		); err != nil {
-			return fmt.Errorf("category %s: %w", cat, err)
+		if !hasSubs {
+			// Standalone category (no slash) — single page, same as before
+			var products []ProductData
+			for _, p := range data.Products {
+				if p.Category == rawCats[0] {
+					products = append(products, p)
+				}
+			}
+			filename := slugify(primary) + ".html"
+			if err := g.renderTemplate("category.html", filepath.Join(categoryDir, filename),
+				buildCatData(primary, products, false, primary, ""), true); err != nil {
+				return fmt.Errorf("category %s: %w", primary, err)
+			}
+		} else {
+			// Has subs — generate primary page (all products) + individual sub pages
+			var allProducts []ProductData
+			for _, p := range data.Products {
+				pp, _ := parseCategoryParts(p.Category)
+				if pp == primary {
+					allProducts = append(allProducts, p)
+				}
+			}
+			primaryFilename := slugify(primary) + ".html"
+			if err := g.renderTemplate("category.html", filepath.Join(categoryDir, primaryFilename),
+				buildCatData(primary, allProducts, true, primary, ""), true); err != nil {
+				return fmt.Errorf("category %s: %w", primary, err)
+			}
+
+			// Generate sub-category pages
+			for _, rawCat := range rawCats {
+				_, sub := parseCategoryParts(rawCat)
+				if sub == "" {
+					continue
+				}
+				var subProducts []ProductData
+				for _, p := range data.Products {
+					if p.Category == rawCat {
+						subProducts = append(subProducts, p)
+					}
+				}
+				subFilename := slugify(primary) + "-" + slugify(sub) + ".html"
+				if err := g.renderTemplate("category.html", filepath.Join(categoryDir, subFilename),
+					buildCatData(sub, subProducts, false, primary, sub), true); err != nil {
+					return fmt.Errorf("category %s/%s: %w", primary, sub, err)
+				}
+			}
 		}
 	}
 
@@ -339,6 +428,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Year            int
 			Timestamp       string
 			Categories      []string
+			TopCategories   []string
 			CategoryCounts  map[string]int
 			BasePath        string
 			ApiBase         string
@@ -353,6 +443,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Year:            data.Year,
 			Timestamp:       data.Timestamp,
 			Categories:      data.Categories,
+			TopCategories:   data.TopCategories,
 			CategoryCounts:  data.CategoryCounts,
 			BasePath:        "../",
 			ApiBase:         data.ApiBase,
@@ -574,7 +665,7 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	var buf bytes.Buffer
 	paymentLabels := map[string]string{
 		"credit_card": "Credit Card", "purchase_order": "Purchase Order",
-		"amazon_pay": "Amazon Pay", "google_pay": "Google Pay", "stripe_pay": "Stripe",
+		"amazon_pay": "Amazon Pay", "google_pay": "Google Pay", "stripe_pay": "Credit Card",
 		"pickup_&_pay": "Pay at Pickup", "deliver_pay": "Pay on Delivery",
 	}
 	deliveryLabels := map[string]string{
@@ -611,6 +702,62 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			return int(((original - discounted) / original) * 100)
 		},
 		"subtractFloat": func(a, b float64) float64 { return a - b },
+		"primaryOf": func(cat string) string {
+			p, _ := parseCategoryParts(cat)
+			return p
+		},
+		"subOf": func(cat string) string {
+			_, s := parseCategoryParts(cat)
+			return s
+		},
+		"uniquePrimaries": func(categories []string) []string {
+			seen := map[string]bool{}
+			var result []string
+			for _, cat := range categories {
+				p, _ := parseCategoryParts(cat)
+				if !seen[p] {
+					seen[p] = true
+					result = append(result, p)
+				}
+			}
+			return result
+		},
+		"subsOf": func(categories []string, primary string) []string {
+			var subs []string
+			for _, cat := range categories {
+				p, s := parseCategoryParts(cat)
+				if p == primary && s != "" {
+					subs = append(subs, s)
+				}
+			}
+			return subs
+		},
+		"primaryCount": func(categories []string, counts map[string]int, primary string) int {
+			total := 0
+			for _, cat := range categories {
+				p, _ := parseCategoryParts(cat)
+				if p == primary {
+					total += counts[cat]
+				}
+			}
+			return total
+		},
+		"catSlug": func(primary, sub string) string {
+			if sub == "" {
+				return slugify(primary)
+			}
+			return slugify(primary) + "-" + slugify(sub)
+		},
+		"safeHTML": func(s string) template.HTML {
+			// Allow only p, strong, br, em tags — strip everything else
+			safe := strings.ReplaceAll(s, "<script", "&lt;script")
+			safe = strings.ReplaceAll(safe, "<iframe", "&lt;iframe")
+			safe = strings.ReplaceAll(safe, "<img", "&lt;img")
+			safe = strings.ReplaceAll(safe, "<a ", "&lt;a ")
+			safe = strings.ReplaceAll(safe, "onclick", "")
+			safe = strings.ReplaceAll(safe, "onerror", "")
+			return template.HTML(safe)
+		},
 		"catCount": func(counts map[string]int, cat string) int {
 			return counts[cat]
 		},
@@ -646,6 +793,24 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 }
 
 // slugify converts a string to a URL-safe lowercase slug.
+// parseCategoryParts splits "Gloves / BBQ" → ("Gloves", "BBQ"). No slash → ("Gardening Gloves", "").
+func parseCategoryParts(raw string) (primary, sub string) {
+	parts := strings.SplitN(raw, "/", 2)
+	primary = strings.TrimSpace(parts[0])
+	if len(parts) > 1 {
+		sub = strings.TrimSpace(parts[1])
+	}
+	// Edge cases: "/ BBQ" or "Gloves /" — treat non-empty part as primary
+	if primary == "" && sub != "" {
+		primary = sub
+		sub = ""
+	}
+	if primary == "" {
+		primary = strings.TrimSpace(raw)
+	}
+	return
+}
+
 func slugify(s string) string {
 	var b strings.Builder
 	prev := false

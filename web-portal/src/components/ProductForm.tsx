@@ -539,12 +539,18 @@ const ProductForm = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Category</label>
                         <input
+                          list="category-suggestions"
                           name="category"
                           value={formData.category}
                           onChange={handleChange}
-                          placeholder="Category"
+                          placeholder="e.g. Electronics / Phones"
                           className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                         />
+                        <datalist id="category-suggestions">
+                          {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
+                            <option key={cat} value={cat} />
+                          ))}
+                        </datalist>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Slug</label>
