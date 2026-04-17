@@ -422,6 +422,27 @@ class BackendFlowTest:
 
         self.run_test("Product visibility per role", test_visibility)
 
+        # Category hierarchy validation
+        def test_category_hierarchy():
+            self.use_token("company1")
+            pid = self.product_ids["company1"][0]
+
+            # One slash allowed (primary / sub)
+            resp = self.api.put(f"/products/{pid}", {"category": "Gloves / Winter"})
+            assert_status(resp, 200, "Category with one slash accepted")
+            ok("Category 'Gloves / Winter' accepted")
+
+            # Two slashes rejected
+            resp = self.api.put(f"/products/{pid}", {"category": "A / B / C"})
+            assert_status(resp, 400, "Category with two slashes rejected")
+            ok("Category 'A / B / C' rejected")
+
+            # Restore original
+            resp = self.api.put(f"/products/{pid}", {"category": f"{PREFIX} Category"})
+            assert_status(resp, 200, "Category restored")
+
+        self.run_test("Category hierarchy validation", test_category_hierarchy)
+
     # ── Phase 4: Re-login & JWT verification ─────────────────────
 
     def phase4_jwt_verification(self):

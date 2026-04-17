@@ -107,7 +107,7 @@ const ProductForm = () => {
     if (formData.name && formData.name.includes('/')) newErrors.push('Product name cannot contain "/"');
     if (!formData.slug) newErrors.push('Slug is required');
     if (formData.slug && formData.slug.includes('/')) newErrors.push('Slug cannot contain "/"');
-    if (formData.category && formData.category.includes('/')) newErrors.push('Category cannot contain "/"');
+    if (formData.category && (formData.category.split('/').length > 2)) newErrors.push('Category supports max one "/" for primary / sub hierarchy');
     if (formData.price === undefined || formData.price <= 0) newErrors.push('Price must be positive');
     if (formData.dealPrice !== undefined && (formData.dealPrice < 0 || formData.dealPrice > 50)) {
       newErrors.push('Deal Price must be between 0 and 50');
@@ -551,6 +551,7 @@ const ProductForm = () => {
                             <option key={cat} value={cat} />
                           ))}
                         </datalist>
+                        <p className="mt-1 text-xs text-gray-400">Use "Primary / Sub" for hierarchy (e.g. "Electronics / Phones"). Without "/" it's a standalone category.</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Slug</label>
