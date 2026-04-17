@@ -367,8 +367,8 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	}
 	if category, ok := updates["category"].(string); ok {
 		category = strings.TrimSpace(category)
-		if strings.Contains(category, "/") {
-			return h.errorResponse(http.StatusBadRequest, "Category cannot contain '/'"), nil
+		if strings.Count(category, "/") > 1 {
+			return h.errorResponse(http.StatusBadRequest, "Category supports max one '/' for primary / sub hierarchy"), nil
 		}
 		updates["category"] = category
 	}
