@@ -223,6 +223,8 @@ export interface D2CConfig {
   shippingText?: string;
   shippingBadge?: string;
   returnsBadge?: string;
+  feedGender?: string;
+  feedAgeGroup?: string;
   whatsappNumber?: string;
   facebookUrl?: string;
   instagramUrl?: string;

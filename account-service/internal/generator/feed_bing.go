@@ -23,7 +23,8 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 	// Header
 	b.WriteString("id" + tab + "title" + tab + "description" + tab + "link" + tab + "image_link" + tab +
 		"price" + tab + "sale_price" + tab + "availability" + tab + "condition" + tab + "brand" + tab +
-		"gtin" + tab + "mpn" + tab + "product_type" + tab + "identifier_exists\n")
+		"gtin" + tab + "mpn" + tab + "product_type" + tab + "color" + tab + "size" + tab + "material" + tab +
+		"gender" + tab + "age_group" + tab + "identifier_exists\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
@@ -58,6 +59,17 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 			identifierExists = "false"
 		}
 
+		gender := productAttr(p.Attributes, "gender")
+		if gender == "" && data.Config != nil && data.Config.FeedGender != "" {
+			gender = data.Config.FeedGender
+		}
+		gender = strings.ToLower(gender)
+		ageGroup := productAttr(p.Attributes, "age_group", "age group", "agegroup")
+		if ageGroup == "" && data.Config != nil && data.Config.FeedAgeGroup != "" {
+			ageGroup = data.Config.FeedAgeGroup
+		}
+		ageGroup = strings.ToLower(ageGroup)
+
 		b.WriteString(tsvSafe(p.ID) + tab +
 			tsvSafe(p.Name) + tab +
 			tsvSafe(stripHTML(p.Description)) + tab +
@@ -70,7 +82,12 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 			tsvSafe(data.Company.Name) + tab +
 			p.Barcode + tab +
 			p.SKU + tab +
-			tsvSafe(p.Category) + tab +
+			tsvSafe(feedCategory(p.Category)) + tab +
+			tsvSafe(productAttr(p.Attributes, "color", "colour")) + tab +
+			tsvSafe(productAttr(p.Attributes, "size")) + tab +
+			tsvSafe(productAttr(p.Attributes, "material")) + tab +
+			tsvSafe(gender) + tab +
+			tsvSafe(ageGroup) + tab +
 			identifierExists + "\n")
 	}
 
