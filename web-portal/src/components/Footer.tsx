@@ -25,18 +25,33 @@ const Footer: React.FC = () => {
             </div>
           </div>
 
+          {/* Solutions */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-300 tracking-wider uppercase">Solutions</h3>
+            <ul className="mt-4 space-y-3">
+              <li><Link to="/solutions/d2c-brands" className="text-sm text-gray-200 hover:text-white">D2C Brands</Link></li>
+              <li><Link to="/solutions/ai-commerce" className="text-sm text-gray-200 hover:text-white">AI-Era Commerce</Link></li>
+              <li><Link to="/solutions/wholesale" className="text-sm text-gray-200 hover:text-white">Wholesale &amp; B2B</Link></li>
+              <li><Link to="/solutions/restaurants" className="text-sm text-gray-200 hover:text-white">Restaurants &amp; Food</Link></li>
+              <li><Link to="/solutions/grocery" className="text-sm text-gray-200 hover:text-white">Grocery &amp; Specialty</Link></li>
+              <li><Link to="/solutions/manufacturers" className="text-sm text-gray-200 hover:text-white">Manufacturers</Link></li>
+              <li><Link to="/solutions/distributors" className="text-sm text-gray-200 hover:text-white">Distributors</Link></li>
+              <li><Link to="/solutions/marketplace-escape" className="text-sm text-gray-200 hover:text-white">Marketplace Escape</Link></li>
+            </ul>
+          </div>
+
           {/* Resources */}
           <div>
             <h3 className="text-sm font-semibold text-gray-300 tracking-wider uppercase">Resources</h3>
             <ul className="mt-4 space-y-3">
+              <li><Link to="/industries" className="text-sm text-gray-200 hover:text-white">All Solutions</Link></li>
               <li><Link to="/blog" className="text-sm text-gray-200 hover:text-white">Blog</Link></li>
               <li><Link to="/compare" className="text-sm text-gray-200 hover:text-white">Compare</Link></li>
-              <li><Link to="/industries" className="text-sm text-gray-200 hover:text-white">Industries</Link></li>
               <li><Link to="/faq" className="text-sm text-gray-200 hover:text-white">FAQ</Link></li>
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Company + Legal */}
           <div>
             <h3 className="text-sm font-semibold text-gray-300 tracking-wider uppercase">Company</h3>
             <ul className="mt-4 space-y-3">
@@ -45,15 +60,10 @@ const Footer: React.FC = () => {
               <li><Link to="/contact-us" className="text-sm text-gray-200 hover:text-white">Contact Us</Link></li>
               <li><Link to="/system-status" className="text-sm text-gray-200 hover:text-white">System Status</Link></li>
             </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-300 tracking-wider uppercase">Legal</h3>
+            <h3 className="mt-6 text-sm font-semibold text-gray-300 tracking-wider uppercase">Legal</h3>
             <ul className="mt-4 space-y-3">
               <li><Link to="/privacy-policy" className="text-sm text-gray-200 hover:text-white">Privacy Policy</Link></li>
               <li><Link to="/terms-of-service" className="text-sm text-gray-200 hover:text-white">Terms of Service</Link></li>
-              <li><Link to="/contact-us" className="text-sm text-gray-200 hover:text-white">Request Business Code</Link></li>
             </ul>
           </div>
         </div>

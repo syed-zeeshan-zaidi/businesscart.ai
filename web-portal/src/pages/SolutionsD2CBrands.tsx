@@ -1,0 +1,483 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import {
+  BoltIcon,
+  CurrencyDollarIcon,
+  GlobeAltIcon,
+  CheckIcon,
+  CpuChipIcon,
+  ShoppingBagIcon,
+  ShieldCheckIcon,
+  ChartBarIcon,
+  TagIcon,
+  DevicePhoneMobileIcon,
+  PhotoIcon,
+  CommandLineIcon,
+  SparklesIcon,
+  ArrowTopRightOnSquareIcon,
+} from '@heroicons/react/24/outline';
+
+const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' }> = ({ kind }) => {
+  const config = {
+    live: { label: 'LIVE', cls: 'bg-green-100 text-green-800 ring-green-200' },
+    beta: { label: 'BETA', cls: 'bg-amber-100 text-amber-800 ring-amber-200' },
+    q2: { label: 'Q2 2026', cls: 'bg-blue-100 text-blue-800 ring-blue-200' },
+    q3: { label: 'Q3 2026', cls: 'bg-blue-100 text-blue-800 ring-blue-200' },
+    q4: { label: 'Q4 2026', cls: 'bg-blue-100 text-blue-800 ring-blue-200' },
+  }[kind];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ring-1 ring-inset ${config.cls}`}>
+      {config.label}
+    </span>
+  );
+};
+
+const liveFeatures = [
+  { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'Pay nothing until you sell. No setup costs, no hidden fees.' },
+  { icon: GlobeAltIcon, title: 'Branded storefront + custom domain', desc: 'Your colors, logo, and domain. See usetgo.com for a live example.' },
+  { icon: BoltIcon, title: 'Sub-1-second page load', desc: 'Static HTML on CloudFront\'s 200+ edge locations. No bloated themes.' },
+  { icon: ChartBarIcon, title: 'Auto-generated SEO', desc: 'Sitemap, schema.org, OpenGraph, meta tags — all created automatically when you add products.' },
+  { icon: CpuChipIcon, title: 'AI-readable product pages', desc: 'llms.txt + markdown product pages. ChatGPT, Perplexity, and Google AI can read your catalog directly.' },
+  { icon: ShoppingBagIcon, title: '5 shopping channels included', desc: 'Auto-synced feeds for Google, Facebook, Bing, Pinterest, and TikTok. No app subscriptions.' },
+  { icon: ShieldCheckIcon, title: 'Direct payment to your bank', desc: 'Connect Stripe, Amazon Pay, or Authorize.net. Money goes straight to you. We never touch it.' },
+  { icon: ChartBarIcon, title: 'Privacy-safe analytics', desc: 'UTM, geo, and conversion funnel tracking. First-party only — no Google Analytics, no third-party cookies.' },
+  { icon: TagIcon, title: 'Time-based deals', desc: 'Schedule sales with start and end dates. Built in, no app required.' },
+  { icon: DevicePhoneMobileIcon, title: 'PWA installable app', desc: 'Customers can install your store as a mobile app from any browser. No App Store fees.' },
+  { icon: PhotoIcon, title: 'Image CDN included', desc: 'Product images delivered globally with year-long cache. No third-party CDN needed.' },
+  { icon: CommandLineIcon, title: 'Full REST API access', desc: 'Every operation has a REST endpoint. Integrate or extend with your existing tooling.' },
+];
+
+const betaFeatures = [
+  { title: 'Bulk product import via CSV', desc: 'CSV export works today. Bulk import is in active development. Manual upload available now via web portal.' },
+  { title: 'Android customer mobile app', desc: 'Login, catalog, cart, checkout, and order history shipped. Payment UI in progress.' },
+];
+
+const roadmap = [
+  { quarter: 'q2' as const, feature: 'Push notifications', why: 'Bring customers back without paying for ads' },
+  { quarter: 'q3' as const, feature: 'Loyalty program', why: 'Reward repeat customers, lift LTV' },
+  { quarter: 'q3' as const, feature: 'Product reviews + ratings', why: 'Social proof on every product page' },
+  { quarter: 'q3' as const, feature: 'Subscription / recurring orders', why: 'Predictable revenue from subscribe-and-save' },
+  { quarter: 'q3' as const, feature: 'BOGO + coupon engine', why: 'Flash sales, percentage codes, free shipping' },
+  { quarter: 'q4' as const, feature: 'iOS customer app', why: 'Native iPhone and iPad shopping' },
+  { quarter: 'q4' as const, feature: 'Multi-language storefronts', why: 'Sell internationally in your customer\'s language' },
+  { quarter: 'q4' as const, feature: 'Multi-currency checkout', why: 'Charge in local currency at checkout' },
+];
+
+const faqs = [
+  {
+    q: 'How is this $0/month? What\'s the catch?',
+    a: 'Three tiers. Starter is $0/month + 6% per order capped at $5/order — pay only when you sell. Growth ($499/mo + 1%) and Enterprise ($1,999/mo + 0.25%) come with a 30-day money-back guarantee. Pick the tier that fits your scale.',
+  },
+  {
+    q: 'Can I migrate from Shopify, Etsy, or WooCommerce?',
+    a: 'Manual product upload works today. Bulk CSV import is in beta and ships in Q2 2026. Customer email migration is straightforward — Etsy and Amazon don\'t share customer emails anyway, so you can collect them on a launch announcement.',
+  },
+  {
+    q: 'Will my SEO survive the move?',
+    a: 'Yes — and usually improves. Static HTML, auto-generated schema.org, sitemap, and llms.txt typically lift rankings within 60-90 days. Sub-second load is a Core Web Vitals win.',
+  },
+  {
+    q: 'Can I use my own domain?',
+    a: 'Yes — included from day one. See usetgo.com for a live example.',
+  },
+  {
+    q: 'What if I need a feature you don\'t have?',
+    a: 'We ship every quarter — see "Coming in 2026" above for the roadmap. For specific needs, the platform is API-first (every operation has a REST endpoint), so you can integrate or extend.',
+  },
+  {
+    q: 'Can I leave if I don\'t like it?',
+    a: 'Anytime. Products, customers, orders, and images are all exportable as CSV. No contract, no monthly fees — leaving costs nothing.',
+  },
+];
+
+const SolutionsD2CBrands: React.FC = () => {
+  return (
+    <div className="bg-gray-50">
+      <Navbar />
+
+      <main>
+        {/* Hero */}
+        <section className="relative bg-gray-800 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Solutions · D2C Brands</p>
+              <h1 className="mt-4 text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
+                Sell Direct. Own Everything.{' '}
+                <span className="text-teal-400">Pay $0 to Start.</span>
+              </h1>
+              <p className="mt-6 text-lg text-gray-200 sm:text-xl">
+                A branded online store with sub-second pages, AI-readable products, and 5 built-in shopping channels — without monthly fees, plugin sprawl, or marketplace commissions.
+              </p>
+              <p className="mt-4 text-sm text-gray-300">
+                No monthly fees · No setup costs · No credit card to start · 6% per order, that's it
+              </p>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/contact-us"
+                  className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800 md:py-4 md:text-lg md:px-10"
+                >
+                  Start Free
+                </Link>
+                <a
+                  href="https://www.usetgo.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-8 py-3 border border-gray-200 text-base font-medium rounded-md text-gray-200 hover:text-white hover:border-white md:py-4 md:text-lg md:px-10"
+                >
+                  See a Live Store
+                  <ArrowTopRightOnSquareIcon className="ml-2 h-5 w-5" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* The Pain */}
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">Selling Online Costs More Than It Should</h2>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900">Marketplaces take 15-30%</h3>
+                <p className="mt-3 text-gray-600">
+                  Etsy: 6.5% + listing fees. Amazon: 8-15%. eBay: 13.25%. DoorDash: up to 30%. Every order means losing a chunk to a platform that owns your customer relationship.
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900">Shopify + apps = $300-500/month</h3>
+                <p className="mt-3 text-gray-600">
+                  $39/mo Shopify Basic before your first sale. Add Klaviyo ($35), Judge.me ($15), ReCharge ($99), Loox ($10), Gorgias ($50), a paid theme ($180+), and you're at $400/month before any traffic.
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900">Slow stores are invisible to AI</h3>
+                <p className="mt-3 text-gray-600">
+                  Average Shopify store loads in 2-4 seconds. Worse: Shopify themes render with JavaScript — unreadable to ChatGPT, Perplexity, and Google AI Overviews. AI shopping is growing 165× faster than organic search.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Side by Side */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center">Side by Side</h2>
+            <div className="mt-10 overflow-x-auto">
+              <table className="min-w-full bg-white rounded-lg shadow-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-900"></th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-500">Shopify Basic + Apps</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-teal-700">BusinessCart.ai</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[
+                    ['Monthly fee', '$39+', '$0'],
+                    ['Essential apps', '$100-500/mo (typical stack)', '$0 — included'],
+                    ['Page load', '2-4 seconds', '<1 second'],
+                    ['AI/LLM-readable', 'No (JavaScript-rendered)', 'Yes (static HTML + llms.txt)'],
+                    ['Shopping feeds (5 channels)', '$20+/mo per app', '$0 — built-in'],
+                    ['Schema.org SEO', 'Basic, requires apps', 'Auto-generated'],
+                    ['Custom domain', 'Included', 'Included'],
+                    ['Direct payment to your bank', 'Yes', 'Yes'],
+                  ].map(([feat, shopify, bc]) => (
+                    <tr key={feat}>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{feat}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{shopify}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 font-semibold">{bc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* What you get today */}
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">Everything You'd Pay $400/Month For. $0 Here.</h2>
+              <p className="mt-4 text-gray-600">All features below are <Badge kind="live" /> today.</p>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {liveFeatures.map((f) => (
+                <div key={f.title} className="flex flex-col">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-10 w-10 rounded-md bg-teal-700 text-white flex-shrink-0">
+                      <f.icon className="h-5 w-5" />
+                    </div>
+                    <Badge kind="live" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-gray-900">{f.title}</h3>
+                  <p className="mt-2 text-gray-600">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* AI Add-on Spotlight */}
+        <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3 mb-4">
+              <SparklesIcon className="h-6 w-6 text-teal-400" />
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Premium Add-on</p>
+              <Badge kind="live" />
+            </div>
+            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
+              One AI Add-on. Replaces 10,000 Apps.
+            </h2>
+            <p className="mt-6 text-lg text-gray-200">
+              Other platforms force you to subscribe to dozens of apps for integrations, automation, and analytics. Our AI add-on connects to any system, runs your routine operations, and surfaces what matters — all from one premium add-on, decoupled from your commerce stack so heavy lifting never slows your storefront.
+            </p>
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              <div>
+                <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
+                <p className="mt-2 text-gray-300 text-sm">
+                  Connect ERP, CRM, accounting, fulfillment — any system, no custom code. The AI handles the data plumbing.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">AI-Driven Observability</h3>
+                <p className="mt-2 text-gray-300 text-sm">
+                  No dashboards to build. AI surfaces sales trends, customer behavior, and operational anomalies automatically.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
+                <p className="mt-2 text-gray-300 text-sm">
+                  Order updates, quote follow-ups, status notifications — handled by AI so your team focuses on decisions.
+                </p>
+              </div>
+            </div>
+            <p className="mt-8 text-sm text-gray-400">
+              Available on <span className="text-white font-semibold">Growth</span> and <span className="text-white font-semibold">Enterprise</span> tiers as a premium add-on.{' '}
+              <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
+                Talk to us about pricing →
+              </Link>
+            </p>
+          </div>
+        </section>
+
+        {/* In Beta */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">Honest Beta Status</h2>
+              <p className="mt-4 text-gray-600">
+                Built and working today, with known gaps. We tell you upfront so you can plan accordingly.
+              </p>
+            </div>
+            <div className="mt-10 grid gap-6 md:grid-cols-2">
+              {betaFeatures.map((f) => (
+                <div key={f.title} className="bg-white rounded-lg p-6 shadow-sm border border-amber-100">
+                  <div className="flex items-center gap-3">
+                    <Badge kind="beta" />
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold text-gray-900">{f.title}</h3>
+                  <p className="mt-2 text-gray-600">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Coming in 2026 */}
+        <section className="py-16 bg-white">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">Where We're Going</h2>
+              <p className="mt-4 text-gray-600">
+                Quarterly shipping cadence. Specific dates so you know exactly what to plan around.
+              </p>
+            </div>
+            <div className="mt-10 overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-gray-900">Feature</th>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-gray-900">Why it matters</th>
+                    <th className="text-left px-4 py-3 text-sm font-semibold text-gray-900">When</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {roadmap.map((r) => (
+                    <tr key={r.feature}>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">{r.feature}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600">{r.why}</td>
+                      <td className="px-4 py-4 text-sm"><Badge kind={r.quarter} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* See it live */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900">See a Real Store, Built on BusinessCart.ai</h2>
+            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
+              <strong>uSetGo INC</strong> — a live D2C brand running on BusinessCart.ai with a custom domain, full catalog, sub-second load times, and AI-readable product pages.
+            </p>
+            <div className="mt-8">
+              <a
+                href="https://www.usetgo.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+              >
+                Visit www.usetgo.com
+                <ArrowTopRightOnSquareIcon className="ml-2 h-5 w-5" />
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="py-16 bg-white">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900">Live in Under 30 Minutes</h2>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              {[
+                { step: '1', title: 'Sign up free', desc: 'No credit card. Set your brand colors and upload your logo.' },
+                { step: '2', title: 'Add your products', desc: 'Upload images, set prices, write descriptions. Manual entry today, bulk CSV import in Q2 2026.' },
+                { step: '3', title: 'Share your URL', desc: 'Your storefront is live on a custom domain with SEO and shopping feeds auto-generated.' },
+              ].map((s) => (
+                <div key={s.step} className="text-center">
+                  <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold mx-auto">
+                    {s.step}
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-gray-900">{s.title}</h3>
+                  <p className="mt-2 text-gray-600">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900">Free to Start. Premium When You Need It.</h2>
+              <p className="mt-3 text-lg text-gray-600">$0 to start · No setup costs · 30-day money-back on Growth and Enterprise</p>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
+                <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Branded storefront with custom domain', 'All Live features', 'Stripe + offline payments', '1 location'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order · Capped at $5/order</p>
+                <Link
+                  to="/contact-us"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+                >
+                  Get Started
+                </Link>
+              </div>
+              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
+                <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$499<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Everything in Starter', 'All payment gateways (Amazon Pay, Authorize.net)', 'Multiple locations', 'Quote workflow', 'AI add-on: $99/mo (basic)'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 1% per order · 30-day money-back</p>
+                <Link
+                  to="/contact-us"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+                >
+                  Contact Us
+                </Link>
+              </div>
+              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
+                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$1,999<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Everything in Growth', 'Full AI add-on: $499/mo (full suite + dedicated AI engineer)', 'Dedicated success manager + SLA', 'Volume processing rates'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 0.25% per order · 30-day money-back</p>
+                <Link
+                  to="/contact-us"
+                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+                >
+                  Contact Us
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="py-16 bg-white">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center">Frequently Asked Questions</h2>
+            <div className="mt-10 space-y-6">
+              {faqs.map((f) => (
+                <div key={f.q} className="bg-gray-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900">{f.q}</h3>
+                  <p className="mt-3 text-gray-600">{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="bg-gray-50">
+          <div className="max-w-4xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Ready to Own Your Store?</h2>
+            <p className="mt-4 text-lg text-gray-600">
+              $0 to start · 6% per order · No surprise fees · No app stack · No marketplace commissions
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
+              <Link
+                to="/contact-us"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+              >
+                Start Free
+              </Link>
+              <Link
+                to="/contact-us"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 hover:text-gray-900 hover:border-gray-400"
+              >
+                Talk to Founder
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default SolutionsD2CBrands;

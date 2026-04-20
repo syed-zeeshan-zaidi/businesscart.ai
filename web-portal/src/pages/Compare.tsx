@@ -36,14 +36,14 @@ const Compare: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Monthly Fee</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0 Starter / $499 Growth / $1,999 Enterprise</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$39-399/mo (Plus: $2,300+/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$30-100/mo (hosting + plugins)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$0 (but 15-30% per order)</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Per-Order Fee</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">6% (Starter) or 5% + $1 (Growth)</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">6% capped at $5 (Starter) / 1% (Growth) / 0.25% (Enterprise)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">2.9% + 30c (payment processing only)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">2.9% + 30c (payment processing only)</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">15-30% commission</td>

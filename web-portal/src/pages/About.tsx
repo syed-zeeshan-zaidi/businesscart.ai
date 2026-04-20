@@ -15,7 +15,7 @@ const About: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Your Commerce, Your Rules.</h1>
             <p className="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-              We help businesses sell directly to their customers — with their own branded store, their own payment processing, and zero monthly fees.
+              We help businesses sell directly to their customers — with their own branded store, their own payment processing, and a free tier to get started.
             </p>
           </div>
         </div>
@@ -42,8 +42,8 @@ const About: React.FC = () => {
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
                   <CurrencyDollarIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">You Pay Only When You Sell</h3>
-                <p className="mt-2 text-gray-500">No monthly fees. No setup costs. We earn when you earn — our success is tied to yours.</p>
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">Free to Start, Premium When You Need It</h3>
+                <p className="mt-2 text-gray-500">Starter is $0/month — pay only per order. Premium tiers (Growth and Enterprise) when you need full B2B power, multi-location, or AI integration. 30-day money-back on paid tiers.</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
@@ -101,7 +101,7 @@ const About: React.FC = () => {
         <div className="bg-gray-800 py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-2xl font-bold text-white">Ready to Own Your Commerce?</h2>
-            <p className="mt-4 text-gray-200">No monthly fees. No setup costs. Pay only when you sell.</p>
+            <p className="mt-4 text-gray-200">Free to start. No setup costs. Premium tiers when you need to scale.</p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/contact-us"

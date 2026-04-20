@@ -23,7 +23,7 @@ const sections: Section[] = [
       {
         id: 'what-is-businesscart',
         question: 'What is BusinessCart.ai?',
-        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools — with zero monthly fees. You get a storefront, checkout, payment processing, and per-customer configuration. You pay only when you make a sale.',
+        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools — free to start. You get a storefront, checkout, payment processing, and per-customer configuration. The Starter tier is $0/month — you pay only when you make a sale. Paid tiers (Growth and Enterprise) are available when you need full B2B power, multi-location, or AI integration.',
       },
       {
         id: 'who-is-it-for',
@@ -33,12 +33,12 @@ const sections: Section[] = [
       {
         id: 'how-is-it-different',
         question: 'How is this different from Shopify or other platforms?',
-        answer: 'Three main differences: (1) Zero monthly fees — you pay per order, not per month. (2) Built-in B2B — per-customer pricing, payment methods, delivery options, and quote negotiation without plugins or upgrades. (3) Speed — your storefront loads in under 1 second because it is generated as static HTML, not rendered by a JavaScript framework.',
+        answer: 'Three main differences: (1) Free to start — the Starter tier is $0/month, you only pay when you sell. (2) Built-in B2B — per-customer pricing, payment methods, delivery options, and quote negotiation without plugins or Plus-tier upgrades. (3) Speed — your storefront loads in under 1 second because it is generated as static HTML, not rendered by a JavaScript framework.',
       },
       {
         id: 'pricing',
         question: 'How much does it cost?',
-        answer: 'There are no monthly fees or setup costs. Starter plan: 6% per order. Growth plan: 5% + $1 per order (includes quotes, multiple locations, all payment gateways, and full B2B configuration). Enterprise: custom pricing with dedicated support and SLA. You pay nothing if you make no sales.',
+        answer: 'Three tiers, no setup costs. Starter: $0/month + 6% per order, capped at $5/order. Growth: $499/month + 1% per order — includes quotes, multiple locations, all payment gateways, full B2B configuration; AI add-on available at $99/month. Enterprise: $1,999/month + 0.25% per order — includes dedicated support, SLA, and the full AI add-on at $499/month. Growth and Enterprise come with a 30-day money-back guarantee.',
       },
     ],
   },
