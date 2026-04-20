@@ -148,7 +148,7 @@ const LandingPage: React.FC = () => {
                       </span>
                       <span className="text-xs text-gray-500">Built on BusinessCart.ai</span>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">uSetGo INC</h3>
+                    <p className="text-lg font-bold text-gray-900">uSetGo INC</p>
                     <p className="mt-1 text-sm text-gray-600">A live D2C storefront powered by BusinessCart.ai — custom domain, full catalog, sub-second pages.</p>
 
                     <ul className="mt-5 space-y-2.5">

@@ -52,8 +52,8 @@ const pages: PageEntry[] = [
     route: '/',
     component: <LandingPage />,
     output: 'index.html',
-    title: 'BusinessCart.ai: Your Commerce, Your Rules.',
-    description: 'Zero monthly fees. Your own branded online store with sub-1-second loads, auto SEO, AI-ready product catalogs, and built-in B2B features. Pay only when you sell.',
+    title: 'BusinessCart.ai — Your Online Store. Your B2B Portal. $0 to Start.',
+    description: 'One platform for D2C brands, wholesalers, restaurants, grocers, and manufacturers. Sub-second pages, AI-readable. Free to start ($0/mo Starter + 6% capped at $5/order). Premium tiers for full B2B and AI integration.',
   },
   {
     route: '/compare',
@@ -76,7 +76,7 @@ const pages: PageEntry[] = [
     component: <SolutionsD2CBrands />,
     output: 'solutions/d2c-brands/index.html',
     title: 'Online Store for D2C Brands — $0 to Start | BusinessCart.ai',
-    description: 'Sell direct with a branded online store. Sub-second pages, AI-readable products, 5 shopping channels — without monthly fees, plugin sprawl, or marketplace commissions.',
+    description: 'Sell direct with a branded online store. Sub-second pages, AI-readable products, 5 shopping channels. Free Starter tier, no plugin sprawl, no marketplace commissions.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'D2C Brands Solution', url: `${baseUrl}/solutions/d2c-brands` }),
   },
   {
@@ -100,7 +100,7 @@ const pages: PageEntry[] = [
     component: <SolutionsRestaurants />,
     output: 'solutions/restaurants/index.html',
     title: 'Direct Ordering for Catering, Meal-Prep & Bakeries | BusinessCart.ai',
-    description: 'Code-gated regulars portal, pickup and scheduled delivery, $0 monthly fee, no DoorDash 30% commission. Built for food businesses DoorDash serves poorly.',
+    description: 'Code-gated regulars portal, pickup and scheduled delivery, free Starter tier, no DoorDash 30% commission. Built for food businesses DoorDash serves poorly.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Restaurants & Food Solution', url: `${baseUrl}/solutions/restaurants` }),
   },
   {
@@ -108,7 +108,7 @@ const pages: PageEntry[] = [
     component: <SolutionsGrocery />,
     output: 'solutions/grocery/index.html',
     title: 'Online Ordering for Independent Grocers — Without Instacart\'s Cut | BusinessCart.ai',
-    description: 'Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 100% of the margin and the customer relationship.',
+    description: 'Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 94% of every sale (vs 70-85% on Instacart) and 100% of the customer relationship.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Grocery & Specialty Food Solution', url: `${baseUrl}/solutions/grocery` }),
   },
   {
@@ -116,7 +116,7 @@ const pages: PageEntry[] = [
     component: <SolutionsManufacturers />,
     output: 'solutions/manufacturers/index.html',
     title: 'Distributor Ordering Portal for Manufacturers | BusinessCart.ai',
-    description: 'Per-distributor pricing, MOQ, lead times, and credit limits enforced automatically. Channel pricing stays private. $0 monthly fee, live in days.',
+    description: 'Per-distributor pricing, MOQ, lead times, and credit limits enforced automatically. Channel pricing stays private. Free Starter, premium B2B tiers, live in days.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Manufacturers Solution', url: `${baseUrl}/solutions/manufacturers` }),
   },
   {
@@ -132,7 +132,7 @@ const pages: PageEntry[] = [
     component: <SolutionsMarketplaceEscape />,
     output: 'solutions/marketplace-escape/index.html',
     title: 'Stop Paying 30% to Marketplaces — Own Your Customers | BusinessCart.ai',
-    description: 'Etsy, Amazon, eBay, DoorDash, Instacart, Faire — all take 6-30% of every order. Build your direct store on $0/month and keep 94% of every sale.',
+    description: 'Etsy, Amazon, eBay, DoorDash, Instacart, Faire — all take 6-30% of every order. Build your direct store on a free Starter tier and keep 94% of every sale.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Marketplace Escape Solution', url: `${baseUrl}/solutions/marketplace-escape` }),
   },
   {
@@ -241,7 +241,7 @@ const llmsTxt = `# BusinessCart.ai
 
 > Your Commerce, Your Rules.
 
-BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools — with zero monthly fees. You pay only when you make a sale. The platform serves businesses of any size, from local restaurants to national distributors.
+BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools. The Starter tier is $0/month — you pay only per order (6% capped at $5/order). Premium tiers (Growth $499/month + 1% per order, Enterprise $1,999/month + 0.25% per order) unlock full B2B power, multiple locations, and the AI add-on. The platform serves businesses of any size, from local restaurants to national distributors.
 
 ## Company Information
 

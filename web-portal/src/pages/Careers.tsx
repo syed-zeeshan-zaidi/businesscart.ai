@@ -24,7 +24,7 @@ const Careers: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Who We Are</h2>
           <div className="space-y-4 text-gray-600 text-lg leading-relaxed">
             <p>
-              BusinessCart.ai is a US-based, remote-first company building an e-commerce platform that gives businesses their own branded store with zero monthly fees. Our customers range from local restaurants to wholesale distributors.
+              BusinessCart.ai is a US-based, remote-first company building an e-commerce platform that gives businesses their own branded store with a free Starter tier and premium options for full B2B. Our customers range from local restaurants to wholesale distributors.
             </p>
             <p>
               We move fast, stay lean, and focus on outcomes over process. Everyone who works here has a direct impact on the product and on the businesses that depend on it.

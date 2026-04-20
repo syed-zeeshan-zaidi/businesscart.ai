@@ -13,7 +13,7 @@ const Footer: React.FC = () => {
           <div className="md:col-span-2">
             <p className="text-lg font-bold text-white">BusinessCart.ai</p>
             <p className="mt-2 text-sm text-gray-300">
-              Your own branded online store with zero monthly fees. Built-in B2B, sub-1-second loads, and AI-ready storefronts.
+              Your own branded online store with a free Starter tier. Built-in B2B, sub-1-second loads, and AI-ready storefronts.
             </p>
             <div className="mt-4 space-y-2">
               <p className="text-sm text-gray-300">
