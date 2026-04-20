@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script-defer',
       workbox: {
         // Only precache hashed assets (JS/CSS) — NOT HTML (HTML must be network-first)
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],

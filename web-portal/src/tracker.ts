@@ -71,28 +71,47 @@ export function trackPageView(page: string) {
 
     sessionTracked = true;
 
-    const attribution = getAttribution();
+    const sendEvent = () => {
+      const attribution = getAttribution();
 
-    fetch(`${API_URL}/visitors/event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        visitorId: getVisitorId(),
-        event: 'page_view',
-        page,
-        referrer: attribution.referrer,
-        utm_source: attribution.utm_source,
-        utm_medium: attribution.utm_medium,
-        utm_campaign: attribution.utm_campaign,
-        utm_content: attribution.utm_content,
-        utm_term: attribution.utm_term,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
-        screenWidth: window.screen?.width || 0,
-        screenHeight: window.screen?.height || 0,
-        language: navigator.language || '',
-      }),
-      keepalive: true,
-    }).catch(() => {});
+      fetch(`${API_URL}/visitors/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitorId: getVisitorId(),
+          event: 'page_view',
+          page,
+          referrer: attribution.referrer,
+          utm_source: attribution.utm_source,
+          utm_medium: attribution.utm_medium,
+          utm_campaign: attribution.utm_campaign,
+          utm_content: attribution.utm_content,
+          utm_term: attribution.utm_term,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+          screenWidth: window.screen?.width || 0,
+          screenHeight: window.screen?.height || 0,
+          language: navigator.language || '',
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    // Defer to idle so the tracker never blocks LCP. On initial page load,
+    // wait for the `load` event first; on SPA navigations document is already
+    // complete so the idle callback fires immediately.
+    const deferredSend = () => {
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(sendEvent, { timeout: 2000 });
+      } else {
+        setTimeout(sendEvent, 1000);
+      }
+    };
+
+    if (document.readyState === 'complete') {
+      deferredSend();
+    } else {
+      window.addEventListener('load', deferredSend, { once: true });
+    }
   } catch {
     // Never crash the app
   }

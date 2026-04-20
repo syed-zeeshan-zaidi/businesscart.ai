@@ -52,8 +52,8 @@ const pages: PageEntry[] = [
     route: '/',
     component: <LandingPage />,
     output: 'index.html',
-    title: 'BusinessCart.ai: Your Commerce, Your Rules.',
-    description: 'Zero monthly fees. Your own branded online store with sub-1-second loads, auto SEO, AI-ready product catalogs, and built-in B2B features. Pay only when you sell.',
+    title: 'BusinessCart.ai — Your Online Store. Your B2B Portal. $0 to Start.',
+    description: 'One platform for D2C brands, wholesalers, restaurants, grocers, and manufacturers. Sub-second pages, AI-readable. Free to start ($0/mo Starter + 6% capped at $5/order). Premium tiers for full B2B and AI integration.',
   },
   {
     route: '/compare',
