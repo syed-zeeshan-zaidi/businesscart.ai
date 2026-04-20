@@ -84,6 +84,8 @@ type D2CConfig struct {
 	ShippingText   string `bson:"shippingText" json:"shippingText"`
 	ShippingBadge  string `bson:"shippingBadge,omitempty" json:"shippingBadge,omitempty"` // Product page trust signal (default: "Shipping Available")
 	ReturnsBadge   string `bson:"returnsBadge,omitempty" json:"returnsBadge,omitempty"` // Product page trust signal (default: "Returns & Refunds")
+	FeedGender     string `bson:"feedGender,omitempty" json:"feedGender,omitempty"`     // Default gender for feeds (e.g. "Unisex", "Male", "Female")
+	FeedAgeGroup   string `bson:"feedAgeGroup,omitempty" json:"feedAgeGroup,omitempty"` // Default age group for feeds (e.g. "Adult", "Kids")
 	WhatsappNumber string `bson:"whatsappNumber" json:"whatsappNumber"`
 	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
 	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`

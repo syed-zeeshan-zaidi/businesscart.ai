@@ -60,7 +60,7 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 			csvEscape(availability),
 			"new",
 			csvEscape(data.Company.Name),
-			csvEscape(p.Category),
+			csvEscape(feedCategory(p.Category)),
 			csvEscape(salePrice),
 		))
 	}

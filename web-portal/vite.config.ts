@@ -16,7 +16,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // HTML pages — network-first (fresh on every visit, cached as offline fallback)
-            urlPattern: /\/(index\.html)?$|\/compare|\/industries|\/blog|\/faq|\/about|\/careers|\/contact|\/privacy|\/terms/,
+            urlPattern: /\/(index\.html)?$|\/compare|\/industries|\/solutions|\/blog|\/faq|\/about|\/careers|\/contact|\/privacy|\/terms/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'pages',

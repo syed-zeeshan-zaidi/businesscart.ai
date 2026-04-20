@@ -11,6 +11,14 @@ import Compare from './pages/Compare';
 import Industries from './pages/Industries';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
+import SolutionsD2CBrands from './pages/SolutionsD2CBrands';
+import SolutionsAICommerce from './pages/SolutionsAICommerce';
+import SolutionsWholesale from './pages/SolutionsWholesale';
+import SolutionsRestaurants from './pages/SolutionsRestaurants';
+import SolutionsGrocery from './pages/SolutionsGrocery';
+import SolutionsManufacturers from './pages/SolutionsManufacturers';
+import SolutionsDistributors from './pages/SolutionsDistributors';
+import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
 import blogPosts from './data/blogPosts';
 import fs from 'fs';
 import path from 'path';
@@ -59,9 +67,73 @@ const pages: PageEntry[] = [
     route: '/industries',
     component: <Industries />,
     output: 'industries/index.html',
-    title: 'Industries — BusinessCart.ai',
-    description: 'See how BusinessCart.ai serves restaurants, retail, wholesale, manufacturing, and more with zero monthly fees.',
-    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Industries', url: `${baseUrl}/industries` }),
+    title: 'Solutions for Every Business Type — BusinessCart.ai',
+    description: 'D2C brands, AI commerce, wholesale, restaurants, grocery, manufacturers, distributors, marketplace escape — pick the solution page that fits your business.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Solutions', url: `${baseUrl}/industries` }),
+  },
+  {
+    route: '/solutions/d2c-brands',
+    component: <SolutionsD2CBrands />,
+    output: 'solutions/d2c-brands/index.html',
+    title: 'Online Store for D2C Brands — $0 to Start | BusinessCart.ai',
+    description: 'Sell direct with a branded online store. Sub-second pages, AI-readable products, 5 shopping channels — without monthly fees, plugin sprawl, or marketplace commissions.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'D2C Brands Solution', url: `${baseUrl}/solutions/d2c-brands` }),
+  },
+  {
+    route: '/solutions/ai-commerce',
+    component: <SolutionsAICommerce />,
+    output: 'solutions/ai-commerce/index.html',
+    title: 'AI-Era Commerce — Get Cited by ChatGPT, Perplexity, Google AI | BusinessCart.ai',
+    description: 'Static HTML, schema.org, llms.txt, and markdown product pages — your storefront becomes the source AI assistants quote when shoppers ask what to buy.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'AI-Era Commerce Solution', url: `${baseUrl}/solutions/ai-commerce` }),
+  },
+  {
+    route: '/solutions/wholesale',
+    component: <SolutionsWholesale />,
+    output: 'solutions/wholesale/index.html',
+    title: 'Wholesale & B2B Ordering Platform — $0 to Start | BusinessCart.ai',
+    description: 'Per-customer pricing, credit limits, spend caps, and quote negotiation — enforced automatically. Stop running B2B in spreadsheets.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Wholesale & B2B Solution', url: `${baseUrl}/solutions/wholesale` }),
+  },
+  {
+    route: '/solutions/restaurants',
+    component: <SolutionsRestaurants />,
+    output: 'solutions/restaurants/index.html',
+    title: 'Direct Ordering for Catering, Meal-Prep & Bakeries | BusinessCart.ai',
+    description: 'Code-gated regulars portal, pickup and scheduled delivery, $0 monthly fee, no DoorDash 30% commission. Built for food businesses DoorDash serves poorly.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Restaurants & Food Solution', url: `${baseUrl}/solutions/restaurants` }),
+  },
+  {
+    route: '/solutions/grocery',
+    component: <SolutionsGrocery />,
+    output: 'solutions/grocery/index.html',
+    title: 'Online Ordering for Independent Grocers — Without Instacart\'s Cut | BusinessCart.ai',
+    description: 'Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 100% of the margin and the customer relationship.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Grocery & Specialty Food Solution', url: `${baseUrl}/solutions/grocery` }),
+  },
+  {
+    route: '/solutions/manufacturers',
+    component: <SolutionsManufacturers />,
+    output: 'solutions/manufacturers/index.html',
+    title: 'Distributor Ordering Portal for Manufacturers | BusinessCart.ai',
+    description: 'Per-distributor pricing, MOQ, lead times, and credit limits enforced automatically. Channel pricing stays private. $0 monthly fee, live in days.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Manufacturers Solution', url: `${baseUrl}/solutions/manufacturers` }),
+  },
+  {
+    route: '/solutions/distributors',
+    component: <SolutionsDistributors />,
+    output: 'solutions/distributors/index.html',
+    title: 'B2B Distribution Platform — Stop Running Orders Through Email | BusinessCart.ai',
+    description: 'Per-customer tier pricing, multi-warehouse inventory, multi-supplier buyer accounts. A buying experience that beats Amazon Business.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Distributors Solution', url: `${baseUrl}/solutions/distributors` }),
+  },
+  {
+    route: '/solutions/marketplace-escape',
+    component: <SolutionsMarketplaceEscape />,
+    output: 'solutions/marketplace-escape/index.html',
+    title: 'Stop Paying 30% to Marketplaces — Own Your Customers | BusinessCart.ai',
+    description: 'Etsy, Amazon, eBay, DoorDash, Instacart, Faire — all take 6-30% of every order. Build your direct store on $0/month and keep 94% of every sale.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Marketplace Escape Solution', url: `${baseUrl}/solutions/marketplace-escape` }),
   },
   {
     route: '/blog',
@@ -130,7 +202,13 @@ for (const page of pages) {
 
 // Generate sitemap.xml
 const sitemapEntries = pages.map((page) => {
-  const priority = page.route === '/' ? '1.0' : page.route === '/blog' ? '0.8' : '0.7';
+  const priority = page.route === '/'
+    ? '1.0'
+    : page.route.startsWith('/solutions/')
+      ? '0.9'
+      : page.route === '/blog'
+        ? '0.8'
+        : '0.7';
   return `  <url>\n    <loc>${baseUrl}${page.route}</loc>\n    <priority>${priority}</priority>\n  </url>`;
 });
 
@@ -387,11 +465,13 @@ Planned premium features for the Enterprise tier.
 
 ## Pricing
 
-No monthly fees. No setup costs. Pay only per order.
+Three tiers. Free to start. 30-day money-back guarantee on Growth and Enterprise. No setup costs.
 
-- **Starter** ($0/month): Portal access, storefront with custom domain, standard checkout, basic B2B configuration, Stripe + offline payments. **6% per order.**
-- **Growth** ($0/month): Everything in Starter + negotiable quotes, multiple locations, all payment gateways, full B2B configuration. **5% + $1 per order.**
-- **Enterprise** (Custom): Everything in Growth + AI-powered operations, dedicated support, SLA. **Volume pricing.**
+- **Starter** ($0/month): Portal access, storefront with custom domain, standard checkout, basic B2B configuration, Stripe + offline payments. **6% per order, capped at $5/order.** AI add-on not available.
+- **Growth** ($499/month): Everything in Starter + negotiable quotes, multiple locations, all payment gateways (Amazon Pay, Authorize.net, PO), full B2B configuration. **+ 1% per order.** AI add-on available at **$99/month** (basic AI integration, observability, communication).
+- **Enterprise** ($1,999/month): Everything in Growth + dedicated success manager + SLA + volume processing rates. **+ 0.25% per order.** Full AI add-on at **$499/month** (full suite + dedicated AI engineer + custom integrations).
+
+Math examples (Starter cap protects from runaway fees on large orders): $30 order = $1.80 to BusinessCart; $1,000 wholesale order = $5 to BusinessCart (cap), not $60.
 
 ---
 
@@ -419,7 +499,7 @@ No monthly fees. No setup costs. Pay only per order.
 ### Main Pages
 - **Homepage:** ${baseUrl}
 - **Compare (vs Shopify, WooCommerce, Etsy, DoorDash, Amazon):** ${baseUrl}/compare
-- **Industries:** ${baseUrl}/industries
+- **All Solutions (directory):** ${baseUrl}/industries
 - **About Us:** ${baseUrl}/about
 - **Contact Us:** ${baseUrl}/contact-us
 - **FAQ:** ${baseUrl}/faq
@@ -427,6 +507,16 @@ No monthly fees. No setup costs. Pay only per order.
 - **Careers:** ${baseUrl}/careers
 - **Privacy Policy:** ${baseUrl}/privacy-policy
 - **Terms of Service:** ${baseUrl}/terms-of-service
+
+### Solution Pages (Industry-Specific Landing Pages)
+- **D2C Brands:** ${baseUrl}/solutions/d2c-brands — Branded online store with sub-second pages, AI-readable products, 5 shopping channels. For side hustlers, Etsy/Amazon escapees, Shopify defectors.
+- **AI-Era Commerce:** ${baseUrl}/solutions/ai-commerce — Static HTML, schema.org, llms.txt, markdown product pages. For SEO-savvy merchants betting on AI discovery.
+- **Wholesale & B2B:** ${baseUrl}/solutions/wholesale — Per-customer pricing, credit limits, spend caps, quote negotiation. For SMB wholesalers running orders via email.
+- **Restaurants & Food:** ${baseUrl}/solutions/restaurants — Code-gated regulars portal, no DoorDash 30%. For catering, meal-prep, bakeries, food trucks, corporate lunch.
+- **Grocery & Specialty Food:** ${baseUrl}/solutions/grocery — Online ordering for independent grocers without Instacart's cut. For specialty, ethnic, organic, butcher, liquor, pet supply.
+- **Manufacturers:** ${baseUrl}/solutions/manufacturers — Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced automatically.
+- **Distributors:** ${baseUrl}/solutions/distributors — Per-customer tier pricing, multi-warehouse, multi-supplier buyer accounts. Beats Amazon Business buying experience.
+- **Marketplace Escape:** ${baseUrl}/solutions/marketplace-escape — Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.
 
 ### Blog (${blogPosts.length} posts)
 ${blogPostEntries}

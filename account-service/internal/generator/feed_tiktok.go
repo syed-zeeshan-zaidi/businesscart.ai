@@ -8,7 +8,7 @@ import (
 
 // TikTok Shop / TikTok Ads product catalog CSV feed.
 // Spec: https://seller-us.tiktok.com/
-// Key differences: uses "sku_id" (not "id"), "google_product_category" required,
+// Key differences: uses "sku_id" (not "id"), "google_product_category" optional (recommended),
 // availability uses spaces ("in stock").
 
 func buildTikTokFeed(data StorefrontData) ([]byte, error) {
@@ -52,7 +52,7 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 		}
 
 		// TikTok requires google_product_category — use category as best effort
-		googleCategory := p.Category
+		googleCategory := feedCategory(p.Category)
 		if googleCategory == "" {
 			googleCategory = "Other"
 		}

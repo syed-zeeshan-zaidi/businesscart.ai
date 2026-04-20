@@ -781,6 +781,40 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                   <p className="mt-1 text-xs text-gray-400">Shown on product pages. Default: "Returns & Refunds"</p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Default Gender for Feeds (optional)</label>
+                  <select
+                    name="d2c.feedGender"
+                    value={companyData.d2c?.feedGender || ''}
+                    onChange={handleChange}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="Unisex">Unisex</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Used in Google/Bing feeds when product has no Gender attribute</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Default Age Group for Feeds (optional)</label>
+                  <select
+                    name="d2c.feedAgeGroup"
+                    value={companyData.d2c?.feedAgeGroup || ''}
+                    onChange={handleChange}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                  >
+                    <option value="">Not set</option>
+                    <option value="Adult">Adult</option>
+                    <option value="Kids">Kids</option>
+                    <option value="Toddler">Toddler</option>
+                    <option value="Infant">Infant</option>
+                    <option value="Newborn">Newborn</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Used in Google/Bing feeds when product has no Age Group attribute</p>
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Social Media Links (optional)</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

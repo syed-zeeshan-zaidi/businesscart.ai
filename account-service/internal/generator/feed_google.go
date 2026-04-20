@@ -66,8 +66,24 @@ func buildGoogleFeed(data StorefrontData) ([]byte, error) {
 			item.MPN = p.SKU
 		}
 		if p.Category != "" {
-			item.ProductType = p.Category
+			item.ProductType = feedCategory(p.Category)
 		}
+
+		// Product attributes → Google Shopping fields (product wins, config default fallback)
+		item.Color = productAttr(p.Attributes, "color", "colour")
+		item.Size = productAttr(p.Attributes, "size")
+		item.Material = productAttr(p.Attributes, "material")
+		item.Gender = productAttr(p.Attributes, "gender")
+		if item.Gender == "" && data.Config != nil && data.Config.FeedGender != "" {
+			item.Gender = data.Config.FeedGender
+		}
+		item.Gender = strings.ToLower(item.Gender) // Google requires lowercase: male, female, unisex
+		item.AgeGroup = productAttr(p.Attributes, "age_group", "age group", "agegroup")
+		if item.AgeGroup == "" && data.Config != nil && data.Config.FeedAgeGroup != "" {
+			item.AgeGroup = data.Config.FeedAgeGroup
+		}
+		item.AgeGroup = strings.ToLower(item.AgeGroup) // Google requires lowercase: adult, kids, toddler, infant, newborn
+
 		if item.GTIN == "" && item.MPN == "" {
 			item.IdentifierExists = "false"
 		}
@@ -116,7 +132,34 @@ type googleItem struct {
 	GTIN                 string   `xml:"g:gtin,omitempty"`
 	MPN                  string   `xml:"g:mpn,omitempty"`
 	ProductType          string   `xml:"g:product_type,omitempty"`
+	Color                string   `xml:"g:color,omitempty"`
+	Size                 string   `xml:"g:size,omitempty"`
+	Material             string   `xml:"g:material,omitempty"`
+	Gender               string   `xml:"g:gender,omitempty"`
+	AgeGroup             string   `xml:"g:age_group,omitempty"`
 	IdentifierExists     string   `xml:"g:identifier_exists,omitempty"`
+}
+
+// productAttr finds a product attribute by key (case-insensitive). Returns "" if not found.
+func productAttr(attrs []Attribute, keys ...string) string {
+	for _, a := range attrs {
+		lower := strings.ToLower(a.Key)
+		for _, k := range keys {
+			if lower == k {
+				return a.Value
+			}
+		}
+	}
+	return ""
+}
+
+// feedCategory converts "Gloves / BBQ" to "Gloves > BBQ" for shopping feeds.
+func feedCategory(cat string) string {
+	primary, sub := parseCategoryParts(cat)
+	if sub != "" {
+		return primary + " > " + sub
+	}
+	return primary
 }
 
 func stripHTML(s string) string {

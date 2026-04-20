@@ -41,6 +41,14 @@ const Compare = lazy(() => import('./pages/Compare'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Industries = lazy(() => import('./pages/Industries'));
+const SolutionsD2CBrands = lazy(() => import('./pages/SolutionsD2CBrands'));
+const SolutionsAICommerce = lazy(() => import('./pages/SolutionsAICommerce'));
+const SolutionsWholesale = lazy(() => import('./pages/SolutionsWholesale'));
+const SolutionsRestaurants = lazy(() => import('./pages/SolutionsRestaurants'));
+const SolutionsGrocery = lazy(() => import('./pages/SolutionsGrocery'));
+const SolutionsManufacturers = lazy(() => import('./pages/SolutionsManufacturers'));
+const SolutionsDistributors = lazy(() => import('./pages/SolutionsDistributors'));
+const SolutionsMarketplaceEscape = lazy(() => import('./pages/SolutionsMarketplaceEscape'));
 const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
@@ -236,6 +244,14 @@ const AppContent = () => {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/industries" element={<Industries />} />
+              <Route path="/solutions/d2c-brands" element={<SolutionsD2CBrands />} />
+              <Route path="/solutions/ai-commerce" element={<SolutionsAICommerce />} />
+              <Route path="/solutions/wholesale" element={<SolutionsWholesale />} />
+              <Route path="/solutions/restaurants" element={<SolutionsRestaurants />} />
+              <Route path="/solutions/grocery" element={<SolutionsGrocery />} />
+              <Route path="/solutions/manufacturers" element={<SolutionsManufacturers />} />
+              <Route path="/solutions/distributors" element={<SolutionsDistributors />} />
+              <Route path="/solutions/marketplace-escape" element={<SolutionsMarketplaceEscape />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="*" element={<div className="p-4 text-center text-gray-600">404 Not Found</div>} />

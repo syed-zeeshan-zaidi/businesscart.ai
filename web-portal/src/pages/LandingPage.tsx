@@ -2,8 +2,89 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { BanknotesIcon, UserGroupIcon, PuzzlePieceIcon, CloudArrowUpIcon, CogIcon, ServerIcon, UserCircleIcon, AdjustmentsHorizontalIcon, CommandLineIcon, CpuChipIcon, CheckIcon, ClipboardDocumentListIcon, GlobeAltIcon, CubeIcon, ShareIcon } from '@heroicons/react/24/outline';
-import { ShoppingCartIcon } from '@heroicons/react/24/solid';
+import {
+  ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
+  BoltIcon,
+  CheckIcon,
+  CpuChipIcon,
+  CurrencyDollarIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  UserGroupIcon,
+  ShoppingBagIcon,
+  CakeIcon,
+  ShoppingCartIcon,
+  CubeIcon,
+  ArrowsRightLeftIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
+} from '@heroicons/react/24/outline';
+
+const solutions = [
+  { title: 'D2C Brands', href: '/solutions/d2c-brands', icon: ShoppingBagIcon, audience: 'Side hustlers, Etsy/Amazon escapees, Shopify defectors', summary: 'Branded online store with sub-second pages, AI-readable products, 5 shopping channels.' },
+  { title: 'AI-Era Commerce', href: '/solutions/ai-commerce', icon: CpuChipIcon, audience: 'SEO-savvy merchants betting on AI discovery', summary: 'Static HTML, schema.org, llms.txt, markdown product pages — get cited by ChatGPT, Perplexity, Google AI.' },
+  { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'SMB wholesalers running orders via email', summary: 'Per-customer pricing, credit limits, spend caps, quote negotiation — enforced automatically.' },
+  { title: 'Restaurants & Food', href: '/solutions/restaurants', icon: CakeIcon, audience: 'Food businesses DoorDash serves poorly', summary: 'Direct ordering for catering, meal-prep, bakeries, food trucks, corporate lunch — no 30% tax.' },
+  { title: 'Grocery & Specialty', href: '/solutions/grocery', icon: ShoppingCartIcon, audience: 'Independent specialty grocers', summary: 'Online ordering for ethnic, organic, butcher, liquor, pet supply — without Instacart\'s cut.' },
+  { title: 'Manufacturers', href: '/solutions/manufacturers', icon: CubeIcon, audience: 'Manufacturers selling to distributor networks', summary: 'Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced.' },
+  { title: 'Distributors', href: '/solutions/distributors', icon: ArrowsRightLeftIcon, audience: 'Distributors managing supplier + customer sides', summary: 'Per-customer tier pricing, multi-warehouse, multi-supplier accounts. Beats Amazon Business.' },
+  { title: 'Marketplace Escape', href: '/solutions/marketplace-escape', icon: CurrencyDollarIcon, audience: 'Anyone paying marketplace commissions', summary: 'Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.' },
+];
+
+const pillars = [
+  {
+    icon: GlobeAltIcon,
+    title: 'Public Storefronts (D2C)',
+    desc: 'Auto-generated branded site on your custom domain. Sub-second load, AI-readable, 5 shopping channels included. For selling to anyone who finds you.',
+  },
+  {
+    icon: LockClosedIcon,
+    title: 'Private Portals (B2B)',
+    desc: 'Code-gated catalog with per-customer pricing, credit limits, spend caps, and quote workflow — enforced automatically. For selling to wholesale or repeat customers.',
+  },
+  {
+    icon: SparklesIcon,
+    title: 'One AI Add-on (Premium)',
+    desc: 'Replaces the 10-app integration, observability, and automation stack. Connects ERP, accounting, CRM — runs heavy operations decoupled from your storefront.',
+  },
+];
+
+const whyUs = [
+  { icon: CurrencyDollarIcon, title: 'Free to Start', desc: 'Starter is $0/month. Pay only per order (6% capped at $5). Premium tiers ($499 Growth, $1,999 Enterprise) when you need full B2B and AI integration.' },
+  { icon: BoltIcon, title: 'Sub-1-Second Pages', desc: 'Static HTML on a global CDN. Faster than any Shopify theme, by default — no apps, no plugins, no work.' },
+  { icon: CpuChipIcon, title: 'AI-Readable from Day One', desc: 'llms.txt + schema.org + markdown product pages. ChatGPT, Perplexity, and Google AI can read your catalog directly.' },
+  { icon: ShieldCheckIcon, title: 'Direct Payment to Your Bank', desc: 'Stripe, Amazon Pay, Authorize.net, or cash. Money goes straight to you. We never touch it. You own every customer.' },
+  { icon: UserGroupIcon, title: 'Per-Customer B2B Power', desc: 'Per-customer pricing, credit limits, spend caps, quote workflow — enforced automatically at every order. Available on every tier.' },
+  { icon: SparklesIcon, title: 'One AI Add-on Replaces Dozens', desc: 'Connect any ERP, accounting, or CRM without writing code. Decoupled from your storefront so heavy operations never slow your pages.' },
+];
+
+const faqs = [
+  {
+    q: 'What does this actually cost me?',
+    a: 'Three tiers. Starter: $0/month + 6% per order, capped at $5/order. Growth: $499/month + 1% per order (AI add-on $99/mo available). Enterprise: $1,999/month + 0.25% per order (full AI add-on $499/mo). 30-day money-back on Growth and Enterprise.',
+  },
+  {
+    q: 'How is this different from Shopify?',
+    a: 'Shopify is $39+/month before your first sale, plus $300-500/month in essential apps (Klaviyo, ReCharge, Judge.me, etc.), and its themes render with JavaScript — invisible to AI assistants. BusinessCart is $0/month, ships AI-readable static HTML, includes 5 shopping channels and a B2B portal built in. The whole app stack collapses into one platform.',
+  },
+  {
+    q: 'Do I need a developer?',
+    a: 'No. Sign up, add your products, share your URL or customer codes. Static HTML, SEO meta tags, schema.org, sitemap, robots.txt, and shopping feeds are all auto-generated when you save a product.',
+  },
+  {
+    q: 'Can I migrate from Shopify, Etsy, or my existing tools?',
+    a: 'Manual product upload works today. Bulk CSV import is in beta and ships Q2 2026. Customer migration is straightforward — most marketplaces don\'t share customer emails anyway, but you can collect them on a launch announcement.',
+  },
+  {
+    q: 'Which solution page should I read first?',
+    a: 'Pick the one closest to your business in the Solutions grid above — each card links directly. If your business spans multiple (e.g., D2C + wholesale), start with the larger revenue side. Or talk to founder for a tailored recommendation.',
+  },
+  {
+    q: 'Can I leave if I don\'t like it?',
+    a: 'Anytime. Products, customers, orders, and images are all exportable as CSV. No contract, no monthly fees — leaving costs nothing.',
+  },
+];
 
 const LandingPage: React.FC = () => {
   return (
@@ -11,485 +92,220 @@ const LandingPage: React.FC = () => {
       <Navbar />
 
       <main>
-        {/* Hero Section */}
-        <div className="relative bg-gray-800 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="relative z-10 pt-16 pb-8 sm:pt-24 sm:pb-16 md:pt-32 md:pb-20 lg:max-w-2xl lg:w-full lg:pt-40 lg:pb-28 xl:pt-48 xl:pb-32">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="sm:text-center lg:text-left">
-                  <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
-                    <span className="block xl:inline">Stop Paying Middlemen.</span>{' '}
-                    <span className="block text-teal-400 xl:inline">Start Owning Your Commerce.</span>
-                  </h1>
-                  <p className="mt-3 text-base text-gray-200 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                    BusinessCart.ai gives your business its own branded storefront, per-customer B2B configuration, and direct payment collection — no marketplace fees, no generic platforms, no compromises.
-                  </p>
-                  <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
-                    <div className="rounded-md shadow">
-                      <Link
-                        to="/contact-us"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800 md:py-4 md:text-lg md:px-10"
-                      >
-                        Request a Demo
-                      </Link>
+        {/* Hero — split: text left, live store proof right */}
+        <section className="relative bg-gray-800 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-28">
+            <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+              {/* Left: hero text */}
+              <div>
+                <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
+                  Your Online Store. Your B2B Portal.{' '}
+                  <span className="text-teal-400">$0 Monthly.</span>
+                </h1>
+                <p className="mt-6 text-lg text-gray-200 sm:text-xl">
+                  One platform built for D2C brands, wholesalers, restaurants, grocers, and manufacturers. Sub-second pages, AI-readable products, no plugin stack. Pay only when you sell.
+                </p>
+                <p className="mt-4 text-sm text-gray-300">
+                  $0 monthly · Pay only per order · Live in minutes · Powering usetgo.com today
+                </p>
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <Link
+                    to="/contact-us"
+                    className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800 md:py-4 md:text-lg md:px-10"
+                  >
+                    Start Free
+                  </Link>
+                  <a
+                    href="#solutions"
+                    className="inline-flex items-center justify-center px-8 py-3 border border-gray-200 text-base font-medium rounded-md text-gray-200 hover:text-white hover:border-white md:py-4 md:text-lg md:px-10"
+                  >
+                    Find Your Solution
+                    <ArrowRightIcon className="ml-2 h-5 w-5" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Right: live store proof card */}
+              <div>
+                <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+                  {/* Browser bar mock */}
+                  <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-red-400" />
+                      <div className="h-3 w-3 rounded-full bg-yellow-400" />
+                      <div className="h-3 w-3 rounded-full bg-green-400" />
                     </div>
-                    <div className="mt-3 sm:mt-0 sm:ml-3">
-                      <a
-                        href="#how-it-works"
-                        className="w-full flex items-center justify-center px-8 py-3 border border-gray-200 text-base font-medium rounded-md text-gray-200 hover:text-white hover:border-white md:py-4 md:text-lg md:px-10"
-                      >
-                        See How It Works
-                      </a>
+                    <div className="ml-3 flex-1 bg-white rounded px-3 py-1 text-xs text-gray-600 font-mono truncate">
+                      🔒 www.usetgo.com
                     </div>
+                  </div>
+                  {/* Proof body */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        LIVE NOW
+                      </span>
+                      <span className="text-xs text-gray-500">Built on BusinessCart.ai</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">uSetGo INC</h3>
+                    <p className="mt-1 text-sm text-gray-600">A live D2C storefront powered by BusinessCart.ai — custom domain, full catalog, sub-second pages.</p>
+
+                    <ul className="mt-5 space-y-2.5">
+                      {[
+                        'Sub-1-second page load',
+                        'AI-readable (llms.txt + schema.org)',
+                        'Custom domain included',
+                        'Auto-generated SEO + sitemap',
+                      ].map((item) => (
+                        <li key={item} className="flex items-start text-sm text-gray-700">
+                          <CheckIcon className="h-4 w-4 text-teal-700 mt-0.5 flex-shrink-0" />
+                          <span className="ml-2">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <a
+                      href="https://www.usetgo.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-6 w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
+                    >
+                      Visit www.usetgo.com
+                      <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 flex items-center justify-center p-8">
-            <ShoppingCartIcon className="h-auto w-full max-w-lg text-teal-700 opacity-20" />
-          </div>
-        </div>
+        </section>
 
-        {/* Social Proof */}
-        <div className="bg-gray-50 py-8">
+        {/* Solutions Grid — segmentation moment */}
+        <section id="solutions" className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-sm font-semibold text-gray-600 tracking-wider uppercase">
-                Trusted by businesses from Main Street to Enterprise
-              </h2>
-              <div className="mt-6 grid grid-cols-2 gap-8 md:grid-cols-6 lg:grid-cols-5">
-                {/* Placeholder Logos */}
-                <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-500 font-bold text-2xl">Manufacturers</p>
-                </div>
-                <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-500 font-bold text-2xl">Distributors</p>
-                </div>
-                <div className="col-span-1 flex justify-center md:col-span-2 lg:col-span-1">
-                  <p className="text-gray-500 font-bold text-2xl">Retail</p>
-                </div>
-                <div className="col-span-1 flex justify-center md:col-span-3 lg:col-span-1">
-                  <p className="text-gray-500 font-bold text-2xl">Brands</p>
-                </div>
-                <div className="col-span-2 flex justify-center md:col-span-3 lg:col-span-1">
-                  <p className="text-gray-500 font-bold text-2xl">Enterprise</p>
-                </div>
-              </div>
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Find Your Solution</h2>
+              <p className="mt-4 text-lg text-gray-600">
+                Eight tailored playbooks. Pick the one closest to your business — each shows what's live today, what's in beta, and what's coming in 2026.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {solutions.map((s) => (
+                <Link
+                  key={s.title}
+                  to={s.href}
+                  className="bg-gray-50 rounded-lg p-6 hover:bg-white hover:shadow-md transition-all border border-gray-200 group flex flex-col"
+                >
+                  <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mb-4">
+                    <s.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-teal-700 flex items-center">
+                    {s.title}
+                    <ArrowRightIcon className="ml-1.5 h-4 w-4 text-teal-700 transition-transform group-hover:translate-x-1" />
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-600 flex-grow">{s.summary}</p>
+                  <p className="mt-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">For: {s.audience}</p>
+                </Link>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* The Problem Section */}
-        <div className="py-16 bg-white overflow-hidden">
+        {/* What Is This — 3-pillar architecture */}
+        <section className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">How BusinessCart Works</h2>
+              <p className="mt-4 text-lg text-gray-600">
+                One platform, three distinct capabilities. Use any combination — or all three.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-3">
+              {pillars.map((p) => (
+                <div key={p.title} className="bg-white rounded-lg p-8 shadow-sm">
+                  <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mb-4">
+                    <p.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">{p.title}</h3>
+                  <p className="mt-3 text-gray-600">{p.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Why Us — 6 universal benefits */}
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Why Build on BusinessCart</h2>
+              <p className="mt-4 text-lg text-gray-600">
+                Six things that hold true regardless of what you sell or who you sell to.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {whyUs.map((w) => (
+                <div key={w.title} className="flex flex-col">
+                  <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mb-4">
+                    <w.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">{w.title}</h3>
+                  <p className="mt-2 text-gray-600">{w.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works — 4 steps */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">The Platforms You Rely On Weren't Built for Your Business</h2>
-              <p className="mt-4 text-lg text-gray-500">
-                Marketplace fees eating your margins. B2B platforms that treat every customer the same. Storefronts too slow to convert. BusinessCart.ai replaces all of it.
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Live in Under an Hour</h2>
+              <p className="mt-4 text-lg text-gray-600">
+                Four steps from signup to your first order.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <BanknotesIcon className="h-6 w-6" />
+              {[
+                { step: '1', title: 'Sign up free', desc: 'No credit card. Set your brand colors, upload your logo.' },
+                { step: '2', title: 'Add your products', desc: 'Upload images, set prices, write descriptions. Manual today, bulk CSV in Q2 2026.' },
+                { step: '3', title: 'Share your URL or customer codes', desc: 'Public storefront, private B2B portal, or both — your choice per customer.' },
+                { step: '4', title: 'Get paid directly', desc: 'Stripe, Amazon Pay, cash — money goes straight to your bank. We never touch it.' },
+              ].map((s) => (
+                <div key={s.step} className="text-center">
+                  <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold mx-auto">
+                    {s.step}
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-gray-900">{s.title}</h3>
+                  <p className="mt-2 text-sm text-gray-600">{s.desc}</p>
                 </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">They Take Your Revenue</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  15-30% commission on every order. Your margins shrink while the platform profits from your hard work.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <UserGroupIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">They Own Your Customers</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  You can't email them. You can't remarket to them. When a customer orders through a marketplace, that customer belongs to the platform.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <PuzzlePieceIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Every Customer Gets the Same Deal</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your B2B customers have different pricing, payment terms, and delivery needs — but your platform forces one-size-fits-all rules on all of them.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CpuChipIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Slow Pages Lose Customers</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Heavy JavaScript frameworks, bloated code, poor SEO. Your storefront takes seconds to load while customers leave.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Private Commerce Section */}
-        <div className="py-16 bg-gray-50">
+        {/* Pricing */}
+        <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Your Own Private Commerce — Like DoorDash, But You Own Everything</h2>
-              <p className="mt-4 text-lg text-gray-500">
-                Your products, your customers, your rules. Share your company code and customers access your private catalog through our portal or mobile app. You collect the payment. You keep the data.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CogIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Private, Code-Gated Access</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your catalog is private. Customers can only see your products when you share your company code. No public listing, no competitors sitting next to you.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CloudArrowUpIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Web Portal & Mobile App</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your customers use the BusinessCart.ai portal or mobile app to browse your catalog, place orders, and track deliveries — just like DoorDash, but exclusively yours.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <BanknotesIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Direct Payment Collection</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Connect your Stripe or Amazon Pay account. Customers pay you directly — we never touch your money.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <ClipboardDocumentListIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Cart, Quotes & Checkout</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Full shopping cart, quote-based checkout, payment processing, and order confirmation. Standard orders or negotiable quotes — your choice per customer.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <ServerIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Pickup, Dropoff, or Shipping</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Manage multiple locations — warehouses, storefronts, pickup points — each with operating hours and capacity. Customers pick up, your team drops off, or you ship via carrier.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <UserCircleIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Customer Accounts & Company Switching</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Each customer gets their own account with order history, saved addresses, and the ability to switch between multiple suppliers — all from one login.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* B2B Section */}
-        <div className="py-16 bg-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">B2B Commerce That Knows Every Customer Is Different</h2>
-              <p className="mt-4 text-lg text-gray-500">
-                Set unique pricing, payment terms, delivery options, and order limits for each customer — enforced automatically at checkout, not tracked in spreadsheets.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <AdjustmentsHorizontalIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Pricing</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Assign a specific discount percentage to each customer. Applied automatically to every order they place.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <BanknotesIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Payment Methods</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Customer A pays via Stripe. Customer B uses purchase orders. Customer C pays cash on pickup. You control who gets what.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <ServerIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Per-Customer Delivery Options</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Restrict delivery methods per customer — some get shipping, some get pickup only. Each customer sees only their options.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <PuzzlePieceIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Order Limits & Credit</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Set min/max order amounts, quantity limits, monthly and yearly spending caps, and credit limits per customer relationship.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CommandLineIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Quote Negotiation</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Full negotiation workflow — customer proposes, you counter-offer, add comments, apply discounts, approve. Complete history preserved.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <UserGroupIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Multi-Company Customers</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  A single buyer can be associated with multiple suppliers, each with independent configurations. All managed from one account.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CloudArrowUpIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">API-First Platform</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Every operation available via REST API. The portal is one interface — build your own, integrate with existing systems, or use ours.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CubeIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Custom Catalogs</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Assign specific products and categories to each customer group. Control visibility so each customer sees only what's relevant to them.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center relative">
-                <span className="absolute -top-2 right-0 bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-0.5 rounded-full">Coming Soon</span>
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <GlobeAltIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Multi-Language & Currency</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Support for multiple languages and currencies so your customers can shop in their preferred language and pay in their local currency.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Technology Section */}
-        <div className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">The Fastest Storefront Your Customers Will Ever Use</h2>
-              <p className="mt-4 text-lg text-gray-500">
-                Every company gets an auto-generated storefront with your branding, custom domain, and built-in checkout. And unlike other platforms, it loads in under a second, ranks higher on Google, and costs almost nothing to run.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CpuChipIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Sub-Second Page Load</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your storefront loads in under 1 second — on any device, any connection. Faster pages mean more conversions and lower bounce rates.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CheckIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">SEO That Works Out of the Box</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Sitemap, meta tags, OpenGraph, schema.org markup — all generated automatically for every product and page. No plugins, no configuration, no SEO expert needed.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <ShareIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">AI, LLM & Shopping Channel Ready</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your catalog is structured for AI assistants, voice search, and shopping channels. Built-in feeds for Google Shopping, Facebook, Pinterest, TikTok, and Bing — no apps, no plugins, no extra cost.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CloudArrowUpIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">99.99% Uptime, Globally Distributed</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your store is served from 200+ locations worldwide. Traffic spikes don't slow you down. No server to crash, no downtime to worry about.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <BanknotesIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Lower Your Ad Costs</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Fast pages and clean code mean higher Google Quality Scores, lower cost-per-click, and better ad placement — your marketing budget goes further without changing a single campaign.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CogIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Modern, Accessible, Standards-Compliant</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Semantic HTML, proper heading structure, fast on mobile, accessible to screen readers. Your store meets modern web standards without extra work.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Section */}
-        <div className="py-16 bg-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Your AI-Powered Operations Team</h2>
-              <p className="mt-4 text-lg text-gray-500">
-                Most businesses need developers and consultants to connect systems, analyze data, and automate communication. BusinessCart.ai's AI handles it for you — across your entire commerce operation.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CpuChipIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Integration</h3>
-                <p className="mt-4 text-base text-gray-500">
-                  Connect your ERP, CRM, and business systems without writing code. Our AI automates data pipelines — syncing orders, inventory, and customer data across your tools.
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <CheckIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Observability</h3>
-                <p className="mt-4 text-base text-gray-500">
-                  Get deep insights into your sales, customers, and operations. AI-powered analytics surfaces what matters — no dashboards to build, no reports to configure.
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white">
-                  <UserGroupIcon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">AI-Driven Inter-Communication</h3>
-                <p className="mt-4 text-base text-gray-500">
-                  Let AI handle the routine back-and-forth — order updates, quote follow-ups, status notifications. Your team focuses on decisions, not data entry.
-                </p>
-              </div>
-            </div>
-            <div className="mt-10 text-center">
-              <p className="text-sm text-gray-500">
-                Available as a premium addon.{' '}
-                <Link to="/contact-us" className="text-teal-700 hover:text-teal-800 font-semibold">
-                  Contact us to learn more →
-                </Link>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* How It Works */}
-        <div id="how-it-works" className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Live in Three Steps</h2>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
-                  1
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Create Your Company Account</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Sign up, set your company name, upload your logo, and choose your brand colors.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
-                  2
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Add Your Products</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Upload your catalog with images, prices, categories, and deal pricing. Connect your payment gateway.
-                </p>
-              </div>
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold">
-                  3
-                </div>
-                <h3 className="mt-5 text-lg font-medium text-gray-900">Launch Your Store</h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Your storefront goes live and your portal catalog is ready. Share your company code with customers or your storefront link with the world.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Pricing Section */}
-        <div className="py-16 bg-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Simple Pricing. No Monthly Fees.</h2>
-              <p className="mt-4 text-lg font-semibold text-gray-900">
-                You only pay a small percentage per order.
-              </p>
-              <div className="mt-3 flex flex-wrap justify-center gap-3">
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Subscriptions</span>
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Setup Costs</span>
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">No Hidden Charges</span>
-              </div>
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Free to Start. Premium When You Need It.</h2>
+              <p className="mt-3 text-lg text-gray-600">$0 to start · No setup costs · 30-day money-back on Growth and Enterprise</p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
                 <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-4 flex-grow">
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Private commerce portal access</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Storefront with custom domain</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Standard checkout</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Basic B2B configuration</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Stripe + offline payments</span>
-                  </li>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Branded storefront with custom domain', 'Code-gated B2B portal', 'Stripe + offline payments', 'Basic per-customer config', '1 location'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
                 </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order</p>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order · Capped at $5/order</p>
                 <Link
                   to="/contact-us"
                   className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
@@ -499,30 +315,16 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
                 <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-4 flex-grow">
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Everything in Starter</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Negotiable quotes</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Multiple locations</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">All payment gateways</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Full B2B configuration</span>
-                  </li>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$499<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Everything in Starter', 'Full negotiable quotes', 'Multiple locations', 'All payment gateways (Amazon Pay, Authorize.net, PO)', 'AI add-on: $99/mo (basic)'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
                 </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">5% + $1 per order</p>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 1% per order · 30-day money-back</p>
                 <Link
                   to="/contact-us"
                   className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
@@ -532,30 +334,16 @@ const LandingPage: React.FC = () => {
               </div>
               <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
                 <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">Custom</p>
-                <ul className="mt-6 space-y-4 flex-grow">
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Everything in Growth</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">AI-powered integration</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">AI observability & analytics</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">AI inter-communication</span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                    <span className="ml-3 text-base text-gray-700">Dedicated support & SLA</span>
-                  </li>
+                <p className="mt-2 text-4xl font-extrabold text-teal-700">$1,999<span className="text-lg font-medium text-gray-500"> / mo</span></p>
+                <ul className="mt-6 space-y-3 flex-grow">
+                  {['Everything in Growth', 'Full AI add-on: $499/mo (full suite, dedicated AI engineer)', 'Dedicated success manager + SLA', 'Volume processing rates'].map((i) => (
+                    <li key={i} className="flex items-start">
+                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
+                      <span className="ml-3 text-base text-gray-700">{i}</span>
+                    </li>
+                  ))}
                 </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">Volume pricing</p>
+                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 0.25% per order · 30-day money-back</p>
                 <Link
                   to="/contact-us"
                   className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
@@ -565,39 +353,52 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center sm:text-4xl">Frequently Asked Questions</h2>
+            <div className="mt-10 space-y-6">
+              {faqs.map((f) => (
+                <div key={f.q} className="bg-white rounded-lg p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900">{f.q}</h3>
+                  <p className="mt-3 text-gray-600">{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Final CTA */}
-        <div className="bg-gray-50">
+        <section className="bg-white">
           <div className="max-w-4xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-              <span className="block">Ready to Own Your Commerce?</span>
-            </h2>
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Ready to Own Your Commerce?</h2>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Customers</span>
               <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Revenue</span>
               <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Data</span>
               <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Store</span>
             </div>
-            <p className="mt-4 text-lg leading-6 text-gray-500">
-              Private commerce portal, per-customer B2B configuration, and the fastest storefronts on the web — all in one platform. No monthly fees — you only pay per order.
+            <p className="mt-6 text-lg text-gray-600">
+              $0 to start · 6% per order · No surprise fees · No app stack · No marketplace commissions
             </p>
             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
               <Link
                 to="/contact-us"
                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
               >
-                Request a Demo
+                Start Free
               </Link>
               <Link
                 to="/contact-us"
                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 hover:text-gray-900 hover:border-gray-400"
               >
-                Contact Us
+                Talk to Founder
               </Link>
             </div>
           </div>
-        </div>
+        </section>
       </main>
 
       <Footer />
