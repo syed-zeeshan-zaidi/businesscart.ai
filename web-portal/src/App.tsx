@@ -3,9 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useAuth } from './hooks/useAuth';
 import LoadingIndicator from './components/LoadingIndicator';
 import { trackPageView } from './tracker';
+// Eager-import LandingPage (homepage) so React hydration doesn't briefly
+// replace the SSR'd hero with a Suspense fallback. This is the highest-traffic
+// page; the small bundle-size cost is worth the LCP win.
+import LandingPage from './pages/LandingPage';
 
 const Home = lazy(() => import('./pages/Home'));
-const LandingPage = lazy(() => import('./pages/LandingPage'));
 const Login = lazy(() => import('./components/Login'));
 const Register = lazy(() => import('./components/Register'));
 const UserForm = lazy(() => import('./components/UserForm'));
