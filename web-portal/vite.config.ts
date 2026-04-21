@@ -62,7 +62,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Bundle all heroicons into a single shared chunk so they load as one
+          // request (was previously 12+ tiny chunks per page).
+          if (id.includes('@heroicons')) return 'heroicons';
+        },
+      },
+    },
   },
   resolve: {
     alias: {

@@ -24,8 +24,58 @@ import fs from 'fs';
 import path from 'path';
 
 const distDir = path.resolve(process.cwd(), 'dist');
-const template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
+let template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
 const baseUrl = 'https://businesscart.ai';
+
+// Inline critical CSS into the template to eliminate the render-blocking
+// stylesheet request. The CSS bundle is small (~8 KiB) and inlining it removes
+// one round-trip from LCP for first-time visitors.
+const cssLinkMatch = template.match(/<link rel="stylesheet"[^>]*href="(\/assets\/[^"]+\.css)"[^>]*>/);
+if (cssLinkMatch) {
+  const cssPath = cssLinkMatch[1].replace(/^\//, '');
+  try {
+    const cssContent = fs.readFileSync(path.join(distDir, cssPath), 'utf-8');
+    template = template.replace(cssLinkMatch[0], `<style>${cssContent}</style>`);
+    console.log(`Inlined critical CSS (${(cssContent.length / 1024).toFixed(1)} KiB)`);
+  } catch (err) {
+    console.warn('Could not inline CSS:', err);
+  }
+}
+
+// Add modulepreload hints for shared chunks that every page loads (Navbar,
+// Footer, heroicons, logo). The browser starts fetching these in parallel with
+// the main bundle instead of waiting for it to parse and trigger the imports.
+// Skip any chunk Vite has already injected as a modulepreload to avoid
+// duplicates in the output HTML.
+const sharedChunks: string[] = [];
+const assetsDir = path.join(distDir, 'assets');
+try {
+  const files = fs.readdirSync(assetsDir);
+  for (const f of files) {
+    if (/^(Navbar|Footer|heroicons|logo)-[^.]+\.js$/.test(f)) {
+      sharedChunks.push(`/assets/${f}`);
+    }
+  }
+} catch (err) {
+  console.warn('Could not enumerate asset chunks for preload:', err);
+}
+
+const existingPreloads = new Set<string>();
+const preloadRegex = /<link rel="modulepreload"[^>]*href="([^"]+)"/g;
+let preloadMatch;
+while ((preloadMatch = preloadRegex.exec(template)) !== null) {
+  existingPreloads.add(preloadMatch[1]);
+}
+
+const newPreloads = sharedChunks.filter((url) => !existingPreloads.has(url));
+const preloadTags = newPreloads
+  .map((url) => `<link rel="modulepreload" href="${url}">`)
+  .join('');
+
+if (preloadTags) {
+  template = template.replace('</head>', `${preloadTags}</head>`);
+  console.log(`Injected ${newPreloads.length} modulepreload hints (${sharedChunks.length - newPreloads.length} already present)`);
+}
 
 interface PageEntry {
   route: string;
