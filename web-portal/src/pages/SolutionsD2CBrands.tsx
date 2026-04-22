@@ -2,11 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PricingSection from '../components/PricingSection';
 import {
   BoltIcon,
   CurrencyDollarIcon,
   GlobeAltIcon,
-  CheckIcon,
   CpuChipIcon,
   ShoppingBagIcon,
   ShieldCheckIcon,
@@ -68,7 +68,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'How is this $0/month? What\'s the catch?',
-    a: 'Three tiers. Starter is $0/month + 6% per order capped at $5/order — pay only when you sell. Growth ($499/mo + 1%) and Enterprise ($1,999/mo + 0.25%) come with a 30-day money-back guarantee. Pick the tier that fits your scale.',
+    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume — no manual upgrades, no feature locks. Starter ($0/mo + 6% per order, capped at $5) up to 100 orders/month. Growth ($499/mo + 1% per order) for 101–1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. 30-day money-back on Growth and Enterprise.',
   },
   {
     q: 'Can I migrate from Shopify, Etsy, or WooCommerce?',
@@ -258,7 +258,7 @@ const SolutionsD2CBrands: React.FC = () => {
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available on <span className="text-white font-semibold">Growth</span> and <span className="text-white font-semibold">Enterprise</span> tiers as a premium add-on.{' '}
+              Available as an optional add-on on any tier — starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -367,73 +367,7 @@ const SolutionsD2CBrands: React.FC = () => {
         </section>
 
         {/* Pricing */}
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Free to Start. Premium When You Need It.</h2>
-              <p className="mt-3 text-lg text-gray-600">$0 to start · No setup costs · 30-day money-back on Growth and Enterprise</p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Branded storefront with custom domain', 'All Live features', 'Stripe + offline payments', '1 location'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order · Capped at $5/order</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Get Started
-                </Link>
-              </div>
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
-                <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$499<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Starter', 'All payment gateways (Amazon Pay, Authorize.net)', 'Multiple locations', 'Quote workflow', 'AI add-on: $99/mo (basic)'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 1% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$1,999<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Growth', 'Full AI add-on: $499/mo (full suite + dedicated AI engineer)', 'Dedicated success manager + SLA', 'Volume processing rates'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 0.25% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PricingSection bgClass="bg-gray-50" cardBgClass="bg-white" />
 
         {/* FAQ */}
         <section className="py-16 bg-white">

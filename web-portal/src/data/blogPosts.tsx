@@ -84,7 +84,7 @@ const blogPosts: BlogPostData[] = [
 
         <h2>The Bottom Line</h2>
         <p>If you are starting an online store in 2026, paying $39+/month before your first sale does not make sense. The alternatives have caught up — and in some areas, passed Shopify entirely.</p>
-        <p>BusinessCart.ai's Starter plan starts at $0/month, gives you the fastest storefront on the web, and includes SEO and B2B features that Shopify charges thousands for. Paid tiers (Growth $499/mo, Enterprise $1,999/mo) unlock multi-location, full B2B power, and AI integration when you need them. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
+        <p>BusinessCart.ai's Starter plan starts at $0/month, gives you the fastest storefront on the web, and includes every feature — including SEO, multi-location, full B2B, and the optional AI add-on — that Shopify charges thousands for. Your tier auto-applies based on monthly order volume (Starter ≤100 orders, Growth $499/mo at 101–1,000, Enterprise $1,999/mo at 1,001+). Every feature is in every tier — no feature locks. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
         <p>Stop paying for a store before you have customers. <strong><a href="/contact-us">Start for free on BusinessCart.ai</a></strong> and pay only when you sell.</p>
         <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> — full feature breakdown, comparison tables, and pricing for direct-to-consumer sellers.</p>
       </>
@@ -404,7 +404,7 @@ const blogPosts: BlogPostData[] = [
           <li><strong>Own your data:</strong> Every customer, every order, every piece of data is yours.</li>
           <li><strong>Build your brand:</strong> Create a fully customized, branded storefront from start to finish.</li>
           <li><strong>Increase your profits:</strong> Keep the 30% you have been giving away and reinvest it in your business.</li>
-          <li><strong>Free Starter plan:</strong> $0/month — pay only when you make sales (6% per order capped at $5/order). Paid tiers ($499/mo Growth, $1,999/mo Enterprise) when you need full B2B.</li>
+          <li><strong>Free Starter plan:</strong> $0/month — pay only when you make sales (6% per order capped at $5/order). Growth ($499/mo) and Enterprise ($1,999/mo) auto-apply by monthly order volume. Every feature in every tier — no feature locks.</li>
         </ul>
         <p>Stop being a tenant in someone else's store. It is time to build your own. <strong><a href="/contact-us">Get started for free on BusinessCart.ai</a></strong>.</p>
         <p>Related: <a href="/solutions/marketplace-escape">Marketplace Escape solution page</a> — vertical-specific playbooks for leaving Etsy, Amazon, DoorDash, Instacart, and Faire.</p>
@@ -473,7 +473,7 @@ const blogPosts: BlogPostData[] = [
         <h2>Your Alternatives</h2>
 
         <h3>1. BusinessCart.ai — Best for Zero Monthly Cost + Instant Storefront</h3>
-        <p><strong>Fees (Starter):</strong> $0/month + 6% per order, capped at $5/order. Growth $499/mo + 1%, Enterprise $1,999/mo + 0.25%. 30-day money-back on paid tiers.</p>
+        <p><strong>Fees:</strong> $0/month + 6% per order (capped at $5/order) on Starter — auto-applies up to 100 orders/mo. Growth $499/mo + 1% (101–1,000 orders), Enterprise $1,999/mo + 0.25% (1,001+). Every feature in every tier. 30-day money-back on paid tiers.</p>
         <p>You get a branded storefront with your products, your branding, your domain. Generated as static HTML — loads in under 1 second, works with AI assistants, auto-generates SEO. No code needed. No hosting to manage.</p>
         <p><strong>Best for:</strong> Sellers who want their own store running today without spending money upfront. Works especially well if you already have product photos and descriptions from Etsy.</p>
 
@@ -555,7 +555,7 @@ const blogPosts: BlogPostData[] = [
         <h2>The Alternatives</h2>
 
         <h3>BusinessCart.ai — Fastest Stores, Zero Monthly Fee</h3>
-        <p><strong>Cost (Starter):</strong> $0/month + 6% per order, capped at $5/order. Paid tiers $499/mo and $1,999/mo when you need full B2B.</p>
+        <p><strong>Cost:</strong> $0/month + 6% per order (capped at $5/order) on Starter (≤100 orders/mo). Growth $499/mo (101–1,000) and Enterprise $1,999/mo (1,001+) auto-apply by order volume. Every feature in every tier.</p>
         <p>Static HTML storefronts served from 200+ CDN locations. Sub-1-second load times — not 3-5 seconds like Squarespace. Full schema.org markup, auto-generated sitemap, AI-readable product catalog.</p>
         <p><strong>Design trade-off:</strong> You do not get Squarespace's drag-and-drop template editor. Your storefront is generated from your products and branding. It is clean and professional, but not infinitely customizable. For most businesses selling products, this is a feature, not a limitation — your store is live in minutes, not weeks.</p>
 
@@ -1728,7 +1728,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
           <li>Recurring orders / standing orders for predictable replenishment</li>
         </ul>
 
-        <p>Shopify B2B requires Shopify Plus at $2,000+/month to access these. NetSuite gets you there but at $8K+/month. BusinessCart.ai ships these on Growth tier at $499/mo, with the Starter tier as a zero-cost trial.</p>
+        <p>Shopify B2B requires Shopify Plus at $2,000+/month to access these. NetSuite gets you there but at $8K+/month. BusinessCart.ai ships these on every tier — starting at $0/mo on Starter, with auto-promotion to Growth ($499/mo) and Enterprise ($1,999/mo) only as your monthly order volume grows.</p>
 
         <h2>Bottom Line</h2>
 
@@ -2135,7 +2135,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
 
         <p>The barriers to entry are lower than most caterers assume — you need a menu that scales, a B2B ordering platform that handles per-account pricing and net-30 invoicing, and a willingness to do 20-30 cold outreach emails per week until accounts #1-#5 land.</p>
 
-        <p><strong><a href="/contact-us">Set up your B2B catering ordering free on BusinessCart.ai</a></strong> — code-gated private client catalogs, recurring orders, invoice terms. Starter $0/mo, Growth $499/mo when you're running 5+ accounts.</p>
+        <p><strong><a href="/contact-us">Set up your B2B catering ordering free on BusinessCart.ai</a></strong> — code-gated private client catalogs, recurring orders, invoice terms. Every feature in every tier — Starter $0/mo auto-applies to ≤100 orders; Growth ($499/mo) and Enterprise ($1,999/mo) apply automatically as your volume grows.</p>
 
         <p>Related: <a href="/solutions/restaurants">Restaurants &amp; Food solution page</a> · <a href="/solutions/wholesale">Wholesale &amp; B2B solution page</a> · <a href="/blog/why-catering-companies-are-leaving-doordash-for-direct-online-ordering">Why Catering Companies Are Leaving DoorDash</a></p>
       </>

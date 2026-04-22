@@ -104,14 +104,14 @@ const TermsOfService: React.FC = () => {
 
               <section id="pricing-and-fees">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">6. Pricing and Fees</h2>
-                <p className="text-gray-600 mb-4">BusinessCart.ai offers three tiers. The Starter tier is free of monthly fees. Growth and Enterprise tiers carry monthly subscription fees in addition to per-order fees. All paid tiers include a 30-day money-back guarantee.</p>
+                <p className="text-gray-600 mb-4">BusinessCart.ai offers three tiers. Every feature is included in every tier — there are no feature locks. Your tier applies automatically based on your monthly paid-order volume. Growth and Enterprise include a 30-day money-back guarantee on their monthly subscription fees.</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-600">
-                  <li><b>Starter:</b> $0/month + 6% per order, capped at $5/order. Includes portal access, D2C storefront with custom domain, standard checkout, basic B2B configuration, Stripe and offline payment methods.</li>
-                  <li><b>Growth:</b> $499/month + 1% per order. Includes everything in Starter plus negotiable quotes, multiple locations, all payment gateways (Amazon Pay, Authorize.net, purchase orders), and full B2B configuration. AI add-on available at $99/month for basic AI integration, observability, and communication.</li>
-                  <li><b>Enterprise:</b> $1,999/month + 0.25% per order. Includes everything in Growth plus dedicated success manager, SLA, and volume processing rates. Full AI add-on available at $499/month for the full suite plus a dedicated AI engineer and custom integrations.</li>
+                  <li><b>Starter:</b> $0/month + 6% per order, capped at $5/order. Applies automatically when monthly paid-order volume is 100 or fewer.</li>
+                  <li><b>Growth:</b> $499/month + 1% per order. Applies automatically when monthly paid-order volume is 101 to 1,000.</li>
+                  <li><b>Enterprise:</b> $1,999/month + 0.25% per order. Applies automatically when monthly paid-order volume is 1,001 or more. Includes dedicated success manager and SLA.</li>
                 </ul>
                 <p className="text-gray-600 mt-4">
-                  Pricing is subject to change. We will notify existing customers before any changes take effect. All fees are in US Dollars. The 30-day money-back guarantee applies to monthly subscription fees on Growth and Enterprise tiers and does not apply to per-order transaction fees.
+                  Tier assignment is based on paid orders in the most recent billing period (rolling 30 days or calendar month, as disclosed on your invoice). Tier changes take effect at the next billing period. The optional AI integration add-on starts at $99/month and is available on any tier. Pricing is subject to change. We will notify existing customers before any changes take effect. All fees are in US Dollars. The 30-day money-back guarantee applies to monthly subscription fees on Growth and Enterprise tiers and does not apply to per-order transaction fees.
                 </p>
               </section>
 

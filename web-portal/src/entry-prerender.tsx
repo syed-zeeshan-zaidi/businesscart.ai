@@ -391,7 +391,7 @@ const llmsTxt = `# BusinessCart.ai
 
 > Your Commerce, Your Rules.
 
-BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools. The Starter tier is $0/month — you pay only per order (6% capped at $5/order). Premium tiers (Growth $499/month + 1% per order, Enterprise $1,999/month + 0.25% per order) unlock full B2B power, multiple locations, and the AI add-on. The platform serves businesses of any size, from local restaurants to national distributors.
+BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools. **Every feature is included in every tier** — no feature locks. Your tier auto-applies based on monthly order volume. Starter ($0/month + 6% per order, capped at $5/order) for up to 100 orders/month. Growth ($499/month + 1% per order) for 101–1,000 orders. Enterprise ($1,999/month + 0.25% per order) at 1,001+ orders. The platform serves businesses of any size, from local restaurants to national distributors.
 
 ## Company Information
 
@@ -615,11 +615,15 @@ Planned premium features for the Enterprise tier.
 
 ## Pricing
 
-Three tiers. Free to start. 30-day money-back guarantee on Growth and Enterprise. No setup costs.
+Three tiers — **every feature included in every tier**. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Your platform fee grows only when your business does.
 
-- **Starter** ($0/month): Portal access, storefront with custom domain, standard checkout, basic B2B configuration, Stripe + offline payments. **6% per order, capped at $5/order.** AI add-on not available.
-- **Growth** ($499/month): Everything in Starter + negotiable quotes, multiple locations, all payment gateways (Amazon Pay, Authorize.net, PO), full B2B configuration. **+ 1% per order.** AI add-on available at **$99/month** (basic AI integration, observability, communication).
-- **Enterprise** ($1,999/month): Everything in Growth + dedicated success manager + SLA + volume processing rates. **+ 0.25% per order.** Full AI add-on at **$499/month** (full suite + dedicated AI engineer + custom integrations).
+- **Starter** — Auto-applies at up to 100 orders/month. **$0/month + 6% per order, capped at $5/order.**
+- **Growth** — Auto-applies at 101–1,000 orders/month. **$499/month + 1% per order.** 30-day money-back guarantee.
+- **Enterprise** — Auto-applies at 1,001+ orders/month. **$1,999/month + 0.25% per order.** Includes dedicated success manager + SLA. 30-day money-back guarantee.
+
+All tiers include: branded storefront on custom domain, private B2B portal, per-customer pricing/credit/spend caps, quote negotiation, customer groups, custom catalogs, all payment options (Stripe, Amazon Pay, Authorize.net, PO, offline), shopping-channel feeds, AI discovery (schema.org, llms.txt, markdown), multiple pickup/warehouse locations, time-based deals, email notifications, built-in analytics and visitor tracking (no Google Analytics or third-party tags), full REST API, and end-to-end support (technical, migration, integration, onboarding).
+
+Optional AI integration add-on: starts at **$99/month**, available on any tier. High-AOV B2B customers stay on Starter longer — the $5/order cap protects wholesale customers with few but large orders.
 
 Math examples (Starter cap protects from runaway fees on large orders): $30 order = $1.80 to BusinessCart; $1,000 wholesale order = $5 to BusinessCart (cap), not $60.
 
