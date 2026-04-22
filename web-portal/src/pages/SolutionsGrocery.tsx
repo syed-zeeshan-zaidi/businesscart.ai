@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PricingSection from '../components/PricingSection';
 import {
   BanknotesIcon,
   BoltIcon,
-  CheckIcon,
   CpuChipIcon,
   CurrencyDollarIcon,
   GlobeAltIcon,
@@ -69,7 +69,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'Who is this best for?',
-    a: 'Independent and specialty grocers: ethnic markets (Asian, Latin, Halal, Kosher, Indian), organic and health-food stores, co-ops, butcher shops, fish markets, cheese shops, liquor and wine stores, pet food and supply stores. Anyone whose customers know them and want to order pickup or scheduled delivery without paying Instacart\'s tax.',
+    a: 'Independent and specialty grocers: ethnic markets (Asian, Latin, Halal, Kosher, Indian), organic and health-food stores, co-ops, butcher shops, fish markets, cheese shops, bakeries, pet food and supply stores. Anyone whose customers know them and want to order pickup or scheduled delivery without paying Instacart\'s tax.',
   },
   {
     q: 'How is this different from Instacart?',
@@ -109,7 +109,7 @@ const SolutionsGrocery: React.FC = () => {
                 <span className="text-teal-400">Without Instacart's Cut.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
+                Specialty, ethnic, organic, butcher, bakery, pet supply — your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · No commission to a marketplace · Cash, card, or PO accepted · You own every customer
@@ -166,7 +166,7 @@ const SolutionsGrocery: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Generic platforms don't fit your business</h3>
                 </div>
                 <p className="text-gray-600">
-                  Specialty grocers, ethnic markets, butcher shops, liquor stores — your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
+                  Specialty grocers, ethnic markets, butcher shops, bakeries — your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
                 </p>
               </div>
             </div>
@@ -270,7 +270,7 @@ const SolutionsGrocery: React.FC = () => {
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available on <span className="text-white font-semibold">Growth</span> and <span className="text-white font-semibold">Enterprise</span> tiers as a premium add-on.{' '}
+              Available as an optional add-on on any tier — starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -379,73 +379,7 @@ const SolutionsGrocery: React.FC = () => {
         </section>
 
         {/* Pricing */}
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900">Free to Start. Premium When You Need It.</h2>
-              <p className="mt-3 text-lg text-gray-600">$0 to start · No setup costs · 30-day money-back on Growth and Enterprise</p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Code-gated catalog portal', 'Custom domain', 'Stripe + cash payments', '1 location'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order · Capped at $5/order</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Get Started
-                </Link>
-              </div>
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
-                <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$499<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Starter', 'Wholesale customer pricing + limits', 'Multiple locations', 'All payment gateways (PO, Amazon Pay, Authorize.net)', 'AI add-on: $99/mo (basic)'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 1% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-              <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$1,999<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Growth', 'Full AI add-on: $499/mo (full suite + dedicated AI engineer)', 'Dedicated success manager + SLA', 'Volume processing rates'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 0.25% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PricingSection bgClass="bg-gray-50" cardBgClass="bg-white" />
 
         {/* FAQ */}
         <section className="py-16 bg-white">

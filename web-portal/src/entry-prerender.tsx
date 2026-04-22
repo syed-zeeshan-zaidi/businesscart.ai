@@ -22,6 +22,36 @@ import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
 import blogPosts from './data/blogPosts';
 import fs from 'fs';
 import path from 'path';
+import TurndownService from 'turndown';
+
+// Turndown converts rendered HTML into clean markdown for AI crawlers.
+// Output preserves headings, lists, code blocks, links, and keeps tables
+// as raw HTML (LLMs parse both fine; turndown's default table handling is
+// lossy without the GFM plugin).
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+});
+turndown.keep(['table', 'thead', 'tbody', 'tr', 'th', 'td']);
+// Drop navbar / footer / nav elements from markdown output so LLMs get
+// just the page content, not the site chrome.
+turndown.remove(['nav', 'footer', 'script', 'style', 'noscript']);
+// Wrap <pre> blocks without <code> children in fenced code blocks so LLMs
+// can recognize them as literal code (JSON schemas, llms.txt examples, etc.).
+turndown.addRule('bare-pre', {
+  filter: (node) => node.nodeName === 'PRE' && (!node.firstChild || (node.firstChild as Element).nodeName !== 'CODE'),
+  replacement: (content) => `\n\n\`\`\`\n${content.trim()}\n\`\`\`\n\n`,
+});
+
+function renderMarkdown(renderedHtml: string, title: string, canonicalUrl: string, description: string): string {
+  const mainMatch = renderedHtml.match(/<main[^>]*>([\s\S]*?)<\/main>/);
+  const bodyHtml = mainMatch ? mainMatch[1] : renderedHtml;
+  const md = turndown.turndown(bodyHtml);
+  return `# ${title}\n\n> ${description}\n\nCanonical URL: <${canonicalUrl}>\n\n---\n\n${md.trim()}\n`;
+}
 
 const distDir = path.resolve(process.cwd(), 'dist');
 let template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
@@ -158,7 +188,7 @@ const pages: PageEntry[] = [
     component: <SolutionsGrocery />,
     output: 'solutions/grocery/index.html',
     title: 'Online Ordering for Independent Grocers — Without Instacart\'s Cut | BusinessCart.ai',
-    description: 'Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 94% of every sale (vs 70-85% on Instacart) and 100% of the customer relationship.',
+    description: 'Specialty, ethnic, organic, butcher, bakery, pet supply — your regulars order direct, you keep 94% of every sale (vs 70-85% on Instacart) and 100% of the customer relationship.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Grocery & Specialty Food Solution', url: `${baseUrl}/solutions/grocery` }),
   },
   {
@@ -222,6 +252,13 @@ for (const page of pages) {
     `<div id="root">${html}</div>`
   );
 
+  // Generate markdown output path: /path/to/page.md (sibling of index.html).
+  // For root (/ → index.html), emit as /index.md.
+  const mdOutput = page.output === 'index.html'
+    ? 'index.md'
+    : page.output.replace(/\/index\.html$/, '.md');
+  const mdUrl = `${baseUrl}/${mdOutput}`;
+
   if (page.title) {
     rendered = rendered.replace(/<title>[^<]*<\/title>/, `<title>${page.title}</title>`);
 
@@ -231,7 +268,8 @@ for (const page of pages) {
       `<meta property="og:description" content="${page.description}" />\n` +
       `<meta property="og:type" content="article" />\n` +
       `<meta property="og:url" content="${baseUrl}${page.route}" />\n` +
-      `<link rel="canonical" href="${baseUrl}${page.route}" />\n`;
+      `<link rel="canonical" href="${baseUrl}${page.route}" />\n` +
+      `<link rel="alternate" type="text/markdown" href="${mdUrl}" />\n`;
 
     // Replace Product schema with Article schema for blog posts
     if (page.schema) {
@@ -248,7 +286,69 @@ for (const page of pages) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, rendered);
   console.log(`Pre-rendered ${page.route} → dist/${page.output}`);
+
+  // Emit markdown companion for AI crawlers. Extracts the <main> content,
+  // strips navbar/footer/scripts, converts to markdown. No runtime cost to
+  // human visitors — .md is only fetched when a crawler requests it directly
+  // or follows the <link rel="alternate"> hint.
+  try {
+    const mdContent = renderMarkdown(
+      rendered,
+      page.title || '',
+      `${baseUrl}${page.route}`,
+      page.description || '',
+    );
+    const mdOutputPath = path.join(distDir, mdOutput);
+    fs.mkdirSync(path.dirname(mdOutputPath), { recursive: true });
+    fs.writeFileSync(mdOutputPath, mdContent);
+  } catch (err) {
+    console.warn(`Failed to generate markdown for ${page.route}:`, err);
+  }
 }
+
+// ----------------------------------------------------------------------------
+// Post-render validation — fails the build if any page is missing its markdown
+// companion file or the <link rel="alternate" type="text/markdown"> tag in HTML.
+// This turns `npm run build` into the pre-commit gate for LLM-friendliness:
+// if someone refactors the pipeline in a way that breaks markdown generation,
+// the build fails loudly instead of shipping silently degraded output.
+// ----------------------------------------------------------------------------
+let validationErrors = 0;
+for (const page of pages) {
+  const htmlPath = path.join(distDir, page.output);
+  const mdOutput = page.output === 'index.html'
+    ? 'index.md'
+    : page.output.replace(/\/index\.html$/, '.md');
+  const mdPath = path.join(distDir, mdOutput);
+
+  if (!fs.existsSync(mdPath)) {
+    console.error(`❌ Missing markdown companion for ${page.route} — expected ${mdPath}`);
+    validationErrors++;
+    continue;
+  }
+
+  const mdSize = fs.statSync(mdPath).size;
+  if (mdSize < 200) {
+    console.error(`❌ Markdown suspiciously small for ${page.route} (${mdSize} bytes) — ${mdPath}`);
+    validationErrors++;
+  }
+
+  const html = fs.readFileSync(htmlPath, 'utf-8');
+  const expectedAlt = `href="${baseUrl}/${mdOutput}"`;
+  if (!html.includes('rel="alternate" type="text/markdown"')) {
+    console.error(`❌ Missing <link rel="alternate" type="text/markdown"> in ${page.route}`);
+    validationErrors++;
+  } else if (!html.includes(expectedAlt)) {
+    console.error(`❌ <link rel="alternate"> href mismatch for ${page.route} — expected to contain ${expectedAlt}`);
+    validationErrors++;
+  }
+}
+
+if (validationErrors > 0) {
+  console.error(`\n❌ Build validation FAILED: ${validationErrors} error(s). Refusing to complete build.`);
+  process.exit(1);
+}
+console.log(`✓ Validated ${pages.length} pages: every HTML has a markdown companion + alternate link`);
 
 // Generate sitemap.xml
 const sitemapEntries = pages.map((page) => {
@@ -291,7 +391,7 @@ const llmsTxt = `# BusinessCart.ai
 
 > Your Commerce, Your Rules.
 
-BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools. The Starter tier is $0/month — you pay only per order (6% capped at $5/order). Premium tiers (Growth $499/month + 1% per order, Enterprise $1,999/month + 0.25% per order) unlock full B2B power, multiple locations, and the AI add-on. The platform serves businesses of any size, from local restaurants to national distributors.
+BusinessCart.ai is a US-based e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools. **Every feature is included in every tier** — no feature locks. Your tier auto-applies based on monthly order volume. Starter ($0/month + 6% per order, capped at $5/order) for up to 100 orders/month. Growth ($499/month + 1% per order) for 101–1,000 orders. Enterprise ($1,999/month + 0.25% per order) at 1,001+ orders. The platform serves businesses of any size, from local restaurants to national distributors.
 
 ## Company Information
 
@@ -515,11 +615,15 @@ Planned premium features for the Enterprise tier.
 
 ## Pricing
 
-Three tiers. Free to start. 30-day money-back guarantee on Growth and Enterprise. No setup costs.
+Three tiers — **every feature included in every tier**. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Your platform fee grows only when your business does.
 
-- **Starter** ($0/month): Portal access, storefront with custom domain, standard checkout, basic B2B configuration, Stripe + offline payments. **6% per order, capped at $5/order.** AI add-on not available.
-- **Growth** ($499/month): Everything in Starter + negotiable quotes, multiple locations, all payment gateways (Amazon Pay, Authorize.net, PO), full B2B configuration. **+ 1% per order.** AI add-on available at **$99/month** (basic AI integration, observability, communication).
-- **Enterprise** ($1,999/month): Everything in Growth + dedicated success manager + SLA + volume processing rates. **+ 0.25% per order.** Full AI add-on at **$499/month** (full suite + dedicated AI engineer + custom integrations).
+- **Starter** — Auto-applies at up to 100 orders/month. **$0/month + 6% per order, capped at $5/order.**
+- **Growth** — Auto-applies at 101–1,000 orders/month. **$499/month + 1% per order.** 30-day money-back guarantee.
+- **Enterprise** — Auto-applies at 1,001+ orders/month. **$1,999/month + 0.25% per order.** Includes dedicated success manager + SLA. 30-day money-back guarantee.
+
+All tiers include: branded storefront on custom domain, private B2B portal, per-customer pricing/credit/spend caps, quote negotiation, customer groups, custom catalogs, all payment options (Stripe, Amazon Pay, Authorize.net, PO, offline), shopping-channel feeds, AI discovery (schema.org, llms.txt, markdown), multiple pickup/warehouse locations, time-based deals, email notifications, built-in analytics and visitor tracking (no Google Analytics or third-party tags), full REST API, and end-to-end support (technical, migration, integration, onboarding).
+
+Optional AI integration add-on: starts at **$99/month**, available on any tier. High-AOV B2B customers stay on Starter longer — the $5/order cap protects wholesale customers with few but large orders.
 
 Math examples (Starter cap protects from runaway fees on large orders): $30 order = $1.80 to BusinessCart; $1,000 wholesale order = $5 to BusinessCart (cap), not $60.
 
@@ -563,7 +667,7 @@ Math examples (Starter cap protects from runaway fees on large orders): $30 orde
 - **AI-Era Commerce:** ${baseUrl}/solutions/ai-commerce — Static HTML, schema.org, llms.txt, markdown product pages. For SEO-savvy merchants betting on AI discovery.
 - **Wholesale & B2B:** ${baseUrl}/solutions/wholesale — Per-customer pricing, credit limits, spend caps, quote negotiation. For SMB wholesalers running orders via email.
 - **Restaurants & Food:** ${baseUrl}/solutions/restaurants — Code-gated regulars portal, no DoorDash 30%. For catering, meal-prep, bakeries, food trucks, corporate lunch.
-- **Grocery & Specialty Food:** ${baseUrl}/solutions/grocery — Online ordering for independent grocers without Instacart's cut. For specialty, ethnic, organic, butcher, liquor, pet supply.
+- **Grocery & Specialty Food:** ${baseUrl}/solutions/grocery — Online ordering for independent grocers without Instacart's cut. For specialty, ethnic, organic, butcher, bakery, pet supply.
 - **Manufacturers:** ${baseUrl}/solutions/manufacturers — Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced automatically.
 - **Distributors:** ${baseUrl}/solutions/distributors — Per-customer tier pricing, multi-warehouse, multi-supplier buyer accounts. Beats Amazon Business buying experience.
 - **Marketplace Escape:** ${baseUrl}/solutions/marketplace-escape — Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.

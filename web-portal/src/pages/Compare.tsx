@@ -36,8 +36,8 @@ const Compare: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Monthly Fee</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0 Starter / $499 Growth / $1,999 Enterprise</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">$39-399/mo (Plus: $2,300+/mo)</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0 / $499 / $1,999 — auto-applies by order volume, every feature in every tier</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">$39-399/mo (Plus: $2,300+/mo); features locked to plan</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$30-100/mo (hosting + plugins)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$0 (but 15-30% per order)</td>
                 </tr>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PricingSection from '../components/PricingSection';
 import {
   ArrowRightIcon,
   ArrowTopRightOnSquareIcon,
@@ -26,7 +27,7 @@ const solutions = [
   { title: 'AI-Era Commerce', href: '/solutions/ai-commerce', icon: CpuChipIcon, audience: 'SEO-savvy merchants betting on AI discovery', summary: 'Static HTML, schema.org, llms.txt, markdown product pages — get cited by ChatGPT, Perplexity, Google AI.' },
   { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'SMB wholesalers running orders via email', summary: 'Per-customer pricing, credit limits, spend caps, quote negotiation — enforced automatically.' },
   { title: 'Restaurants & Food', href: '/solutions/restaurants', icon: CakeIcon, audience: 'Food businesses DoorDash serves poorly', summary: 'Direct ordering for catering, meal-prep, bakeries, food trucks, corporate lunch — no 30% tax.' },
-  { title: 'Grocery & Specialty', href: '/solutions/grocery', icon: ShoppingCartIcon, audience: 'Independent specialty grocers', summary: 'Online ordering for ethnic, organic, butcher, liquor, pet supply — without Instacart\'s cut.' },
+  { title: 'Grocery & Specialty', href: '/solutions/grocery', icon: ShoppingCartIcon, audience: 'Independent specialty grocers', summary: 'Online ordering for ethnic, organic, butcher, bakery, pet supply — without Instacart\'s cut.' },
   { title: 'Manufacturers', href: '/solutions/manufacturers', icon: CubeIcon, audience: 'Manufacturers selling to distributor networks', summary: 'Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced.' },
   { title: 'Distributors', href: '/solutions/distributors', icon: ArrowsRightLeftIcon, audience: 'Distributors managing supplier + customer sides', summary: 'Per-customer tier pricing, multi-warehouse, multi-supplier accounts. Beats Amazon Business.' },
   { title: 'Marketplace Escape', href: '/solutions/marketplace-escape', icon: CurrencyDollarIcon, audience: 'Anyone paying marketplace commissions', summary: 'Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.' },
@@ -51,7 +52,7 @@ const pillars = [
 ];
 
 const whyUs = [
-  { icon: CurrencyDollarIcon, title: 'Free to Start', desc: 'Starter is $0/month. Pay only per order (6% capped at $5). Premium tiers ($499 Growth, $1,999 Enterprise) when you need full B2B and AI integration.' },
+  { icon: CurrencyDollarIcon, title: 'Pricing Scales With You', desc: 'Every feature in every tier — no feature locks. Starter: $0/mo + 6% per order (capped at $5). Auto-promotes to Growth ($499/mo) at 100+ orders/mo, Enterprise ($1,999/mo) at 1,001+. Your bill grows only when your business does.' },
   { icon: BoltIcon, title: 'Sub-1-Second Pages', desc: 'Static HTML on a global CDN. Faster than any Shopify theme, by default — no apps, no plugins, no work.' },
   { icon: CpuChipIcon, title: 'AI-Readable from Day One', desc: 'llms.txt + schema.org + markdown product pages. ChatGPT, Perplexity, and Google AI can read your catalog directly.' },
   { icon: ShieldCheckIcon, title: 'Direct Payment to Your Bank', desc: 'Stripe, Amazon Pay, Authorize.net, or cash. Money goes straight to you. We never touch it. You own every customer.' },
@@ -62,7 +63,7 @@ const whyUs = [
 const faqs = [
   {
     q: 'What does this actually cost me?',
-    a: 'Three tiers. Starter: $0/month + 6% per order, capped at $5/order. Growth: $499/month + 1% per order (AI add-on $99/mo available). Enterprise: $1,999/month + 0.25% per order (full AI add-on $499/mo). 30-day money-back on Growth and Enterprise.',
+    a: 'Three tiers — every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo + 6% per order, capped at $5) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101–1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
   },
   {
     q: 'How is this different from Shopify?',
@@ -286,74 +287,8 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Free to Start. Premium When You Need It.</h2>
-              <p className="mt-3 text-lg text-gray-600">$0 to start · No setup costs · 30-day money-back on Growth and Enterprise</p>
-            </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Starter</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$0<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Branded storefront with custom domain', 'Code-gated B2B portal', 'Stripe + offline payments', 'Basic per-customer config', '1 location'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">6% per order · Capped at $5/order</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Get Started
-                </Link>
-              </div>
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col ring-2 ring-teal-700">
-                <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$499<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Starter', 'Full negotiable quotes', 'Multiple locations', 'All payment gateways (Amazon Pay, Authorize.net, PO)', 'AI add-on: $99/mo (basic)'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 1% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-              <div className="bg-gray-50 rounded-lg shadow-lg p-8 flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                <p className="mt-2 text-4xl font-extrabold text-teal-700">$1,999<span className="text-lg font-medium text-gray-500"> / mo</span></p>
-                <ul className="mt-6 space-y-3 flex-grow">
-                  {['Everything in Growth', 'Full AI add-on: $499/mo (full suite, dedicated AI engineer)', 'Dedicated success manager + SLA', 'Volume processing rates'].map((i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckIcon className="h-5 w-5 text-teal-700 mt-0.5 flex-shrink-0" />
-                      <span className="ml-3 text-base text-gray-700">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-6 text-sm font-semibold text-gray-900 text-center">+ 0.25% per order · 30-day money-back</p>
-                <Link
-                  to="/contact-us"
-                  className="mt-4 w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
-                >
-                  Contact Us
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Pricing - Auto-Scaling, Every Feature in Every Tier (shared component) */}
+        <PricingSection bgClass="bg-white" cardBgClass="bg-gray-50" />
 
         {/* FAQ */}
         <section className="py-16 bg-gray-50">

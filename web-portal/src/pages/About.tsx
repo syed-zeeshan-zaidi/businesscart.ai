@@ -42,8 +42,8 @@ const About: React.FC = () => {
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
                   <CurrencyDollarIcon className="h-6 w-6" />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">Free to Start, Premium When You Need It</h3>
-                <p className="mt-2 text-gray-500">Starter is $0/month — pay only per order. Premium tiers (Growth and Enterprise) when you need full B2B power, multi-location, or AI integration. 30-day money-back on paid tiers.</p>
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">Pricing That Scales With You</h3>
+                <p className="mt-2 text-gray-500">Every feature in every tier — no feature locks. Starter is $0/month + 6% capped at $5/order; Growth and Enterprise apply automatically as your monthly order volume grows. 30-day money-back on paid tiers.</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
