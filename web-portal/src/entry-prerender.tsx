@@ -188,7 +188,7 @@ const pages: PageEntry[] = [
     component: <SolutionsGrocery />,
     output: 'solutions/grocery/index.html',
     title: 'Online Ordering for Independent Grocers — Without Instacart\'s Cut | BusinessCart.ai',
-    description: 'Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 94% of every sale (vs 70-85% on Instacart) and 100% of the customer relationship.',
+    description: 'Specialty, ethnic, organic, butcher, bakery, pet supply — your regulars order direct, you keep 94% of every sale (vs 70-85% on Instacart) and 100% of the customer relationship.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Grocery & Specialty Food Solution', url: `${baseUrl}/solutions/grocery` }),
   },
   {
@@ -663,7 +663,7 @@ Math examples (Starter cap protects from runaway fees on large orders): $30 orde
 - **AI-Era Commerce:** ${baseUrl}/solutions/ai-commerce — Static HTML, schema.org, llms.txt, markdown product pages. For SEO-savvy merchants betting on AI discovery.
 - **Wholesale & B2B:** ${baseUrl}/solutions/wholesale — Per-customer pricing, credit limits, spend caps, quote negotiation. For SMB wholesalers running orders via email.
 - **Restaurants & Food:** ${baseUrl}/solutions/restaurants — Code-gated regulars portal, no DoorDash 30%. For catering, meal-prep, bakeries, food trucks, corporate lunch.
-- **Grocery & Specialty Food:** ${baseUrl}/solutions/grocery — Online ordering for independent grocers without Instacart's cut. For specialty, ethnic, organic, butcher, liquor, pet supply.
+- **Grocery & Specialty Food:** ${baseUrl}/solutions/grocery — Online ordering for independent grocers without Instacart's cut. For specialty, ethnic, organic, butcher, bakery, pet supply.
 - **Manufacturers:** ${baseUrl}/solutions/manufacturers — Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced automatically.
 - **Distributors:** ${baseUrl}/solutions/distributors — Per-customer tier pricing, multi-warehouse, multi-supplier buyer accounts. Beats Amazon Business buying experience.
 - **Marketplace Escape:** ${baseUrl}/solutions/marketplace-escape — Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.

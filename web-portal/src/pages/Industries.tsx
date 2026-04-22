@@ -47,7 +47,7 @@ const solutions = [
     title: 'Grocery & Specialty Food',
     href: '/solutions/grocery',
     icon: ShoppingCartIcon,
-    summary: 'Online ordering for independent and ethnic grocers — without Instacart\'s 10-15% cut. Specialty, organic, butcher, liquor, pet supply.',
+    summary: 'Online ordering for independent and ethnic grocers — without Instacart\'s 10-15% cut. Specialty, organic, butcher, bakery, pet supply.',
     audience: 'For: Independent specialty grocers',
   },
   {

@@ -69,7 +69,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'Who is this best for?',
-    a: 'Independent and specialty grocers: ethnic markets (Asian, Latin, Halal, Kosher, Indian), organic and health-food stores, co-ops, butcher shops, fish markets, cheese shops, liquor and wine stores, pet food and supply stores. Anyone whose customers know them and want to order pickup or scheduled delivery without paying Instacart\'s tax.',
+    a: 'Independent and specialty grocers: ethnic markets (Asian, Latin, Halal, Kosher, Indian), organic and health-food stores, co-ops, butcher shops, fish markets, cheese shops, bakeries, pet food and supply stores. Anyone whose customers know them and want to order pickup or scheduled delivery without paying Instacart\'s tax.',
   },
   {
     q: 'How is this different from Instacart?',
@@ -109,7 +109,7 @@ const SolutionsGrocery: React.FC = () => {
                 <span className="text-teal-400">Without Instacart's Cut.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Specialty, ethnic, organic, butcher, liquor, pet supply — your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
+                Specialty, ethnic, organic, butcher, bakery, pet supply — your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · No commission to a marketplace · Cash, card, or PO accepted · You own every customer
@@ -166,7 +166,7 @@ const SolutionsGrocery: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Generic platforms don't fit your business</h3>
                 </div>
                 <p className="text-gray-600">
-                  Specialty grocers, ethnic markets, butcher shops, liquor stores — your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
+                  Specialty grocers, ethnic markets, butcher shops, bakeries — your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
                 </p>
               </div>
             </div>
