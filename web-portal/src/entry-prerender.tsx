@@ -22,6 +22,36 @@ import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
 import blogPosts from './data/blogPosts';
 import fs from 'fs';
 import path from 'path';
+import TurndownService from 'turndown';
+
+// Turndown converts rendered HTML into clean markdown for AI crawlers.
+// Output preserves headings, lists, code blocks, links, and keeps tables
+// as raw HTML (LLMs parse both fine; turndown's default table handling is
+// lossy without the GFM plugin).
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+});
+turndown.keep(['table', 'thead', 'tbody', 'tr', 'th', 'td']);
+// Drop navbar / footer / nav elements from markdown output so LLMs get
+// just the page content, not the site chrome.
+turndown.remove(['nav', 'footer', 'script', 'style', 'noscript']);
+// Wrap <pre> blocks without <code> children in fenced code blocks so LLMs
+// can recognize them as literal code (JSON schemas, llms.txt examples, etc.).
+turndown.addRule('bare-pre', {
+  filter: (node) => node.nodeName === 'PRE' && (!node.firstChild || (node.firstChild as Element).nodeName !== 'CODE'),
+  replacement: (content) => `\n\n\`\`\`\n${content.trim()}\n\`\`\`\n\n`,
+});
+
+function renderMarkdown(renderedHtml: string, title: string, canonicalUrl: string, description: string): string {
+  const mainMatch = renderedHtml.match(/<main[^>]*>([\s\S]*?)<\/main>/);
+  const bodyHtml = mainMatch ? mainMatch[1] : renderedHtml;
+  const md = turndown.turndown(bodyHtml);
+  return `# ${title}\n\n> ${description}\n\nCanonical URL: <${canonicalUrl}>\n\n---\n\n${md.trim()}\n`;
+}
 
 const distDir = path.resolve(process.cwd(), 'dist');
 let template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
@@ -222,6 +252,13 @@ for (const page of pages) {
     `<div id="root">${html}</div>`
   );
 
+  // Generate markdown output path: /path/to/page.md (sibling of index.html).
+  // For root (/ → index.html), emit as /index.md.
+  const mdOutput = page.output === 'index.html'
+    ? 'index.md'
+    : page.output.replace(/\/index\.html$/, '.md');
+  const mdUrl = `${baseUrl}/${mdOutput}`;
+
   if (page.title) {
     rendered = rendered.replace(/<title>[^<]*<\/title>/, `<title>${page.title}</title>`);
 
@@ -231,7 +268,8 @@ for (const page of pages) {
       `<meta property="og:description" content="${page.description}" />\n` +
       `<meta property="og:type" content="article" />\n` +
       `<meta property="og:url" content="${baseUrl}${page.route}" />\n` +
-      `<link rel="canonical" href="${baseUrl}${page.route}" />\n`;
+      `<link rel="canonical" href="${baseUrl}${page.route}" />\n` +
+      `<link rel="alternate" type="text/markdown" href="${mdUrl}" />\n`;
 
     // Replace Product schema with Article schema for blog posts
     if (page.schema) {
@@ -248,7 +286,69 @@ for (const page of pages) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, rendered);
   console.log(`Pre-rendered ${page.route} → dist/${page.output}`);
+
+  // Emit markdown companion for AI crawlers. Extracts the <main> content,
+  // strips navbar/footer/scripts, converts to markdown. No runtime cost to
+  // human visitors — .md is only fetched when a crawler requests it directly
+  // or follows the <link rel="alternate"> hint.
+  try {
+    const mdContent = renderMarkdown(
+      rendered,
+      page.title || '',
+      `${baseUrl}${page.route}`,
+      page.description || '',
+    );
+    const mdOutputPath = path.join(distDir, mdOutput);
+    fs.mkdirSync(path.dirname(mdOutputPath), { recursive: true });
+    fs.writeFileSync(mdOutputPath, mdContent);
+  } catch (err) {
+    console.warn(`Failed to generate markdown for ${page.route}:`, err);
+  }
 }
+
+// ----------------------------------------------------------------------------
+// Post-render validation — fails the build if any page is missing its markdown
+// companion file or the <link rel="alternate" type="text/markdown"> tag in HTML.
+// This turns `npm run build` into the pre-commit gate for LLM-friendliness:
+// if someone refactors the pipeline in a way that breaks markdown generation,
+// the build fails loudly instead of shipping silently degraded output.
+// ----------------------------------------------------------------------------
+let validationErrors = 0;
+for (const page of pages) {
+  const htmlPath = path.join(distDir, page.output);
+  const mdOutput = page.output === 'index.html'
+    ? 'index.md'
+    : page.output.replace(/\/index\.html$/, '.md');
+  const mdPath = path.join(distDir, mdOutput);
+
+  if (!fs.existsSync(mdPath)) {
+    console.error(`❌ Missing markdown companion for ${page.route} — expected ${mdPath}`);
+    validationErrors++;
+    continue;
+  }
+
+  const mdSize = fs.statSync(mdPath).size;
+  if (mdSize < 200) {
+    console.error(`❌ Markdown suspiciously small for ${page.route} (${mdSize} bytes) — ${mdPath}`);
+    validationErrors++;
+  }
+
+  const html = fs.readFileSync(htmlPath, 'utf-8');
+  const expectedAlt = `href="${baseUrl}/${mdOutput}"`;
+  if (!html.includes('rel="alternate" type="text/markdown"')) {
+    console.error(`❌ Missing <link rel="alternate" type="text/markdown"> in ${page.route}`);
+    validationErrors++;
+  } else if (!html.includes(expectedAlt)) {
+    console.error(`❌ <link rel="alternate"> href mismatch for ${page.route} — expected to contain ${expectedAlt}`);
+    validationErrors++;
+  }
+}
+
+if (validationErrors > 0) {
+  console.error(`\n❌ Build validation FAILED: ${validationErrors} error(s). Refusing to complete build.`);
+  process.exit(1);
+}
+console.log(`✓ Validated ${pages.length} pages: every HTML has a markdown companion + alternate link`);
 
 // Generate sitemap.xml
 const sitemapEntries = pages.map((page) => {

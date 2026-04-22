@@ -86,6 +86,7 @@ const blogPosts: BlogPostData[] = [
         <p>If you are starting an online store in 2026, paying $39+/month before your first sale does not make sense. The alternatives have caught up — and in some areas, passed Shopify entirely.</p>
         <p>BusinessCart.ai's Starter plan starts at $0/month, gives you the fastest storefront on the web, and includes SEO and B2B features that Shopify charges thousands for. Paid tiers (Growth $499/mo, Enterprise $1,999/mo) unlock multi-location, full B2B power, and AI integration when you need them. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
         <p>Stop paying for a store before you have customers. <strong><a href="/contact-us">Start for free on BusinessCart.ai</a></strong> and pay only when you sell.</p>
+        <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> — full feature breakdown, comparison tables, and pricing for direct-to-consumer sellers.</p>
       </>
     ),
   },
@@ -175,6 +176,7 @@ const blogPosts: BlogPostData[] = [
           <li><strong>Scale when ready</strong> — Add B2B features, per-customer pricing, quote negotiation, and multiple locations as your business grows. No plan upgrade needed for basic B2B.</li>
         </ul>
         <p>Ready to start? <strong><a href="/contact-us">Create your free store on BusinessCart.ai</a></strong>.</p>
+        <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> — what's live today, what's in beta, and what's coming in 2026 for direct-to-consumer sellers.</p>
       </>
     ),
   },
@@ -236,6 +238,7 @@ const blogPosts: BlogPostData[] = [
         <p>If your store is one of the few that AI can actually read and recommend from, you get traffic that your competitors miss entirely. And as AI shopping grows — which every trend indicates it will — this advantage compounds.</p>
         <p>The stores that AI can read will get recommended. The ones it cannot read will not. It is that simple.</p>
         <p><strong><a href="/contact-us">Start your LLM-friendly store on BusinessCart.ai</a></strong> — free, no code, no monthly fees.</p>
+        <p>Related: <a href="/solutions/ai-commerce">AI-Era Commerce solution page</a> — the full technical playbook for getting cited by ChatGPT, Perplexity, and Google AI.</p>
       </>
     ),
   },
@@ -350,6 +353,7 @@ const blogPosts: BlogPostData[] = [
         <p>The "cheapest" platform depends on your revenue. At $0 revenue, BusinessCart.ai costs $0 while Shopify costs $39+ and WooCommerce costs $30+. At $5K/month, all three end up around $250-360/month total.</p>
         <p>The real question is: <strong>do you want to pay before you earn, or after?</strong></p>
         <p><strong><a href="/contact-us">Start selling for free on BusinessCart.ai</a></strong> — no monthly fees, no setup costs, pay only per order.</p>
+        <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> — full tier-by-tier breakdown with Adobe Commerce comparison for serious sellers.</p>
       </>
     ),
   },
@@ -403,6 +407,7 @@ const blogPosts: BlogPostData[] = [
           <li><strong>Free Starter plan:</strong> $0/month — pay only when you make sales (6% per order capped at $5/order). Paid tiers ($499/mo Growth, $1,999/mo Enterprise) when you need full B2B.</li>
         </ul>
         <p>Stop being a tenant in someone else's store. It is time to build your own. <strong><a href="/contact-us">Get started for free on BusinessCart.ai</a></strong>.</p>
+        <p>Related: <a href="/solutions/marketplace-escape">Marketplace Escape solution page</a> — vertical-specific playbooks for leaving Etsy, Amazon, DoorDash, Instacart, and Faire.</p>
       </>
     ),
   },
@@ -495,7 +500,7 @@ const blogPosts: BlogPostData[] = [
         <p>If you do $5,000/month on Etsy, switching to your own store saves you $220-970/month in fees depending on whether offsite ads hit you. That is $2,640-11,640 per year back in your pocket.</p>
         <p>You also get something no amount of money can buy on Etsy: a customer list you own, a brand people remember, and a business that cannot be shut down by someone else's algorithm.</p>
         <p><strong><a href="/contact-us">Create your free storefront on BusinessCart.ai</a></strong> — bring your Etsy products over in 30 minutes.</p>
-        <p>Related: <a href="/blog/how-to-sell-online-without-marketplace-fees">How to Sell Online Without Marketplace Fees: The Independence Playbook</a></p>
+        <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> · <a href="/solutions/marketplace-escape">Marketplace Escape solution page</a> · <a href="/blog/how-to-sell-online-without-marketplace-fees">How to Sell Online Without Marketplace Fees: The Independence Playbook</a></p>
       </>
     ),
   },
@@ -596,7 +601,7 @@ const blogPosts: BlogPostData[] = [
         </ul>
         <p>A beautiful store that nobody can find and half of visitors abandon because it loads too slowly is not a good investment at any price.</p>
         <p><strong><a href="/contact-us">Try BusinessCart.ai free</a></strong> — sub-1-second storefronts, full SEO, $0/month.</p>
-        <p>Related: <a href="/blog/why-your-online-store-should-be-llm-friendly">Why Your Online Store Should Be LLM-Friendly (And What That Means)</a></p>
+        <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a> · <a href="/blog/why-your-online-store-should-be-llm-friendly">Why Your Online Store Should Be LLM-Friendly (And What That Means)</a></p>
       </>
     ),
   },
@@ -692,7 +697,7 @@ const blogPosts: BlogPostData[] = [
         <p>The goal is not to leave marketplaces entirely. It is to flip the relationship: use the marketplace to discover new customers, then convert them to direct buyers. The marketplace becomes a funnel, not a landlord.</p>
         <p>You keep your brand. You keep your customers. You keep your margins.</p>
         <p><strong><a href="/contact-us">Start your free store on BusinessCart.ai</a></strong> and begin the shift today.</p>
-        <p>Related: <a href="/blog/etsy-alternatives-for-sellers-who-want-their-own-store">Etsy Alternatives for Sellers Who Want Their Own Store</a></p>
+        <p>Related: <a href="/solutions/marketplace-escape">Marketplace Escape solution page</a> · <a href="/blog/etsy-alternatives-for-sellers-who-want-their-own-store">Etsy Alternatives for Sellers Who Want Their Own Store</a></p>
       </>
     ),
   },
