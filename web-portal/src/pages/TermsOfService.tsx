@@ -143,6 +143,18 @@ const TermsOfService: React.FC = () => {
                 <p className="text-gray-600 mb-4">
                   Companies retain ownership of their data — including products, customer information, order history, and business configuration. BusinessCart.ai uses this data solely to provide and improve the platform.
                 </p>
+                <p className="text-gray-600 mb-4">
+                  <b>Your-data-is-yours guarantee:</b> At any time, including after you stop using the platform, you may export your data through the following means:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 mb-4">
+                  <li><b>Customer list:</b> One-click CSV download from the admin dashboard (<code className="text-sm">/accounts/export</code>).</li>
+                  <li><b>Products, orders, quotes, and configuration:</b> Accessible via our REST API. Every operation has an endpoint; a technical user or consultant can extract every record programmatically.</li>
+                  <li><b>Product images:</b> Stored on our CDN; URLs are embedded in the product records returned by the API. You may download all images directly from those URLs.</li>
+                  <li><b>Shopping feeds:</b> Auto-generated CSV, XML, and TSV files for Google, Meta, Bing, Pinterest, and TikTok — available to download at any time.</li>
+                </ul>
+                <p className="text-gray-600 mb-4">
+                  BusinessCart.ai will not hold your data hostage. There are no cancellation fees, no export fees, and no time limits on data access while your account remains active. If you choose to close your account, we will make a reasonable effort to provide a final data package in standard formats.
+                </p>
                 <p className="text-gray-600">
                   BusinessCart.ai does not sell company or customer data to third parties. See our <a href="/privacy-policy" className="text-teal-700 hover:underline">Privacy Policy</a> for full details on data handling.
                 </p>
