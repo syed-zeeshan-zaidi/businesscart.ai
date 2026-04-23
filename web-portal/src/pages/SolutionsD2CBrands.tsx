@@ -321,14 +321,68 @@ const SolutionsD2CBrands: React.FC = () => {
           </div>
         </section>
 
-        {/* See it live */}
+        {/* See it live — real customer storefront with screenshots */}
         <section className="py-16 bg-gray-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900">See a Real Store, Built on BusinessCart.ai</h2>
-            <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live D2C brand running on BusinessCart.ai with a custom domain, full catalog, sub-second load times, and AI-readable product pages.
-            </p>
-            <div className="mt-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">See a Real Store, Built on BusinessCart.ai</h2>
+              <p className="mt-4 text-gray-600">
+                <strong>uSetGo INC</strong> — a live D2C brand running on BusinessCart.ai with a custom domain, full catalog, sub-second load times, and AI-readable product pages.
+              </p>
+            </div>
+
+            {/* 3-screenshot grid — all below-fold, lazy-loaded WebP, no LCP impact */}
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <a href="https://www.usetgo.com" target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
+                  <img
+                    src="/screenshots/d2c/home.webp"
+                    alt="uSetGo storefront homepage — Grip Life with Style hero, branded teal palette"
+                    width="1200"
+                    height="750"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
+                    className="w-full h-auto"
+                  />
+                </div>
+                <p className="mt-3 text-sm text-gray-600 text-center"><strong className="text-gray-900">Branded storefront</strong> · Custom domain, hero, navigation</p>
+              </a>
+
+              <a href="https://www.usetgo.com/products.html" target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
+                  <img
+                    src="/screenshots/d2c/catalog.webp"
+                    alt="uSetGo catalog — 28 products, category filters, sale badges"
+                    width="1200"
+                    height="750"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
+                    className="w-full h-auto"
+                  />
+                </div>
+                <p className="mt-3 text-sm text-gray-600 text-center"><strong className="text-gray-900">Full catalog</strong> · Categories, deals, product grid</p>
+              </a>
+
+              <a href="https://www.usetgo.com/products/silicon-baking-gloves-e13b09.html" target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
+                  <img
+                    src="/screenshots/d2c/product.webp"
+                    alt="uSetGo product detail — Silicon Baking Gloves with pricing, deal discount, attributes"
+                    width="1200"
+                    height="667"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
+                    className="w-full h-auto"
+                  />
+                </div>
+                <p className="mt-3 text-sm text-gray-600 text-center"><strong className="text-gray-900">Product page</strong> · Pricing, attributes, AI-readable HTML</p>
+              </a>
+            </div>
+
+            <div className="mt-10 text-center">
               <a
                 href="https://www.usetgo.com"
                 target="_blank"
@@ -338,6 +392,53 @@ const SolutionsD2CBrands: React.FC = () => {
                 Visit www.usetgo.com
                 <ArrowTopRightOnSquareIcon className="ml-2 h-5 w-5" />
               </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Inside the Admin — real dashboard view, real data, no plugin sprawl */}
+        <section className="py-16 bg-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <h2 className="text-3xl font-extrabold text-gray-900">Inside the Admin Dashboard</h2>
+              <p className="mt-4 text-gray-600">
+                Real seller view, real data — products, orders, customers, revenue, low-stock, and your auto-applied pricing tier all in one place. No app store. No Klaviyo + ReCharge + Loox + Gorgias stack to wire together.
+              </p>
+            </div>
+
+            {/* Admin screenshot, full-width — click to open full-size in new tab. Below-fold, lazy-loaded WebP, no LCP impact. */}
+            <div className="mt-10">
+              <a
+                href="/screenshots/d2c/admin-top.webp"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open pricing tier dashboard screenshot in new tab"
+                className="block bg-gray-50 rounded-lg shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-shadow cursor-zoom-in"
+              >
+                <img
+                  src="/screenshots/d2c/admin-top.webp"
+                  alt="BusinessCart admin dashboard — Welcome header, pricing tier card showing Starter with progress to Growth and estimated $2.35 bill, four stat cards, revenue chart and low stock alerts"
+                  width="1855"
+                  height="950"
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="low"
+                  className="w-full h-auto"
+                />
+              </a>
+              <p className="mt-3 text-sm text-gray-600 text-center">
+                <strong className="text-gray-900">Everything in one view.</strong> Auto-applied pricing tier, revenue, orders, products, customers, low-stock alerts, analytics — no app store, no third-party tags, no extra dashboard logins. Click to zoom.
+              </p>
+              <p className="mt-2 text-sm text-center">
+                <a
+                  href="/screenshots/d2c/admin-bottom-full.webp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal-700 hover:text-teal-800 underline font-medium"
+                >
+                  → Also see the analytics view (revenue chart, low-stock alerts, recent orders)
+                </a>
+              </p>
             </div>
           </div>
         </section>
