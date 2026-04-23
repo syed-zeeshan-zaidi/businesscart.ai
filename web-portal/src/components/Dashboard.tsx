@@ -227,7 +227,7 @@ const Dashboard: React.FC = () => {
           {/* Pricing Tier — company role only. Auto-derived from this month's order count. */}
           {user?.role === 'company' && tier && (
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex items-baseline justify-between mb-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-3">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Pricing Tier</h2>
                 <span className="text-xs text-gray-500">
                   {tier.monthOrderCount} order{tier.monthOrderCount !== 1 ? 's' : ''} this month
@@ -256,9 +256,9 @@ const Dashboard: React.FC = () => {
               ) : (
                 <p className="text-xs text-gray-500">Top tier — no further graduation.</p>
               )}
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-baseline justify-between">
+              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <span className="text-sm text-gray-600">Estimated bill this month</span>
-                <span className="text-2xl font-bold text-gray-800">${tier.estimatedBill.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-gray-800">${tier.estimatedBill.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
           )}
