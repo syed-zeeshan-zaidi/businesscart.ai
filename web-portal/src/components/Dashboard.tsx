@@ -5,6 +5,7 @@ import Navbar from './Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { getProducts, getOrders, getAccounts } from '../api';
 import { Account, Order } from '../types';
+import { computeTier, TierInfo } from '../tier';
 import {
   ShoppingCartIcon,
   CurrencyDollarIcon,
@@ -50,6 +51,7 @@ const Dashboard: React.FC = () => {
   const [lowStock, setLowStock] = useState<{ name: string; stock: number; id: string }[]>([]);
   const [companyStats, setCompanyStats] = useState<{ name: string; products: number; orders: number; revenue: number; customers: number }[]>([]);
   const [adminStats, setAdminStats] = useState({ companies: 0, newSignups: 0 });
+  const [tier, setTier] = useState<TierInfo | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) { setUser(null); return; }
@@ -83,6 +85,12 @@ const Dashboard: React.FC = () => {
 
         const orderList = (orders as Order[]).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setRecentOrders(orderList.slice(0, 5));
+
+        // Compute current pricing tier from this month's non-cancelled orders.
+        // Tier is derived, never stored on the company — see exclude/APPLICATION.md.
+        if (user.role === 'company') {
+          setTier(computeTier(orderList));
+        }
 
         // Monthly revenue (last 6 months)
         const months: Record<string, { revenue: number; orders: number }> = {};
@@ -215,6 +223,45 @@ const Dashboard: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Pricing Tier — company role only. Auto-derived from this month's order count. */}
+          {user?.role === 'company' && tier && (
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-3">
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Pricing Tier</h2>
+                <span className="text-xs text-gray-500">
+                  {tier.monthOrderCount} order{tier.monthOrderCount !== 1 ? 's' : ''} this month
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 mb-4">
+                <p className="text-3xl font-extrabold text-teal-700">{tier.tier}</p>
+                <p className="text-sm text-gray-600">
+                  {tier.perOrderCap !== null
+                    ? `$${tier.monthlyFee}/mo + ${(tier.perOrderRate * 100).toFixed(2)}% per order, capped at $${tier.perOrderCap}`
+                    : `$${tier.monthlyFee.toLocaleString('en-US')}/mo + ${(tier.perOrderRate * 100).toFixed(2)}% per order`}
+                </p>
+              </div>
+              {tier.nextTierThreshold !== null ? (
+                <>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                    <div
+                      className="bg-teal-700 h-2.5 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (tier.monthOrderCount / tier.nextTierThreshold) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {tier.ordersToNextTier} more order{tier.ordersToNextTier !== 1 ? 's' : ''} this month → graduate to {tier.nextTierName}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-gray-500">Top tier — no further graduation.</p>
+              )}
+              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="text-sm text-gray-600">Estimated bill this month</span>
+                <span className="text-2xl font-bold text-gray-800">${tier.estimatedBill.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          )}
 
           <div className={`grid grid-cols-2 ${user?.role === 'admin' ? 'lg:grid-cols-6' : 'lg:grid-cols-4'} gap-4 mb-6`}>
             <StatCard icon={CurrencyDollarIcon} label="Total Revenue" value={stats.revenue} prefix="$" />

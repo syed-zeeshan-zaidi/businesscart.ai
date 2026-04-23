@@ -16,6 +16,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
+import { computeTier, TierName } from '../tier';
+import { Order } from '../types';
 
 interface NavItem {
   name: string;
@@ -44,8 +46,10 @@ const Sidebar = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  // Pending order count from dashboard cache (no API calls)
+  // Pending order count + current pricing tier from dashboard cache (no API calls).
+  // Tier shown only for company role; admins see no tier (they don't have one).
   const [pendingOrders, setPendingOrders] = useState(0);
+  const [tier, setTier] = useState<TierName | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('dash_orders');
@@ -53,6 +57,9 @@ const Sidebar = () => {
         const { data } = JSON.parse(raw);
         if (Array.isArray(data)) {
           setPendingOrders(data.filter((o: { status?: string }) => !o.status || o.status === 'pending').length);
+          if (user?.role === 'company') {
+            setTier(computeTier(data as Order[]).tier);
+          }
         }
       }
     } catch { /* ignore */ }
@@ -140,11 +147,18 @@ const Sidebar = () => {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-300 truncate">{user.name || user.email}</p>
-              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+              <p className="text-xs text-gray-500 capitalize flex items-center gap-2">
+                <span>{user.role}</span>
+                {tier && (
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-teal-700/30 text-teal-400 text-[10px] font-bold uppercase tracking-wider">
+                    {tier}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         )}
-        <p className="text-[10px] text-gray-600">v{APP_VERSION}</p>
+        <p className="text-[10px] text-gray-600">App v{APP_VERSION}</p>
       </div>
     </div>
   );
