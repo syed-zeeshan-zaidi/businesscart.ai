@@ -1452,7 +1452,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: '5-hidden-costs-of-selling-on-amazon-2026',
     title: 'The 5 Hidden Costs of Selling on Amazon in 2026 (Beyond the 15% Referral Fee)',
     excerpt: 'The 8-15% referral fee is the fee every seller sees. The real cost — FBA, advertising, returns, fuel surcharges, and Brand Registry — routinely hits 35-45% of revenue. Full breakdown with 2026 numbers.',
-    date: '2026-05-02',
+    date: '2026-04-19',
     metaDescription: '2026 breakdown of Amazon seller fees: FBA, advertising, returns, the April 2026 fuel surcharge, Brand Registry. Real math on what Amazon actually costs.',
     content: (
       <>
@@ -1622,7 +1622,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'faire-vs-direct-b2b-when-25-percent-commission-is-worth-it',
     title: 'Faire vs Direct B2B: When Commission Is Worth It (And When to Leave)',
     excerpt: 'Faire charges 15% on marketplace orders plus a $10 first-order fee. For brands just starting in wholesale, that discovery engine pays for itself. For established brands with repeat retailers, the commission becomes pure margin loss. Here is how to tell which camp you are in.',
-    date: '2026-05-09',
+    date: '2026-04-19',
     metaDescription: 'Complete 2026 guide to Faire commission fees, Faire Direct 0% option, and when to move your wholesale business direct. Real math and migration strategy.',
     content: (
       <>
@@ -1746,7 +1746,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'why-catering-companies-are-leaving-doordash-for-direct-online-ordering',
     title: 'Why Catering Companies Are Leaving DoorDash for Direct Online Ordering',
     excerpt: 'DoorDash takes 15-30% of every catering order. On a single $2,000 corporate lunch, that is $300-600 gone before food costs. Catering is fundamentally different from restaurant delivery — here is why direct ordering is winning.',
-    date: '2026-05-16',
+    date: '2026-04-20',
     metaDescription: 'Why catering companies are moving from DoorDash to direct online ordering in 2026. Commission math, software features needed, step-by-step migration.',
     content: (
       <>
@@ -1870,7 +1870,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'online-ordering-for-food-trucks-pre-orders-pickup-no-app-needed',
     title: 'Online Ordering for Food Trucks: Pre-Orders, Pickup, No App Needed (2026)',
     excerpt: 'Food trucks are different from restaurants. Location changes daily, staff is minimal, cash flow is tight. Here is how modern food trucks are taking pre-orders with skip-the-line pickup — without building an app or paying $499/month for catering software.',
-    date: '2026-05-23',
+    date: '2026-04-20',
     metaDescription: '2026 guide to online ordering for food trucks: pre-order pickup, skip-the-line QR codes, pricing options, and setup without building an app.',
     content: (
       <>
@@ -2000,7 +2000,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'corporate-lunch-programs-50k-year-b2b-catering-channel',
     title: 'Corporate Lunch Programs: How to Build a $50K/Year Direct B2B Catering Channel',
     excerpt: 'Hybrid work created a massive opportunity for catering companies: recurring corporate lunch programs for in-office days. A single office with 25 employees ordering lunch 2x/week is $75K/year at typical rates. Here is how to build this channel systematically.',
-    date: '2026-05-30',
+    date: '2026-04-21',
     metaDescription: '2026 guide to building a corporate lunch catering program: hybrid-work demand, pricing, recurring orders, B2B invoicing, scaling to $50K+/year per account.',
     content: (
       <>
@@ -2145,7 +2145,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'instacart-takes-10-15-percent-how-independent-grocers-are-building-direct-online-ordering',
     title: 'Instacart Takes 10-15% — How Independent Grocers Are Building Direct Online Ordering',
     excerpt: 'Instacart charges independent grocers 10-15% commission, marks up prices on customers, runs pricing experiments without store consent, and owns the customer data. Independent grocers are losing on three fronts at once. Here is how direct ordering reverses all three.',
-    date: '2026-06-06',
+    date: '2026-04-21',
     metaDescription: '2026 breakdown of Instacart fees for independent grocers. Commission math, markup tax, customer data ownership, Mercato and direct-ordering alternatives.',
     content: (
       <>
@@ -2288,7 +2288,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'online-ordering-for-ethnic-grocery-stores-step-by-step-guide',
     title: 'Online Ordering for Ethnic Grocery Stores: A Step-by-Step Guide (2026)',
     excerpt: 'Ethnic grocery stores serve customers who travel 15-30 miles for specific ingredients Instacart and Whole Foods will never carry. Online ordering expands that reach to the entire region — without losing the community-rooted identity that makes these stores work. Here is the complete playbook.',
-    date: '2026-06-13',
+    date: '2026-04-22',
     metaDescription: '2026 step-by-step guide to online ordering for ethnic grocery stores: Asian, Latin, Halal, Kosher, Indian, Middle Eastern. Catalog, pickup, delivery, language.',
     content: (
       <>
@@ -2405,7 +2405,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
     slug: 'why-butcher-shops-and-specialty-meat-retailers-should-own-their-online-ordering',
     title: 'Why Butcher Shops and Specialty Meat Retailers Should Own Their Online Ordering in 2026',
     excerpt: 'Local butchers, halal and kosher meat shops, and specialty meat retailers face the same platform-dependency trap as other categories. Here is the 2026 landscape and a direct-ordering playbook built for cold-chain fulfillment, cut-to-order workflows, and high-LTV customers.',
-    date: '2026-06-20',
+    date: '2026-04-22',
     metaDescription: '2026 guide for butcher shops and specialty meat retailers: cold-chain pickup, cut-to-order workflows, DoorDash alternatives, direct-ordering playbook.',
     content: (
       <>

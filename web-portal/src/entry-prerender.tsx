@@ -19,6 +19,13 @@ import SolutionsGrocery from './pages/SolutionsGrocery';
 import SolutionsManufacturers from './pages/SolutionsManufacturers';
 import SolutionsDistributors from './pages/SolutionsDistributors';
 import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
+import About from './pages/About';
+import Careers from './pages/Careers';
+import ContactUs from './pages/ContactUs';
+import FAQ from './pages/FAQ';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import ApiStatus from './pages/ApiStatus';
 import blogPosts from './data/blogPosts';
 import fs from 'fs';
 import path from 'path';
@@ -214,6 +221,62 @@ const pages: PageEntry[] = [
     title: 'Stop Paying 30% to Marketplaces — Own Your Customers | BusinessCart.ai',
     description: 'Etsy, Amazon, eBay, DoorDash, Instacart, Faire — all take 6-30% of every order. Build your direct store on a free Starter tier and keep 94% of every sale.',
     schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Marketplace Escape Solution', url: `${baseUrl}/solutions/marketplace-escape` }),
+  },
+  {
+    route: '/about',
+    component: <About />,
+    output: 'about/index.html',
+    title: 'About BusinessCart.ai — Your Commerce, Your Rules',
+    description: 'BusinessCart.ai helps businesses sell directly with branded storefronts, private B2B portals, and a free Starter tier. US-based, remote-first team.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'AboutPage', name: 'About BusinessCart.ai', url: `${baseUrl}/about` }),
+  },
+  {
+    route: '/careers',
+    component: <Careers />,
+    output: 'careers/index.html',
+    title: 'Careers at BusinessCart.ai — Remote-First, US-Based',
+    description: 'Join a remote-first US-based team building the commerce platform that lets businesses own their store. Engineers, designers, and operators welcome.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Careers at BusinessCart.ai', url: `${baseUrl}/careers` }),
+  },
+  {
+    route: '/contact-us',
+    component: <ContactUs />,
+    output: 'contact-us/index.html',
+    title: 'Contact BusinessCart.ai — US-Based Support, All US Time Zones',
+    description: 'Contact BusinessCart.ai — US-based remote-first team across all US time zones. No overseas call centers; talk directly to the platform team.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'ContactPage', name: 'Contact BusinessCart.ai', url: `${baseUrl}/contact-us` }),
+  },
+  {
+    route: '/faq',
+    component: <FAQ />,
+    output: 'faq/index.html',
+    title: 'Frequently Asked Questions — BusinessCart.ai',
+    description: 'Answers on BusinessCart.ai pricing, B2B config, payment gateways, AI add-on, storefronts, and migration from Shopify, WooCommerce, marketplaces.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Frequently Asked Questions', url: `${baseUrl}/faq` }),
+  },
+  {
+    route: '/privacy-policy',
+    component: <PrivacyPolicy />,
+    output: 'privacy-policy/index.html',
+    title: 'Privacy Policy — BusinessCart.ai',
+    description: 'How BusinessCart.ai collects, uses, shares, and protects information from companies, customers, and storefront visitors. Updated March 2026.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Privacy Policy', url: `${baseUrl}/privacy-policy` }),
+  },
+  {
+    route: '/terms-of-service',
+    component: <TermsOfService />,
+    output: 'terms-of-service/index.html',
+    title: 'Terms of Service — BusinessCart.ai',
+    description: 'Terms governing BusinessCart.ai platform use. Pricing, payments, accounts, data ownership, termination policies. Updated March 2026.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Terms of Service', url: `${baseUrl}/terms-of-service` }),
+  },
+  {
+    route: '/system-status',
+    component: <ApiStatus />,
+    output: 'system-status/index.html',
+    title: 'System Status — BusinessCart.ai',
+    description: 'Current operational status of BusinessCart.ai: storefronts, catalog, checkout, payments, accounts, B2B configuration, and order management.',
+    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'System Status', url: `${baseUrl}/system-status` }),
   },
   {
     route: '/blog',
