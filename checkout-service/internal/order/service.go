@@ -66,6 +66,43 @@ func (s *Service) CountOrdersSince(accountID, sellerID string, since time.Time) 
 	return s.collection.CountDocuments(context.Background(), filter)
 }
 
+// CountOrdersForSellerSince returns the number of non-cancelled orders for a
+// seller since a given time, across all customers. Used by statement generation
+// to compute monthly tier and per-order fees.
+func (s *Service) CountOrdersForSellerSince(sellerID string, since time.Time) (int64, error) {
+	filter := bson.M{
+		"sellerId":  sellerID,
+		"status":    bson.M{"$ne": "cancelled"},
+		"createdAt": bson.M{"$gte": since},
+	}
+	return s.collection.CountDocuments(context.Background(), filter)
+}
+
+// GetSellerOrdersInPeriod returns non-cancelled orders for a seller within a
+// time window [from, to). Used by statement generation to compute period
+// totals and per-order capped fees (e.g., Starter tier $5/order cap).
+func (s *Service) GetSellerOrdersInPeriod(sellerID string, from, to time.Time) ([]*Order, error) {
+	filter := bson.M{
+		"sellerId": sellerID,
+		"status":   bson.M{"$ne": "cancelled"},
+		"createdAt": bson.M{
+			"$gte": from,
+			"$lt":  to,
+		},
+	}
+	cursor, err := s.collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var orders []*Order
+	if err = cursor.All(context.Background(), &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 func (s *Service) DeleteOrder(id primitive.ObjectID) error {
 	_, err := s.collection.DeleteOne(context.Background(), bson.M{"_id": id})
 	return err

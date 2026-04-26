@@ -249,6 +249,54 @@ export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'>
   return response.data;
 };
 
+// ─── Billing statements ─────────────────────────────────────────────
+// Mirrors checkout-service Statement struct + send-statement endpoint.
+
+export interface Statement {
+  sellerId: string;
+  periodStart: string;
+  periodEnd: string;
+  orderCount: number;
+  totalGrandTotal: number;
+  tier: 'Starter' | 'Growth' | 'Enterprise';
+  monthlyFee: number;
+  perOrderRate: number;
+  perOrderCap?: number;
+  transactionFees: number;
+  totalDue: number;
+}
+
+export const getStatement = async (sellerId: string, from: string, to: string): Promise<Statement> => {
+  const response = await api.get(`${API_URL}/checkout/orders/statement?sellerId=${encodeURIComponent(sellerId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  return response.data;
+};
+
+export interface SendStatementPayload {
+  sellerId: string;
+  from: string;
+  to: string;
+  recipientEmail: string;
+  companyName: string;
+  periodLabel: string;
+  paymentInstructions?: string;
+  dryRun: boolean;
+}
+
+export interface SendStatementResponse {
+  dryRun: boolean;
+  sent?: boolean;
+  recipient: string;
+  subject?: string;
+  htmlBody?: string;
+  textBody?: string;
+  statement: Statement;
+}
+
+export const sendStatement = async (payload: SendStatementPayload): Promise<SendStatementResponse> => {
+  const response = await api.post(`${API_URL}/checkout/orders/statement/send`, payload);
+  return response.data;
+};
+
 export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }, accountId?: string): Promise<Cart> => {
   let url = `${API_URL}/checkout/cart`;
   if (accountId) {

@@ -155,3 +155,107 @@ func lastSix(s string) string {
 	}
 	return s[len(s)-6:]
 }
+
+// ─────────────────────── Monthly Statement ───────────────────────
+
+// MonthlyStatementData is the flat view of a billing statement sent to a
+// company. The handler flattens an order.Statement into this struct so the
+// email package stays decoupled from the order domain.
+type MonthlyStatementData struct {
+	CompanyName     string
+	PeriodLabel     string  // e.g., "April 1 – April 30, 2026"
+	Tier            string  // "Starter" | "Growth" | "Enterprise"
+	OrderCount      int
+	TotalGrandTotal float64 // their gross revenue in the period
+	MonthlyFee      float64
+	PerOrderRateStr string  // pre-formatted, e.g., "6%, capped at $5/order"
+	TransactionFees float64
+	TotalDue        float64
+	PaymentInstructions string // plain text — varies per customer arrangement
+}
+
+// MonthlyStatementMessage builds the monthly billing statement email sent to a
+// company by the platform admin. Sender is BusinessCart; recipient is the
+// company's billing contact. Manual trigger (no cron) at this stage.
+func MonthlyStatementMessage(to string, data MonthlyStatementData) Message {
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("BusinessCart statement — %s — total $%.2f", data.PeriodLabel, data.TotalDue),
+		HTMLBody: renderHTML(monthlyStatementHTMLTmpl, data),
+		TextBody: monthlyStatementText(data),
+	}
+}
+
+func monthlyStatementText(d MonthlyStatementData) string {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "BusinessCart Monthly Statement\n\n")
+	fmt.Fprintf(&b, "Account: %s\n", d.CompanyName)
+	fmt.Fprintf(&b, "Period:  %s\n\n", d.PeriodLabel)
+	fmt.Fprintf(&b, "Pricing tier:        %s (%s)\n", d.Tier, d.PerOrderRateStr)
+	fmt.Fprintf(&b, "Orders this period:  %d\n", d.OrderCount)
+	fmt.Fprintf(&b, "Your gross revenue:  $%.2f\n\n", d.TotalGrandTotal)
+	fmt.Fprintf(&b, "Charges\n")
+	fmt.Fprintf(&b, "  Monthly fee:       $%.2f\n", d.MonthlyFee)
+	fmt.Fprintf(&b, "  Transaction fees:  $%.2f\n", d.TransactionFees)
+	fmt.Fprintf(&b, "  ─────────────────────────────\n")
+	fmt.Fprintf(&b, "  Total due:         $%.2f\n\n", d.TotalDue)
+	if d.PaymentInstructions != "" {
+		fmt.Fprintf(&b, "Payment\n%s\n\n", d.PaymentInstructions)
+	}
+	fmt.Fprintf(&b, "Questions? Reply to this email.\n\n— BusinessCart\n")
+	return b.String()
+}
+
+const monthlyStatementHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>BusinessCart statement</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">Monthly Statement</h1>
+  <p style="font-size:14px;color:#64748b;margin:0">Account: <strong>{{.CompanyName}}</strong></p>
+  <p style="font-size:14px;color:#64748b;margin:4px 0 24px">Period: <strong>{{.PeriodLabel}}</strong></p>
+
+  <table style="width:100%;border-collapse:collapse;margin:16px 0">
+    <tbody>
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Pricing tier</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right"><strong>{{.Tier}}</strong> &middot; <span style="color:#64748b">{{.PerOrderRateStr}}</span></td>
+      </tr>
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Orders this period</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right"><strong>{{.OrderCount}}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Your gross revenue</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .TotalGrandTotal}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="color:#1e293b;font-size:16px;margin-top:32px;margin-bottom:8px">Charges</h2>
+  <table style="width:100%;border-collapse:collapse">
+    <tbody>
+      <tr>
+        <td style="padding:8px;color:#64748b">Monthly fee</td>
+        <td style="padding:8px;text-align:right">${{printf "%.2f" .MonthlyFee}}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b">Transaction fees</td>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">${{printf "%.2f" .TransactionFees}}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 8px;font-weight:bold;font-size:18px">Total due</td>
+        <td style="padding:12px 8px;text-align:right;font-weight:bold;font-size:18px;color:#0d9488">${{printf "%.2f" .TotalDue}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {{if .PaymentInstructions}}
+  <h2 style="color:#1e293b;font-size:16px;margin-top:32px;margin-bottom:8px">Payment</h2>
+  <p style="font-size:14px;line-height:1.5;color:#1e293b;white-space:pre-line">{{.PaymentInstructions}}</p>
+  {{end}}
+
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="font-size:13px;color:#64748b">Questions? Just reply to this email.</p>
+  <p style="color:#64748b;font-size:12px;margin-top:24px">— BusinessCart</p>
+</body>
+</html>`

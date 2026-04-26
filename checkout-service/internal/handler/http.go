@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"strings"
 	"time"
@@ -250,6 +251,18 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
+	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "statement" {
+		return h.handleGetStatementRequest(request, accountID, role)
+	}
+	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[3] == "statement" && parts[4] == "send" {
+		return h.handleSendStatementRequest(request, role)
+	}
+	// Guard: any other request under /statement is a client mistake — refuse
+	// rather than fall through to handlePlaceOrderRequest (which would parse
+	// the body as an order checkout).
+	if len(parts) >= 4 && parts[3] == "statement" {
+		return h.errorResponse(http.StatusMethodNotAllowed, "Use GET /checkout/orders/statement or POST /checkout/orders/statement/send"), nil
+	}
 	if request.HTTPMethod == "POST" {
 		return h.handlePlaceOrderRequest(request, accountID)
 	}
@@ -656,6 +669,177 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 		Headers:    corsHeaders(h.requestOrigin),
 		Body:       string(respBody),
 	}, nil
+}
+
+// handleGetStatementRequest computes a billing statement for a seller and period.
+// GET /checkout/orders/statement?sellerId=<id>&from=<RFC3339>&to=<RFC3339>
+// Auth: admin can request any sellerId; company can request only their own.
+// Pure routing/auth — business logic lives in order.ComputeStatement.
+func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	sellerID := request.QueryStringParameters["sellerId"]
+	if sellerID == "" {
+		return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
+	}
+	if role != "admin" && !(role == "company" && sellerID == accountID) {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+
+	fromStr := request.QueryStringParameters["from"]
+	toStr := request.QueryStringParameters["to"]
+	if fromStr == "" || toStr == "" {
+		return h.errorResponse(http.StatusBadRequest, "from and to required (RFC3339)"), nil
+	}
+	from, err := time.Parse(time.RFC3339, fromStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "invalid from date"), nil
+	}
+	to, err := time.Parse(time.RFC3339, toStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "invalid to date"), nil
+	}
+	if !to.After(from) {
+		return h.errorResponse(http.StatusBadRequest, "to must be after from"), nil
+	}
+	if to.Sub(from) > 366*24*time.Hour {
+		return h.errorResponse(http.StatusBadRequest, "period exceeds 1 year"), nil
+	}
+
+	orders, err := h.orderService.GetSellerOrdersInPeriod(sellerID, from, to)
+	if err != nil {
+		log.Printf("ERROR: GetSellerOrdersInPeriod: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch orders"), nil
+	}
+
+	statement := order.ComputeStatement(sellerID, from, to, orders)
+	respBody, _ := json.Marshal(statement)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
+	}, nil
+}
+
+// handleSendStatementRequest sends (or dry-run-renders) a billing statement
+// email to a company. Admin-only. Synchronous send so the admin gets immediate
+// confirmation/error. Audit trail = SES log (Option B per APPLICATION.md).
+//
+// POST /checkout/orders/statement/send
+// Body: { sellerId, from (RFC3339), to (RFC3339), recipientEmail, companyName,
+//         periodLabel, paymentInstructions, dryRun }
+func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
+	}
+
+	var req struct {
+		SellerID            string `json:"sellerId"`
+		From                string `json:"from"`
+		To                  string `json:"to"`
+		RecipientEmail      string `json:"recipientEmail"`
+		CompanyName         string `json:"companyName"`
+		PeriodLabel         string `json:"periodLabel"`
+		PaymentInstructions string `json:"paymentInstructions"`
+		DryRun              bool   `json:"dryRun"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+	if req.SellerID == "" || req.From == "" || req.To == "" || req.RecipientEmail == "" || req.CompanyName == "" || req.PeriodLabel == "" {
+		return h.errorResponse(http.StatusBadRequest, "sellerId, from, to, recipientEmail, companyName, periodLabel are required"), nil
+	}
+	if _, err := mail.ParseAddress(req.RecipientEmail); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "invalid recipientEmail"), nil
+	}
+	if len(req.PaymentInstructions) > 2000 {
+		return h.errorResponse(http.StatusBadRequest, "paymentInstructions too long (max 2000 chars)"), nil
+	}
+
+	from, err := time.Parse(time.RFC3339, req.From)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "invalid from date"), nil
+	}
+	to, err := time.Parse(time.RFC3339, req.To)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "invalid to date"), nil
+	}
+	if !to.After(from) {
+		return h.errorResponse(http.StatusBadRequest, "to must be after from"), nil
+	}
+	if to.Sub(from) > 366*24*time.Hour {
+		return h.errorResponse(http.StatusBadRequest, "period exceeds 1 year"), nil
+	}
+
+	orders, err := h.orderService.GetSellerOrdersInPeriod(req.SellerID, from, to)
+	if err != nil {
+		log.Printf("ERROR: GetSellerOrdersInPeriod: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch orders"), nil
+	}
+
+	stmt := order.ComputeStatement(req.SellerID, from, to, orders)
+	emailData := buildStatementEmailData(stmt, req.CompanyName, req.PeriodLabel, req.PaymentInstructions)
+	msg := mailer.MonthlyStatementMessage(req.RecipientEmail, emailData)
+
+	if req.DryRun {
+		// Return the rendered email body without sending. Admin previews before commit.
+		respBody, _ := json.Marshal(map[string]interface{}{
+			"dryRun":    true,
+			"recipient": req.RecipientEmail,
+			"subject":   msg.Subject,
+			"htmlBody":  msg.HTMLBody,
+			"textBody":  msg.TextBody,
+			"statement": stmt,
+		})
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Headers:    corsHeaders(h.requestOrigin),
+			Body:       string(respBody),
+		}, nil
+	}
+
+	if h.emailSender == nil {
+		return h.errorResponse(http.StatusServiceUnavailable, "Email sender not configured"), nil
+	}
+	if err := h.emailSender.Send(context.Background(), msg); err != nil {
+		log.Printf("ERROR: statement email send failed for seller=%s recipient=%s: %v", req.SellerID, req.RecipientEmail, err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to send email"), nil
+	}
+	log.Printf("INFO: statement email sent to %s for seller=%s period=%s total=$%.2f", req.RecipientEmail, req.SellerID, req.PeriodLabel, stmt.TotalDue)
+
+	respBody, _ := json.Marshal(map[string]interface{}{
+		"dryRun":    false,
+		"sent":      true,
+		"recipient": req.RecipientEmail,
+		"statement": stmt,
+	})
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
+	}, nil
+}
+
+// buildStatementEmailData adapts the order.Statement domain object to the flat
+// email DTO. Pre-formats the per-order rate string so the email package stays
+// decoupled from pricing-tier logic.
+func buildStatementEmailData(stmt order.Statement, companyName, periodLabel, paymentInstructions string) mailer.MonthlyStatementData {
+	var rateStr string
+	if stmt.PerOrderCap != nil {
+		rateStr = fmt.Sprintf("%.2f%%, capped at $%.0f/order", stmt.PerOrderRate*100, *stmt.PerOrderCap)
+	} else {
+		rateStr = fmt.Sprintf("%.2f%% per order", stmt.PerOrderRate*100)
+	}
+	return mailer.MonthlyStatementData{
+		CompanyName:         companyName,
+		PeriodLabel:         periodLabel,
+		Tier:                stmt.Tier,
+		OrderCount:          stmt.OrderCount,
+		TotalGrandTotal:     stmt.TotalGrandTotal,
+		MonthlyFee:          stmt.MonthlyFee,
+		PerOrderRateStr:     rateStr,
+		TransactionFees:     stmt.TransactionFees,
+		TotalDue:            stmt.TotalDue,
+		PaymentInstructions: paymentInstructions,
+	}
 }
 
 func (h *LambdaHandler) handleDeleteOrderRequest(orderIDStr string, role string) (events.APIGatewayProxyResponse, error) {

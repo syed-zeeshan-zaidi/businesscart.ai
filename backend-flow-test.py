@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import base64
+import datetime
 import json
 import sys
 import time
@@ -1526,6 +1527,135 @@ class BackendFlowTest:
 
         self.run_test("Verify skipped visitors not stored", test_cleanup_visitor)
 
+    # ── Phase 8e: Billing Statements ───────────────────────────────
+
+    def phase8e_billing_statements(self):
+        phase("PHASE 8e: Billing Statements")
+
+        c1_id = self.ids["company1"]
+        # Period covering all of "this month" — orders created earlier in this run fall inside.
+        now = datetime.datetime.now(datetime.timezone.utc)
+        from_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Add ~32 days then snap to first of next month for the upper bound.
+        next_month = (from_dt + datetime.timedelta(days=32)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        from_str = from_dt.isoformat().replace("+00:00", "Z")
+        to_str = next_month.isoformat().replace("+00:00", "Z")
+
+        def test_get_statement_admin():
+            """Admin can fetch any seller's statement"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/orders/statement",
+                                params={"sellerId": c1_id, "from": from_str, "to": to_str})
+            assert_status(resp, 200, "Admin GET statement")
+            data = resp.json()
+            assert data.get("sellerId") == c1_id, f"sellerId mismatch: {data.get('sellerId')}"
+            assert data.get("tier") in ("Starter", "Growth", "Enterprise"), f"bad tier: {data.get('tier')}"
+            assert "orderCount" in data, "missing orderCount"
+            assert "totalDue" in data, "missing totalDue"
+            ok(f"Statement: tier={data['tier']} orders={data['orderCount']} totalDue=${data['totalDue']:.2f}")
+
+        self.run_test("GET statement as admin", test_get_statement_admin)
+
+        def test_get_statement_own_seller():
+            """Company can fetch its OWN statement"""
+            self.use_token("company1")
+            resp = self.api.get("/checkout/orders/statement",
+                                params={"sellerId": c1_id, "from": from_str, "to": to_str})
+            assert_status(resp, 200, "Company GET own statement")
+            data = resp.json()
+            assert data.get("sellerId") == c1_id, "own sellerId mismatch"
+            ok("Company can fetch own statement")
+
+        self.run_test("GET own statement as company", test_get_statement_own_seller)
+
+        def test_get_statement_other_forbidden():
+            """Customer fetching another seller's statement is forbidden"""
+            self.use_token("customer")
+            resp = self.api.get("/checkout/orders/statement",
+                                params={"sellerId": c1_id, "from": from_str, "to": to_str})
+            assert_status(resp, 403, "Customer GET others' statement")
+            ok("Non-admin/non-seller correctly forbidden")
+
+        self.run_test("Statement forbidden for unrelated role", test_get_statement_other_forbidden)
+
+        def test_get_statement_bad_dates():
+            """Invalid date range rejected"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/orders/statement",
+                                params={"sellerId": c1_id, "from": to_str, "to": from_str})
+            assert_status(resp, 400, "Inverted date range")
+            ok("Inverted date range rejected (400)")
+
+        self.run_test("Statement bad date range", test_get_statement_bad_dates)
+
+        def test_send_statement_dryrun():
+            """Admin dryRun returns rendered email body without sending"""
+            self.use_token("admin")
+            resp = self.api.post("/checkout/orders/statement/send", {
+                "sellerId": c1_id,
+                "from": from_str,
+                "to": to_str,
+                "recipientEmail": "billing-test@example.com",
+                "companyName": "Test Co",
+                "periodLabel": "Test Period",
+                "paymentInstructions": "Pay via test rails.",
+                "dryRun": True,
+            })
+            assert_status(resp, 200, "Dry-run send")
+            data = resp.json()
+            assert data.get("dryRun") is True, "dryRun flag not echoed"
+            assert data.get("htmlBody"), "missing htmlBody"
+            assert data.get("textBody"), "missing textBody"
+            assert "statement" in data, "missing statement"
+            ok("Dry-run preview returns htmlBody, textBody, statement")
+
+        self.run_test("Send statement dryRun preview", test_send_statement_dryrun)
+
+        def test_send_statement_company_forbidden():
+            """Non-admin POST to send is rejected"""
+            self.use_token("company1")
+            resp = self.api.post("/checkout/orders/statement/send", {
+                "sellerId": c1_id,
+                "from": from_str,
+                "to": to_str,
+                "recipientEmail": "x@example.com",
+                "companyName": "X",
+                "periodLabel": "P",
+                "dryRun": True,
+            })
+            assert_status(resp, 403, "Company send")
+            ok("Non-admin send correctly forbidden")
+
+        self.run_test("Send statement admin-only", test_send_statement_company_forbidden)
+
+        def test_send_statement_bad_email():
+            """Malformed recipientEmail rejected"""
+            self.use_token("admin")
+            resp = self.api.post("/checkout/orders/statement/send", {
+                "sellerId": c1_id,
+                "from": from_str,
+                "to": to_str,
+                "recipientEmail": "not-an-email",
+                "companyName": "X",
+                "periodLabel": "P",
+                "dryRun": True,
+            })
+            assert_status(resp, 400, "Bad email")
+            ok("Malformed email rejected (400)")
+
+        self.run_test("Send statement validates email", test_send_statement_bad_email)
+
+        def test_statement_route_guard():
+            """POST /checkout/orders/statement (no /send) must NOT fall through to place-order.
+            API Gateway has no POST method on /statement, so it rejects with 403 before Lambda
+            is invoked — strictly safer than reaching the handler."""
+            self.use_token("admin")
+            resp = self.api.post("/checkout/orders/statement", {})
+            assert_status(resp, 403, "POST /statement (no /send)")
+            ok("API Gateway rejects unmapped POST /statement (no fall-through to place-order)")
+
+        self.run_test("Statement route guard", test_statement_route_guard)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -1690,6 +1820,7 @@ class BackendFlowTest:
             self.phase8b_deals_and_export()
             self.phase8c_password_reset()
             self.phase8d_visitor_tracking()
+            self.phase8e_billing_statements()
         finally:
             self.cleanup()
 
