@@ -12,6 +12,7 @@ import {
   KeyIcon,
   MapPinIcon,
   ChartBarIcon,
+  BanknotesIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
@@ -86,6 +87,7 @@ const Sidebar = () => {
         { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
         { name: 'Users', path: '/users', icon: UserIcon },
         ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
+        ...(isAdmin ? [{ name: 'Billing', path: '/admin/billing', icon: BanknotesIcon }] : []),
         { name: 'Locations', path: '/locations', icon: MapPinIcon },
       ],
     },
