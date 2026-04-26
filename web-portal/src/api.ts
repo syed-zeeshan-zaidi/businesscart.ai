@@ -290,11 +290,36 @@ export interface SendStatementResponse {
   htmlBody?: string;
   textBody?: string;
   statement: Statement;
+  snapshot?: PersistedStatement;
 }
 
 export const sendStatement = async (payload: SendStatementPayload): Promise<SendStatementResponse> => {
   const response = await api.post(`${API_URL}/checkout/orders/statement/send`, payload);
   return response.data;
+};
+
+// PersistedStatement is a snapshot stored at admin Send time. Includes audit
+// fields the live-computed Statement doesn't have.
+export interface PersistedStatement extends Statement {
+  id: string;
+  periodLabel?: string;
+  recipientEmail: string;
+  companyName?: string;
+  paymentInstructions?: string;
+  sentAt: string;
+  sentByAdminId?: string;
+  paidAt?: string;
+  paymentReference?: string;
+}
+
+export const getStatements = async (sellerId: string): Promise<PersistedStatement[]> => {
+  const response = await api.get(`${API_URL}/checkout/statements?sellerId=${encodeURIComponent(sellerId)}`);
+  return response.data;
+};
+
+// Admin retraction — deletes a statement that was sent in error.
+export const deleteStatement = async (id: string): Promise<void> => {
+  await api.delete(`${API_URL}/checkout/statements/${encodeURIComponent(id)}`);
 };
 
 export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }, accountId?: string): Promise<Cart> => {

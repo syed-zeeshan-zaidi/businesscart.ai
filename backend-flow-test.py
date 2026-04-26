@@ -167,6 +167,7 @@ class Tracker:
         self.orders = []     # order_id
         self.codes = []      # company_code string (used for DELETE /codes/{code})
         self.visitors = []   # visitor_id string
+        self.statements = [] # statement_id string
 
     def track_account(self, role_key, account_id):
         self.accounts.append((role_key, account_id))
@@ -184,6 +185,10 @@ class Tracker:
     def track_code(self, company_code):
         if company_code not in self.codes:
             self.codes.append(company_code)
+
+    def track_statement(self, statement_id):
+        if statement_id not in self.statements:
+            self.statements.append(statement_id)
 
 
 # ── Test runner ───────────────────────────────────────────────────────
@@ -1656,6 +1661,78 @@ class BackendFlowTest:
 
         self.run_test("Statement route guard", test_statement_route_guard)
 
+        # Track statement count before real send so we can verify exactly one new row.
+        def test_send_statement_persists():
+            """Real (non-dryRun) send returns a snapshot doc with id+sentAt.
+            Local SMTP is no-op — Send returns nil so the snapshot still persists,
+            which is the path we want to test."""
+            self.use_token("admin")
+            resp = self.api.post("/checkout/orders/statement/send", {
+                "sellerId": c1_id,
+                "from": from_str,
+                "to": to_str,
+                "recipientEmail": "billing-test@example.com",
+                "companyName": "Test Co",
+                "periodLabel": "Test Period",
+                "paymentInstructions": "Pay via test rails.",
+                "dryRun": False,
+            })
+            assert_status(resp, 200, "Real send")
+            data = resp.json()
+            assert data.get("sent") is True, "sent flag not true"
+            snap = data.get("snapshot")
+            assert snap, f"missing snapshot in response: {data}"
+            assert snap.get("id"), "snapshot missing id"
+            assert snap.get("sentAt"), "snapshot missing sentAt"
+            assert snap.get("sellerId") == c1_id, "snapshot sellerId mismatch"
+            assert snap.get("recipientEmail") == "billing-test@example.com", "snapshot recipient mismatch"
+            self.tracker.track_statement(snap["id"])
+            ok(f"Statement persisted: id={snap['id'][:8]}... totalDue=${snap['totalDue']:.2f}")
+
+        self.run_test("Send statement persists snapshot", test_send_statement_persists)
+
+        def test_get_statements_admin():
+            """Admin can list any seller's persisted statements"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Admin list statements")
+            arr = resp.json()
+            assert isinstance(arr, list), f"expected list, got {type(arr)}"
+            assert len(arr) >= 1, f"expected ≥1 statement, got {len(arr)}"
+            assert arr[0].get("sellerId") == c1_id, "list result sellerId mismatch"
+            ok(f"Admin sees {len(arr)} statement(s)")
+
+        self.run_test("List statements as admin", test_get_statements_admin)
+
+        def test_get_statements_own_seller():
+            """Company can list its own persisted statements"""
+            self.use_token("company1")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Company list own")
+            arr = resp.json()
+            assert len(arr) >= 1, "company should see own statement"
+            ok(f"Company sees {len(arr)} own statement(s)")
+
+        self.run_test("List own statements as company", test_get_statements_own_seller)
+
+        def test_get_statements_other_forbidden():
+            """Customer listing another seller's statements is forbidden"""
+            self.use_token("customer")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 403, "Customer list others'")
+            ok("Non-admin/non-seller correctly forbidden on list")
+
+        self.run_test("List statements forbidden for unrelated role", test_get_statements_other_forbidden)
+
+        def test_get_statements_missing_seller():
+            """Missing sellerId rejected"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/statements")
+            assert_status(resp, 400, "Missing sellerId")
+            ok("Missing sellerId rejected (400)")
+
+        self.run_test("List statements requires sellerId", test_get_statements_missing_seller)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -1755,56 +1832,104 @@ class BackendFlowTest:
                 except Exception as e:
                     warn(f"Error deleting visitor {vid}: {e}")
 
+        # Delete persisted statement snapshots (admin only).
+        # Statements are immutable in production but tests must clean up so the
+        # collection doesn't accumulate orphans across runs.
+        step("Deleting test statements")
+        if "admin" in self.jwts:
+            self.use_token("admin")
+            for sid in self.tracker.statements:
+                try:
+                    resp = self.api.delete(f"/checkout/statements/{sid}")
+                    if resp.status_code == 200:
+                        ok(f"Deleted statement {sid[:8]}...")
+                    else:
+                        warn(f"Failed to delete statement {sid[:8]}...: HTTP {resp.status_code}")
+                except Exception as e:
+                    warn(f"Error deleting statement {sid[:8]}...: {e}")
+
         step("Cleanup complete")
 
     # ── Main ─────────────────────────────────────────────────────
+
+    def discover_and_cleanup(self):
+        """Log in to known test accounts, discover any leftover test data, and
+        run the standard cleanup. Used both in --cleanup-only mode and as a
+        safety net before phase1 in a normal run (catches leftovers from a
+        prior crashed run)."""
+        step("Logging in existing test accounts for cleanup")
+        for role_key in ["admin", "company1", "company2", "customer", "customer2", "b2c"]:
+            token = self._login(USERS[role_key]["email"])
+            if token:
+                self.jwts[role_key] = token
+                self.ids[role_key] = self._get_id_from_jwt(token)
+                ok(f"Found {role_key}: {self.ids[role_key][:8]}...")
+            else:
+                # Quiet during pre-cleanup; only loud in --cleanup-only mode
+                pass
+
+        step("Discovering test data to clean up")
+
+        # Discover orders (admin sees all)
+        if "admin" in self.jwts:
+            self.use_token("admin")
+            resp = self.api.get("/checkout/orders")
+            if resp.status_code == 200:
+                test_account_ids = set(self.ids.values())
+                for order in resp.json():
+                    if order.get("accountId") in test_account_ids:
+                        self.tracker.track_order(order["id"])
+                ok(f"Found {len(self.tracker.orders)} test orders")
+
+        # Discover products (per company)
+        for role_key in ["company1", "company2"]:
+            if role_key in self.jwts:
+                self.use_token(role_key)
+                resp = self.api.get("/products")
+                if resp.status_code == 200:
+                    for p in resp.json():
+                        if p.get("name", "").startswith(PREFIX):
+                            self.tracker.track_product(role_key, p["_id"])
+                    ok(f"Found {len([x for x in self.tracker.products if x[0]==role_key])} test products for {role_key}")
+
+        # Track known code strings
+        for code_set in CODES.values():
+            self.tracker.track_code(code_set["companyCode"])
+
+        # Discover persisted statements per known seller account
+        if "admin" in self.jwts:
+            self.use_token("admin")
+            for seller_role in ["company1", "company2"]:
+                if seller_role in self.ids:
+                    try:
+                        resp = self.api.get("/checkout/statements", params={"sellerId": self.ids[seller_role]})
+                        if resp.status_code == 200:
+                            for s in resp.json():
+                                if s.get("id"):
+                                    self.tracker.track_statement(s["id"])
+                    except Exception:
+                        pass
+            if self.tracker.statements:
+                ok(f"Found {len(self.tracker.statements)} test statement(s)")
+
+        self.cleanup()
+        # Reset state so the caller can proceed with a fresh phase1_setup.
+        self.jwts = {}
+        self.ids = {}
+        self.tracker = Tracker()
+        self.api.clear_token()
 
     def run(self, cleanup_only=False):
         start_time = time.time()
 
         if cleanup_only:
             phase("CLEANUP ONLY MODE")
-            step("Logging in existing test accounts for cleanup")
-            for role_key in ["admin", "company1", "company2", "customer", "customer2", "b2c"]:
-                token = self._login(USERS[role_key]["email"])
-                if token:
-                    self.jwts[role_key] = token
-                    self.ids[role_key] = self._get_id_from_jwt(token)
-                    ok(f"Found {role_key}: {self.ids[role_key][:8]}...")
-                else:
-                    warn(f"{role_key} not found, skipping")
-
-            # Discover existing test data since tracker is empty
-            step("Discovering test data to clean up")
-
-            # Discover orders (admin sees all)
-            if "admin" in self.jwts:
-                self.use_token("admin")
-                resp = self.api.get("/checkout/orders")
-                if resp.status_code == 200:
-                    test_account_ids = set(self.ids.values())
-                    for order in resp.json():
-                        if order.get("accountId") in test_account_ids:
-                            self.tracker.track_order(order["id"])
-                    ok(f"Found {len(self.tracker.orders)} test orders")
-
-            # Discover products (per company)
-            for role_key in ["company1", "company2"]:
-                if role_key in self.jwts:
-                    self.use_token(role_key)
-                    resp = self.api.get("/products")
-                    if resp.status_code == 200:
-                        for p in resp.json():
-                            if p.get("name", "").startswith(PREFIX):
-                                self.tracker.track_product(role_key, p["_id"])
-                        ok(f"Found {len([x for x in self.tracker.products if x[0]==role_key])} test products for {role_key}")
-
-            # Track known code strings
-            for code_set in CODES.values():
-                self.tracker.track_code(code_set["companyCode"])
-
-            self.cleanup()
+            self.discover_and_cleanup()
             return
+
+        # Pre-clean: catch leftovers from a prior crashed run before starting.
+        phase("PRE-CLEAN: removing any leftover test data")
+        self.discover_and_cleanup()
 
         try:
             self.phase1_setup()

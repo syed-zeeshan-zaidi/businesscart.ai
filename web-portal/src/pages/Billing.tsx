@@ -3,7 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
-import { getAccounts, getStatement, sendStatement, Statement, SendStatementResponse } from '../api';
+import {
+  getAccounts,
+  getStatement,
+  getStatements,
+  sendStatement,
+  Statement,
+  PersistedStatement,
+  SendStatementResponse,
+} from '../api';
 import { Account } from '../types';
 
 interface Row {
@@ -24,27 +32,38 @@ function currentMonthRange(now: Date = new Date()): { from: string; to: string; 
   return { from, to, label };
 }
 
-const AdminBilling: React.FC = () => {
+const Billing: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, decodeJWT } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Row | null>(null);
-  const period = currentMonthRange();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  const decoded = token ? decodeJWT(token) : null;
+  const role: string = decoded?.role || '';
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    const token = localStorage.getItem('accessToken');
-    const decoded = token ? decodeJWT(token) : null;
-    if (!decoded || decoded.role !== 'admin') {
-      toast.error('Admin only');
+    if (role !== 'admin' && role !== 'company') {
+      toast.error('Billing not available for this role');
       navigate('/dashboard');
-      return;
     }
+  }, [isAuthenticated, navigate, role]);
 
+  if (role === 'admin') return <AdminView />;
+  if (role === 'company') return <CompanyView accountId={decoded?.id || ''} />;
+  return null;
+};
+
+// ─────────────────────── Admin view ───────────────────────
+
+const AdminView: React.FC = () => {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Row | null>(null);
+  const period = currentMonthRange();
+
+  useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
@@ -52,8 +71,6 @@ const AdminBilling: React.FC = () => {
         const companies = accounts.filter((a) => a.role === 'company');
         const initial: Row[] = companies.map((a) => ({ account: a, loading: true, statement: null, error: null }));
         setRows(initial);
-
-        // Fetch statements sequentially. At 1 customer this is fine; at 50+ would batch backend.
         const enriched: Row[] = [];
         for (const r of initial) {
           try {
@@ -73,7 +90,7 @@ const AdminBilling: React.FC = () => {
       }
     };
     load();
-  }, [isAuthenticated, navigate, decodeJWT, period.from, period.to]);
+  }, [period.from, period.to]);
 
   const totalProjected = rows.reduce((s, r) => s + (r.statement?.totalDue || 0), 0);
 
@@ -179,6 +196,122 @@ const AdminBilling: React.FC = () => {
     </div>
   );
 };
+
+// ─────────────────────── Company view ───────────────────────
+
+const CompanyView: React.FC<{ accountId: string }> = ({ accountId }) => {
+  const period = currentMonthRange();
+  const [current, setCurrent] = useState<Statement | null>(null);
+  const [history, setHistory] = useState<PersistedStatement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [cur, hist] = await Promise.all([
+          getStatement(accountId, period.from, period.to),
+          getStatements(accountId),
+        ]);
+        setCurrent(cur);
+        setHistory(hist);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to load billing');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [accountId, period.from, period.to]);
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      <Toaster position="top-right" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-800">Billing</h1>
+            <p className="text-gray-500 mt-1">
+              Your tier auto-applies based on monthly order volume. Statements are emailed by the BusinessCart team.
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="p-8 flex justify-center">
+              <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full" />
+            </div>
+          ) : (
+            <>
+              <div className="bg-white p-5 rounded-lg shadow mb-6">
+                <p className="text-sm text-gray-500">Projected total — {period.label} (in progress)</p>
+                <p className="text-3xl font-bold text-teal-700 mt-1">
+                  ${(current?.totalDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                {current && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tier: <strong>{current.tier}</strong> &middot; {current.orderCount} order{current.orderCount === 1 ? '' : 's'} so far &middot; Monthly fee ${current.monthlyFee.toFixed(2)} + Txn fees ${current.transactionFees.toFixed(2)}
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-white rounded-lg shadow">
+                <div className="p-4 border-b">
+                  <h2 className="text-lg font-semibold text-gray-800">Sent statements</h2>
+                </div>
+                {history.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">No statements sent yet. The first one will appear here once your billing period closes.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-left text-gray-600">
+                          <th className="px-4 py-3 font-medium">Period</th>
+                          <th className="px-4 py-3 font-medium">Sent</th>
+                          <th className="px-4 py-3 font-medium text-center">Orders</th>
+                          <th className="px-4 py-3 font-medium">Tier</th>
+                          <th className="px-4 py-3 font-medium text-right">Monthly fee</th>
+                          <th className="px-4 py-3 font-medium text-right">Txn fees</th>
+                          <th className="px-4 py-3 font-medium text-right">Total billed</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {history.map((s) => (
+                          <tr key={s.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium text-gray-800">{s.periodLabel || new Date(s.periodStart).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-gray-600">{new Date(s.sentAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-center text-gray-700">{s.orderCount}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-block px-2 py-0.5 rounded bg-teal-700/10 text-teal-700 text-xs font-bold uppercase tracking-wider">{s.tier}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-700">${s.monthlyFee.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right text-gray-700">${s.transactionFees.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right font-bold text-gray-900">${s.totalDue.toFixed(2)}</td>
+                            <td className="px-4 py-3">
+                              {s.paidAt ? (
+                                <span className="inline-block px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-bold uppercase tracking-wider">Paid</span>
+                              ) : (
+                                <span className="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider">Open</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────── Send modal (admin only) ───────────────────────
 
 interface ModalProps {
   row: Row;
@@ -329,4 +462,4 @@ const SendStatementModal: React.FC<ModalProps> = ({ row, period, onClose, onSent
   );
 };
 
-export default AdminBilling;
+export default Billing;

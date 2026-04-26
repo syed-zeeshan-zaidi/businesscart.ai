@@ -268,6 +268,10 @@ export class BusinessCartStack extends cdk.Stack {
     orderStatement.addResource('send').addMethod('POST', checkoutInteg);
     const orderById = orders.addResource('{orderId}');
     orderById.addMethod('DELETE', checkoutInteg);
+    const statements = checkoutRoot.addResource('statements');
+    statements.addMethod('GET', checkoutInteg);
+    const statementById = statements.addResource('{statementId}');
+    statementById.addMethod('DELETE', checkoutInteg);
 
     // Gateway config management (company/admin)
     const gateways = checkoutRoot.addResource('gateways');
