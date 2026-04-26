@@ -852,34 +852,63 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 	}, nil
 }
 
-// handleStatementsRequest serves the persisted statement history.
-// GET /checkout/statements?sellerId=<id>
-// Auth: admin can list any seller; company can list only their own.
+// handleStatementsRequest serves persisted statement history (GET) and admin
+// retraction (DELETE for a statement sent in error). All other methods rejected.
+//   GET    /checkout/statements?sellerId=<id>   admin or own-seller
+//   DELETE /checkout/statements/{id}            admin only
 func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
-	if request.HTTPMethod != "GET" {
-		return h.errorResponse(http.StatusMethodNotAllowed, "Only GET supported"), nil
+	parts := strings.Split(strings.Trim(request.Path, "/"), "/")
+	// parts: ["checkout", "statements"] or ["checkout", "statements", "{id}"]
+
+	if request.HTTPMethod == "GET" && len(parts) == 2 {
+		sellerID := request.QueryStringParameters["sellerId"]
+		if sellerID == "" {
+			return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
+		}
+		if role != "admin" && !(role == "company" && sellerID == accountID) {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+		stmts, err := h.statementService.ListBySeller(sellerID, 24)
+		if err != nil {
+			log.Printf("ERROR: ListBySeller: %v", err)
+			return h.errorResponse(http.StatusInternalServerError, "Failed to fetch statements"), nil
+		}
+		if stmts == nil {
+			stmts = []*statement.Statement{}
+		}
+		respBody, _ := json.Marshal(stmts)
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Headers:    corsHeaders(h.requestOrigin),
+			Body:       string(respBody),
+		}, nil
 	}
-	sellerID := request.QueryStringParameters["sellerId"]
-	if sellerID == "" {
-		return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
+
+	if request.HTTPMethod == "DELETE" && len(parts) == 3 {
+		if role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
+		}
+		oid, err := primitive.ObjectIDFromHex(parts[2])
+		if err != nil {
+			return h.errorResponse(http.StatusBadRequest, "invalid statement id"), nil
+		}
+		ok, err := h.statementService.Delete(oid)
+		if err != nil {
+			log.Printf("ERROR: statement Delete: %v", err)
+			return h.errorResponse(http.StatusInternalServerError, "Failed to delete"), nil
+		}
+		if !ok {
+			return h.errorResponse(http.StatusNotFound, "Statement not found"), nil
+		}
+		log.Printf("INFO: admin %s retracted statement %s", accountID, parts[2])
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Headers:    corsHeaders(h.requestOrigin),
+			Body:       `{"deleted":true}`,
+		}, nil
 	}
-	if role != "admin" && !(role == "company" && sellerID == accountID) {
-		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
-	}
-	stmts, err := h.statementService.ListBySeller(sellerID, 24)
-	if err != nil {
-		log.Printf("ERROR: ListBySeller: %v", err)
-		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch statements"), nil
-	}
-	if stmts == nil {
-		stmts = []*statement.Statement{}
-	}
-	respBody, _ := json.Marshal(stmts)
-	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusOK,
-		Headers:    corsHeaders(h.requestOrigin),
-		Body:       string(respBody),
-	}, nil
+
+	return h.errorResponse(http.StatusMethodNotAllowed, "Use GET /checkout/statements or DELETE /checkout/statements/{id}"), nil
 }
 
 // buildStatementEmailData adapts the statement.Computed domain object to the
