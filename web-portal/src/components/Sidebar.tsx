@@ -46,6 +46,7 @@ const Sidebar = () => {
   }, []);
 
   const isAdmin = user?.role === 'admin';
+  const isCompany = user?.role === 'company';
 
   // Pending order count + current pricing tier from dashboard cache (no API calls).
   // Tier shown only for company role; admins see no tier (they don't have one).
@@ -87,7 +88,7 @@ const Sidebar = () => {
         { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
         { name: 'Users', path: '/users', icon: UserIcon },
         ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
-        ...(isAdmin ? [{ name: 'Billing', path: '/admin/billing', icon: BanknotesIcon }] : []),
+        ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon }] : []),
         { name: 'Locations', path: '/locations', icon: MapPinIcon },
       ],
     },

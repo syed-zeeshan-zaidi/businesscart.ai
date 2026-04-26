@@ -55,7 +55,7 @@ const SolutionsMarketplaceEscape = lazy(() => import('./pages/SolutionsMarketpla
 const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
-const AdminBilling = lazy(() => import('./pages/AdminBilling'));
+const Billing = lazy(() => import('./pages/Billing'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -103,6 +103,7 @@ const AppContent = () => {
     '/admin/products',
     '/admin/orders',
     '/admin/billing',
+    '/billing',
     '/locations',
     '/quote-create',
     '/analytics',
@@ -235,7 +236,11 @@ const AppContent = () => {
               />
               <Route
                 path="/admin/billing"
-                element={isAuthenticated ? <AdminBilling /> : <Navigate to="/login" replace />}
+                element={isAuthenticated ? <Billing /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/billing"
+                element={isAuthenticated ? <Billing /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/analytics"

@@ -1656,6 +1656,77 @@ class BackendFlowTest:
 
         self.run_test("Statement route guard", test_statement_route_guard)
 
+        # Track statement count before real send so we can verify exactly one new row.
+        def test_send_statement_persists():
+            """Real (non-dryRun) send returns a snapshot doc with id+sentAt.
+            Local SMTP is no-op — Send returns nil so the snapshot still persists,
+            which is the path we want to test."""
+            self.use_token("admin")
+            resp = self.api.post("/checkout/orders/statement/send", {
+                "sellerId": c1_id,
+                "from": from_str,
+                "to": to_str,
+                "recipientEmail": "billing-test@example.com",
+                "companyName": "Test Co",
+                "periodLabel": "Test Period",
+                "paymentInstructions": "Pay via test rails.",
+                "dryRun": False,
+            })
+            assert_status(resp, 200, "Real send")
+            data = resp.json()
+            assert data.get("sent") is True, "sent flag not true"
+            snap = data.get("snapshot")
+            assert snap, f"missing snapshot in response: {data}"
+            assert snap.get("id"), "snapshot missing id"
+            assert snap.get("sentAt"), "snapshot missing sentAt"
+            assert snap.get("sellerId") == c1_id, "snapshot sellerId mismatch"
+            assert snap.get("recipientEmail") == "billing-test@example.com", "snapshot recipient mismatch"
+            ok(f"Statement persisted: id={snap['id'][:8]}... totalDue=${snap['totalDue']:.2f}")
+
+        self.run_test("Send statement persists snapshot", test_send_statement_persists)
+
+        def test_get_statements_admin():
+            """Admin can list any seller's persisted statements"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Admin list statements")
+            arr = resp.json()
+            assert isinstance(arr, list), f"expected list, got {type(arr)}"
+            assert len(arr) >= 1, f"expected ≥1 statement, got {len(arr)}"
+            assert arr[0].get("sellerId") == c1_id, "list result sellerId mismatch"
+            ok(f"Admin sees {len(arr)} statement(s)")
+
+        self.run_test("List statements as admin", test_get_statements_admin)
+
+        def test_get_statements_own_seller():
+            """Company can list its own persisted statements"""
+            self.use_token("company1")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Company list own")
+            arr = resp.json()
+            assert len(arr) >= 1, "company should see own statement"
+            ok(f"Company sees {len(arr)} own statement(s)")
+
+        self.run_test("List own statements as company", test_get_statements_own_seller)
+
+        def test_get_statements_other_forbidden():
+            """Customer listing another seller's statements is forbidden"""
+            self.use_token("customer")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 403, "Customer list others'")
+            ok("Non-admin/non-seller correctly forbidden on list")
+
+        self.run_test("List statements forbidden for unrelated role", test_get_statements_other_forbidden)
+
+        def test_get_statements_missing_seller():
+            """Missing sellerId rejected"""
+            self.use_token("admin")
+            resp = self.api.get("/checkout/statements")
+            assert_status(resp, 400, "Missing sellerId")
+            ok("Missing sellerId rejected (400)")
+
+        self.run_test("List statements requires sellerId", test_get_statements_missing_seller)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):

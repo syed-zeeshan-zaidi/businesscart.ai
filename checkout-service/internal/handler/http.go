@@ -19,6 +19,7 @@ import (
 	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/order"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
+	"github.com/syed/businesscart/checkout-service/internal/statement"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -69,6 +70,7 @@ type LambdaHandler struct {
 	cartService      *cart.Service
 	quoteService     *quote.Service
 	orderService     *order.Service
+	statementService *statement.Service
 	gatewayStore     *gateway.Store
 	gatewayRegistry  *gateway.Registry
 	jwtSecret        string
@@ -77,16 +79,17 @@ type LambdaHandler struct {
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, statementService *statement.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
-		cartService:     cartService,
-		quoteService:    quoteService,
-		orderService:    orderService,
-		gatewayStore:    gatewayStore,
-		gatewayRegistry: gatewayRegistry,
-		jwtSecret:       jwtSecret,
-		apiBaseURL:      apiBaseURL,
-		emailSender:     emailSender,
+		cartService:      cartService,
+		quoteService:     quoteService,
+		orderService:     orderService,
+		statementService: statementService,
+		gatewayStore:     gatewayStore,
+		gatewayRegistry:  gatewayRegistry,
+		jwtSecret:        jwtSecret,
+		apiBaseURL:       apiBaseURL,
+		emailSender:      emailSender,
 	}
 }
 
@@ -242,6 +245,8 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 		return h.handleQuoteRequest(request, accountID, role, configurations)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
 		return h.handleOrderRequest(request, accountID, role)
+	} else if strings.HasPrefix(request.Path, "/checkout/statements") {
+		return h.handleStatementsRequest(request, accountID, role)
 	} else if strings.HasPrefix(request.Path, "/checkout/gateways") {
 		return h.handleGatewayRequest(request, accountID, role)
 	}
@@ -255,7 +260,7 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 		return h.handleGetStatementRequest(request, accountID, role)
 	}
 	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[3] == "statement" && parts[4] == "send" {
-		return h.handleSendStatementRequest(request, role)
+		return h.handleSendStatementRequest(request, accountID, role)
 	}
 	// Guard: any other request under /statement is a client mistake — refuse
 	// rather than fall through to handlePlaceOrderRequest (which would parse
@@ -674,7 +679,7 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 // handleGetStatementRequest computes a billing statement for a seller and period.
 // GET /checkout/orders/statement?sellerId=<id>&from=<RFC3339>&to=<RFC3339>
 // Auth: admin can request any sellerId; company can request only their own.
-// Pure routing/auth — business logic lives in order.ComputeStatement.
+// Pure routing/auth — business logic lives in statement.Compute.
 func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	sellerID := request.QueryStringParameters["sellerId"]
 	if sellerID == "" {
@@ -710,8 +715,8 @@ func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxy
 		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch orders"), nil
 	}
 
-	statement := order.ComputeStatement(sellerID, from, to, orders)
-	respBody, _ := json.Marshal(statement)
+	computed := statement.Compute(sellerID, from, to, orders)
+	respBody, _ := json.Marshal(computed)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers:    corsHeaders(h.requestOrigin),
@@ -720,13 +725,14 @@ func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxy
 }
 
 // handleSendStatementRequest sends (or dry-run-renders) a billing statement
-// email to a company. Admin-only. Synchronous send so the admin gets immediate
-// confirmation/error. Audit trail = SES log (Option B per APPLICATION.md).
+// email to a company. Admin-only. On a real (non-dryRun) send, the computed
+// values are snapshotted to the statements collection so historical
+// recomputation can never drift from what the company was actually billed.
 //
 // POST /checkout/orders/statement/send
 // Body: { sellerId, from (RFC3339), to (RFC3339), recipientEmail, companyName,
 //         periodLabel, paymentInstructions, dryRun }
-func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
 	}
@@ -775,8 +781,8 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch orders"), nil
 	}
 
-	stmt := order.ComputeStatement(req.SellerID, from, to, orders)
-	emailData := buildStatementEmailData(stmt, req.CompanyName, req.PeriodLabel, req.PaymentInstructions)
+	computed := statement.Compute(req.SellerID, from, to, orders)
+	emailData := buildStatementEmailData(computed, req.CompanyName, req.PeriodLabel, req.PaymentInstructions)
 	msg := mailer.MonthlyStatementMessage(req.RecipientEmail, emailData)
 
 	if req.DryRun {
@@ -787,7 +793,7 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 			"subject":   msg.Subject,
 			"htmlBody":  msg.HTMLBody,
 			"textBody":  msg.TextBody,
-			"statement": stmt,
+			"statement": computed,
 		})
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusOK,
@@ -803,13 +809,41 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 		log.Printf("ERROR: statement email send failed for seller=%s recipient=%s: %v", req.SellerID, req.RecipientEmail, err)
 		return h.errorResponse(http.StatusInternalServerError, "Failed to send email"), nil
 	}
-	log.Printf("INFO: statement email sent to %s for seller=%s period=%s total=$%.2f", req.RecipientEmail, req.SellerID, req.PeriodLabel, stmt.TotalDue)
+	log.Printf("INFO: statement email sent to %s for seller=%s period=%s total=$%.2f", req.RecipientEmail, req.SellerID, req.PeriodLabel, computed.TotalDue)
+
+	// Snapshot the sent statement. The send already succeeded, so DB failure
+	// here means the customer got a bill we don't have a record of — log loudly
+	// but still return success so admin knows the email went out.
+	snapshot := &statement.Statement{
+		SellerID:            req.SellerID,
+		PeriodStart:         from,
+		PeriodEnd:           to,
+		PeriodLabel:         req.PeriodLabel,
+		OrderCount:          computed.OrderCount,
+		TotalGrandTotal:     computed.TotalGrandTotal,
+		Tier:                computed.Tier,
+		MonthlyFee:          computed.MonthlyFee,
+		PerOrderRate:        computed.PerOrderRate,
+		PerOrderCap:         computed.PerOrderCap,
+		TransactionFees:     computed.TransactionFees,
+		TotalDue:            computed.TotalDue,
+		RecipientEmail:      req.RecipientEmail,
+		CompanyName:         req.CompanyName,
+		PaymentInstructions: req.PaymentInstructions,
+		SentAt:              time.Now().UTC(),
+		SentByAdminID:       accountID,
+	}
+	saved, saveErr := h.statementService.Save(snapshot)
+	if saveErr != nil {
+		log.Printf("ERROR: statement snapshot save failed (email already sent) seller=%s: %v", req.SellerID, saveErr)
+	}
 
 	respBody, _ := json.Marshal(map[string]interface{}{
 		"dryRun":    false,
 		"sent":      true,
 		"recipient": req.RecipientEmail,
-		"statement": stmt,
+		"statement": computed,
+		"snapshot":  saved,
 	})
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
@@ -818,10 +852,40 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 	}, nil
 }
 
-// buildStatementEmailData adapts the order.Statement domain object to the flat
-// email DTO. Pre-formats the per-order rate string so the email package stays
-// decoupled from pricing-tier logic.
-func buildStatementEmailData(stmt order.Statement, companyName, periodLabel, paymentInstructions string) mailer.MonthlyStatementData {
+// handleStatementsRequest serves the persisted statement history.
+// GET /checkout/statements?sellerId=<id>
+// Auth: admin can list any seller; company can list only their own.
+func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+	if request.HTTPMethod != "GET" {
+		return h.errorResponse(http.StatusMethodNotAllowed, "Only GET supported"), nil
+	}
+	sellerID := request.QueryStringParameters["sellerId"]
+	if sellerID == "" {
+		return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
+	}
+	if role != "admin" && !(role == "company" && sellerID == accountID) {
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+	}
+	stmts, err := h.statementService.ListBySeller(sellerID, 24)
+	if err != nil {
+		log.Printf("ERROR: ListBySeller: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to fetch statements"), nil
+	}
+	if stmts == nil {
+		stmts = []*statement.Statement{}
+	}
+	respBody, _ := json.Marshal(stmts)
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers:    corsHeaders(h.requestOrigin),
+		Body:       string(respBody),
+	}, nil
+}
+
+// buildStatementEmailData adapts the statement.Computed domain object to the
+// flat email DTO. Pre-formats the per-order rate string so the email package
+// stays decoupled from pricing-tier logic.
+func buildStatementEmailData(stmt statement.Computed, companyName, periodLabel, paymentInstructions string) mailer.MonthlyStatementData {
 	var rateStr string
 	if stmt.PerOrderCap != nil {
 		rateStr = fmt.Sprintf("%.2f%%, capped at $%.0f/order", stmt.PerOrderRate*100, *stmt.PerOrderCap)

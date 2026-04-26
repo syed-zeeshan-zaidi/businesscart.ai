@@ -297,6 +297,25 @@ export const sendStatement = async (payload: SendStatementPayload): Promise<Send
   return response.data;
 };
 
+// PersistedStatement is a snapshot stored at admin Send time. Includes audit
+// fields the live-computed Statement doesn't have.
+export interface PersistedStatement extends Statement {
+  id: string;
+  periodLabel?: string;
+  recipientEmail: string;
+  companyName?: string;
+  paymentInstructions?: string;
+  sentAt: string;
+  sentByAdminId?: string;
+  paidAt?: string;
+  paymentReference?: string;
+}
+
+export const getStatements = async (sellerId: string): Promise<PersistedStatement[]> => {
+  const response = await api.get(`${API_URL}/checkout/statements?sellerId=${encodeURIComponent(sellerId)}`);
+  return response.data;
+};
+
 export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }, accountId?: string): Promise<Cart> => {
   let url = `${API_URL}/checkout/cart`;
   if (accountId) {
