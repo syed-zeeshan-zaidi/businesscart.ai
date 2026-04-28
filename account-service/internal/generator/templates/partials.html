@@ -180,7 +180,7 @@ color: var(--text);
 .original-price {
 font-size: 1rem;
 text-decoration: line-through;
-color: #94a3b8;
+color: #64748b;
 font-weight: 600;
 }
 
@@ -188,7 +188,7 @@ font-weight: 600;
 position: absolute;
 top: 2rem;
 right: 2rem;
-background: #ef4444;
+background: #b91c1c;
 color: white;
 padding: 0.5rem 1rem;
 border-radius: 2rem;
@@ -364,7 +364,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
 [[define "nav"]]
 <nav class="sticky-nav">
     <a href="[[.BasePath]]index.html" class="nav-brand">
-        [[if .Company.LogoURL]]<img src="[[.Company.LogoURL]]" alt="[[.Company.Name]]" class="nav-logo" width="40" height="40" style="object-fit:contain">[[end]]
+        [[if .Company.LogoURL]]<img src="[[.Company.LogoURL]]" alt="" class="nav-logo" width="40" height="40" style="object-fit:contain">[[end]]
         <span>[[.Company.Name]]</span>
     </a>
 

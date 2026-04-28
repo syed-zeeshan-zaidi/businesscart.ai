@@ -5,6 +5,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { AxiosError } from 'axios';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { Logo } from './logo';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -66,7 +67,11 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <Toaster position="top-right" />
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Login</h2>
+        <Link to="/" className="flex flex-col items-center mb-6">
+          <span className="w-14 h-14"><Logo /></span>
+          <span className="mt-2 text-lg font-bold text-gray-700">BusinessCart</span>
+        </Link>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Login</h2>
         {errors.length > 0 && (
           <div className="bg-red-50 text-red-600 p-3 rounded-md mb-6">
             {errors.map((error, idx) => (

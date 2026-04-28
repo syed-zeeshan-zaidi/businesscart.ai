@@ -117,14 +117,14 @@
 
                 <div class="image-wrapper">
                     [[if .Image]]
-                    <img src="[[.Image]]" alt="[[.Name]]" class="product-image" loading="lazy">
+                    <img src="[[.Image]]" alt="[[.Name]]" class="product-image" loading="lazy" width="600" height="600">
                     [[else]]
                     <div style="opacity:0.2; transform:scale(2)">📦</div>
                     [[end]]
                 </div>
 
                 [[if .Category]]<div class="category-tag">[[.Category]]</div>[[end]]
-                <h3 class="product-name">[[.Name]]</h3>
+                <h2 class="product-name">[[.Name]]</h2>
 
                 <div class="price-row">
                     <span class="price">$[[printf "%.2f" .DiscountedPrice]]</span>
