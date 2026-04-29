@@ -204,27 +204,24 @@ type CompanyEmailConfig struct {
 }
 
 var (
-	companyConfigs   map[string]CompanyEmailConfig
-	companyConfigsMu sync.Mutex
-	companyLoaded    bool
+	companyConfigs map[string]CompanyEmailConfig
+	companyOnce    sync.Once
 )
 
 func loadCompanyConfigs() {
-	companyConfigsMu.Lock()
-	defer companyConfigsMu.Unlock()
-	if companyLoaded {
-		return
-	}
-	companyLoaded = true
-	raw := os.Getenv("EMAIL_COMPANY_CONFIGS")
-	if raw == "" || raw == "{}" {
-		companyConfigs = map[string]CompanyEmailConfig{}
-		return
-	}
-	if err := json.Unmarshal([]byte(raw), &companyConfigs); err != nil {
-		log.Printf("WARN: EMAIL_COMPANY_CONFIGS JSON parse failed: %v — falling back to platform sender for all", err)
-		companyConfigs = map[string]CompanyEmailConfig{}
-	}
+	// sync.Once ensures parse runs exactly once across all goroutines, with an
+	// atomic-load fast path after first call (no mutex contention on hot send sites).
+	companyOnce.Do(func() {
+		raw := os.Getenv("EMAIL_COMPANY_CONFIGS")
+		if raw == "" || raw == "{}" {
+			companyConfigs = map[string]CompanyEmailConfig{}
+			return
+		}
+		if err := json.Unmarshal([]byte(raw), &companyConfigs); err != nil {
+			log.Printf("WARN: EMAIL_COMPANY_CONFIGS JSON parse failed: %v — falling back to platform sender for all", err)
+			companyConfigs = map[string]CompanyEmailConfig{}
+		}
+	})
 }
 
 // GetCompanyConfig returns the per-company SMTP config for a sellerId.
