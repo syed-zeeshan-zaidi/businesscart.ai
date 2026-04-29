@@ -393,12 +393,31 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	}
 
 	// Non-blocking welcome email — failure is logged but never blocks registration.
+	// Customer-facing email uses the company's own SMTP (so the customer sees their
+	// storefront brand, not BusinessCart). Falls back to platform sender for company /
+	// partner registrations and when the company hasn't configured per-company SMTP.
 	if h.emailSender != nil {
-		go func(name, addr string) {
-			if err := h.emailSender.Send(context.Background(), mailer.WelcomeMessage(name, addr)); err != nil {
+		sellerID := ""
+		if acc.CustomerData != nil && len(acc.CustomerData.CustomerConfigs) > 0 {
+			sellerID = acc.CustomerData.CustomerConfigs[0].CodeID
+		}
+		sender, _ := mailer.SenderForCompany(context.Background(), sellerID, h.emailSender)
+		go func(name, addr string, s mailer.Sender) {
+			if err := s.Send(context.Background(), mailer.WelcomeMessage(name, addr)); err != nil {
 				log.Printf("WARN: welcome email failed for %s: %v", addr, err)
 			}
-		}(acc.Name, acc.Email)
+		}(acc.Name, acc.Email, sender)
+
+		// Notify the company owner about the new customer (platform sender, BC SES).
+		if sellerID != "" {
+			if ownerEmail := mailer.CompanyOwnerEmail(sellerID); ownerEmail != "" {
+				go func(to, customerName string) {
+					if err := h.emailSender.Send(context.Background(), mailer.NewCustomerToCompanyMessage(to, customerName)); err != nil {
+						log.Printf("WARN: new-customer notification failed for owner %s: %v", to, err)
+					}
+				}(ownerEmail, acc.Name)
+			}
+		}
 	}
 
 	return h.successResponse(acc, http.StatusCreated), nil
@@ -569,13 +588,20 @@ func (h *LambdaHandler) forgotPassword(request events.APIGatewayProxyRequest) (e
 	}
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", origin, token)
 
-	// Non-blocking email — failure is logged but never blocks response
+	// Non-blocking email — failure is logged but never blocks response.
+	// Customer/b2c reset comes from the company's own SMTP (storefront brand);
+	// company-role reset stays on the platform sender (admin context).
 	if h.emailSender != nil {
-		go func(name, addr, url string) {
-			if err := h.emailSender.Send(context.Background(), mailer.PasswordResetMessage(name, addr, url)); err != nil {
+		sellerID := ""
+		if acc.CustomerData != nil && len(acc.CustomerData.CustomerConfigs) > 0 {
+			sellerID = acc.CustomerData.CustomerConfigs[0].CodeID
+		}
+		sender, _ := mailer.SenderForCompany(context.Background(), sellerID, h.emailSender)
+		go func(name, addr, url string, s mailer.Sender) {
+			if err := s.Send(context.Background(), mailer.PasswordResetMessage(name, addr, url)); err != nil {
 				log.Printf("WARN: password reset email failed for %s: %v", addr, err)
 			}
-		}(acc.Name, acc.Email, resetURL)
+		}(acc.Name, acc.Email, resetURL, sender)
 	}
 
 	return h.successResponse(successMsg, http.StatusOK), nil

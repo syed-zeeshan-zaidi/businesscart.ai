@@ -23,6 +23,30 @@ start_services() {
   docker network inspect businesscart-network >/dev/null 2>&1 || \
     docker network create businesscart-network
 
+  # Mailpit — local SMTP capture for testing transactional emails.
+  # SMTP on :1025 (Lambda sends here), web UI on http://localhost:8025
+  # All sends are captured locally — never delivered, never spammed.
+  if ! docker ps --filter name=mailpit --format '{{.Names}}' | grep -q '^mailpit$'; then
+    if docker ps -a --filter name=mailpit --format '{{.Names}}' | grep -q '^mailpit$'; then
+      docker start mailpit >/dev/null
+    else
+      # MP_SMTP_AUTH_ACCEPT_ANY + MP_SMTP_AUTH_ALLOW_INSECURE: Mailpit accepts any
+      # SMTP AUTH credentials over plaintext (port 1025). Required because the Go
+      # email package always sends AUTH PLAIN — without these flags Mailpit rejects
+      # with "server doesn't support AUTH" and emails fail.
+      docker run -d --name mailpit \
+        --network businesscart-network \
+        -p 1025:1025 -p 8025:8025 \
+        -e MP_SMTP_AUTH_ACCEPT_ANY=true \
+        -e MP_SMTP_AUTH_ALLOW_INSECURE=true \
+        --restart unless-stopped \
+        axllent/mailpit >/dev/null
+    fi
+    echo "Mailpit started — SMTP :1025, Web UI http://localhost:8025"
+  else
+    echo "Mailpit already running — Web UI http://localhost:8025"
+  fi
+
   echo "Installing root NPM dependencies..."
   npm install || { echo "NPM install failed. Exiting."; exit 1; }
 
@@ -73,6 +97,12 @@ stop_services() {
 
   echo "Stopping and removing any lingering SAM Docker containers..."
   docker ps -aq --filter "ancestor=public.ecr.aws/lambda" | xargs -r docker stop | xargs -r docker rm
+
+  # Stop Mailpit but keep the container (preserves captured emails between restarts)
+  if docker ps --filter name=mailpit --format '{{.Names}}' | grep -q '^mailpit$'; then
+    docker stop mailpit >/dev/null
+    echo "Mailpit stopped (container preserved — restart with start to resume)"
+  fi
 
   echo "Services stopped and containers cleaned up."
 }

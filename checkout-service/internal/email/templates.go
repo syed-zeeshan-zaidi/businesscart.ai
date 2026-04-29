@@ -89,6 +89,74 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
 </body>
 </html>`
 
+// ─────────────────────── New Order Notification (to company owner) ───────────────────────
+
+type NewOrderToCompanyData struct {
+	OrderID       string
+	CustomerEmail string
+	GrandTotal    float64
+	Items         []OrderItemView
+}
+
+// NewOrderToCompanyMessage is sent to the company owner when a customer places an order
+// on their storefront. Always sent via the platform sender (BusinessCart SES).
+func NewOrderToCompanyMessage(to string, data NewOrderToCompanyData) Message {
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("New order on your store #%s ($%.2f)", lastSix(data.OrderID), data.GrandTotal),
+		HTMLBody: renderHTML(newOrderToCompanyHTMLTmpl, data),
+		TextBody: newOrderToCompanyText(data),
+	}
+}
+
+func newOrderToCompanyText(d NewOrderToCompanyData) string {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "New order on your storefront.\n\n")
+	fmt.Fprintf(&b, "Order #%s\n", lastSix(d.OrderID))
+	fmt.Fprintf(&b, "Customer: %s\n\n", d.CustomerEmail)
+	for _, it := range d.Items {
+		fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Price)
+	}
+	fmt.Fprintf(&b, "\nTotal: $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\n— BusinessCart\n", d.GrandTotal)
+	return b.String()
+}
+
+const newOrderToCompanyHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>New order on your store</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">New order on your store</h1>
+  <p style="font-size:14px;color:#64748b">Order ID: <strong>{{.OrderID}}</strong></p>
+  <p style="font-size:14px;color:#64748b">Customer: <strong>{{.CustomerEmail}}</strong></p>
+  <table style="width:100%;border-collapse:collapse;margin:24px 0">
+    <thead>
+      <tr style="background:#f1f5f9;text-align:left">
+        <th style="padding:8px;border-bottom:1px solid #e2e8f0">Item</th>
+        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Qty</th>
+        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Items}}
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9">{{.Name}}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">{{.Quantity}}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .Price}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <p style="font-size:18px;font-weight:bold;text-align:right;margin-top:16px">
+    Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
+  </p>
+  <p style="margin:24px 0">
+    <a href="https://businesscart.ai/orders" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px">View in Dashboard</a>
+  </p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— BusinessCart (notification from your platform)</p>
+</body>
+</html>`
+
 // ─────────────────────── Quote Requested ───────────────────────
 
 type QuoteRequestedData struct {
