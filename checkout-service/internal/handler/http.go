@@ -633,7 +633,12 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 		_ = h.quoteService.DeleteQuote(q.ID.Hex())
 	}
 
-	// Non-blocking order confirmation email to the customer.
+	// Order confirmation email — SYNCHRONOUS so it actually delivers.
+	// Lambda freezes its execution environment as soon as the handler returns;
+	// fire-and-forget goroutines race the freeze and get cut mid-SMTP-handshake
+	// (observed: "WARN: order confirmation email failed: EOF" in CloudWatch).
+	// We accept ~300ms added to the checkout response to guarantee delivery.
+	// Customer-facing send routes through the company's own SMTP for branding.
 	if h.emailSender != nil && h.requestUserEmail != "" {
 		items := make([]mailer.OrderItemView, 0, len(createdOrder.Items))
 		for _, it := range createdOrder.Items {
@@ -643,16 +648,28 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 				Price:    it.Price,
 			})
 		}
-		go func(to, oid string, total float64, its []mailer.OrderItemView) {
-			msg := mailer.OrderConfirmationMessage(to, mailer.OrderConfirmationData{
-				OrderID:    oid,
-				GrandTotal: total,
-				Items:      its,
+		msg := mailer.OrderConfirmationMessage(h.requestUserEmail, mailer.OrderConfirmationData{
+			OrderID:    createdOrder.ID.Hex(),
+			GrandTotal: createdOrder.GrandTotal,
+			Items:      items,
+		})
+		sender, _ := mailer.SenderForCompany(context.Background(), createdOrder.SellerID, h.emailSender)
+		if err := sender.Send(context.Background(), msg); err != nil {
+			log.Printf("WARN: order confirmation email failed for %s: %v", h.requestUserEmail, err)
+		}
+
+		// Notify the company owner about the new order — platform sender (BC SES).
+		if ownerEmail := mailer.CompanyOwnerEmail(createdOrder.SellerID); ownerEmail != "" {
+			ownerMsg := mailer.NewOrderToCompanyMessage(ownerEmail, mailer.NewOrderToCompanyData{
+				OrderID:        createdOrder.ID.Hex(),
+				CustomerEmail:  h.requestUserEmail,
+				GrandTotal:     createdOrder.GrandTotal,
+				Items:          items,
 			})
-			if err := h.emailSender.Send(context.Background(), msg); err != nil {
-				log.Printf("WARN: order confirmation email failed for %s: %v", to, err)
+			if err := h.emailSender.Send(context.Background(), ownerMsg); err != nil {
+				log.Printf("WARN: new-order notification to owner %s failed: %v", ownerEmail, err)
 			}
-		}(h.requestUserEmail, createdOrder.ID.Hex(), createdOrder.GrandTotal, items)
+		}
 	}
 
 	return h.successResponse(createdOrder), nil
@@ -1165,15 +1182,15 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
 	}
 
-	// Non-blocking quote-requested email — only for negotiable quotes initiated by the customer.
-	// Standard quotes go straight to checkout and are confirmed via the order email instead.
+	// Quote-requested email — synchronous so it actually delivers (same Lambda
+	// goroutine-vs-freeze issue as order confirmation). Customer-facing → routes
+	// through company's SMTP for branding.
 	if h.emailSender != nil && h.requestUserEmail != "" && req.QuoteType == "negotiable" && role == "customer" {
-		go func(to, qid string) {
-			msg := mailer.QuoteRequestedMessage(to, mailer.QuoteRequestedData{QuoteID: qid})
-			if err := h.emailSender.Send(context.Background(), msg); err != nil {
-				log.Printf("WARN: quote requested email failed for %s: %v", to, err)
-			}
-		}(h.requestUserEmail, createdQuote.ID.Hex())
+		msg := mailer.QuoteRequestedMessage(h.requestUserEmail, mailer.QuoteRequestedData{QuoteID: createdQuote.ID.Hex()})
+		sender, _ := mailer.SenderForCompany(context.Background(), createdQuote.SellerID, h.emailSender)
+		if err := sender.Send(context.Background(), msg); err != nil {
+			log.Printf("WARN: quote requested email failed for %s: %v", h.requestUserEmail, err)
+		}
 	}
 
 	respBody, _ := json.Marshal(createdQuote)

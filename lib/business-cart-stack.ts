@@ -55,6 +55,31 @@ export class BusinessCartStack extends cdk.Stack {
       ? ''
       : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_SMTP_PASSWORD`);
 
+    // Per-company branded email config — JSON map keyed by sellerId hex.
+    // Customer-facing emails (welcome, password reset, order confirmation, quote events)
+    // use the company's own SMTP so the customer sees their storefront brand.
+    // Company-facing emails (statements, "new order"/"new customer" notifications) keep
+    // using the BusinessCart SES creds above.
+    //
+    // SSM value shape (SecureString, JSON):
+    //   {
+    //     "<sellerIdHex>": {
+    //       "fromAddress": "info@usetgo.com",
+    //       "fromName":    "uSetGo",
+    //       "smtpHost":    "mail.privateemail.com",
+    //       "smtpPort":    "587",
+    //       "smtpUsername":"info@usetgo.com",
+    //       "smtpPassword":"<their password>",
+    //       "ownerEmail":  "admin@usetgo.com"
+    //     }
+    //   }
+    //
+    // Adding a new custom-domain customer = edit JSON in SSM + cdk deploy. ZERO CDK
+    // code change per customer. See process_custom_domain.md for the manual checklist.
+    const emailCompanyConfigs = props.stage === 'local'
+      ? '{}'
+      : ssm.StringParameter.valueForStringParameter(this, `/BusinessCart/${props.stage}/EMAIL_COMPANY_CONFIGS`);
+
     const corsAllowedOrigins =
       props.stage === 'local'
         ? '*'
@@ -89,6 +114,13 @@ export class BusinessCartStack extends cdk.Stack {
         EMAIL_SMTP_PORT: emailSmtpPort,
         EMAIL_SMTP_USERNAME: emailSmtpUsername,
         EMAIL_SMTP_PASSWORD: emailSmtpPassword,
+        // Per-company branded email — JSON, keyed by sellerId hex. See above comment.
+        EMAIL_COMPANY_CONFIGS: emailCompanyConfigs,
+        // Local-only escape hatch for Mailpit testing (Mailpit on plain port 1025
+        // doesn't advertise STARTTLS, and Go's net/smtp refuses to send PLAIN auth
+        // over plaintext). Set to "true" ONLY in local.env.json. Never in SSM /
+        // production — production SES always negotiates STARTTLS automatically.
+        EMAIL_SMTP_ALLOW_PLAINTEXT_AUTH: '',
       },
     };
 

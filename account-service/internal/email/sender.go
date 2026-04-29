@@ -19,10 +19,13 @@ package email
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/smtp"
+	"os"
 	"strings"
+	"sync"
 )
 
 // Sender is the interface used by handlers.
@@ -71,6 +74,19 @@ func NewSender(_ context.Context, cfg Config) Sender {
 	return &smtpSender{cfg: cfg}
 }
 
+// unencryptedAuth wraps smtp.Auth to bypass Go's stdlib refusal to send PLAIN
+// auth over a non-TLS connection. Used ONLY when EMAIL_SMTP_ALLOW_PLAINTEXT_AUTH=true
+// — set in local.env.json for Mailpit testing, never in production SSM. Production
+// SES advertises STARTTLS so Go negotiates encryption naturally; the wrapper is a
+// no-op there because the env var is never set.
+type unencryptedAuth struct{ smtp.Auth }
+
+func (a unencryptedAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	s := *server
+	s.TLS = true
+	return a.Auth.Start(&s)
+}
+
 func (s *smtpSender) Send(_ context.Context, msg Message) error {
 	if msg.To == "" {
 		return nil
@@ -78,7 +94,12 @@ func (s *smtpSender) Send(_ context.Context, msg Message) error {
 	body := buildMIME(s.cfg.From, msg)
 	addr := s.cfg.Host + ":" + s.cfg.Port
 
-	auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+	var auth smtp.Auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+	// Local-only Mailpit testing: bypass Go's TLS-required check for PLAIN auth.
+	// Production SES on port 587 advertises STARTTLS so this branch never triggers.
+	if os.Getenv("EMAIL_SMTP_ALLOW_PLAINTEXT_AUTH") == "true" {
+		auth = unencryptedAuth{auth}
+	}
 
 	// Use STARTTLS for ports 587/25, implicit TLS for 465
 	if s.cfg.Port == "465" {
@@ -162,4 +183,91 @@ func buildMIME(from string, msg Message) []byte {
 	}
 
 	return []byte(b.String())
+}
+
+// ---- Per-company branded email -------------------------------------------------
+//
+// Customer-facing emails (welcome, password reset, order confirmation, quote events)
+// use the matching company's own SMTP so the customer sees their storefront brand.
+// Loaded once at Lambda init from EMAIL_COMPANY_CONFIGS env var (JSON map keyed by
+// sellerId hex). Adding a customer = edit JSON in SSM + cdk deploy. No CDK code change.
+
+// CompanyEmailConfig is one entry in the EMAIL_COMPANY_CONFIGS JSON map.
+type CompanyEmailConfig struct {
+	FromAddress  string `json:"fromAddress"`
+	FromName     string `json:"fromName"`
+	SMTPHost     string `json:"smtpHost"`
+	SMTPPort     string `json:"smtpPort"`
+	SMTPUsername string `json:"smtpUsername"`
+	SMTPPassword string `json:"smtpPassword"`
+	OwnerEmail   string `json:"ownerEmail"`
+}
+
+var (
+	companyConfigs   map[string]CompanyEmailConfig
+	companyConfigsMu sync.Mutex
+	companyLoaded    bool
+)
+
+func loadCompanyConfigs() {
+	companyConfigsMu.Lock()
+	defer companyConfigsMu.Unlock()
+	if companyLoaded {
+		return
+	}
+	companyLoaded = true
+	raw := os.Getenv("EMAIL_COMPANY_CONFIGS")
+	if raw == "" || raw == "{}" {
+		companyConfigs = map[string]CompanyEmailConfig{}
+		return
+	}
+	if err := json.Unmarshal([]byte(raw), &companyConfigs); err != nil {
+		log.Printf("WARN: EMAIL_COMPANY_CONFIGS JSON parse failed: %v — falling back to platform sender for all", err)
+		companyConfigs = map[string]CompanyEmailConfig{}
+	}
+}
+
+// GetCompanyConfig returns the per-company SMTP config for a sellerId.
+// Returns ok=false when the sellerId has no entry, OR when the entry is missing
+// required SMTP fields — caller falls back to the platform Sender.
+func GetCompanyConfig(sellerID string) (CompanyEmailConfig, bool) {
+	loadCompanyConfigs()
+	cfg, ok := companyConfigs[sellerID]
+	if !ok {
+		return CompanyEmailConfig{}, false
+	}
+	if cfg.SMTPHost == "" || cfg.FromAddress == "" {
+		return CompanyEmailConfig{}, false
+	}
+	return cfg, true
+}
+
+// CompanyOwnerEmail returns the company owner's notification address (for
+// "new customer registered" / "new order received"). Empty string = not
+// configured; caller skips the notification.
+func CompanyOwnerEmail(sellerID string) string {
+	loadCompanyConfigs()
+	return companyConfigs[sellerID].OwnerEmail
+}
+
+// SenderForCompany builds an SMTP Sender for the company's own server, or
+// returns the fallback (platform Sender) if the company has no config.
+// Returns the rendered From header in RFC 5322 display-name format when a
+// FromName is set, so callers can use it for notification emails.
+func SenderForCompany(ctx context.Context, sellerID string, fallback Sender) (sender Sender, fromHeader string) {
+	cfg, ok := GetCompanyConfig(sellerID)
+	if !ok {
+		return fallback, ""
+	}
+	from := cfg.FromAddress
+	if cfg.FromName != "" {
+		from = fmt.Sprintf("%q <%s>", cfg.FromName, cfg.FromAddress)
+	}
+	return NewSender(ctx, Config{
+		From:     from,
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPUsername,
+		Password: cfg.SMTPPassword,
+	}), from
 }

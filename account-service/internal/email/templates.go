@@ -82,3 +82,33 @@ const welcomeHTMLTmpl = `<!DOCTYPE html>
   <p style="color:#64748b;font-size:12px">— BusinessCart</p>
 </body>
 </html>`
+
+// ───────────────────── New Customer Notification ─────────────────────
+
+// NewCustomerToCompanyMessage is sent to the company owner when a new customer
+// registers on their storefront. Always sent via the platform sender (BusinessCart SES).
+func NewCustomerToCompanyMessage(to, customerName string) Message {
+	if customerName == "" {
+		customerName = "A new customer"
+	}
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("New customer on your store: %s", customerName),
+		HTMLBody: renderHTML(newCustomerHTMLTmpl, struct{ Name string }{customerName}),
+		TextBody: fmt.Sprintf("Hi,\n\n%s just registered on your storefront.\n\nYou can view your customers in the BusinessCart dashboard: https://businesscart.ai/users\n\n— BusinessCart\n", customerName),
+	}
+}
+
+const newCustomerHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>New customer on your store</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">New customer on your store</h1>
+  <p style="font-size:16px;line-height:1.5"><strong>{{.Name}}</strong> just registered on your storefront.</p>
+  <p style="margin:24px 0">
+    <a href="https://businesscart.ai/users" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px">View Customers</a>
+  </p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— BusinessCart (notification from your platform)</p>
+</body>
+</html>`
