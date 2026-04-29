@@ -43,11 +43,12 @@ type Message struct {
 }
 
 type Config struct {
-	From     string
-	Host     string
-	Port     string
-	Username string
-	Password string
+	From       string // bare email — used as SMTP envelope MAIL FROM
+	FromHeader string // optional RFC 5322 display-name form for MIME From: header. Falls back to From.
+	Host       string
+	Port       string
+	Username   string
+	Password   string
 }
 
 type smtpSender struct {
@@ -89,7 +90,11 @@ func (s *smtpSender) Send(_ context.Context, msg Message) error {
 	if msg.To == "" {
 		return nil
 	}
-	body := buildMIME(s.cfg.From, msg)
+	headerFrom := s.cfg.FromHeader
+	if headerFrom == "" {
+		headerFrom = s.cfg.From
+	}
+	body := buildMIME(headerFrom, msg)
 	addr := s.cfg.Host + ":" + s.cfg.Port
 	var auth smtp.Auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
 	// Local-only Mailpit testing: bypass Go's TLS-required check for PLAIN auth.
@@ -249,15 +254,16 @@ func SenderForCompany(ctx context.Context, sellerID string, fallback Sender) (se
 	if !ok {
 		return fallback, ""
 	}
-	from := cfg.FromAddress
+	header := cfg.FromAddress
 	if cfg.FromName != "" {
-		from = fmt.Sprintf("%q <%s>", cfg.FromName, cfg.FromAddress)
+		header = fmt.Sprintf("%q <%s>", cfg.FromName, cfg.FromAddress)
 	}
 	return NewSender(ctx, Config{
-		From:     from,
-		Host:     cfg.SMTPHost,
-		Port:     cfg.SMTPPort,
-		Username: cfg.SMTPUsername,
-		Password: cfg.SMTPPassword,
-	}), from
+		From:       cfg.FromAddress, // bare envelope address (SMTP MAIL FROM)
+		FromHeader: header,          // RFC 5322 display name for MIME From: header
+		Host:       cfg.SMTPHost,
+		Port:       cfg.SMTPPort,
+		Username:   cfg.SMTPUsername,
+		Password:   cfg.SMTPPassword,
+	}), header
 }

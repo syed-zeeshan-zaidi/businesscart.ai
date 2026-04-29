@@ -396,7 +396,7 @@ const ProductForm = () => {
               <table className="min-w-[750px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Image</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
@@ -410,7 +410,20 @@ const ProductForm = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentProducts.map((product) => (
                     <tr key={product._id} className="hover:bg-gray-50">
-
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {product.images && product.images[0] ? (
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            loading="lazy"
+                            className="h-10 w-10 rounded object-cover border border-gray-200"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-gray-100 border border-gray-200 flex items-center justify-center">
+                            <PhotoIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{product.active !== false ? <span className="text-green-700 font-medium">Active</span> : <span className="text-red-600 font-medium">Inactive</span>}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
@@ -504,7 +517,7 @@ const ProductForm = () => {
             </Transition.Child>
 
             <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <div className="flex min-h-full items-center justify-center p-2 sm:p-4 text-center">
                 <Transition.Child
                   as={Fragment}
                   enter="ease-out duration-300"
@@ -514,155 +527,181 @@ const ProductForm = () => {
                   leaveFrom="opacity-100 scale-100"
                   leaveTo="opacity-0 scale-95"
                 >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                    <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                      {editingId ? 'Edit Product' : 'Add Product'}
-                    </Dialog.Title>
+                  <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-xl bg-white text-left align-middle shadow-2xl transition-all flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
+                      <Dialog.Title as="h3" className="text-base sm:text-lg font-semibold leading-6 text-gray-900">
+                        {editingId ? 'Edit Product' : 'Add Product'}
+                      </Dialog.Title>
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="text-gray-400 hover:text-gray-600 rounded p-1"
+                        aria-label="Close"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-5 sm:space-y-6">
                     {errors.length > 0 && (
-                      <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-md">
+                      <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
                         {errors.map((error, idx) => (
                           <p key={idx}>{error}</p>
                         ))}
                       </div>
                     )}
-                    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                      {/* Section: Basic Info */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                        <input
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="Product Name"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Category</label>
-                        <input
-                          list="category-suggestions"
-                          name="category"
-                          value={formData.category}
-                          onChange={handleChange}
-                          placeholder="e.g. Electronics / Phones"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                        <datalist id="category-suggestions">
-                          {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
-                            <option key={cat} value={cat} />
-                          ))}
-                        </datalist>
-                        <p className="mt-1 text-xs text-gray-400">Use "Primary / Sub" for hierarchy (e.g. "Electronics / Phones"). Without "/" it's a standalone category.</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Slug</label>
-                        <input
-                          name="slug"
-                          value={formData.slug}
-                          onChange={handleChange}
-                          placeholder="product-slug"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">SKU</label>
-                        <input
-                          name="sku"
-                          value={formData.sku}
-                          onChange={handleChange}
-                          placeholder="e.g., GLV-BBQ-001"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Barcode / UPC</label>
-                        <input
-                          name="barcode"
-                          value={formData.barcode}
-                          onChange={handleChange}
-                          placeholder="e.g., 012345678901"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Stock</label>
-                        <input
-                          name="stock"
-                          type="number"
-                          min="0"
-                          value={formData.stock}
-                          onChange={handleChange}
-                          placeholder="0"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Price</label>
-                        <input
-                          name="price"
-                          type="number"
-                          step="0.01"
-                          value={formData.price}
-                          onChange={handleChange}
-                          placeholder="19.99"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Deal Price (%)</label>
-                        <input
-                          name="dealPrice"
-                          type="number"
-                          step="1"
-                          min="0"
-                          max="50"
-                          value={formData.dealPrice ?? ''}
-                          onChange={handleChange}
-                          placeholder="e.g., 10 (for 10% off)"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                      {formData.dealPrice && formData.dealPrice > 0 && (
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Basic Info</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Deal Start Date</label>
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Product Name</label>
                             <input
-                              name="dealStartDate"
-                              type="datetime-local"
-                              value={formData.dealStartDate ? new Date(formData.dealStartDate).toISOString().slice(0, 16) : ''}
-                              onChange={(e) => setFormData({ ...formData, dealStartDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                              name="name"
+                              value={formData.name}
+                              onChange={handleChange}
+                              placeholder="Product Name"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for immediate start.</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Category</label>
+                            <input
+                              list="category-suggestions"
+                              name="category"
+                              value={formData.category}
+                              onChange={handleChange}
+                              placeholder="e.g. Electronics / Phones"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                            <datalist id="category-suggestions">
+                              {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
+                                <option key={cat} value={cat} />
+                              ))}
+                            </datalist>
+                            <p className="mt-1 text-xs text-gray-400">Use "Primary / Sub" for hierarchy (e.g. "Electronics / Phones"). Without "/" it's a standalone category.</p>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700">Deal End Date</label>
+                            <label className="block text-sm font-medium text-gray-700">Slug</label>
                             <input
-                              name="dealEndDate"
-                              type="datetime-local"
-                              value={formData.dealEndDate ? new Date(formData.dealEndDate).toISOString().slice(0, 16) : ''}
-                              onChange={(e) => setFormData({ ...formData, dealEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                              name="slug"
+                              value={formData.slug}
+                              onChange={handleChange}
+                              placeholder="product-slug"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for no expiry.</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">SKU</label>
+                            <input
+                              name="sku"
+                              value={formData.sku}
+                              onChange={handleChange}
+                              placeholder="e.g., GLV-BBQ-001"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Barcode / UPC</label>
+                            <input
+                              name="barcode"
+                              value={formData.barcode}
+                              onChange={handleChange}
+                              placeholder="e.g., 012345678901"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Stock</label>
+                            <input
+                              name="stock"
+                              type="number"
+                              min="0"
+                              value={formData.stock}
+                              onChange={handleChange}
+                              placeholder="0"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
                           </div>
                         </div>
-                      )}
-                      {/* Price Tiers */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>
-                        <p className="text-xs text-gray-500 mb-2">Optional. Set lower prices for bulk orders. Base price applies below the first tier.</p>
-                        {(formData.priceTiers || []).map((tier, i) => (
-                          <div key={i} className="flex items-center gap-2 mb-2">
-                            <input type="number" min="1" value={tier.minQty || ''} onChange={(e) => handleTierChange(i, 'minQty', e.target.value)} placeholder="Min qty" className="w-24 p-2 border border-gray-300 rounded-md text-sm" />
-                            <span className="text-sm text-gray-500">+ units @</span>
-                            <input type="number" min="0.01" step="0.01" value={tier.price || ''} onChange={(e) => handleTierChange(i, 'price', e.target.value)} placeholder="Price" className="w-28 p-2 border border-gray-300 rounded-md text-sm" />
-                            <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
-                          </div>
-                        ))}
-                        <button type="button" onClick={addTier} className="text-sm text-teal-700 hover:text-teal-900 font-medium">+ Add tier</button>
                       </div>
 
-                      {/* Visibility Groups (B2B) */}
+                      {/* Section: Pricing */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Pricing</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Price</label>
+                            <input
+                              name="price"
+                              type="number"
+                              step="0.01"
+                              value={formData.price}
+                              onChange={handleChange}
+                              placeholder="19.99"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Deal Price (%)</label>
+                            <input
+                              name="dealPrice"
+                              type="number"
+                              step="1"
+                              min="0"
+                              max="50"
+                              value={formData.dealPrice ?? ''}
+                              onChange={handleChange}
+                              placeholder="e.g., 10 (for 10% off)"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                        </div>
+                        {formData.dealPrice && formData.dealPrice > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Deal Start Date</label>
+                              <input
+                                name="dealStartDate"
+                                type="datetime-local"
+                                value={formData.dealStartDate ? new Date(formData.dealStartDate).toISOString().slice(0, 16) : ''}
+                                onChange={(e) => setFormData({ ...formData, dealStartDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for immediate start.</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">Deal End Date</label>
+                              <input
+                                name="dealEndDate"
+                                type="datetime-local"
+                                value={formData.dealEndDate ? new Date(formData.dealEndDate).toISOString().slice(0, 16) : ''}
+                                onChange={(e) => setFormData({ ...formData, dealEndDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Optional. Leave empty for no expiry.</p>
+                            </div>
+                          </div>
+                        )}
+                        {/* Price Tiers */}
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>
+                          <p className="text-xs text-gray-500 mb-2">Optional. Set lower prices for bulk orders. Base price applies below the first tier.</p>
+                          {(formData.priceTiers || []).map((tier, i) => (
+                            <div key={i} className="flex items-center gap-2 mb-2">
+                              <input type="number" min="1" value={tier.minQty || ''} onChange={(e) => handleTierChange(i, 'minQty', e.target.value)} placeholder="Min qty" className="w-24 p-2 border border-gray-300 rounded-md text-sm" />
+                              <span className="text-sm text-gray-500">+ units @</span>
+                              <input type="number" min="0.01" step="0.01" value={tier.price || ''} onChange={(e) => handleTierChange(i, 'price', e.target.value)} placeholder="Price" className="w-28 p-2 border border-gray-300 rounded-md text-sm" />
+                              <button type="button" onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={addTier} className="text-sm text-teal-700 hover:text-teal-900 font-medium">+ Add tier</button>
+                        </div>
+                      </div>
+
+                      {/* Section: Visibility */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Visibility</h4>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">B2B Visibility Groups</label>
                         <p className="text-xs text-gray-500 mb-2">
@@ -693,41 +732,48 @@ const ProductForm = () => {
                         )}
                       </div>
 
-                      <div className="flex items-center space-x-3 pt-2">
-                        <input
-                          type="checkbox"
-                          name="active"
-                          checked={formData.active !== false}
-                          onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                          className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                        <label className="text-sm font-medium text-gray-700">Active (visible on storefront and catalog)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              name="active"
+                              checked={formData.active !== false}
+                              onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                              className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                            />
+                            <label className="text-sm font-medium text-gray-700">Active (visible on storefront and catalog)</label>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              name="featured"
+                              checked={formData.featured || false}
+                              onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                              className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                            />
+                            <label className="text-sm font-medium text-gray-700">Featured on storefront homepage</label>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700">Account ID</label>
+                          <input
+                            name="accountID"
+                            value={formData.sellerID}
+                            onChange={handleChange}
+                            placeholder="Account ID"
+                            className="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 focus:ring-teal-500 focus:border-teal-500"
+                            readOnly
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-3 pt-2">
-                        <input
-                          type="checkbox"
-                          name="featured"
-                          checked={formData.featured || false}
-                          onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                          className="h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
-                        />
-                        <label className="text-sm font-medium text-gray-700">Featured on storefront homepage</label>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Account ID</label>
-                        <input
-                          name="accountID"
-                          value={formData.sellerID}
-                          onChange={handleChange}
-                          placeholder="Account ID"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          readOnly
-                        />
-                      </div>
+
+                      {/* Section: Media */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Media</h4>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Images</label>
                         {((formData.images || []).length > 0 || pendingFiles.length > 0) && (
-                          <div className="mt-2 grid grid-cols-4 gap-3">
+                          <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
                             {(formData.images || []).map((url, i) => (
                               <div key={`existing-${i}`} className={`relative group rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-teal-700' : 'border-gray-200'} hover:border-teal-500 transition-colors`}>
                                 <div className="aspect-square cursor-pointer" onClick={() => setPreviewImage(url)}>
@@ -818,73 +864,81 @@ const ProductForm = () => {
                           </button>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea
-                          name="description"
-                          value={formData.description}
-                          onChange={handleChange}
-                          placeholder="Product description"
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                          rows={4}
-                        />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Attributes</label>
-                        {formData.attributes?.map((attr, index) => (
-                          <div key={index} className="flex items-center space-x-2 mt-2">
-                            <input
-                              type="text"
-                              placeholder="Key"
-                              value={attr.key}
-                              onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-md"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Value"
-                              value={attr.value}
-                              onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
-                              className="w-full p-2 border border-gray-300 rounded-md"
-                            />
-                            <select
-                              value={attr.type}
-                              onChange={(e) => handleAttributeChange(index, 'type', e.target.value as 'filterable' | 'system')}
-                              className="w-full p-2 border border-gray-300 rounded-md"
-                            >
-                              <option value="">None</option>
-                              <option value="filterable">Filterable</option>
-                              <option value="system">System</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => removeAttribute(index)}
-                              className="text-red-600"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={addAttribute}
-                          className="mt-2 text-teal-700"
-                        >
-                          + Add Attribute
-                        </button>
+
+                      {/* Section: Details */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Details</h4>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Description</label>
+                          <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            placeholder="Product description"
+                            className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            rows={4}
+                          />
+                        </div>
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700">Attributes</label>
+                          {formData.attributes?.map((attr, index) => (
+                            <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_140px_auto] gap-2 mt-2 items-start">
+                              <input
+                                type="text"
+                                placeholder="Key"
+                                value={attr.key}
+                                onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Value"
+                                value={attr.value}
+                                onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                              />
+                              <select
+                                value={attr.type}
+                                onChange={(e) => handleAttributeChange(index, 'type', e.target.value as 'filterable' | 'system')}
+                                className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                              >
+                                <option value="">None</option>
+                                <option value="filterable">Filterable</option>
+                                <option value="system">System</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => removeAttribute(index)}
+                                className="text-red-600 hover:bg-red-50 rounded p-2 justify-self-start sm:justify-self-center"
+                                aria-label="Remove attribute"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={addAttribute}
+                            className="mt-2 text-sm text-teal-700 hover:text-teal-900 font-medium"
+                          >
+                            + Add Attribute
+                          </button>
+                        </div>
                       </div>
-                      <div className="mt-6 flex justify-end space-x-3">
+                      </div>
+                      <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 flex-shrink-0">
                         <button
                           type="button"
                           onClick={() => setIsModalOpen(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          className="w-full sm:w-auto px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
                           disabled={isLoading}
-                          className="px-4 py-2 bg-teal-700 text-white rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50"
+                          className="w-full sm:w-auto px-4 py-2 bg-teal-700 text-white rounded-md text-sm font-medium hover:bg-teal-800 disabled:opacity-50"
                         >
                           {isLoading ? 'Saving...' : editingId ? 'Update' : 'Create'}
                         </button>
