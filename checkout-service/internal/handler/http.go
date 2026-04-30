@@ -277,6 +277,9 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	if request.HTTPMethod == "DELETE" && len(parts) == 4 { // /checkout/orders/{orderId}
 		return h.handleDeleteOrderRequest(parts[3], role)
 	}
+	if request.HTTPMethod == "PUT" && len(parts) == 4 { // /checkout/orders/{orderId}
+		return h.handleUpdateOrderRequest(parts[3], request, accountID, role)
+	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
@@ -530,12 +533,13 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 
 	callbackURL := h.apiBaseURL + "/checkout/payment-return"
 	sessionReq := gateway.SessionRequest{
-		Amount:      q.GrandTotal,
-		Currency:    "USD",
-		CallbackURL: callbackURL,
-		Credentials: credentials,
-		MerchantRef: q.ID.Hex(),
-		Sandbox:     sandbox,
+		Amount:        q.GrandTotal,
+		Currency:      "USD",
+		CallbackURL:   callbackURL,
+		Credentials:   credentials,
+		MerchantRef:   q.ID.Hex(),
+		Sandbox:       sandbox,
+		CustomerEmail: h.requestUserEmail,
 	}
 
 	sessionResp, err := gw.CreateSession(ctx, sessionReq)
@@ -557,6 +561,7 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		paymentSession := &gateway.PaymentSession{
 			QuoteID:           req.QuoteID,
 			AccountID:         accountID,
+			CustomerEmail:     h.requestUserEmail,
 			SellerID:          q.SellerID,
 			PaymentMethod:     req.PaymentMethod,
 			DeliveryMethod:    req.DeliveryMethod,
@@ -597,10 +602,10 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusPaymentRequired, "Payment processing failed"), nil
 	}
 
-	return h.createOrderFromQuote(q, accountID, req.PaymentMethod, req.DeliveryMethod, completion.TransactionID, req.PickupLocationID, req.DeliveryAddressID)
+	return h.createOrderFromQuote(q, accountID, h.requestUserEmail, req.PaymentMethod, req.DeliveryMethod, completion.TransactionID, req.PickupLocationID, req.DeliveryAddressID)
 }
 
-func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentMethod, deliveryMethod, transactionID, pickupLocationID, deliveryAddressID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customerEmail, paymentMethod, deliveryMethod, transactionID, pickupLocationID, deliveryAddressID string) (events.APIGatewayProxyResponse, error) {
 	newOrder := &order.Order{
 		ID:                primitive.NewObjectID(),
 		QuoteID:           q.ID,
@@ -616,6 +621,7 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 		TransactionID:     transactionID,
 		PickupLocationID:  pickupLocationID,
 		DeliveryAddressID: deliveryAddressID,
+		CustomerEmail:     customerEmail,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -639,7 +645,7 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 	// (observed: "WARN: order confirmation email failed: EOF" in CloudWatch).
 	// We accept ~300ms added to the checkout response to guarantee delivery.
 	// Customer-facing send routes through the company's own SMTP for branding.
-	if h.emailSender != nil && h.requestUserEmail != "" {
+	if h.emailSender != nil && customerEmail != "" {
 		items := make([]mailer.OrderItemView, 0, len(createdOrder.Items))
 		for _, it := range createdOrder.Items {
 			items = append(items, mailer.OrderItemView{
@@ -648,21 +654,21 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, paymentM
 				Price:    it.Price,
 			})
 		}
-		msg := mailer.OrderConfirmationMessage(h.requestUserEmail, mailer.OrderConfirmationData{
+		msg := mailer.OrderConfirmationMessage(customerEmail, mailer.OrderConfirmationData{
 			OrderID:    createdOrder.ID.Hex(),
 			GrandTotal: createdOrder.GrandTotal,
 			Items:      items,
 		})
 		sender, _ := mailer.SenderForCompany(context.Background(), createdOrder.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
-			log.Printf("WARN: order confirmation email failed for %s: %v", h.requestUserEmail, err)
+			log.Printf("WARN: order confirmation email failed for %s: %v", customerEmail, err)
 		}
 
 		// Notify the company owner about the new order — platform sender (BC SES).
 		if ownerEmail := mailer.CompanyOwnerEmail(createdOrder.SellerID); ownerEmail != "" {
 			ownerMsg := mailer.NewOrderToCompanyMessage(ownerEmail, mailer.NewOrderToCompanyData{
 				OrderID:        createdOrder.ID.Hex(),
-				CustomerEmail:  h.requestUserEmail,
+				CustomerEmail:  customerEmail,
 				GrandTotal:     createdOrder.GrandTotal,
 				Items:          items,
 			})
@@ -967,6 +973,90 @@ func (h *LambdaHandler) handleDeleteOrderRequest(orderIDStr string, role string)
 		StatusCode: http.StatusNoContent,
 		Headers:    corsHeaders(h.requestOrigin),
 	}, nil
+}
+
+var validOrderStatuses = map[string]bool{
+	"pending": true, "processing": true, "shipped": true,
+	"delivered": true, "cancelled": true, "returned": true,
+}
+
+var validTrackingCarriers = map[string]bool{
+	"ups": true, "fedex": true, "usps": true, "dhl": true, "other": true,
+}
+
+func trackingURLFor(carrier, number string) string {
+	if number == "" {
+		return ""
+	}
+	switch carrier {
+	case "ups":
+		return "https://www.ups.com/track?tracknum=" + number
+	case "fedex":
+		return "https://www.fedex.com/fedextrack/?tracknumbers=" + number
+	case "usps":
+		return "https://tools.usps.com/go/TrackConfirmAction?tLabels=" + number
+	case "dhl":
+		return "https://www.dhl.com/en/express/tracking.html?AWB=" + number
+	}
+	return ""
+}
+
+func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "admin" && role != "company" {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: admin or company only"), nil
+	}
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid order ID"), nil
+	}
+	var req struct {
+		Status          string `json:"status"`
+		TrackingNumber  string `json:"trackingNumber"`
+		TrackingCarrier string `json:"trackingCarrier"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+	if req.Status != "" && !validOrderStatuses[req.Status] {
+		return h.errorResponse(http.StatusBadRequest, "Invalid status"), nil
+	}
+	if req.TrackingCarrier != "" && !validTrackingCarriers[req.TrackingCarrier] {
+		return h.errorResponse(http.StatusBadRequest, "Invalid carrier"), nil
+	}
+	existing, err := h.orderService.GetByID(orderID)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Order not found"), nil
+	}
+	if role == "company" && existing.SellerID != accountID {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
+	}
+
+	updated, err := h.orderService.UpdateOrder(orderID, order.OrderUpdate{
+		Status:          req.Status,
+		TrackingNumber:  req.TrackingNumber,
+		TrackingCarrier: req.TrackingCarrier,
+		TrackingURL:     trackingURLFor(req.TrackingCarrier, req.TrackingNumber),
+	})
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Failed to update order"), nil
+	}
+
+	// Notify customer when order first transitions to "shipped" — synchronous so it
+	// actually delivers (same Lambda goroutine-vs-freeze concern as confirmation).
+	if req.Status == "shipped" && existing.Status != "shipped" && updated.CustomerEmail != "" && h.emailSender != nil {
+		msg := mailer.OrderShippedMessage(updated.CustomerEmail, mailer.OrderShippedData{
+			OrderID:         updated.ID.Hex(),
+			TrackingCarrier: updated.TrackingCarrier,
+			TrackingNumber:  updated.TrackingNumber,
+			TrackingURL:     updated.TrackingURL,
+		})
+		sender, _ := mailer.SenderForCompany(context.Background(), updated.SellerID, h.emailSender)
+		if err := sender.Send(context.Background(), msg); err != nil {
+			log.Printf("WARN: order shipped email failed for %s: %v", updated.CustomerEmail, err)
+		}
+	}
+
+	return h.successResponse(updated), nil
 }
 
 func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
@@ -1730,7 +1820,7 @@ func (h *LambdaHandler) handlePaymentReturnRequest(request events.APIGatewayProx
 		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
 	}
 
-	resp, _ := h.createOrderFromQuote(q, paymentSession.AccountID, paymentSession.PaymentMethod, paymentSession.DeliveryMethod, completion.TransactionID, paymentSession.PickupLocationID, paymentSession.DeliveryAddressID)
+	resp, _ := h.createOrderFromQuote(q, paymentSession.AccountID, paymentSession.CustomerEmail, paymentSession.PaymentMethod, paymentSession.DeliveryMethod, completion.TransactionID, paymentSession.PickupLocationID, paymentSession.DeliveryAddressID)
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Order creation failed after successful payment for session %s: %s", providerSessionID, resp.Body)

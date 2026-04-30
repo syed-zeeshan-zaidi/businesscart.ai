@@ -390,7 +390,8 @@
                     id: a._id || a.id,
                     addressLabel: a.addressLabel || 'Address',
                     recipientName: a.recipientName || '',
-                    address: a.address || {}
+                    address: a.address || {},
+                    isDefaultShipping: !!a.isDefaultShipping
                 }));
                 const quote = await this.createQuote(sellerId, customerAddresses);
                 if (!quote) throw new Error('Failed to create quote');
@@ -425,6 +426,118 @@
             const customerAddresses = quote.customerAddresses || [];
             const companyLocations = quote.companyLocations || [];
 
+            // Human-readable labels for raw enum values from the API.
+            // Customers should never see "shipping_out" or "pickup_&_pay".
+            const PAYMENT_LABELS = {
+                amazon_pay: 'Amazon Pay',
+                stripe_pay: 'Credit / Debit Card',
+                google_pay: 'Google Pay',
+                credit_card: 'Credit Card',
+                purchase_order: 'Purchase Order',
+                'pickup_&_pay': 'Pay at Pickup',
+                deliver_pay: 'Pay on Delivery',
+            };
+            const DELIVERY_LABELS = {
+                shipping_out: 'Ship to my address',
+                pickup: 'Pick up at store',
+                dropoff: 'Local delivery',
+            };
+            const labelFor = (map, key) => map[key] || (key || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+            // Inline SVG icons (currentColor, 20px) — no external requests, theme-aware.
+            const ICON_CARD = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><path d="M6 15h2"/></svg>';
+            const ICON_BAG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>';
+            const ICON_PHONE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+            const ICON_DOC = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>';
+            const ICON_CASH = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+            const ICON_TRUCK = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>';
+            const ICON_STORE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-6h16l1 6"/><path d="M3 9v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9"/><path d="M3 9h18"/><path d="M9 21V13h6v8"/></svg>';
+            const ICON_MAP = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+
+            const PAYMENT_ICONS = {
+                amazon_pay: ICON_BAG,
+                stripe_pay: ICON_CARD,
+                google_pay: ICON_PHONE,
+                credit_card: ICON_CARD,
+                purchase_order: ICON_DOC,
+                'pickup_&_pay': ICON_CASH,
+                deliver_pay: ICON_CASH,
+            };
+            const DELIVERY_ICONS = {
+                shipping_out: ICON_TRUCK,
+                pickup: ICON_STORE,
+                dropoff: ICON_MAP,
+            };
+            const iconFor = (map, key) => map[key] || ICON_DOC;
+            // HTML escapers — used everywhere user-supplied text/attributes are interpolated.
+            const escText = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const escAttr = s => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // Address state — closure-scoped so we can re-render just the address slot
+            // when the customer adds a new address inline (without rebuilding the modal).
+            let addrList = customerAddresses.slice();
+            let addrPreselectId = (addrList.find(a => a.isDefaultShipping) || addrList[0])?.id;
+            const user = this.user || {};
+            const defaultRecipient = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+            const buildAddressListHtml = () => {
+                if (addrList.length === 0) {
+                    // Zero-state path is unchanged — closes modal + opens dashboard address tab.
+                    return `<div id="checkout-new-address-section">
+                        <p style="font-size:13px;color:#9ca3af;padding:4px 0 8px">No saved addresses.</p>
+                        <button type="button" onclick="document.getElementById('d2c-checkout-overlay')?.remove(); D2C_CUSTOMER._showAddressForm=true; D2C_CUSTOMER._dashboardTab='addresses'; D2C_CUSTOMER.showDashboard();" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Delivery Address</button>
+                    </div>`;
+                }
+                return `
+                    <select id="checkout-address" class="checkout-select">
+                        ${addrList.map(a => `<option value="${escAttr(a.id)}" ${a.id === addrPreselectId ? 'selected' : ''}>${escText((a.addressLabel || 'Address') + (a.isDefaultShipping ? ' (Default)' : '') + ': ' + (a.address?.street || '') + ', ' + (a.address?.city || ''))}</option>`).join('')}
+                    </select>
+                    <button type="button" class="checkout-add-link" data-action="open-add-form">+ Add new address</button>
+                `;
+            };
+
+            const buildAddressFormHtml = () => `
+                <form id="checkout-add-address-form" class="checkout-form">
+                    <div>
+                        <label class="checkout-form-label" for="addr-label">Label</label>
+                        <input class="checkout-input" id="addr-label" name="addressLabel" placeholder="Home, Work" required>
+                    </div>
+                    <div>
+                        <label class="checkout-form-label" for="addr-recipient">Recipient name</label>
+                        <input class="checkout-input" id="addr-recipient" name="recipientName" value="${escAttr(defaultRecipient)}" required>
+                    </div>
+                    <div>
+                        <label class="checkout-form-label" for="addr-phone">Phone (optional)</label>
+                        <input class="checkout-input" id="addr-phone" name="phoneNumber" type="tel" autocomplete="tel">
+                    </div>
+                    <div>
+                        <label class="checkout-form-label" for="addr-street">Street address</label>
+                        <input class="checkout-input" id="addr-street" name="street" autocomplete="street-address" required>
+                    </div>
+                    <div class="checkout-form-row">
+                        <div>
+                            <label class="checkout-form-label" for="addr-city">City</label>
+                            <input class="checkout-input" id="addr-city" name="city" autocomplete="address-level2" required>
+                        </div>
+                        <div>
+                            <label class="checkout-form-label" for="addr-state">State</label>
+                            <input class="checkout-input" id="addr-state" name="state" autocomplete="address-level1" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="checkout-form-label" for="addr-zip">ZIP</label>
+                        <input class="checkout-input" id="addr-zip" name="zip" autocomplete="postal-code" required>
+                    </div>
+                    <label class="checkout-checkbox-row">
+                        <input type="checkbox" name="isDefaultShipping"> Set as default shipping address
+                    </label>
+                    <div class="checkout-form-actions">
+                        <button type="button" class="checkout-btn-secondary" data-action="cancel-add-form">Cancel</button>
+                        <button type="submit" class="checkout-btn-primary-sm">Save Address</button>
+                    </div>
+                </form>
+            `;
+
             const overlay = document.createElement('div');
             overlay.id = 'd2c-checkout-overlay';
             overlay.innerHTML = `
@@ -434,23 +547,36 @@
                         background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
                     }
                     .checkout-modal {
-                        background: #fff; border-radius: 16px; max-width: 520px; width: 90%; max-height: 85vh; overflow-y: auto;
+                        background: #fff; border-radius: 16px; max-width: 560px; width: 92%; max-height: 90vh;
                         box-shadow: 0 25px 50px rgba(0,0,0,0.25); padding: 0;
+                        display: flex; flex-direction: column;
                     }
                     .checkout-header {
-                        padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+                        padding: 18px 24px; border-bottom: 1px solid #e5e7eb;
                         display: flex; justify-content: space-between; align-items: center;
+                        flex-shrink: 0;
                     }
                     .checkout-header h2 { margin: 0; font-size: 20px; font-weight: 700; color: #111; }
-                    .checkout-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; }
-                    .checkout-body { padding: 20px 24px; }
+                    .checkout-close { background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280; padding: 4px 10px; line-height: 1; border-radius: 8px; }
+                    .checkout-close:hover { background: #f3f4f6; color: #111; }
+                    .checkout-body { padding: 18px 24px 8px; flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
                     .checkout-item {
-                        display: flex; justify-content: space-between; align-items: center;
-                        padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+                        display: flex; align-items: center; gap: 12px;
+                        padding: 12px 0; border-bottom: 1px solid #f3f4f6;
                     }
-                    .checkout-item-name { font-weight: 500; color: #374151; }
-                    .checkout-item-detail { color: #6b7280; font-size: 14px; }
-                    .checkout-item-price { font-weight: 600; color: #111; }
+                    .checkout-item-thumb {
+                        width: 56px; height: 56px; border-radius: 8px; object-fit: cover;
+                        border: 1px solid #e5e7eb; flex-shrink: 0; background: #f9fafb;
+                    }
+                    .checkout-item-thumb-placeholder {
+                        width: 56px; height: 56px; border-radius: 8px; background: #f3f4f6;
+                        display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 20px;
+                        flex-shrink: 0; border: 1px solid #e5e7eb;
+                    }
+                    .checkout-item-info { flex: 1; min-width: 0; }
+                    .checkout-item-name { font-weight: 600; color: #111; font-size: 14px; line-height: 1.35; word-break: break-word; }
+                    .checkout-item-detail { color: #6b7280; font-size: 13px; margin-top: 2px; }
+                    .checkout-item-price { font-weight: 700; color: #111; font-size: 14px; flex-shrink: 0; }
                     .checkout-summary-row {
                         display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #6b7280;
                     }
@@ -458,28 +584,87 @@
                         border-top: 2px solid #111; margin-top: 8px; padding-top: 12px;
                         font-size: 18px; font-weight: 700; color: #111;
                     }
-                    .checkout-section { margin-top: 20px; }
-                    .checkout-section h3 { font-size: 13px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-                    .checkout-select {
-                        width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-                        font-size: 14px; color: #374151; background: #f9fafb; appearance: auto;
+                    .checkout-section { margin-top: 22px; }
+                    .checkout-section h3 {
+                        font-size: 14px; font-weight: 700; color: #111;
+                        text-transform: none; letter-spacing: 0; margin: 0 0 10px;
                     }
+                    .checkout-select {
+                        width: 100%; padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+                        font-size: 14px; color: #111; background: #fff; appearance: auto;
+                    }
+                    .checkout-select:focus { outline: 2px solid var(--primary, #0d9488); outline-offset: 1px; border-color: transparent; }
                     .checkout-radio-group { display: flex; flex-direction: column; gap: 8px; }
                     .checkout-radio {
-                        display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-                        border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; background: #f9fafb;
+                        display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+                        border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; background: #fff;
+                        transition: border-color 0.15s, background 0.15s;
                     }
-                    .checkout-radio:hover { border-color: #d1d5db; }
-                    .checkout-radio input { margin: 0; }
-                    .checkout-radio label { font-size: 14px; color: #374151; cursor: pointer; font-weight: 500; }
-                    .checkout-footer { padding: 16px 24px; border-top: 1px solid #e5e7eb; }
+                    .checkout-radio:hover { border-color: #9ca3af; background: #f9fafb; }
+                    .checkout-radio input { margin: 0; accent-color: var(--primary, #0d9488); }
+                    .checkout-radio label { font-size: 14px; color: #111; cursor: pointer; font-weight: 500; flex: 1; }
+                    .checkout-method-icon {
+                        display: inline-flex; align-items: center; justify-content: center;
+                        width: 32px; height: 32px; border-radius: 6px;
+                        background: #f3f4f6; color: #374151; flex-shrink: 0;
+                    }
+                    .checkout-radio.locked .checkout-method-icon { background: #fff; }
+                    .checkout-radio.locked { background: #f9fafb; cursor: default; border-style: dashed; }
+                    .checkout-radio.locked:hover { background: #f9fafb; border-color: #d1d5db; }
+                    .checkout-radio.locked label { cursor: default; color: #374151; pointer-events: none; }
+                    .checkout-radio.locked input { cursor: default; pointer-events: none; }
+                    .checkout-add-link {
+                        display: inline-flex; align-items: center; margin-top: 10px;
+                        background: none; border: none; padding: 6px 0; cursor: pointer;
+                        color: var(--primary, #0d9488); font-size: 14px; font-weight: 600;
+                    }
+                    .checkout-add-link:hover { text-decoration: underline; }
+                    .checkout-form { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+                    .checkout-form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+                    .checkout-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+                    .checkout-input {
+                        width: 100%; padding: 11px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+                        font-size: 14px; color: #111; background: #fff; font-family: inherit; box-sizing: border-box;
+                    }
+                    .checkout-input:focus { outline: 2px solid var(--primary, #0d9488); outline-offset: 1px; border-color: transparent; }
+                    .checkout-checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; cursor: pointer; padding: 4px 0; }
+                    .checkout-checkbox-row input { accent-color: var(--primary, #0d9488); }
+                    .checkout-form-actions { display: flex; gap: 10px; margin-top: 6px; }
+                    .checkout-form-actions button { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: opacity 0.15s, background 0.15s; font-family: inherit; }
+                    .checkout-btn-secondary { background: #fff; border-color: #d1d5db; color: #374151; }
+                    .checkout-btn-secondary:hover { background: #f9fafb; }
+                    .checkout-btn-primary-sm { background: var(--primary, #0d9488); color: #fff; }
+                    .checkout-btn-primary-sm:hover:not(:disabled) { opacity: 0.92; }
+                    .checkout-btn-primary-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+                    .checkout-footer {
+                        padding: 14px 24px 18px; border-top: 1px solid #e5e7eb;
+                        background: #fff; box-shadow: 0 -4px 12px rgba(0,0,0,0.04); flex-shrink: 0;
+                    }
+                    .checkout-trust {
+                        display: flex; align-items: center; justify-content: center; gap: 6px;
+                        font-size: 12px; color: #6b7280; margin-bottom: 10px;
+                    }
+                    .checkout-trust svg { flex-shrink: 0; }
+                    .checkout-validation-msg {
+                        font-size: 13px; color: #b45309; text-align: center; margin-top: 8px; min-height: 18px;
+                    }
                     .checkout-btn {
                         width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
-                        color: #fff; cursor: pointer; transition: opacity 0.2s;
+                        color: #fff; cursor: pointer; transition: opacity 0.2s, transform 0.1s;
                     }
-                    .checkout-btn:hover { opacity: 0.9; }
+                    .checkout-btn:hover:not(:disabled) { opacity: 0.92; }
+                    .checkout-btn:active:not(:disabled) { transform: scale(0.99); }
                     .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-                    .checkout-status { text-align: center; padding: 12px; font-size: 14px; color: #6b7280; }
+                    .checkout-status { text-align: center; padding: 8px 0; font-size: 14px; color: #6b7280; }
+                    @media (max-width: 480px) {
+                        .checkout-modal { width: 96%; max-height: 95vh; border-radius: 12px; }
+                        .checkout-header, .checkout-body, .checkout-footer { padding-left: 16px; padding-right: 16px; }
+                        .checkout-item-thumb, .checkout-item-thumb-placeholder { width: 48px; height: 48px; }
+                        .checkout-select { padding: 14px 12px; min-height: 48px; }
+                        .checkout-radio { padding: 14px; min-height: 48px; }
+                        .checkout-close { font-size: 32px; padding: 6px 12px; }
+                        .checkout-btn { padding: 16px; font-size: 17px; min-height: 52px; }
+                    }
                 </style>
                 <div class="checkout-modal">
                     <div class="checkout-header">
@@ -487,15 +672,21 @@
                         <button class="checkout-close" onclick="document.getElementById('d2c-checkout-overlay').remove()">&times;</button>
                     </div>
                     <div class="checkout-body">
-                        ${quote.items.map(item => `
+                        ${(quote.items || []).map(item => {
+                            const lineTotal = item.lineItemTotal || ((item.discountedPrice || item.price || 0) * (item.quantity || 1));
+                            const img = item.image || '';
+                            return `
                             <div class="checkout-item">
-                                <div>
-                                    <div class="checkout-item-name">${item.name || 'Product'}</div>
+                                ${img
+                                    ? `<img class="checkout-item-thumb" src="${escAttr(img)}" alt="${escAttr(item.name || 'Product')}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'checkout-item-thumb-placeholder',textContent:'📦'}))">`
+                                    : `<div class="checkout-item-thumb-placeholder">📦</div>`}
+                                <div class="checkout-item-info">
+                                    <div class="checkout-item-name">${escText(item.name || 'Product')}</div>
                                     <div class="checkout-item-detail">Qty: ${item.quantity || 1}</div>
                                 </div>
-                                <div class="checkout-item-price">$${(item.lineItemTotal || ((item.discountedPrice || item.price || 0) * (item.quantity || 1))).toFixed(2)}</div>
-                            </div>
-                        `).join('')}
+                                <div class="checkout-item-price">$${lineTotal.toFixed(2)}</div>
+                            </div>`;
+                        }).join('')}
                         <div style="margin-top:12px">
                             <div class="checkout-summary-row"><span>Subtotal</span><span>$${(quote.subtotal || 0).toFixed(2)}</span></div>
                             <div class="checkout-summary-row"><span>Shipping</span><span>$${(quote.shippingCost || 0).toFixed(2)}</span></div>
@@ -503,64 +694,73 @@
                             <div class="checkout-summary-row total"><span>Grand Total</span><span>$${(quote.grandTotal || 0).toFixed(2)}</span></div>
                         </div>
 
+                        ${deliveryMethods.length > 1 ? `
                         <div class="checkout-section">
                             <h3>Delivery Method</h3>
-                            <select id="checkout-delivery" class="checkout-select">
-                                ${deliveryMethods.map(m => `<option value="${m}">${m.replace(/_/g, ' ')}</option>`).join('')}
-                            </select>
+                            <div class="checkout-radio-group" id="checkout-delivery-group">
+                                ${deliveryMethods.map((m, i) => `
+                                    <label class="checkout-radio" for="dlv-${i}">
+                                        <input type="radio" name="checkout-delivery-radio" id="dlv-${i}" value="${escAttr(m)}" ${i === 0 ? 'checked' : ''}>
+                                        <span class="checkout-method-icon">${iconFor(DELIVERY_ICONS, m)}</span>
+                                        <span style="flex:1; font-size:14px; color:#111; font-weight:500">${escText(labelFor(DELIVERY_LABELS, m))}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" id="checkout-delivery" value="${escAttr(deliveryMethods[0] || '')}">
                         </div>
+                        ` : `<input type="hidden" id="checkout-delivery" value="${escAttr(deliveryMethods[0] || '')}">`}
 
                         <div class="checkout-section" id="checkout-address-section" style="display:${deliveryMethods[0] !== 'pickup' ? 'block' : 'none'}">
                             <h3>Delivery Address</h3>
-                            ${customerAddresses.length > 0 ? `
-                                <select id="checkout-address" class="checkout-select">
-                                    <option value="">Select an address</option>
-                                    ${customerAddresses.map(a => `<option value="${a.id}">${a.addressLabel || 'Address'}: ${a.address?.street || ''}, ${a.address?.city || ''}</option>`).join('')}
-                                </select>
-                            ` : `<div id="checkout-new-address-section">
-                                <p style="font-size:13px;color:#9ca3af;padding:4px 0 8px">No saved addresses.</p>
-                                <button type="button" onclick="document.getElementById('d2c-checkout-overlay')?.remove(); D2C_CUSTOMER._showAddressForm=true; D2C_CUSTOMER._dashboardTab='addresses'; D2C_CUSTOMER.showDashboard();" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Delivery Address</button>
-                            </div>`}
+                            <div id="checkout-address-content">${buildAddressListHtml()}</div>
                         </div>
 
                         <div class="checkout-section" id="checkout-pickup-section" style="display:${deliveryMethods[0] === 'pickup' ? 'block' : 'none'}">
                             <h3>Pickup Location</h3>
                             ${companyLocations.length > 0 ? `
                                 <select id="checkout-pickup" class="checkout-select">
-                                    <option value="">Select a location</option>
-                                    ${companyLocations.map(l => `<option value="${l.id}">${l.locationName} - ${l.address?.street || ''}, ${l.address?.city || ''}</option>`).join('')}
+                                    ${companyLocations.length === 1 ? '' : '<option value="">Select a location</option>'}
+                                    ${companyLocations.map((l, i) => `<option value="${escAttr(l.id)}" ${i === 0 && companyLocations.length === 1 ? 'selected' : ''}>${escText(l.locationName + ' - ' + (l.address?.street || '') + ', ' + (l.address?.city || ''))}</option>`).join('')}
                                 </select>
                             ` : '<div style="font-size:13px;color:#9ca3af;padding:8px 0">No pickup locations available.</div>'}
                         </div>
 
-                        ${shippingOptions.length > 0 ? `
+                        ${shippingOptions.length > 1 ? `
                         <div class="checkout-section" id="checkout-shipping-section" style="display:${deliveryMethods[0] === 'shipping_out' ? 'block' : 'none'}">
                             <h3>Shipping Option</h3>
                             <select id="checkout-shipping" class="checkout-select">
-                                ${shippingOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+                                ${shippingOptions.map(o => `<option value="${escAttr(o)}">${escText(o)}</option>`).join('')}
                             </select>
                         </div>
-                        ` : ''}
+                        ` : (shippingOptions.length === 1 ? `<input type="hidden" id="checkout-shipping" value="${escAttr(shippingOptions[0])}">` : '')}
 
+                        ${paymentMethods.length === 0 ? '' : `
                         <div class="checkout-section">
                             <h3>Payment Method</h3>
                             <div class="checkout-radio-group">
                                 ${paymentMethods.map((m, i) => `
-                                    <div class="checkout-radio">
-                                        <input type="radio" name="checkout-payment" id="pay-${m}" value="${m}" ${i === 0 ? 'checked' : ''}>
-                                        <label for="pay-${m}">${m.replace(/_/g, ' ')}</label>
+                                    <div class="checkout-radio${paymentMethods.length === 1 ? ' locked' : ''}">
+                                        <input type="radio" name="checkout-payment" id="pay-${i}" value="${escAttr(m)}" ${i === 0 ? 'checked' : ''} ${paymentMethods.length === 1 ? 'tabindex="-1"' : ''}>
+                                        <span class="checkout-method-icon">${iconFor(PAYMENT_ICONS, m)}</span>
+                                        <label for="pay-${i}">${escText(labelFor(PAYMENT_LABELS, m))}</label>
                                     </div>
                                 `).join('')}
                             </div>
                         </div>
+                        `}
 
                         <div id="checkout-status" class="checkout-status" style="display:none;"></div>
                     </div>
                     <div class="checkout-footer">
+                        <div class="checkout-trust">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            <span>Secure checkout · Encrypted payment</span>
+                        </div>
                         <div id="d2c-pay-button" style="display:none;margin:0 auto 0.5rem;max-width:300px;"></div>
                         <button id="checkout-place-order-btn" class="checkout-btn" style="background-color: ${primaryColor};">
                             Place Order — $${(quote.grandTotal || 0).toFixed(2)}
                         </button>
+                        <div id="checkout-validation-msg" class="checkout-validation-msg"></div>
                     </div>
                 </div>
             `;
@@ -571,39 +771,133 @@
                 if (e.target === overlay) overlay.remove();
             });
 
-            // Toggle address/pickup/shipping sections based on delivery method
-            const deliverySelect = document.getElementById('checkout-delivery');
-            if (deliverySelect) {
-                deliverySelect.addEventListener('change', () => {
-                    const val = deliverySelect.value;
+            // Toggle address/pickup/shipping sections when delivery method changes.
+            // Multi-delivery is now a radio group; sync selected value to the hidden #checkout-delivery
+            // input so validateCheckout + _processCheckout still read the same field name.
+            const deliveryGroup = document.getElementById('checkout-delivery-group');
+            const deliveryHidden = document.getElementById('checkout-delivery');
+            if (deliveryGroup && deliveryHidden) {
+                deliveryGroup.addEventListener('change', (e) => {
+                    if (!e.target.matches('input[name="checkout-delivery-radio"]')) return;
+                    const val = e.target.value;
+                    deliveryHidden.value = val;
                     const addrSec = document.getElementById('checkout-address-section');
                     const pickupSec = document.getElementById('checkout-pickup-section');
                     const shipSec = document.getElementById('checkout-shipping-section');
                     if (addrSec) addrSec.style.display = val !== 'pickup' ? 'block' : 'none';
                     if (pickupSec) pickupSec.style.display = val === 'pickup' ? 'block' : 'none';
                     if (shipSec) shipSec.style.display = val === 'shipping_out' ? 'block' : 'none';
+                    validateCheckout();
                 });
             }
 
-            // Validate checkout form and enable/disable Place Order button
+            // Address section — event delegation survives re-renders of #checkout-address-content.
+            // Handles: dropdown change, "+ Add new address" click, form submit, form cancel.
+            const addrSectionEl = document.getElementById('checkout-address-section');
+            const addrContentEl = () => document.getElementById('checkout-address-content');
+            const renderAddrList = () => {
+                const el = addrContentEl();
+                if (el) { el.innerHTML = buildAddressListHtml(); validateCheckout(); }
+            };
+            const renderAddrForm = () => {
+                const el = addrContentEl();
+                if (el) {
+                    el.innerHTML = buildAddressFormHtml();
+                    validateCheckout();
+                    el.querySelector('input[name="addressLabel"]')?.focus();
+                }
+            };
+            if (addrSectionEl) {
+                addrSectionEl.addEventListener('change', e => {
+                    if (e.target.matches('#checkout-address')) validateCheckout();
+                });
+                addrSectionEl.addEventListener('click', e => {
+                    const action = e.target.closest('[data-action]')?.getAttribute('data-action');
+                    if (action === 'open-add-form') { e.preventDefault(); renderAddrForm(); }
+                    else if (action === 'cancel-add-form') { e.preventDefault(); renderAddrList(); }
+                });
+                addrSectionEl.addEventListener('submit', async e => {
+                    if (e.target.id !== 'checkout-add-address-form') return;
+                    e.preventDefault();
+                    const form = e.target;
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const cancelBtn = form.querySelector('button[data-action="cancel-add-form"]');
+                    const fd = new FormData(form);
+                    const payload = {
+                        addressLabel: fd.get('addressLabel'),
+                        recipientName: fd.get('recipientName'),
+                        phoneNumber: fd.get('phoneNumber') || '',
+                        isDefaultShipping: !!fd.get('isDefaultShipping'),
+                        address: { street: fd.get('street'), city: fd.get('city'), state: fd.get('state'), zip: fd.get('zip') }
+                    };
+                    submitBtn.disabled = true; if (cancelBtn) cancelBtn.disabled = true;
+                    submitBtn.textContent = 'Saving…';
+                    try {
+                        const ok = await this.addAddress(payload);
+                        if (!ok) throw new Error('save-failed');
+                        const fresh = await this.getAddresses();
+                        // Defensive: if re-fetch returns empty after a known-successful save (network
+                        // glitch / Lambda cold-start race), do NOT wipe the existing list — we'd lose
+                        // visibility of all saved addresses AND can't preselect the new one because we
+                        // don't have its server-assigned id. Keep current list, restore form state,
+                        // ask user to retry.
+                        if (!fresh || fresh.length === 0) {
+                            submitBtn.disabled = false; if (cancelBtn) cancelBtn.disabled = false;
+                            submitBtn.textContent = 'Save Address';
+                            if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Address saved — please tap Cancel and reopen to use it.');
+                            return;
+                        }
+                        addrList = fresh.map(a => ({
+                            id: a._id || a.id,
+                            addressLabel: a.addressLabel || 'Address',
+                            recipientName: a.recipientName || '',
+                            address: a.address || {},
+                            isDefaultShipping: !!a.isDefaultShipping
+                        }));
+                        // Identify the newly created address: prefer label+street+zip match,
+                        // fall back to the last list entry (insertion order).
+                        const newAddr = addrList.find(a =>
+                            a.addressLabel === payload.addressLabel &&
+                            (a.address?.street || '') === payload.address.street &&
+                            (a.address?.zip || '') === payload.address.zip
+                        ) || addrList[addrList.length - 1];
+                        addrPreselectId = newAddr?.id || addrPreselectId;
+                        renderAddrList();
+                        if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Address added');
+                    } catch (err) {
+                        submitBtn.disabled = false; if (cancelBtn) cancelBtn.disabled = false;
+                        submitBtn.textContent = 'Save Address';
+                        if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Could not save address. Please try again.');
+                    }
+                });
+            }
+
+            // Validate checkout form and enable/disable Place Order button.
+            // Populates inline message so customer knows WHY the button is disabled.
             const validateCheckout = () => {
                 const btn = document.getElementById('checkout-place-order-btn');
+                const msg = document.getElementById('checkout-validation-msg');
                 const dm = document.getElementById('checkout-delivery')?.value || '';
                 const pm = document.querySelector('input[name="checkout-payment"]:checked')?.value || '';
-                let valid = true;
+                let reason = '';
 
-                if (!dm || !pm) valid = false;
-
-                if (dm !== 'pickup') {
+                if (!dm) reason = 'Select a delivery method to continue';
+                else if (dm !== 'pickup') {
                     const addrSelect = document.getElementById('checkout-address');
-                    if (!addrSelect || !addrSelect.value) valid = false;
-                }
-                if (dm === 'pickup') {
+                    const addrFormOpen = !!document.getElementById('checkout-add-address-form');
+                    if (addrFormOpen) reason = 'Save your address to continue';
+                    else if (!addrSelect) reason = 'Add a delivery address to continue';
+                    else if (!addrSelect.value) reason = 'Select a delivery address to continue';
+                } else if (dm === 'pickup') {
                     const pickupSelect = document.getElementById('checkout-pickup');
-                    if (pickupSelect && !pickupSelect.value) valid = false;
-                    if (!pickupSelect) valid = false;
+                    if (!pickupSelect || !pickupSelect.value) reason = 'Select a pickup location to continue';
                 }
+                if (!reason && !pm) reason = 'Select a payment method to continue';
 
+                const valid = !reason;
+                // Hide validation message when Amazon Pay is the active method — its own button
+                // is rendered in place of the Place Order CTA, and it handles address details itself.
+                if (msg) msg.textContent = (valid || pm === 'amazon_pay') ? '' : reason;
                 if (btn && pm !== 'amazon_pay') {
                     btn.disabled = !valid;
                     btn.style.opacity = valid ? '1' : '0.5';
@@ -612,7 +906,7 @@
             };
 
             // Run validation on all form changes
-            document.querySelectorAll('#checkout-delivery, #checkout-address, #checkout-pickup').forEach(el => {
+            document.querySelectorAll('#checkout-delivery, #checkout-pickup').forEach(el => {
                 el.addEventListener('change', validateCheckout);
                 el.addEventListener('input', validateCheckout);
             });
@@ -1065,28 +1359,169 @@
                 return;
             }
 
-            const statusColors = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444' };
+            const statusColors = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706' };
+            this._cachedOrders = orders;
 
             container.innerHTML = `
                 <h3 style="font-size:1rem; font-weight:800; margin-bottom:1rem">Order History</h3>
                 ${orders.map(o => {
                 const color = statusColors[o.status] || '#64748b';
+                const oid = o._id || o.id;
+                const trackingLabel = [o.trackingCarrier ? o.trackingCarrier.toUpperCase() : '', o.trackingNumber || ''].filter(Boolean).join(' ');
                 return `
-                    <div class="dash-card">
+                    <div class="dash-card" style="cursor:pointer" onclick="if(event.target.tagName==='BUTTON'||event.target.tagName==='A')return; D2C_CUSTOMER.showOrderDetail('${oid}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
-                            <span style="font-weight:700; font-size:0.9rem">Order #${(o._id || o.id || '').slice(-6)}</span>
+                            <span style="font-weight:700; font-size:0.9rem">Order #${(oid || '').slice(-6)}</span>
                             <span style="font-weight:800; color:var(--primary)">$${(o.grandTotal || 0).toFixed(2)}</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem">
                             <span class="dash-badge" style="background:${color}15; color:${color}">${o.status}</span>
-                            <div style="display:flex; align-items:center; gap:0.5rem">
+                            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap">
                                 <span style="font-size:0.75rem; color:#94a3b8">${o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}</span>
-                                <button onclick="D2C_CUSTOMER.reorder('${o._id || o.id}')" style="font-size:0.75rem; color:var(--primary); font-weight:600; background:none; border:none; cursor:pointer; text-decoration:underline">Reorder</button>
+                                <button onclick="event.stopPropagation(); D2C_CUSTOMER.reorder('${oid}')" style="font-size:0.75rem; color:var(--primary); font-weight:600; background:none; border:none; cursor:pointer; text-decoration:underline; padding:0">Reorder</button>
                             </div>
                         </div>
+                        ${o.trackingNumber ? `
+                        <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid #f1f5f9; font-size:0.75rem; color:#64748b">
+                            ${trackingLabel}${o.trackingUrl ? ` · <a href="${o.trackingUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:var(--primary); font-weight:600; text-decoration:none">Track package →</a>` : ''}
+                        </div>
+                        ` : ''}
                     </div>`;
             }).join('')}
             `;
+        },
+
+        showOrderDetail(orderId) {
+            const order = (this._cachedOrders || []).find(o => (o._id || o.id) === orderId);
+            if (!order) return;
+            this._renderOrderDetailOverlay(order);
+        },
+
+        _renderOrderDetailOverlay(order) {
+            document.getElementById('order-detail-overlay')?.remove();
+            const escText = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const PAYMENT_LABELS = {
+                amazon_pay: 'Amazon Pay', stripe_pay: 'Credit / Debit Card', google_pay: 'Google Pay',
+                credit_card: 'Credit Card', purchase_order: 'Purchase Order',
+                'pickup_&_pay': 'Pay at Pickup', deliver_pay: 'Pay on Delivery',
+            };
+            const DELIVERY_LABELS = { shipping_out: 'Ship to address', pickup: 'Pick up at store', dropoff: 'Local delivery' };
+            const STATUS_COLORS = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706' };
+            const labelFor = (m, k) => m[k] || (k || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
+            const oid = order._id || order.id || '';
+            const color = STATUS_COLORS[order.status] || '#64748b';
+            const trackingLabel = [order.trackingCarrier ? order.trackingCarrier.toUpperCase() : '', order.trackingNumber || ''].filter(Boolean).join(' ');
+
+            const overlay = document.createElement('div');
+            overlay.id = 'order-detail-overlay';
+            overlay.innerHTML = `
+                <style>
+                    #order-detail-overlay { position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center;
+                        background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); padding:1rem; }
+                    #order-detail-overlay .od-modal { background:#fff; border-radius:16px; max-width:520px; width:100%; max-height:90vh;
+                        display:flex; flex-direction:column; box-shadow:0 25px 50px rgba(0,0,0,0.25); }
+                    #order-detail-overlay .od-head { padding:18px 20px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem; flex-shrink:0; }
+                    #order-detail-overlay .od-head h2 { margin:0; font-size:18px; font-weight:800; color:#0f172a; }
+                    #order-detail-overlay .od-head .meta { margin-top:4px; font-size:12px; color:#64748b; }
+                    #order-detail-overlay .od-close { background:none; border:none; font-size:26px; cursor:pointer; color:#94a3b8; padding:8px 12px; line-height:1; border-radius:8px; min-width:44px; min-height:44px; }
+                    #order-detail-overlay .od-close:hover { background:#f1f5f9; color:#0f172a; }
+                    #order-detail-overlay .od-body { padding:18px 20px; overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; }
+                    #order-detail-overlay .od-section { margin-bottom:18px; }
+                    #order-detail-overlay .od-section h3 { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 8px; }
+                    #order-detail-overlay .od-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f1f5f9; }
+                    #order-detail-overlay .od-item:last-child { border-bottom:none; }
+                    #order-detail-overlay .od-thumb { width:44px; height:44px; border-radius:6px; object-fit:cover; border:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0; }
+                    #order-detail-overlay .od-thumb-ph { width:44px; height:44px; border-radius:6px; background:#f1f5f9; border:1px solid #e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8; flex-shrink:0; font-size:18px; }
+                    #order-detail-overlay .od-item-info { flex:1; min-width:0; }
+                    #order-detail-overlay .od-item-name { font-size:13px; font-weight:600; color:#0f172a; word-break:break-word; line-height:1.3; }
+                    #order-detail-overlay .od-item-detail { font-size:11px; color:#94a3b8; margin-top:2px; }
+                    #order-detail-overlay .od-item-price { font-size:13px; font-weight:700; color:#0f172a; flex-shrink:0; }
+                    #order-detail-overlay .od-row { display:flex; justify-content:space-between; padding:4px 0; font-size:13px; color:#64748b; }
+                    #order-detail-overlay .od-row.total { border-top:2px solid #0f172a; margin-top:6px; padding-top:8px; font-size:15px; font-weight:800; color:#0f172a; }
+                    #order-detail-overlay .od-kv { display:flex; justify-content:space-between; gap:0.5rem; padding:3px 0; font-size:13px; }
+                    #order-detail-overlay .od-kv dt { color:#94a3b8; }
+                    #order-detail-overlay .od-kv dd { margin:0; color:#0f172a; font-weight:600; text-align:right; }
+                    #order-detail-overlay .od-foot { padding:14px 20px; border-top:1px solid #e5e7eb; background:#fafafa; display:flex; gap:0.5rem; flex-shrink:0; }
+                    #order-detail-overlay .od-btn { flex:1; padding:12px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; border:none; font-family:inherit; }
+                    #order-detail-overlay .od-btn-secondary { background:#fff; border:1px solid #cbd5e1; color:#475569; }
+                    #order-detail-overlay .od-btn-primary { background:var(--primary); color:#fff; }
+                    @media (max-width:480px) {
+                        #order-detail-overlay { padding:0.5rem; }
+                        #order-detail-overlay .od-modal { max-height:96vh; border-radius:12px; }
+                        #order-detail-overlay .od-thumb, #order-detail-overlay .od-thumb-ph { width:40px; height:40px; }
+                    }
+                </style>
+                <div class="od-modal">
+                    <div class="od-head">
+                        <div>
+                            <h2>Order #${escText(oid.slice(-6))}</h2>
+                            <div class="meta">${order.createdAt ? escText(new Date(order.createdAt).toLocaleString(undefined, {dateStyle:'medium', timeStyle:'short'})) : ''}</div>
+                            <div style="margin-top:8px"><span class="dash-badge" style="background:${color}15; color:${color}">${escText(order.status || 'pending')}</span></div>
+                        </div>
+                        <button class="od-close" onclick="document.getElementById('order-detail-overlay').remove()" aria-label="Close">×</button>
+                    </div>
+                    <div class="od-body">
+                        <section class="od-section">
+                            <h3>Items (${(order.items || []).length})</h3>
+                            ${(order.items || []).length === 0
+                                ? '<div style="font-size:13px; color:#94a3b8; padding:8px 0">No items recorded.</div>'
+                                : (order.items || []).map(it => {
+                                    const lineTotal = it.lineItemTotal || ((it.discountedPrice ?? it.price ?? 0) * (it.quantity || 1));
+                                    const img = it.image || '';
+                                    return `
+                                    <div class="od-item">
+                                        ${img
+                                            ? `<img class="od-thumb" src="${escAttr(img)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'od-thumb-ph',textContent:'📦'}))">`
+                                            : `<div class="od-thumb-ph">📦</div>`}
+                                        <div class="od-item-info">
+                                            <div class="od-item-name">${escText(it.name || 'Product')}</div>
+                                            <div class="od-item-detail">Qty ${it.quantity || 1}</div>
+                                        </div>
+                                        <div class="od-item-price">$${lineTotal.toFixed(2)}</div>
+                                    </div>`;
+                                }).join('')}
+                        </section>
+
+                        <section class="od-section">
+                            <h3>Summary</h3>
+                            <div class="od-row"><span>Subtotal</span><span>$${(order.subtotal || 0).toFixed(2)}</span></div>
+                            <div class="od-row"><span>Shipping</span><span>$${(order.shippingCost || 0).toFixed(2)}</span></div>
+                            <div class="od-row"><span>Tax</span><span>$${(order.taxAmount || 0).toFixed(2)}</span></div>
+                            <div class="od-row total"><span>Total</span><span>$${(order.grandTotal || 0).toFixed(2)}</span></div>
+                        </section>
+
+                        <section class="od-section">
+                            <h3>Delivery</h3>
+                            <dl style="margin:0">
+                                <div class="od-kv"><dt>Method</dt><dd>${escText(labelFor(DELIVERY_LABELS, order.deliveryMethod))}</dd></div>
+                                ${order.shippedAt ? `<div class="od-kv"><dt>Shipped</dt><dd>${escText(new Date(order.shippedAt).toLocaleDateString())}</dd></div>` : ''}
+                                ${order.deliveredAt ? `<div class="od-kv"><dt>Delivered</dt><dd>${escText(new Date(order.deliveredAt).toLocaleDateString())}</dd></div>` : ''}
+                            </dl>
+                            ${order.trackingNumber ? `
+                            <div style="margin-top:8px; padding:10px 12px; background:#f8fafc; border-radius:8px; font-size:13px;">
+                                <div style="color:#64748b; font-size:11px; margin-bottom:2px">Tracking</div>
+                                <div style="color:#0f172a; font-weight:600">${escText(trackingLabel)}</div>
+                                ${order.trackingUrl ? `<a href="${escAttr(order.trackingUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin-top:6px; color:var(--primary); font-weight:700; text-decoration:none; font-size:13px">Track package →</a>` : ''}
+                            </div>` : ''}
+                        </section>
+
+                        <section class="od-section">
+                            <h3>Payment</h3>
+                            <dl style="margin:0">
+                                <div class="od-kv"><dt>Method</dt><dd>${escText(labelFor(PAYMENT_LABELS, order.paymentMethod))}</dd></div>
+                                ${order.transactionId ? `<div class="od-kv"><dt>Reference</dt><dd style="font-family:monospace; font-size:11px; word-break:break-all; max-width:60%">${escText(order.transactionId)}</dd></div>` : ''}
+                            </dl>
+                        </section>
+                    </div>
+                    <div class="od-foot">
+                        <button class="od-btn od-btn-secondary" onclick="document.getElementById('order-detail-overlay').remove()">Close</button>
+                        <button class="od-btn od-btn-primary" onclick="document.getElementById('order-detail-overlay').remove(); D2C_CUSTOMER.reorder('${escAttr(oid)}')">Reorder</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         },
 
 

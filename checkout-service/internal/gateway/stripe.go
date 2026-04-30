@@ -36,6 +36,10 @@ func (g *StripeGateway) CreateSession(ctx context.Context, req SessionRequest) (
 	form.Set("line_items[0][price_data][product_data][name]", "Order "+req.MerchantRef)
 	form.Set("line_items[0][quantity]", "1")
 	form.Set("client_reference_id", req.MerchantRef)
+	if req.CustomerEmail != "" {
+		// Pre-fills the email field on Stripe's hosted Checkout — saves one tap on mobile.
+		form.Set("customer_email", req.CustomerEmail)
+	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST",
 		"https://api.stripe.com/v1/checkout/sessions",

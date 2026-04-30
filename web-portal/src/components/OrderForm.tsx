@@ -1,10 +1,47 @@
 // src/components/OrderForm.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getOrders, deleteOrder } from '../api';
+import { getOrders, deleteOrder, updateOrder } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
 import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
+
+/* ------------------------------------------------------------------ */
+/*  Status badge styling                                              */
+/* ------------------------------------------------------------------ */
+const STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'] as const;
+const CARRIER_OPTIONS = ['ups', 'fedex', 'usps', 'dhl', 'other'] as const;
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-gray-100 text-gray-700',
+  processing: 'bg-blue-100 text-blue-700',
+  shipped: 'bg-indigo-100 text-indigo-700',
+  delivered: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-700',
+  returned: 'bg-amber-100 text-amber-700',
+};
+const PAYMENT_LABELS: Record<string, string> = {
+  amazon_pay: 'Amazon Pay',
+  stripe_pay: 'Credit / Debit Card',
+  google_pay: 'Google Pay',
+  credit_card: 'Credit Card',
+  purchase_order: 'Purchase Order',
+  'pickup_&_pay': 'Pay at Pickup',
+  deliver_pay: 'Pay on Delivery',
+};
+const DELIVERY_LABELS: Record<string, string> = {
+  shipping_out: 'Ship to address',
+  pickup: 'Pick up at store',
+  dropoff: 'Local delivery',
+};
+const labelFor = (map: Record<string, string>, key?: string) =>
+  (key && map[key]) || (key || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || '—';
+
+const txnInfo = (id?: string): { label: string; url: string | null } => {
+  if (!id) return { label: 'Payment reference', url: null };
+  if (id.startsWith('pi_')) return { label: 'Stripe payment intent', url: `https://dashboard.stripe.com/payments/${id}` };
+  if (id.startsWith('ch_')) return { label: 'Stripe charge', url: `https://dashboard.stripe.com/payments/${id}` };
+  return { label: 'Payment reference', url: null };
+};
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                         */
@@ -34,22 +71,30 @@ const OrderForm = () => {
   /* ------------------------ State ------------------------ */
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editStatus, setEditStatus] = useState('');
+  const [editCarrier, setEditCarrier] = useState('');
+  const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   /* ------------------------ Derived ------------------------ */
   const currentUser = useMemo(() => getCurrentUser(), []);
   const currentRole   = currentUser?.role ?? '';
   const companyId     = currentRole === 'company' ? currentUser?.id : undefined;
+  const canEdit       = currentRole === 'admin' || currentRole === 'company';
 
   const filteredOrders = useMemo(
     () =>
-      orders.filter((o) =>
-        o.id.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [orders, searchQuery]
+      orders.filter((o) => {
+        const matchesSearch = o.id.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = !statusFilter || o.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [orders, searchQuery, statusFilter]
   );
 
   const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
@@ -69,7 +114,8 @@ const OrderForm = () => {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
-          setOrders(data ?? []);
+          const sorted = [...(data ?? [])].sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setOrders(sorted);
           return;
         }
       }
@@ -88,10 +134,11 @@ const OrderForm = () => {
     setIsLoading(true);
     try {
       const data = await getOrders(companyId);
-      setOrders(data ?? []);
+      const sorted = [...(data ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setOrders(sorted);
       localStorage.setItem(
         CACHE_KEY,
-        JSON.stringify({ data, timestamp: Date.now() })
+        JSON.stringify({ data: sorted, timestamp: Date.now() })
       );
     } catch (err: any) {
       toast.error(
@@ -126,6 +173,40 @@ const OrderForm = () => {
     }
   }, [orderToDelete, fetchOrders, invalidateCache]);
 
+  const openEditModal = useCallback((order: Order) => {
+    setEditingOrder(order);
+    setEditStatus(order.status || 'pending');
+    setEditCarrier(order.trackingCarrier || '');
+    setEditTrackingNumber(order.trackingNumber || '');
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditingOrder(null);
+    setEditStatus('');
+    setEditCarrier('');
+    setEditTrackingNumber('');
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingOrder) return;
+    setIsLoading(true);
+    try {
+      await updateOrder(editingOrder.id, {
+        status: editStatus,
+        trackingCarrier: editCarrier || undefined,
+        trackingNumber: editTrackingNumber || undefined,
+      });
+      toast.success('Order updated');
+      invalidateCache();
+      await fetchOrders();
+      closeEditModal();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update order');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [editingOrder, editStatus, editCarrier, editTrackingNumber, fetchOrders, invalidateCache, closeEditModal]);
+
   /* ------------------------ Render ------------------------ */
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -137,9 +218,9 @@ const OrderForm = () => {
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Orders</h1>
         </header>
 
-        {/* Search */}
-        <section className="mb-6">
-          <label className="relative block">
+        {/* Search + status filter */}
+        <section className="mb-6 flex flex-col sm:flex-row gap-3">
+          <label className="relative flex-1 block">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
@@ -152,6 +233,17 @@ const OrderForm = () => {
               className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
           </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            className="p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:w-48"
+            aria-label="Filter by status"
+          >
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+            ))}
+          </select>
         </section>
 
         {/* Table */}
@@ -164,25 +256,28 @@ const OrderForm = () => {
             <p className="p-6 text-center text-gray-500">No orders found.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[650px] w-full divide-y divide-gray-200">
+              <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order ID
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order #
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Items
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Grand Total
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Company ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Account ID
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -190,29 +285,41 @@ const OrderForm = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.id}
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        #{order.id.slice(-6).toUpperCase()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {order.status}
+                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-700 max-w-[200px] truncate" title={order.customerEmail || order.accountId}>
+                        {order.customerEmail || `#${order.accountId.slice(-6).toUpperCase()}`}
+                      </td>
+                      <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.items?.length || 0}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[order.status] || STATUS_COLORS.pending}`}>
+                          {order.status || 'pending'}
+                        </span>
+                        {order.trackingNumber && (
+                          <div className="mt-1 text-xs text-gray-500 truncate max-w-[160px]" title={[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}>
+                            {[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
                         ${order.grandTotal.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {order.sellerId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {order.accountId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => console.log('Edit order', order.id)}
-                          className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1"
-                          aria-label={`Edit order ${order.id}`}
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {canEdit && (
+                          <button
+                            onClick={() => openEditModal(order)}
+                            className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1"
+                            aria-label={`Edit order ${order.id}`}
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => console.log('Print order', order.id)}
                           className="text-teal-700 hover:bg-teal-50 rounded p-2 mr-1"
@@ -276,6 +383,228 @@ const OrderForm = () => {
           </nav>
         )}
       </main>
+
+      {/* Edit Order Modal — full order detail + update controls */}
+      {editingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Order #{editingOrder.id.slice(-6).toUpperCase()}</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Placed {new Date(editingOrder.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                </p>
+                {editingOrder.updatedAt && (
+                  <p className="text-xs text-gray-400">
+                    Last updated {new Date(editingOrder.updatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                )}
+              </div>
+              <span className={`self-start inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[editStatus] || STATUS_COLORS.pending}`}>
+                {editStatus || 'pending'}
+              </span>
+            </div>
+
+            <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1">
+              {/* Customer & payment info */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Customer</h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-gray-500">Email</dt>
+                    <dd className="text-gray-900 break-all">
+                      {editingOrder.customerEmail
+                        ? <a href={`mailto:${editingOrder.customerEmail}`} className="text-teal-700 hover:text-teal-900 hover:underline">{editingOrder.customerEmail}</a>
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">Account ID</dt>
+                    <dd className="text-gray-900 font-mono text-xs break-all">{editingOrder.accountId}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Fulfillment</h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-gray-500">Delivery method</dt>
+                    <dd className="text-gray-900">{labelFor(DELIVERY_LABELS, editingOrder.deliveryMethod)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">Payment method</dt>
+                    <dd className="text-gray-900">{labelFor(PAYMENT_LABELS, editingOrder.paymentMethod)}</dd>
+                  </div>
+                  {editingOrder.deliveryAddressId && (
+                    <div>
+                      <dt className="text-gray-500">Delivery address ID</dt>
+                      <dd className="text-gray-900 font-mono text-xs break-all">{editingOrder.deliveryAddressId}</dd>
+                    </div>
+                  )}
+                  {editingOrder.pickupLocationId && (
+                    <div>
+                      <dt className="text-gray-500">Pickup location ID</dt>
+                      <dd className="text-gray-900 font-mono text-xs break-all">{editingOrder.pickupLocationId}</dd>
+                    </div>
+                  )}
+                  {editingOrder.transactionId && (() => {
+                    const t = txnInfo(editingOrder.transactionId);
+                    return (
+                      <div className="sm:col-span-2">
+                        <dt className="text-gray-500">{t.label}</dt>
+                        <dd className="text-gray-900 font-mono text-xs break-all">
+                          {t.url ? (
+                            <a href={t.url} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:text-teal-900 hover:underline">
+                              {editingOrder.transactionId} ↗
+                            </a>
+                          ) : editingOrder.transactionId}
+                        </dd>
+                      </div>
+                    );
+                  })()}
+                  <div className="sm:col-span-2">
+                    <dt className="text-gray-500">Quote ID</dt>
+                    <dd className="text-gray-900 font-mono text-xs break-all">{editingOrder.quoteId}</dd>
+                  </div>
+                  {editingOrder.shippedAt && (
+                    <div>
+                      <dt className="text-gray-500">Shipped</dt>
+                      <dd className="text-gray-900">{new Date(editingOrder.shippedAt).toLocaleDateString()}</dd>
+                    </div>
+                  )}
+                  {editingOrder.deliveredAt && (
+                    <div>
+                      <dt className="text-gray-500">Delivered</dt>
+                      <dd className="text-gray-900">{new Date(editingOrder.deliveredAt).toLocaleDateString()}</dd>
+                    </div>
+                  )}
+                  {editingOrder.trackingNumber && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-gray-500">Tracking</dt>
+                      <dd className="text-gray-900">
+                        {[editingOrder.trackingCarrier?.toUpperCase(), editingOrder.trackingNumber].filter(Boolean).join(' ')}
+                        {editingOrder.trackingUrl && (
+                          <> · <a href={editingOrder.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:text-teal-900 hover:underline font-medium">Track package →</a></>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </section>
+
+              {/* Items */}
+              <section>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Items ({editingOrder.items?.length || 0})</h3>
+                <div className="border border-gray-200 rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500" colSpan={2}>Item</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {(editingOrder.items || []).length === 0 ? (
+                        <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 text-xs">No items recorded for this order.</td></tr>
+                      ) : (editingOrder.items || []).map((it, i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-2 w-12">
+                            {it.image
+                              ? <img
+                                  src={it.image}
+                                  alt=""
+                                  loading="lazy"
+                                  className="w-10 h-10 object-cover rounded border border-gray-200"
+                                  onError={(e) => {
+                                    const img = e.currentTarget;
+                                    img.replaceWith(Object.assign(document.createElement('div'), {
+                                      className: 'w-10 h-10 bg-gray-100 border border-gray-200 rounded flex items-center justify-center text-gray-400 text-xs',
+                                      textContent: '—',
+                                    }));
+                                  }}
+                                />
+                              : <div className="w-10 h-10 bg-gray-100 border border-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">—</div>}
+                          </td>
+                          <td className="px-3 py-2 text-gray-900 break-words">{it.name}</td>
+                          <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">{it.quantity}</td>
+                          <td className="px-3 py-2 text-right text-gray-700 whitespace-nowrap">${(it.discountedPrice ?? it.price ?? 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <dl className="mt-3 space-y-1 text-sm max-w-xs ml-auto">
+                  <div className="flex justify-between text-gray-600"><dt>Subtotal</dt><dd>${editingOrder.subtotal.toFixed(2)}</dd></div>
+                  <div className="flex justify-between text-gray-600"><dt>Shipping</dt><dd>${editingOrder.shippingCost.toFixed(2)}</dd></div>
+                  <div className="flex justify-between text-gray-600"><dt>Tax</dt><dd>${editingOrder.taxAmount.toFixed(2)}</dd></div>
+                  <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t border-gray-200"><dt>Total</dt><dd>${editingOrder.grandTotal.toFixed(2)}</dd></div>
+                </dl>
+              </section>
+
+              {/* Update controls */}
+              <section className="border-t border-gray-200 pt-5">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Update</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tracking carrier</label>
+                    <select
+                      value={editCarrier}
+                      onChange={(e) => setEditCarrier(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">— None —</option>
+                      {CARRIER_OPTIONS.map((c) => (
+                        <option key={c} value={c}>{c.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tracking number</label>
+                    <input
+                      type="text"
+                      value={editTrackingNumber}
+                      onChange={(e) => setEditTrackingNumber(e.target.value)}
+                      placeholder="e.g., 1Z999AA10123456784"
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Customer gets a shipping email when status changes to "shipped".</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-2 flex-shrink-0">
+              <button
+                onClick={closeEditModal}
+                className="px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isLoading}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteConfirmOpen && (

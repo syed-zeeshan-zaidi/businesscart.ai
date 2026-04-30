@@ -108,6 +108,54 @@ func (s *Service) DeleteOrder(id primitive.ObjectID) error {
 	return err
 }
 
+func (s *Service) GetByID(id primitive.ObjectID) (*Order, error) {
+	var o Order
+	err := s.collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&o)
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+type OrderUpdate struct {
+	Status          string
+	TrackingNumber  string
+	TrackingCarrier string
+	TrackingURL     string
+}
+
+func (s *Service) UpdateOrder(id primitive.ObjectID, update OrderUpdate) (*Order, error) {
+	current, err := s.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	set := bson.M{"updatedAt": now}
+	if update.Status != "" {
+		set["status"] = update.Status
+		if update.Status == "shipped" && current.ShippedAt == nil {
+			set["shippedAt"] = now
+		}
+		if update.Status == "delivered" && current.DeliveredAt == nil {
+			set["deliveredAt"] = now
+		}
+	}
+	if update.TrackingNumber != "" {
+		set["trackingNumber"] = update.TrackingNumber
+	}
+	if update.TrackingCarrier != "" {
+		set["trackingCarrier"] = update.TrackingCarrier
+	}
+	if update.TrackingURL != "" {
+		set["trackingUrl"] = update.TrackingURL
+	}
+	_, err = s.collection.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": set})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
+}
+
 func (s *Service) GetOrders(userId string, role string, companyId string) ([]*Order, error) {
 	filter := bson.M{}
 
