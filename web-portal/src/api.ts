@@ -244,7 +244,10 @@ export const getOrders = async (sellerId?: string): Promise<Order[]> => {
   return response.data;
 };
 
-export const updateOrder = async (id: string, data: { entity: Omit<Order, '_id'> }): Promise<Order> => {
+export const updateOrder = async (
+  id: string,
+  data: { status?: string; trackingCarrier?: string; trackingNumber?: string }
+): Promise<Order> => {
   const response = await api.put(`${API_URL}/checkout/orders/${id}`, data);
   return response.data;
 };

@@ -327,3 +327,52 @@ const monthlyStatementHTMLTmpl = `<!DOCTYPE html>
   <p style="color:#64748b;font-size:12px;margin-top:24px">— BusinessCart</p>
 </body>
 </html>`
+
+// ─────────────────────── Order Shipped (to customer) ───────────────────────
+
+type OrderShippedData struct {
+	OrderID         string
+	TrackingCarrier string
+	TrackingNumber  string
+	TrackingURL     string
+}
+
+func OrderShippedMessage(to string, data OrderShippedData) Message {
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("Your order has shipped #%s", lastSix(data.OrderID)),
+		HTMLBody: renderHTML(orderShippedHTMLTmpl, data),
+		TextBody: orderShippedText(data),
+	}
+}
+
+func orderShippedText(d OrderShippedData) string {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "Good news — your order has shipped!\n\n")
+	fmt.Fprintf(&b, "Order #%s\n\n", lastSix(d.OrderID))
+	if d.TrackingCarrier != "" {
+		fmt.Fprintf(&b, "Carrier: %s\n", d.TrackingCarrier)
+	}
+	if d.TrackingNumber != "" {
+		fmt.Fprintf(&b, "Tracking #: %s\n", d.TrackingNumber)
+	}
+	if d.TrackingURL != "" {
+		fmt.Fprintf(&b, "Track: %s\n", d.TrackingURL)
+	}
+	fmt.Fprintf(&b, "\n— BusinessCart\n")
+	return b.String()
+}
+
+const orderShippedHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Your order has shipped</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">Your order has shipped!</h1>
+  <p style="font-size:14px;color:#64748b">Order ID: <strong>{{.OrderID}}</strong></p>
+  {{if .TrackingCarrier}}<p style="font-size:14px;margin:16px 0 4px"><strong>Carrier:</strong> {{.TrackingCarrier}}</p>{{end}}
+  {{if .TrackingNumber}}<p style="font-size:14px;margin:4px 0"><strong>Tracking #:</strong> {{.TrackingNumber}}</p>{{end}}
+  {{if .TrackingURL}}<p style="margin:24px 0"><a href="{{.TrackingURL}}" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Track package</a></p>{{end}}
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+</body>
+</html>`

@@ -24,4 +24,11 @@ type Order struct {
 	DeliveryAddressID string             `bson:"deliveryAddressId,omitempty" json:"deliveryAddressId,omitempty"`
 	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
 	Status            string             `bson:"status" json:"status"`
+	CustomerEmail     string             `bson:"customerEmail,omitempty" json:"customerEmail,omitempty"`
+	TrackingNumber    string             `bson:"trackingNumber,omitempty" json:"trackingNumber,omitempty"`
+	TrackingCarrier   string             `bson:"trackingCarrier,omitempty" json:"trackingCarrier,omitempty"`
+	TrackingURL       string             `bson:"trackingUrl,omitempty" json:"trackingUrl,omitempty"`
+	ShippedAt         *time.Time         `bson:"shippedAt,omitempty" json:"shippedAt,omitempty"`
+	DeliveredAt       *time.Time         `bson:"deliveredAt,omitempty" json:"deliveredAt,omitempty"`
+	UpdatedAt         *time.Time         `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 }

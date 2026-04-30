@@ -242,6 +242,14 @@ const OrderHistory: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
+                      {order.trackingNumber && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          {[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}
+                          {order.trackingUrl && (
+                            <> · <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:text-teal-900 font-medium">Track</a></>
+                          )}
+                        </p>
+                      )}
                       <button onClick={() => handleReorder(order)} className="mt-2 inline-flex items-center gap-1 text-sm text-teal-700 hover:text-teal-900 font-medium">
                         <ArrowPathIcon className="h-4 w-4" /> Reorder
                       </button>

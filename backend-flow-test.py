@@ -1040,6 +1040,104 @@ class BackendFlowTest:
 
         self.run_test("5c-13. Untag clears visibility restriction", test_untag_product)
 
+    def phase5d_order_updates(self):
+        """Test PUT /checkout/orders/{orderId} — status + tracking updates with role auth."""
+        phase("PHASE 5d: Order Updates (status + tracking)")
+
+        c1_id = self.ids["company1"]
+        product_a = self.product_ids["company1"][0]
+
+        # Reset customer config (5c left a group restriction); re-login refreshes JWT.
+        self.use_token("company1")
+        self.api.patch(f"/customers/{self.ids['customer']}/configuration", {
+            "creditLimit": 0, "minOrderAmountLimit": 0, "maxOrderAmountLimit": 0, "groupID": "",
+        })
+        self.re_login("customer")
+
+        self._clear_cart("customer", c1_id)
+        self._add_to_cart("customer", c1_id, product_a, 2)
+        quote_resp = self._create_quote("customer", c1_id, "standard")
+        assert_status(quote_resp, 200, "Quote for order-update test")
+        quote_id = quote_resp.json().get("id")
+
+        self.use_token("customer")
+        order_resp = self.api.post("/checkout/orders", {
+            "quoteId": quote_id, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+        })
+        assert_status(order_resp, 200, "Place order for update test")
+        order_id = order_resp.json().get("id")
+        self.tracker.track_order(order_id)
+        ok(f"Order placed for update test: {order_id[:8]}...")
+
+        # 5d-1. Customer cannot PUT — forbidden
+        def test_customer_forbidden():
+            self.use_token("customer")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {"status": "shipped"})
+            assert_status(resp, 403, "Customer PUT order")
+            ok("Customer blocked from updating order (403)")
+        self.run_test("5d-1. Customer cannot update order", test_customer_forbidden)
+
+        # 5d-2. Company2 cannot PUT company1's order — forbidden
+        def test_other_company_forbidden():
+            self.use_token("company2")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {"status": "shipped"})
+            assert_status(resp, 403, "Other company PUT order")
+            ok("Other company blocked from updating someone else's order (403)")
+        self.run_test("5d-2. Other company cannot update foreign order", test_other_company_forbidden)
+
+        # 5d-3. Invalid status rejected
+        def test_invalid_status():
+            self.use_token("company1")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {"status": "warp_speed"})
+            assert_status(resp, 400, "Invalid status")
+            ok("Invalid status rejected (400)")
+        self.run_test("5d-3. Invalid status rejected", test_invalid_status)
+
+        # 5d-4. Invalid carrier rejected
+        def test_invalid_carrier():
+            self.use_token("company1")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {"trackingCarrier": "pigeon"})
+            assert_status(resp, 400, "Invalid carrier")
+            ok("Invalid carrier rejected (400)")
+        self.run_test("5d-4. Invalid carrier rejected", test_invalid_carrier)
+
+        # 5d-5. Owning company can update status + tracking, URL is auto-derived
+        def test_company_update_success():
+            self.use_token("company1")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {
+                "status": "shipped", "trackingCarrier": "ups", "trackingNumber": "1Z999AA10123456784",
+            })
+            assert_status(resp, 200, "Owning company PUT order")
+            data = resp.json() or {}
+            if data.get("status") != "shipped":
+                raise AssertionError(f"status should be 'shipped', got {data.get('status')}")
+            if data.get("trackingCarrier") != "ups":
+                raise AssertionError(f"trackingCarrier should be 'ups', got {data.get('trackingCarrier')}")
+            if not (data.get("trackingUrl") or "").startswith("https://www.ups.com/track"):
+                raise AssertionError(f"trackingUrl should be auto-derived UPS URL, got {data.get('trackingUrl')}")
+            if not data.get("shippedAt"):
+                raise AssertionError("shippedAt should be set when status flips to shipped")
+            ok("Order updated by owning company: status=shipped, UPS tracking, URL auto-derived")
+        self.run_test("5d-5. Owning company updates status + tracking", test_company_update_success)
+
+        # 5d-6. Admin can update any order
+        def test_admin_update():
+            self.use_token("admin")
+            resp = self.api.put(f"/checkout/orders/{order_id}", {"status": "delivered"})
+            assert_status(resp, 200, "Admin PUT order")
+            data = resp.json() or {}
+            if data.get("status") != "delivered":
+                raise AssertionError(f"status should be 'delivered', got {data.get('status')}")
+            if not data.get("deliveredAt"):
+                raise AssertionError("deliveredAt should be set when status flips to delivered")
+            ok("Admin updated to delivered; deliveredAt set")
+        self.run_test("5d-6. Admin updates any order", test_admin_update)
+
+        # Park the test order as cancelled so it doesn't count toward customer's
+        # unpaid balance in phase 6e credit-limit test (GetUnpaidOrdersTotal excludes cancelled).
+        self.use_token("admin")
+        self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
+
     def phase6_enforcement(self):
         phase("PHASE 6: Enforcement Tests")
 
@@ -1939,6 +2037,7 @@ class BackendFlowTest:
             self.phase5_happy_path()
             self.phase5b_tiered_pricing()
             self.phase5c_groups()
+            self.phase5d_order_updates()
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()

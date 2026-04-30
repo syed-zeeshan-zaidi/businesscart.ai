@@ -15,12 +15,13 @@ type Gateway interface {
 }
 
 type SessionRequest struct {
-	Amount      float64
-	Currency    string
-	CallbackURL string
-	Credentials map[string]string
-	MerchantRef string
-	Sandbox     bool
+	Amount        float64
+	Currency      string
+	CallbackURL   string
+	Credentials   map[string]string
+	MerchantRef   string
+	Sandbox       bool
+	CustomerEmail string // optional — pre-fills the email field on hosted checkout pages (currently used by Stripe). Other gateways ignore it.
 }
 
 type SessionResponse struct {
@@ -67,6 +68,7 @@ type PaymentSession struct {
 	ID                primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	QuoteID           string             `bson:"quoteId" json:"quoteId"`
 	AccountID         string             `bson:"accountId" json:"accountId"`
+	CustomerEmail     string             `bson:"customerEmail,omitempty" json:"customerEmail,omitempty"`
 	SellerID          string             `bson:"sellerId" json:"sellerId"`
 	PaymentMethod     string             `bson:"paymentMethod" json:"paymentMethod"`
 	DeliveryMethod    string             `bson:"deliveryMethod" json:"deliveryMethod"`

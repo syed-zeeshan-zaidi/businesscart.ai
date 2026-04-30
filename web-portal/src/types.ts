@@ -88,11 +88,20 @@ export interface Order {
   shippingCost: number;
   taxAmount: number;
   grandTotal: number;
-  payment: {
-    transactionId: string;
-  };
+  transactionId?: string;
   createdAt: string;
   status: string;
+  paymentMethod?: string;
+  deliveryMethod?: string;
+  pickupLocationId?: string;
+  deliveryAddressId?: string;
+  customerEmail?: string;
+  trackingNumber?: string;
+  trackingCarrier?: string;
+  trackingUrl?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  updatedAt?: string;
 }
 
 export interface NewCartItem {
