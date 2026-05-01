@@ -94,6 +94,9 @@ func (s *smtpSender) Send(_ context.Context, msg Message) error {
 	if headerFrom == "" {
 		headerFrom = s.cfg.From
 	}
+	if msg.ReplyTo == "" {
+		msg.ReplyTo = s.cfg.From
+	}
 	body := buildMIME(headerFrom, msg)
 	addr := s.cfg.Host + ":" + s.cfg.Port
 	var auth smtp.Auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
@@ -158,6 +161,7 @@ func buildMIME(from string, msg Message) []byte {
 	}
 	b.WriteString("Subject: " + msg.Subject + "\r\n")
 	b.WriteString("MIME-Version: 1.0\r\n")
+	b.WriteString("Auto-Submitted: auto-generated\r\n")
 
 	if msg.HTMLBody != "" && msg.TextBody != "" {
 		b.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n\r\n")

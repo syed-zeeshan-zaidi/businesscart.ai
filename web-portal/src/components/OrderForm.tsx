@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getOrders, deleteOrder, updateOrder } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
-import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
 /* ------------------------------------------------------------------ */
@@ -233,17 +233,29 @@ const OrderForm = () => {
               className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
           </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-            className="p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:w-48"
-            aria-label="Filter by status"
-          >
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
+          <div className="flex gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:w-48 sm:flex-none"
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => { invalidateCache(); fetchOrders(); }}
+              disabled={isLoading}
+              className="shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center"
+              aria-label="Refresh orders"
+              title="Refresh"
+            >
+              <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </section>
 
         {/* Table */}
