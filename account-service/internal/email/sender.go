@@ -96,6 +96,9 @@ func (s *smtpSender) Send(_ context.Context, msg Message) error {
 	if headerFrom == "" {
 		headerFrom = s.cfg.From
 	}
+	if msg.ReplyTo == "" {
+		msg.ReplyTo = s.cfg.From
+	}
 	body := buildMIME(headerFrom, msg)
 	addr := s.cfg.Host + ":" + s.cfg.Port
 
@@ -164,6 +167,7 @@ func buildMIME(from string, msg Message) []byte {
 	}
 	b.WriteString("Subject: " + msg.Subject + "\r\n")
 	b.WriteString("MIME-Version: 1.0\r\n")
+	b.WriteString("Auto-Submitted: auto-generated\r\n")
 
 	// Has both HTML and text → multipart/alternative
 	if msg.HTMLBody != "" && msg.TextBody != "" {

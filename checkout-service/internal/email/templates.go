@@ -34,6 +34,7 @@ type OrderItemView struct {
 	Name     string
 	Quantity int
 	Price    float64
+	Image    string
 }
 
 // OrderConfirmationMessage builds the order confirmation email sent to the customer.
@@ -332,6 +333,8 @@ const monthlyStatementHTMLTmpl = `<!DOCTYPE html>
 
 type OrderShippedData struct {
 	OrderID         string
+	GrandTotal      float64
+	Items           []OrderItemView
 	TrackingCarrier string
 	TrackingNumber  string
 	TrackingURL     string
@@ -340,7 +343,7 @@ type OrderShippedData struct {
 func OrderShippedMessage(to string, data OrderShippedData) Message {
 	return Message{
 		To:       to,
-		Subject:  fmt.Sprintf("Your order has shipped #%s", lastSix(data.OrderID)),
+		Subject:  fmt.Sprintf("Your order #%s has shipped", lastSix(data.OrderID)),
 		HTMLBody: renderHTML(orderShippedHTMLTmpl, data),
 		TextBody: orderShippedText(data),
 	}
@@ -348,18 +351,24 @@ func OrderShippedMessage(to string, data OrderShippedData) Message {
 
 func orderShippedText(d OrderShippedData) string {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "Good news — your order has shipped!\n\n")
-	fmt.Fprintf(&b, "Order #%s\n\n", lastSix(d.OrderID))
+	fmt.Fprintf(&b, "Good news — your order #%s has shipped.\n\n", lastSix(d.OrderID))
+	if len(d.Items) > 0 {
+		fmt.Fprintf(&b, "What's on its way:\n")
+		for _, it := range d.Items {
+			fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Price)
+		}
+		fmt.Fprintf(&b, "\nOrder total: $%.2f\n\n", d.GrandTotal)
+	}
 	if d.TrackingCarrier != "" {
-		fmt.Fprintf(&b, "Carrier: %s\n", d.TrackingCarrier)
+		fmt.Fprintf(&b, "Shipped via: %s\n", d.TrackingCarrier)
 	}
 	if d.TrackingNumber != "" {
-		fmt.Fprintf(&b, "Tracking #: %s\n", d.TrackingNumber)
+		fmt.Fprintf(&b, "Tracking number: %s\n", d.TrackingNumber)
 	}
 	if d.TrackingURL != "" {
-		fmt.Fprintf(&b, "Track: %s\n", d.TrackingURL)
+		fmt.Fprintf(&b, "Track at: %s\n", d.TrackingURL)
 	}
-	fmt.Fprintf(&b, "\n— BusinessCart\n")
+	fmt.Fprintf(&b, "\nThank you for your order. Reply to this email if you have any questions.\n\n— BusinessCart\n")
 	return b.String()
 }
 
@@ -367,11 +376,42 @@ const orderShippedHTMLTmpl = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><title>Your order has shipped</title></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
-  <h1 style="color:#0d9488;margin-bottom:8px">Your order has shipped!</h1>
-  <p style="font-size:14px;color:#64748b">Order ID: <strong>{{.OrderID}}</strong></p>
-  {{if .TrackingCarrier}}<p style="font-size:14px;margin:16px 0 4px"><strong>Carrier:</strong> {{.TrackingCarrier}}</p>{{end}}
-  {{if .TrackingNumber}}<p style="font-size:14px;margin:4px 0"><strong>Tracking #:</strong> {{.TrackingNumber}}</p>{{end}}
-  {{if .TrackingURL}}<p style="margin:24px 0"><a href="{{.TrackingURL}}" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Track package</a></p>{{end}}
+  <h1 style="color:#0d9488;margin-bottom:8px">Your order is on its way</h1>
+  <p style="font-size:14px;color:#64748b;margin-top:0">Order #{{.OrderID}}</p>
+
+  {{if .Items}}
+  <h2 style="font-size:15px;color:#1e293b;margin-top:24px;margin-bottom:8px">What's on its way</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <tbody>
+      {{range .Items}}
+      <tr>
+        <td style="padding:8px 8px 8px 0;border-bottom:1px solid #f1f5f9;width:64px;vertical-align:top">
+          {{if .Image}}<img src="{{.Image}}" alt="{{.Name}}" width="56" height="56" style="width:56px;height:56px;border-radius:6px;border:1px solid #e2e8f0;object-fit:cover;display:block" />{{else}}<div style="width:56px;height:56px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px"></div>{{end}}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;vertical-align:top">
+          <div style="font-size:14px;color:#1e293b;font-weight:600">{{.Name}}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">Qty {{.Quantity}}</div>
+        </td>
+        <td style="padding:8px 0 8px 8px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:top;font-size:14px;font-weight:600">${{printf "%.2f" .Price}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <p style="font-size:15px;text-align:right;font-weight:bold;margin:0 0 24px">Order total: ${{printf "%.2f" .GrandTotal}}</p>
+  {{end}}
+
+  {{if or .TrackingCarrier .TrackingNumber}}
+  <h2 style="font-size:15px;color:#1e293b;margin-bottom:8px">Tracking</h2>
+  <table style="width:100%;background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px">
+    <tr>
+      {{if .TrackingCarrier}}<td style="padding:4px 8px;font-size:14px"><strong>Carrier:</strong> {{.TrackingCarrier}}</td>{{end}}
+      {{if .TrackingNumber}}<td style="padding:4px 8px;font-size:14px"><strong>Number:</strong> {{.TrackingNumber}}</td>{{end}}
+    </tr>
+  </table>
+  {{if .TrackingURL}}<p style="margin:16px 0"><a href="{{.TrackingURL}}" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Track package</a></p>{{end}}
+  {{end}}
+
+  <p style="color:#64748b;font-size:13px;margin-top:24px">Thank you for your order. Reply to this email if you have any questions.</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
   <p style="color:#64748b;font-size:12px">— BusinessCart</p>
 </body>

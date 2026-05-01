@@ -1044,8 +1044,19 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 	// Notify customer when order first transitions to "shipped" — synchronous so it
 	// actually delivers (same Lambda goroutine-vs-freeze concern as confirmation).
 	if req.Status == "shipped" && existing.Status != "shipped" && updated.CustomerEmail != "" && h.emailSender != nil {
+		items := make([]mailer.OrderItemView, 0, len(updated.Items))
+		for _, it := range updated.Items {
+			items = append(items, mailer.OrderItemView{
+				Name:     it.Name,
+				Quantity: it.Quantity,
+				Price:    it.Price,
+				Image:    it.Image,
+			})
+		}
 		msg := mailer.OrderShippedMessage(updated.CustomerEmail, mailer.OrderShippedData{
 			OrderID:         updated.ID.Hex(),
+			GrandTotal:      updated.GrandTotal,
+			Items:           items,
 			TrackingCarrier: updated.TrackingCarrier,
 			TrackingNumber:  updated.TrackingNumber,
 			TrackingURL:     updated.TrackingURL,
