@@ -28,6 +28,19 @@ type OrderConfirmationData struct {
 	OrderID    string
 	GrandTotal float64
 	Items      []OrderItemView
+	BrandName  string
+	BrandEmail string
+}
+
+// brandFooterText renders the text-body sign-off. Falls back to "BusinessCart" when no brand.
+func brandFooterText(name, email string) string {
+	if name == "" {
+		name = "BusinessCart"
+	}
+	if email == "" {
+		return "— " + name
+	}
+	return "— " + name + " · " + email
 }
 
 type OrderItemView struct {
@@ -54,7 +67,7 @@ func orderConfirmationText(d OrderConfirmationData) string {
 	for _, it := range d.Items {
 		fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Price)
 	}
-	fmt.Fprintf(&b, "\nTotal: $%.2f\n\n— BusinessCart\n", d.GrandTotal)
+	fmt.Fprintf(&b, "\nTotal: $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
 	return b.String()
 }
 
@@ -65,19 +78,17 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
   <h1 style="color:#0d9488;margin-bottom:8px">Thank you for your order!</h1>
   <p style="font-size:14px;color:#64748b">Order ID: <strong>{{.OrderID}}</strong></p>
   <table style="width:100%;border-collapse:collapse;margin:24px 0">
-    <thead>
-      <tr style="background:#f1f5f9;text-align:left">
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0">Item</th>
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Qty</th>
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Price</th>
-      </tr>
-    </thead>
     <tbody>
       {{range .Items}}
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9">{{.Name}}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">{{.Quantity}}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .Price}}</td>
+        <td style="padding:8px 8px 8px 0;border-bottom:1px solid #f1f5f9;width:64px;vertical-align:top">
+          {{if .Image}}<img src="{{.Image}}" alt="{{.Name}}" width="56" height="56" style="width:56px;height:56px;border-radius:6px;border:1px solid #e2e8f0;object-fit:cover;display:block" />{{else}}<div style="width:56px;height:56px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px"></div>{{end}}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;vertical-align:top">
+          <div style="font-size:14px;color:#1e293b;font-weight:600">{{.Name}}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">Qty {{.Quantity}}</div>
+        </td>
+        <td style="padding:8px 0 8px 8px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:top;font-size:14px;font-weight:600">${{printf "%.2f" .Price}}</td>
       </tr>
       {{end}}
     </tbody>
@@ -86,7 +97,7 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
     Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
   </p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
 
@@ -130,19 +141,17 @@ const newOrderToCompanyHTMLTmpl = `<!DOCTYPE html>
   <p style="font-size:14px;color:#64748b">Order ID: <strong>{{.OrderID}}</strong></p>
   <p style="font-size:14px;color:#64748b">Customer: <strong>{{.CustomerEmail}}</strong></p>
   <table style="width:100%;border-collapse:collapse;margin:24px 0">
-    <thead>
-      <tr style="background:#f1f5f9;text-align:left">
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0">Item</th>
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Qty</th>
-        <th style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">Price</th>
-      </tr>
-    </thead>
     <tbody>
       {{range .Items}}
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9">{{.Name}}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">{{.Quantity}}</td>
-        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .Price}}</td>
+        <td style="padding:8px 8px 8px 0;border-bottom:1px solid #f1f5f9;width:64px;vertical-align:top">
+          {{if .Image}}<img src="{{.Image}}" alt="{{.Name}}" width="56" height="56" style="width:56px;height:56px;border-radius:6px;border:1px solid #e2e8f0;object-fit:cover;display:block" />{{else}}<div style="width:56px;height:56px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px"></div>{{end}}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;vertical-align:top">
+          <div style="font-size:14px;color:#1e293b;font-weight:600">{{.Name}}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">Qty {{.Quantity}}</div>
+        </td>
+        <td style="padding:8px 0 8px 8px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:top;font-size:14px;font-weight:600">${{printf "%.2f" .Price}}</td>
       </tr>
       {{end}}
     </tbody>
@@ -161,16 +170,18 @@ const newOrderToCompanyHTMLTmpl = `<!DOCTYPE html>
 // ─────────────────────── Quote Requested ───────────────────────
 
 type QuoteRequestedData struct {
-	QuoteID string
+	QuoteID    string
+	BrandName  string
+	BrandEmail string
 }
 
 // QuoteRequestedMessage builds the email sent to the customer when they create a negotiable quote.
 func QuoteRequestedMessage(to string, data QuoteRequestedData) Message {
 	return Message{
-		To:      to,
-		Subject: fmt.Sprintf("Quote request received #%s", lastSix(data.QuoteID)),
+		To:       to,
+		Subject:  fmt.Sprintf("Quote request received #%s", lastSix(data.QuoteID)),
 		HTMLBody: renderHTML(quoteRequestedHTMLTmpl, data),
-		TextBody: fmt.Sprintf("Your quote request has been received.\n\nQuote ID: %s\n\nThe seller will review and respond shortly. You'll receive another email when there's an update.\n\n— BusinessCart\n", data.QuoteID),
+		TextBody: fmt.Sprintf("Your quote request has been received.\n\nQuote ID: %s\n\nThe seller will review and respond shortly. You'll receive another email when there's an update.\n\n%s\n", data.QuoteID, brandFooterText(data.BrandName, data.BrandEmail)),
 	}
 }
 
@@ -183,15 +194,17 @@ const quoteRequestedHTMLTmpl = `<!DOCTYPE html>
   <p style="font-size:16px;line-height:1.5">The seller will review your request and respond shortly.</p>
   <p style="font-size:16px;line-height:1.5">You'll receive another email when there's an update on your quote.</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
 
 // ─────────────────────── Quote Status Changed ───────────────────────
 
 type QuoteStatusData struct {
-	QuoteID string
-	Status  string // "approved", "rejected", "proposed", etc.
+	QuoteID    string
+	Status     string // "approved", "rejected", "proposed", etc.
+	BrandName  string
+	BrandEmail string
 }
 
 // QuoteStatusMessage builds the email sent to the customer when a quote status changes.
@@ -200,7 +213,7 @@ func QuoteStatusMessage(to string, data QuoteStatusData) Message {
 		To:       to,
 		Subject:  fmt.Sprintf("Quote update #%s — %s", lastSix(data.QuoteID), data.Status),
 		HTMLBody: renderHTML(quoteStatusHTMLTmpl, data),
-		TextBody: fmt.Sprintf("Your quote has been updated.\n\nQuote ID: %s\nNew status: %s\n\nLog in to BusinessCart to view details and continue.\n\n— BusinessCart\n", data.QuoteID, data.Status),
+		TextBody: fmt.Sprintf("Your quote has been updated.\n\nQuote ID: %s\nNew status: %s\n\nLog in to BusinessCart to view details and continue.\n\n%s\n", data.QuoteID, data.Status, brandFooterText(data.BrandName, data.BrandEmail)),
 	}
 }
 
@@ -213,7 +226,7 @@ const quoteStatusHTMLTmpl = `<!DOCTYPE html>
   <p style="font-size:16px;line-height:1.5">New status: <strong style="color:#0d9488">{{.Status}}</strong></p>
   <p style="font-size:16px;line-height:1.5">Log in to <a href="https://businesscart.ai" style="color:#0d9488;text-decoration:none">BusinessCart</a> to view details.</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
 
@@ -338,6 +351,8 @@ type OrderShippedData struct {
 	TrackingCarrier string
 	TrackingNumber  string
 	TrackingURL     string
+	BrandName       string
+	BrandEmail      string
 }
 
 func OrderShippedMessage(to string, data OrderShippedData) Message {
@@ -368,7 +383,7 @@ func orderShippedText(d OrderShippedData) string {
 	if d.TrackingURL != "" {
 		fmt.Fprintf(&b, "Track at: %s\n", d.TrackingURL)
 	}
-	fmt.Fprintf(&b, "\nThank you for your order. Reply to this email if you have any questions.\n\n— BusinessCart\n")
+	fmt.Fprintf(&b, "\nThank you for your order. Reply to this email if you have any questions.\n\n%s\n", brandFooterText(d.BrandName, d.BrandEmail))
 	return b.String()
 }
 
@@ -413,6 +428,6 @@ const orderShippedHTMLTmpl = `<!DOCTYPE html>
 
   <p style="color:#64748b;font-size:13px;margin-top:24px">Thank you for your order. Reply to this email if you have any questions.</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
