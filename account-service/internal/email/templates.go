@@ -23,36 +23,74 @@ func renderHTML(tmplStr string, data interface{}) string {
 	return buf.String()
 }
 
+// brandFooterText renders the text-body sign-off. Falls back to "BusinessCart" when no brand.
+func brandFooterText(name, email string) string {
+	if name == "" {
+		name = "BusinessCart"
+	}
+	if email == "" {
+		return "— " + name
+	}
+	return "— " + name + " · " + email
+}
+
+// welcomeText omits the businesscart.ai login link when the email is branded
+// (storefront customers don't have a BC account; they log into the storefront they
+// registered on). Keeps the link only for the default unbranded path (admin/company
+// users who really do log into businesscart.ai).
+func welcomeText(name, footerName, brandName, brandEmail string) string {
+	loginLine := ""
+	if footerName == "BusinessCart" {
+		loginLine = "You can log in at https://businesscart.ai\n\n"
+	}
+	return fmt.Sprintf("Hi %s,\n\nYour account at %s has been created successfully.\n\n%s%s\n", name, footerName, loginLine, brandFooterText(brandName, brandEmail))
+}
+
 // ───────────────────── Welcome ─────────────────────
 
 // WelcomeMessage builds the welcome email sent on registration.
-func WelcomeMessage(name, to string) Message {
+// brandName/brandEmail come from the per-company SMTP config; empty falls back to "BusinessCart".
+func WelcomeMessage(name, to, brandName, brandEmail string) Message {
 	if name == "" {
 		name = "there"
 	}
+	footerName := brandName
+	if footerName == "" {
+		footerName = "BusinessCart"
+	}
 	return Message{
-		To:       to,
-		Subject:  "Welcome to BusinessCart",
-		HTMLBody: renderHTML(welcomeHTMLTmpl, struct{ Name string }{name}),
-		TextBody: fmt.Sprintf("Hi %s,\n\nYour BusinessCart account has been created successfully.\n\nYou can log in at https://businesscart.ai\n\n— BusinessCart\n", name),
+		To:      to,
+		Subject: fmt.Sprintf("Welcome to %s", footerName),
+		HTMLBody: renderHTML(welcomeHTMLTmpl, struct {
+			Name       string
+			BrandName  string
+			BrandEmail string
+		}{name, footerName, brandEmail}),
+		TextBody: welcomeText(name, footerName, brandName, brandEmail),
 	}
 }
 
 // ───────────────────── Password Reset ─────────────────────
 
 // PasswordResetMessage builds the password reset email.
-func PasswordResetMessage(name, to, resetURL string) Message {
+func PasswordResetMessage(name, to, resetURL, brandName, brandEmail string) Message {
 	if name == "" {
 		name = "there"
+	}
+	footerName := brandName
+	if footerName == "" {
+		footerName = "BusinessCart"
 	}
 	return Message{
 		To:      to,
 		Subject: "Reset your password",
 		HTMLBody: renderHTML(passwordResetHTMLTmpl, struct {
-			Name     string
-			ResetURL string
-		}{name, resetURL}),
-		TextBody: fmt.Sprintf("Hi %s,\n\nWe received a request to reset your password.\n\nReset your password: %s\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— BusinessCart\n", name, resetURL),
+			Name       string
+			ResetURL   string
+			BrandName  string
+			BrandEmail string
+		}{name, resetURL, footerName, brandEmail}),
+		TextBody: fmt.Sprintf("Hi %s,\n\nWe received a request to reset your password.\n\nReset your password: %s\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n%s\n", name, resetURL, brandFooterText(brandName, brandEmail)),
 	}
 }
 
@@ -67,19 +105,19 @@ const passwordResetHTMLTmpl = `<!DOCTYPE html>
   </p>
   <p style="font-size:14px;color:#64748b">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
 
 const welcomeHTMLTmpl = `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>Welcome to BusinessCart</title></head>
+<head><meta charset="UTF-8"><title>Welcome</title></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
   <h1 style="color:#0d9488;margin-bottom:8px">Welcome, {{.Name}}!</h1>
-  <p style="font-size:16px;line-height:1.5">Your BusinessCart account has been created successfully.</p>
-  <p style="font-size:16px;line-height:1.5">You can log in at <a href="https://businesscart.ai" style="color:#0d9488;text-decoration:none">businesscart.ai</a>.</p>
+  <p style="font-size:16px;line-height:1.5">Your account at {{.BrandName}} has been created successfully.</p>
+  {{if eq .BrandName "BusinessCart"}}<p style="font-size:16px;line-height:1.5">You can log in at <a href="https://businesscart.ai" style="color:#0d9488;text-decoration:none">businesscart.ai</a>.</p>{{end}}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
-  <p style="color:#64748b;font-size:12px">— BusinessCart</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
 

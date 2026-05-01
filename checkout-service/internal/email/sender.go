@@ -249,6 +249,18 @@ func CompanyOwnerEmail(sellerID string) string {
 	return companyConfigs[sellerID].OwnerEmail
 }
 
+// CompanyBrand returns (displayName, email) for the customer-facing email footer.
+// Falls back to ("BusinessCart", "") when the seller has no per-company config —
+// preserves today's behavior for unbranded sends.
+func CompanyBrand(sellerID string) (name, email string) {
+	loadCompanyConfigs()
+	cfg, ok := companyConfigs[sellerID]
+	if !ok || cfg.FromName == "" {
+		return "BusinessCart", ""
+	}
+	return cfg.FromName, cfg.FromAddress
+}
+
 // SenderForCompany builds an SMTP Sender for the company's own server, or
 // returns the fallback (platform Sender) if the company has no config.
 // Returns the rendered From header in RFC 5322 display-name format when a

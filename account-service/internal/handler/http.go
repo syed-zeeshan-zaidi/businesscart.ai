@@ -402,11 +402,12 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 			sellerID = acc.CustomerData.CustomerConfigs[0].CodeID
 		}
 		sender, _ := mailer.SenderForCompany(context.Background(), sellerID, h.emailSender)
-		go func(name, addr string, s mailer.Sender) {
-			if err := s.Send(context.Background(), mailer.WelcomeMessage(name, addr)); err != nil {
+		brandName, brandEmail := mailer.CompanyBrand(sellerID)
+		go func(name, addr, bn, be string, s mailer.Sender) {
+			if err := s.Send(context.Background(), mailer.WelcomeMessage(name, addr, bn, be)); err != nil {
 				log.Printf("WARN: welcome email failed for %s: %v", addr, err)
 			}
-		}(acc.Name, acc.Email, sender)
+		}(acc.Name, acc.Email, brandName, brandEmail, sender)
 
 		// Notify the company owner about the new customer (platform sender, BC SES).
 		if sellerID != "" {
@@ -597,11 +598,12 @@ func (h *LambdaHandler) forgotPassword(request events.APIGatewayProxyRequest) (e
 			sellerID = acc.CustomerData.CustomerConfigs[0].CodeID
 		}
 		sender, _ := mailer.SenderForCompany(context.Background(), sellerID, h.emailSender)
-		go func(name, addr, url string, s mailer.Sender) {
-			if err := s.Send(context.Background(), mailer.PasswordResetMessage(name, addr, url)); err != nil {
+		brandName, brandEmail := mailer.CompanyBrand(sellerID)
+		go func(name, addr, url, bn, be string, s mailer.Sender) {
+			if err := s.Send(context.Background(), mailer.PasswordResetMessage(name, addr, url, bn, be)); err != nil {
 				log.Printf("WARN: password reset email failed for %s: %v", addr, err)
 			}
-		}(acc.Name, acc.Email, resetURL, sender)
+		}(acc.Name, acc.Email, resetURL, brandName, brandEmail, sender)
 	}
 
 	return h.successResponse(successMsg, http.StatusOK), nil

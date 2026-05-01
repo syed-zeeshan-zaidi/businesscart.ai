@@ -651,13 +651,17 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 			items = append(items, mailer.OrderItemView{
 				Name:     it.Name,
 				Quantity: it.Quantity,
-				Price:    it.Price,
+				Price:    effectiveLineSubtotal(it),
+				Image:    it.Image,
 			})
 		}
+		brandName, brandEmail := mailer.CompanyBrand(createdOrder.SellerID)
 		msg := mailer.OrderConfirmationMessage(customerEmail, mailer.OrderConfirmationData{
 			OrderID:    createdOrder.ID.Hex(),
 			GrandTotal: createdOrder.GrandTotal,
 			Items:      items,
+			BrandName:  brandName,
+			BrandEmail: brandEmail,
 		})
 		sender, _ := mailer.SenderForCompany(context.Background(), createdOrder.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
@@ -984,6 +988,17 @@ var validTrackingCarriers = map[string]bool{
 	"ups": true, "fedex": true, "usps": true, "dhl": true, "other": true,
 }
 
+func effectiveLineSubtotal(it cart.CartItem) float64 {
+	if it.LineItemTotal > 0 {
+		return it.LineItemTotal
+	}
+	unit := it.DiscountedPrice
+	if unit == 0 {
+		unit = it.Price
+	}
+	return unit * float64(it.Quantity)
+}
+
 func trackingURLFor(carrier, number string) string {
 	if number == "" {
 		return ""
@@ -1049,10 +1064,11 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 			items = append(items, mailer.OrderItemView{
 				Name:     it.Name,
 				Quantity: it.Quantity,
-				Price:    it.Price,
+				Price:    effectiveLineSubtotal(it),
 				Image:    it.Image,
 			})
 		}
+		brandName, brandEmail := mailer.CompanyBrand(updated.SellerID)
 		msg := mailer.OrderShippedMessage(updated.CustomerEmail, mailer.OrderShippedData{
 			OrderID:         updated.ID.Hex(),
 			GrandTotal:      updated.GrandTotal,
@@ -1060,6 +1076,8 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 			TrackingCarrier: updated.TrackingCarrier,
 			TrackingNumber:  updated.TrackingNumber,
 			TrackingURL:     updated.TrackingURL,
+			BrandName:       brandName,
+			BrandEmail:      brandEmail,
 		})
 		sender, _ := mailer.SenderForCompany(context.Background(), updated.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
@@ -1287,7 +1305,12 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	// goroutine-vs-freeze issue as order confirmation). Customer-facing → routes
 	// through company's SMTP for branding.
 	if h.emailSender != nil && h.requestUserEmail != "" && req.QuoteType == "negotiable" && role == "customer" {
-		msg := mailer.QuoteRequestedMessage(h.requestUserEmail, mailer.QuoteRequestedData{QuoteID: createdQuote.ID.Hex()})
+		brandName, brandEmail := mailer.CompanyBrand(createdQuote.SellerID)
+		msg := mailer.QuoteRequestedMessage(h.requestUserEmail, mailer.QuoteRequestedData{
+			QuoteID:    createdQuote.ID.Hex(),
+			BrandName:  brandName,
+			BrandEmail: brandEmail,
+		})
 		sender, _ := mailer.SenderForCompany(context.Background(), createdQuote.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
 			log.Printf("WARN: quote requested email failed for %s: %v", h.requestUserEmail, err)
