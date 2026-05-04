@@ -95,6 +95,15 @@ const GatewayConfigPanel: React.FC<{
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  // Sync the checkbox to server truth whenever existingConfig arrives or changes.
+  // Without this, the checkbox latches on first render (when existingConfig may
+  // still be loading) and can desync from the "Live"/"Sandbox" badge — which is
+  // dangerous: clicking Update would silently flip the stored sandbox flag and
+  // route real checkouts at empty sandbox credentials.
+  useEffect(() => {
+    if (existingConfig) setSandbox(existingConfig.sandbox);
+  }, [existingConfig?.sandbox, existingConfig?.id]);
+
   if (!fieldDef) return null;
 
   const isConfigured = !!existingConfig;
@@ -133,41 +142,51 @@ const GatewayConfigPanel: React.FC<{
     }
   };
 
-  const renderFields = (values: Record<string, string>, setValues: (v: Record<string, string>) => void, label: string) => (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-gray-600">{label}</p>
-      {fieldDef.fields.map(field => (
-        <div key={field.key}>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
-          {field.type === 'textarea' ? (
-            <textarea
-              rows={3}
-              value={values[field.key] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
-            />
-          ) : field.type === 'select' ? (
-            <select
-              value={values[field.key] || field.options?.[0] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
-            >
-              {field.options?.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
-            </select>
-          ) : (
-            <input
-              type="text"
-              value={values[field.key] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  const renderFields = (values: Record<string, string>, setValues: (v: Record<string, string>) => void, label: string) => {
+    const last4Map = label.startsWith('Production')
+      ? existingConfig?.credentialLast4
+      : existingConfig?.sandboxCredentialLast4;
+    const placeholderFor = (key: string) => {
+      const hint = last4Map?.[key];
+      if (hint) return `\u2022\u2022\u2022\u2022${hint} (enter new value to replace)`;
+      return isConfigured ? '(stored - enter new value to update)' : '';
+    };
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-gray-600">{label}</p>
+        {fieldDef.fields.map(field => (
+          <div key={field.key}>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
+            {field.type === 'textarea' ? (
+              <textarea
+                rows={3}
+                value={values[field.key] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                placeholder={placeholderFor(field.key)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+              />
+            ) : field.type === 'select' ? (
+              <select
+                value={values[field.key] || field.options?.[0] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+              >
+                {field.options?.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={values[field.key] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                placeholder={placeholderFor(field.key)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">

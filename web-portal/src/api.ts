@@ -239,6 +239,8 @@ export interface GatewayConfigResponse {
   sandbox: boolean;
   credentialKeys: string[];
   sandboxCredentialKeys: string[];
+  credentialLast4?: Record<string, string>;
+  sandboxCredentialLast4?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }

@@ -207,6 +207,26 @@ func (s *Store) ListConfigs(ctx context.Context, sellerID string) ([]GatewayConf
 		return nil, err
 	}
 
+	// last4 derives a per-field "last 4 chars" hint from already-loaded encrypted
+	// credentials. Pure in-memory: same Find above carried these blobs in. Fail-open:
+	// any decrypt error returns nil so the page still renders and saves still work.
+	last4 := func(enc map[string]string) map[string]string {
+		if len(enc) == 0 {
+			return nil
+		}
+		plain, err := s.decryptCredentials(enc)
+		if err != nil {
+			return nil
+		}
+		out := make(map[string]string, len(plain))
+		for k, v := range plain {
+			if n := len(v); n >= 4 {
+				out[k] = v[n-4:]
+			}
+		}
+		return out
+	}
+
 	responses := make([]GatewayConfigResponse, len(configs))
 	for i, c := range configs {
 		credKeys := make([]string, 0, len(c.Credentials))
@@ -218,15 +238,17 @@ func (s *Store) ListConfigs(ctx context.Context, sellerID string) ([]GatewayConf
 			sandboxKeys = append(sandboxKeys, k)
 		}
 		responses[i] = GatewayConfigResponse{
-			ID:                    c.ID,
-			SellerID:              c.SellerID,
-			Gateway:               c.Gateway,
-			DisplayName:           c.DisplayName,
-			Sandbox:               c.Sandbox,
-			CredentialKeys:        credKeys,
-			SandboxCredentialKeys: sandboxKeys,
-			CreatedAt:             c.CreatedAt,
-			UpdatedAt:             c.UpdatedAt,
+			ID:                     c.ID,
+			SellerID:               c.SellerID,
+			Gateway:                c.Gateway,
+			DisplayName:            c.DisplayName,
+			Sandbox:                c.Sandbox,
+			CredentialKeys:         credKeys,
+			SandboxCredentialKeys:  sandboxKeys,
+			CredentialLast4:        last4(c.Credentials),
+			SandboxCredentialLast4: last4(c.SandboxCredentials),
+			CreatedAt:              c.CreatedAt,
+			UpdatedAt:              c.UpdatedAt,
 		}
 	}
 	return responses, nil

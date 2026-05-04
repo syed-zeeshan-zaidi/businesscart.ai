@@ -59,8 +59,13 @@ type GatewayConfigResponse struct {
 	Sandbox               bool               `json:"sandbox"`
 	CredentialKeys        []string           `json:"credentialKeys"`
 	SandboxCredentialKeys []string           `json:"sandboxCredentialKeys"`
-	CreatedAt             time.Time          `json:"createdAt"`
-	UpdatedAt             time.Time          `json:"updatedAt"`
+	// Last 4 chars of each stored credential value, per field name. Display-only
+	// hint so admins can recognize which key is on file without exposing the
+	// secret. Computed in-memory on read; never persisted. Absent if decrypt fails.
+	CredentialLast4        map[string]string `json:"credentialLast4,omitempty"`
+	SandboxCredentialLast4 map[string]string `json:"sandboxCredentialLast4,omitempty"`
+	CreatedAt              time.Time         `json:"createdAt"`
+	UpdatedAt              time.Time         `json:"updatedAt"`
 }
 
 // PaymentSession tracks a redirect-based payment in progress.
