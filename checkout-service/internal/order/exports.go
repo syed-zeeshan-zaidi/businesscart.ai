@@ -154,22 +154,25 @@ func csvField(s string) string {
 }
 
 // formatAmount renders a money amount with two decimal places.
+// Rounds half-away-from-zero (standard accounting), with the sign decided by
+// the rounded result, not the input. This matters: a tiny negative like -0.001
+// rounds to 0 cents, which must render as "0.00", not "-0.00".
 func formatAmount(v float64) string {
-	cents := int64(v*100 + 0.5)
+	var cents int64
 	if v < 0 {
 		cents = int64(v*100 - 0.5)
+	} else {
+		cents = int64(v*100 + 0.5)
+	}
+	negative := cents < 0
+	if negative {
+		cents = -cents
 	}
 	whole := cents / 100
 	frac := cents % 100
-	if frac < 0 {
-		frac = -frac
-	}
 	var b strings.Builder
-	if v < 0 {
+	if negative {
 		b.WriteString("-")
-		if whole < 0 {
-			whole = -whole
-		}
 	}
 	b.WriteString(itoa(whole))
 	b.WriteString(".")

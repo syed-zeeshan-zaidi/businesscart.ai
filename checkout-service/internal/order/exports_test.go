@@ -1,6 +1,13 @@
 package order
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/syed/businesscart/checkout-service/internal/cart"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 // TestCsvFieldInjection verifies CSV injection mitigation: cells that start
 // with =, +, -, @, \t, \r get a leading single-quote so Excel/Sheets treat
@@ -41,5 +48,178 @@ func TestCsvFieldInjection(t *testing.T) {
 				t.Errorf("csvField(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+// TestFormatAmount verifies money rendering. Critical because every CSV row
+// (Subtotal, ShippingCost, TaxAmount, GrandTotal, Conversion Value) flows
+// through this function. A silent rounding error would corrupt every order
+// in every export, every accounting reconciliation, every Google Ads ROAS
+// signal. The "negative-tiny -> -0.00" case is a real bug: int64() truncates
+// toward zero, so int64(-0.6) is 0, but v<0 still emits the leading "-".
+func TestFormatAmount(t *testing.T) {
+	cases := []struct {
+		name string
+		in   float64
+		want string
+	}{
+		{"zero", 0, "0.00"},
+		{"one cent", 0.01, "0.01"},
+		{"ten cents", 0.10, "0.10"},
+		{"one dollar", 1.0, "1.00"},
+		{"common price", 10.99, "10.99"},
+		{"three digit dollars", 123.45, "123.45"},
+		{"thousands", 1234.56, "1234.56"},
+		{"large amount", 99999.99, "99999.99"},
+
+		// Rounding behavior (half-up via +0.5 trick)
+		{"rounds up at half-cent", 0.005, "0.01"},
+		{"rounds down below half-cent", 0.004, "0.00"},
+		{"rounds up at .995", 1.995, "2.00"},
+
+		// Negatives (refunds, credits, statement adjustments)
+		{"negative one cent", -0.01, "-0.01"},
+		{"negative dollar", -1.00, "-1.00"},
+		{"negative price", -10.99, "-10.99"},
+		{"negative half-cent rounds away from zero", -0.005, "-0.01"},
+
+		// REGRESSION: tiny negatives that round to zero must NOT print "-0.00"
+		{"negative tiny rounds to positive zero (no sign flip)", -0.001, "0.00"},
+		{"negative truly zero", -0.0, "0.00"},
+
+		// Float32 / float64 inexactness — common shapes that appear in tax math
+		{"float-imprecise 0.1+0.2", 0.1 + 0.2, "0.30"},
+		{"float-imprecise tax of 8.25%", 32.97 * 0.0825, "2.72"}, // 2.720025... -> 2.72
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatAmount(tc.in)
+			if got != tc.want {
+				t.Errorf("formatAmount(%v) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestFormatGenericCSV verifies the full CSV row shape with attribution.
+// Anchors the contract that downstream accounting/spreadsheet imports rely
+// on (column order, money precision, click-id columns).
+func TestFormatGenericCSV(t *testing.T) {
+	created, _ := time.Parse(time.RFC3339, "2026-05-04T14:30:00Z")
+	id, _ := primitive.ObjectIDFromHex("69f9128f39bbfdee5c1810d8")
+	orders := []*Order{
+		{
+			ID:              id,
+			CreatedAt:       created,
+			Status:          "shipped",
+			CustomerEmail:   "buyer@example.com",
+			PaymentMethod:   "credit_card",
+			DeliveryMethod:  "shipping_out",
+			Subtotal:        32.97,
+			ShippingCost:    15.00,
+			TaxAmount:       2.72,
+			GrandTotal:      50.69,
+			Items:           make([]cart.CartItem, 3),
+			TrackingNumber:  "1Z999",
+			TrackingCarrier: "ups",
+			VisitorID:       "v_abc",
+			ClickIDs:        map[string]string{"gclid": "Cj0xyz", "msclkid": "ms_456"},
+		},
+	}
+	out := FormatGenericCSV(orders)
+
+	// Header anchors column positions for spreadsheet imports
+	wantHeader := "Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid"
+	if !strings.HasPrefix(out, wantHeader) {
+		t.Errorf("CSV header mismatch.\n got: %q\nwant prefix: %q", strings.SplitN(out, "\n", 2)[0], wantHeader)
+	}
+
+	// Money values, attribution, and item count must all be present
+	wants := []string{
+		"69f9128f39bbfdee5c1810d8",
+		"2026-05-04 14:30:00",
+		"shipped",
+		"buyer@example.com",
+		"32.97", "15.00", "2.72", "50.69",
+		",3,",        // Items column
+		"1Z999",
+		"ups",
+		"v_abc",
+		"Cj0xyz",
+		"ms_456",
+	}
+	for _, w := range wants {
+		if !strings.Contains(out, w) {
+			t.Errorf("CSV missing %q\nfull output:\n%s", w, out)
+		}
+	}
+}
+
+// TestFormatGoogleCSV verifies (1) the required Parameters preamble and
+// header, (2) only orders with gclid are emitted, (3) Order ID is included
+// as the dedupe key Google uses on re-upload.
+func TestFormatGoogleCSV(t *testing.T) {
+	id1, _ := primitive.ObjectIDFromHex("69f9128f39bbfdee5c1810d8")
+	id2, _ := primitive.ObjectIDFromHex("69f9128f39bbfdee5c1810d9")
+	created, _ := time.Parse(time.RFC3339, "2026-05-04T14:30:00Z")
+	orders := []*Order{
+		{ID: id1, CreatedAt: created, GrandTotal: 50.69, ClickIDs: map[string]string{"gclid": "Cj0xyz"}},
+		{ID: id2, CreatedAt: created, GrandTotal: 99.99, ClickIDs: map[string]string{"msclkid": "ms_only"}}, // no gclid -> excluded
+	}
+	out := FormatGoogleCSV(orders, "")
+
+	if !strings.Contains(out, "Parameters:TimeZone=+0000") {
+		t.Errorf("missing required Parameters preamble:\n%s", out)
+	}
+	if !strings.Contains(out, "Cj0xyz") {
+		t.Errorf("missing gclid row")
+	}
+	if strings.Contains(out, "ms_only") {
+		t.Errorf("BREACH: Google CSV must exclude rows without gclid")
+	}
+	if !strings.Contains(out, "Purchase") {
+		t.Errorf("default conversion name 'Purchase' missing")
+	}
+	if !strings.Contains(out, "69f9128f39bbfdee5c1810d8") {
+		t.Errorf("Order ID column missing — required for re-upload dedupe")
+	}
+	if !strings.Contains(out, ",USD") {
+		t.Errorf("Currency column missing")
+	}
+
+	// Custom conversion name override
+	out2 := FormatGoogleCSV(orders, "Signup")
+	if !strings.Contains(out2, "Signup") {
+		t.Errorf("custom conversionName not applied")
+	}
+}
+
+// TestFormatBingCSV verifies the Microsoft Bulk schema: Format Version
+// preamble, "Offline Conversion" Type literal, and msclkid-only filtering.
+func TestFormatBingCSV(t *testing.T) {
+	id1, _ := primitive.ObjectIDFromHex("69f9128f39bbfdee5c1810d8")
+	id2, _ := primitive.ObjectIDFromHex("69f9128f39bbfdee5c1810d9")
+	created, _ := time.Parse(time.RFC3339, "2026-05-04T14:30:00Z")
+	orders := []*Order{
+		{ID: id1, CreatedAt: created, GrandTotal: 50.69, ClickIDs: map[string]string{"msclkid": "ms_456"}},
+		{ID: id2, CreatedAt: created, GrandTotal: 99.99, ClickIDs: map[string]string{"gclid": "g_only"}}, // no msclkid -> excluded
+	}
+	out := FormatBingCSV(orders, "")
+
+	if !strings.Contains(out, "Format Version,,,,,6.0,,,,,") {
+		t.Errorf("missing required Format Version row")
+	}
+	if !strings.Contains(out, "Offline Conversion") {
+		t.Errorf("missing required Type literal")
+	}
+	if !strings.Contains(out, "ms_456") {
+		t.Errorf("missing msclkid row")
+	}
+	if strings.Contains(out, "g_only") {
+		t.Errorf("BREACH: Bing CSV must exclude rows without msclkid")
+	}
+	// ISO 8601 with Z (Microsoft requires UTC, not the +0000 offset Google uses)
+	if !strings.Contains(out, "2026-05-04T14:30:00Z") {
+		t.Errorf("missing ISO 8601 Conversion Time")
 	}
 }
