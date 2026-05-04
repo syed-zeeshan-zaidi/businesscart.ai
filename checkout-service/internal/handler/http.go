@@ -18,6 +18,7 @@ import (
 	mailer "github.com/syed/businesscart/checkout-service/internal/email"
 	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/order"
+	"github.com/syed/businesscart/checkout-service/internal/promotion"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"github.com/syed/businesscart/checkout-service/internal/statement"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -73,13 +74,14 @@ type LambdaHandler struct {
 	statementService *statement.Service
 	gatewayStore     *gateway.Store
 	gatewayRegistry  *gateway.Registry
+	promotionService *promotion.Service
 	jwtSecret        string
 	apiBaseURL       string
 	emailSender      mailer.Sender
 }
 
 // NewLambdaHandler creates a new LambdaHandler.
-func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, statementService *statement.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
+func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, orderService *order.Service, statementService *statement.Service, gatewayStore *gateway.Store, gatewayRegistry *gateway.Registry, promotionService *promotion.Service, jwtSecret, apiBaseURL string, emailSender mailer.Sender) *LambdaHandler {
 	return &LambdaHandler{
 		cartService:      cartService,
 		quoteService:     quoteService,
@@ -87,6 +89,7 @@ func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, or
 		statementService: statementService,
 		gatewayStore:     gatewayStore,
 		gatewayRegistry:  gatewayRegistry,
+		promotionService: promotionService,
 		jwtSecret:        jwtSecret,
 		apiBaseURL:       apiBaseURL,
 		emailSender:      emailSender,
@@ -256,6 +259,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
+	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "export" {
+		return h.handleOrdersExport(request, accountID, role)
+	}
 	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "statement" {
 		return h.handleGetStatementRequest(request, accountID, role)
 	}
@@ -470,12 +476,14 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 
 func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		QuoteID           string `json:"quoteId"`
-		PaymentMethod     string `json:"paymentMethod"`
-		PickupLocationID  string `json:"pickupLocationId,omitempty"`
-		DeliveryAddressID string `json:"deliveryAddressId,omitempty"`
-		DeliveryMethod    string `json:"deliveryMethod"`
-		ReturnURL         string `json:"returnUrl,omitempty"`
+		QuoteID           string            `json:"quoteId"`
+		PaymentMethod     string            `json:"paymentMethod"`
+		PickupLocationID  string            `json:"pickupLocationId,omitempty"`
+		DeliveryAddressID string            `json:"deliveryAddressId,omitempty"`
+		DeliveryMethod    string            `json:"deliveryMethod"`
+		ReturnURL         string            `json:"returnUrl,omitempty"`
+		VisitorID         string            `json:"visitorId,omitempty"`
+		ClickIDs          map[string]string `json:"clickIds,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -573,6 +581,8 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 			InvoiceRef:        sessionResp.InvoiceRef,
 			RedirectURL:       sessionResp.RedirectURL,
 			ReturnURL:         returnURL,
+			VisitorID:         req.VisitorID,
+			ClickIDs:          req.ClickIDs,
 		}
 		if err := h.gatewayStore.CreateSession(ctx, paymentSession); err != nil {
 			return h.errorResponse(http.StatusInternalServerError, "Failed to create payment session"), nil
@@ -602,10 +612,10 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusPaymentRequired, "Payment processing failed"), nil
 	}
 
-	return h.createOrderFromQuote(q, accountID, h.requestUserEmail, req.PaymentMethod, req.DeliveryMethod, completion.TransactionID, req.PickupLocationID, req.DeliveryAddressID)
+	return h.createOrderFromQuote(q, accountID, h.requestUserEmail, req.PaymentMethod, req.DeliveryMethod, completion.TransactionID, req.PickupLocationID, req.DeliveryAddressID, req.VisitorID, req.ClickIDs)
 }
 
-func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customerEmail, paymentMethod, deliveryMethod, transactionID, pickupLocationID, deliveryAddressID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customerEmail, paymentMethod, deliveryMethod, transactionID, pickupLocationID, deliveryAddressID, visitorID string, clickIDs map[string]string) (events.APIGatewayProxyResponse, error) {
 	newOrder := &order.Order{
 		ID:                primitive.NewObjectID(),
 		QuoteID:           q.ID,
@@ -622,6 +632,8 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		PickupLocationID:  pickupLocationID,
 		DeliveryAddressID: deliveryAddressID,
 		CustomerEmail:     customerEmail,
+		VisitorID:         visitorID,
+		ClickIDs:          clickIDs,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -700,6 +712,80 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 		StatusCode: http.StatusOK,
 		Headers:    corsHeaders(h.requestOrigin),
 		Body:       string(respBody),
+	}, nil
+}
+
+// handleOrdersExport returns a CSV of orders for a date range. The format
+// query parameter selects the column shape:
+//   - generic: full ledger (default), suitable for accounting/reporting.
+//   - google:  Google Ads offline click-conversions upload (gclid).
+//   - bing:    Microsoft Advertising bulk offline conversions (msclkid).
+//
+// GET /checkout/orders/export?from=<RFC3339>&to=<RFC3339>&format=generic|google|bing
+//   [&sellerId=<id>] [&conversionName=<name>]
+// Auth: admin sees all (or filter via sellerId); company sees only their own.
+// Mirrors the customer export pattern at /accounts/export.
+func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "admin" && role != "company" {
+		return h.errorResponse(http.StatusForbidden, "Only admin or company can export orders"), nil
+	}
+	q := request.QueryStringParameters
+	format := strings.ToLower(q["format"])
+	if format == "" {
+		format = "generic"
+	}
+	if format != "generic" && format != "google" && format != "bing" {
+		return h.errorResponse(http.StatusBadRequest, "format must be 'generic', 'google', or 'bing'"), nil
+	}
+	fromStr, toStr := q["from"], q["to"]
+	if fromStr == "" || toStr == "" {
+		return h.errorResponse(http.StatusBadRequest, "from and to (RFC3339) required"), nil
+	}
+	from, err := time.Parse(time.RFC3339, fromStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "from: "+err.Error()), nil
+	}
+	to, err := time.Parse(time.RFC3339, toStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "to: "+err.Error()), nil
+	}
+
+	// Scope (mirrors handleGetStatementRequest): admin can pass any sellerId
+	// (or empty for all); company is forced to their own accountID.
+	sellerID := q["sellerId"]
+	if role == "company" {
+		sellerID = accountID
+	}
+
+	orders, err := h.orderService.GetOrdersForExport(sellerID, format, from, to)
+	if err != nil {
+		log.Printf("GetOrdersForExport failed: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to load orders"), nil
+	}
+
+	conversionName := q["conversionName"]
+	var body, filename string
+	dateRange := from.UTC().Format("2006-01-02") + "-to-" + to.UTC().Format("2006-01-02")
+	switch format {
+	case "generic":
+		body = order.FormatGenericCSV(orders)
+		filename = "orders-" + dateRange + ".csv"
+	case "google":
+		body = order.FormatGoogleCSV(orders, conversionName)
+		filename = "orders-google-ads-" + dateRange + ".csv"
+	case "bing":
+		body = order.FormatBingCSV(orders, conversionName)
+		filename = "orders-microsoft-ads-" + dateRange + ".csv"
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":                "text/csv",
+			"Content-Disposition":         "attachment; filename=" + filename,
+			"Access-Control-Allow-Origin": h.requestOrigin,
+		},
+		Body: body,
 	}, nil
 }
 
@@ -1111,6 +1197,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		TaxRate               float64                 `json:"taxRate"`
 		ShippingRate          float64                 `json:"shippingRate"`
 		LeadTime              float64                 `json:"leadTime"`
+		PromoCode             string                  `json:"promoCode,omitempty"`
+		CouponsEnabled        bool                    `json:"couponsEnabled,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -1214,6 +1302,17 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	shippingCost := effectiveShippingRate
 	grandTotal := cart.TotalPrice + shippingCost + taxAmount
 
+	// Hardcoded coupon: applies only when company has CouponsEnabled and a code was sent.
+	// Discount applies to subtotal; stacks with per-customer discount; tax computed before discount.
+	var promoDiscount float64
+	if req.CouponsEnabled && req.PromoCode != "" {
+		promoDiscount = h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode)
+		grandTotal -= promoDiscount
+		if grandTotal < 0 {
+			grandTotal = 0
+		}
+	}
+
 	// Calculate total item quantity
 	var totalQuantity float64
 	for _, item := range cart.Items {
@@ -1294,6 +1393,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		QuoteType:                   req.QuoteType,
 		Status:                      initialStatus,
 		LeadTime:                    effectiveLeadTime,
+		PromoCode:                   req.PromoCode,
+		PromoDiscount:               promoDiscount,
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
@@ -1854,7 +1955,7 @@ func (h *LambdaHandler) handlePaymentReturnRequest(request events.APIGatewayProx
 		return h.redirectResponse(buildRedirectURL(paymentSession.ReturnURL, "error", ""))
 	}
 
-	resp, _ := h.createOrderFromQuote(q, paymentSession.AccountID, paymentSession.CustomerEmail, paymentSession.PaymentMethod, paymentSession.DeliveryMethod, completion.TransactionID, paymentSession.PickupLocationID, paymentSession.DeliveryAddressID)
+	resp, _ := h.createOrderFromQuote(q, paymentSession.AccountID, paymentSession.CustomerEmail, paymentSession.PaymentMethod, paymentSession.DeliveryMethod, completion.TransactionID, paymentSession.PickupLocationID, paymentSession.DeliveryAddressID, paymentSession.VisitorID, paymentSession.ClickIDs)
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Order creation failed after successful payment for session %s: %s", providerSessionID, resp.Body)

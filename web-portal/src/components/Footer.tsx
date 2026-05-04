@@ -71,7 +71,7 @@ const Footer: React.FC = () => {
         {/* Trust signal — your-data-is-yours guarantee */}
         <div className="mt-10 border-t border-gray-700 pt-6 pb-2">
           <p className="text-sm text-teal-300 text-center sm:text-left">
-            <span className="font-semibold">Your data is yours.</span> Customers exportable as CSV, products and orders accessible via REST API. No lock-in. No cancellation fees. Leaving costs nothing.
+            <span className="font-semibold">Your data is yours.</span> Customers and orders exportable as CSV, products accessible via REST API and shopping feeds. No lock-in. No cancellation fees. Leaving costs nothing.
           </p>
         </div>
 

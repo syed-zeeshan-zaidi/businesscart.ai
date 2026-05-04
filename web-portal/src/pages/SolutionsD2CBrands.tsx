@@ -38,11 +38,11 @@ const liveFeatures = [
   { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'Pay nothing until you sell. No setup costs, no hidden fees.' },
   { icon: GlobeAltIcon, title: 'Branded storefront + custom domain', desc: 'Your colors, logo, and domain. See usetgo.com for a live example.' },
   { icon: BoltIcon, title: 'Sub-1-second page load', desc: 'Static HTML on CloudFront\'s 200+ edge locations. No bloated themes.' },
-  { icon: ChartBarIcon, title: 'Auto-generated SEO', desc: 'Sitemap, schema.org, OpenGraph, meta tags — all created automatically when you add products.' },
+  { icon: ChartBarIcon, title: 'Auto-generated SEO', desc: 'Sitemap, schema.org, OpenGraph, meta tags. All created automatically when you add products.' },
   { icon: CpuChipIcon, title: 'AI-readable product pages', desc: 'llms.txt + markdown product pages. ChatGPT, Perplexity, and Google AI can read your catalog directly.' },
   { icon: ShoppingBagIcon, title: '5 shopping channels included', desc: 'Auto-synced feeds for Google, Facebook, Bing, Pinterest, and TikTok. No app subscriptions.' },
   { icon: ShieldCheckIcon, title: 'Direct payment to your bank', desc: 'Connect Stripe, Amazon Pay, or Authorize.net. Money goes straight to you. We never touch it.' },
-  { icon: ChartBarIcon, title: 'Privacy-safe analytics', desc: 'UTM, geo, and conversion funnel tracking. First-party only — no Google Analytics, no third-party cookies.' },
+  { icon: ChartBarIcon, title: 'Privacy-safe analytics + ad attribution', desc: 'UTM, geo, and conversion funnel tracking. First-party only. No Google Analytics, no third-party cookies. Native CSV upload to Google Ads and others.' },
   { icon: TagIcon, title: 'Time-based deals', desc: 'Schedule sales with start and end dates. Built in, no app required.' },
   { icon: DevicePhoneMobileIcon, title: 'PWA installable app', desc: 'Customers can install your store as a mobile app from any browser. No App Store fees.' },
   { icon: PhotoIcon, title: 'Image CDN included', desc: 'Product images delivered globally with year-long cache. No third-party CDN needed.' },
@@ -50,7 +50,7 @@ const liveFeatures = [
 ];
 
 const betaFeatures = [
-  { title: 'Bulk product import via CSV', desc: 'CSV export works today. Bulk import is in active development. Manual upload available now via web portal.' },
+  { title: 'Bulk product import via CSV', desc: 'CSV import in active development. Manual upload via web portal works today.' },
   { title: 'Android customer mobile app', desc: 'Login, catalog, cart, checkout, and order history shipped. Payment UI in progress.' },
 ];
 
@@ -68,27 +68,27 @@ const roadmap = [
 const faqs = [
   {
     q: 'How is this $0/month? What\'s the catch?',
-    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume — no manual upgrades, no feature locks. Starter ($0/mo + 6% per order, capped at $5) up to 100 orders/month. Growth ($499/mo + 1% per order) for 101–1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. 30-day money-back on Growth and Enterprise.',
+    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks. Starter ($0/mo + 6% per order, capped at $5) up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. 30-day money-back on Growth and Enterprise.',
   },
   {
-    q: 'Can I migrate from Shopify, Etsy, or WooCommerce?',
-    a: 'Manual product upload works today. Bulk CSV import is in beta and ships in Q2 2026. Customer email migration is straightforward — Etsy and Amazon don\'t share customer emails anyway, so you can collect them on a launch announcement.',
+    q: 'Can I migrate from Shopify, Etsy, Magento, or WooCommerce?',
+    a: 'Yes. Any platform that offers an API or data export of products, customers, or orders can be migrated. We offer migration support to handle the mapping and import for you.',
   },
   {
     q: 'Will my SEO survive the move?',
-    a: 'Yes — and usually improves. Static HTML, auto-generated schema.org, sitemap, and llms.txt typically lift rankings within 60-90 days. Sub-second load is a Core Web Vitals win.',
+    a: 'Yes, and usually improves. Static HTML, auto-generated schema.org, sitemap, and llms.txt typically lift rankings within 60-90 days. Sub-second load is a Core Web Vitals win.',
   },
   {
     q: 'Can I use my own domain?',
-    a: 'Yes — included from day one. See usetgo.com for a live example.',
+    a: 'Yes, included from day one. See usetgo.com for a live example.',
   },
   {
     q: 'What if I need a feature you don\'t have?',
-    a: 'We ship every quarter — see "Coming in 2026" above for the roadmap. For specific needs, the platform is API-first (every operation has a REST endpoint), so you can integrate or extend.',
+    a: 'We ship every quarter (see "Coming in 2026" above for the roadmap). Send us a request and we will evaluate it for the next release. Enterprise customers can also access the REST API directly to integrate or extend any operation.',
   },
   {
     q: 'Can I leave if I don\'t like it?',
-    a: 'Anytime. Products, customers, orders, and images are all exportable as CSV. No contract, no monthly fees — leaving costs nothing.',
+    a: 'Anytime. Products, customers, orders, and images are all exportable as CSV. No contract, no monthly fees. Leaving costs nothing.',
   },
 ];
 
@@ -108,7 +108,7 @@ const SolutionsD2CBrands: React.FC = () => {
                 <span className="text-teal-400">Pay $0 to Start.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                A branded online store with sub-second pages, AI-readable products, and 5 built-in shopping channels — without monthly fees, plugin sprawl, or marketplace commissions.
+                A branded online store with sub-second pages, AI-readable products, and 5 built-in shopping channels. No monthly fees, plugin sprawl, or marketplace commissions.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 No monthly fees · No setup costs · No credit card to start · 6% per order, that's it
@@ -156,7 +156,7 @@ const SolutionsD2CBrands: React.FC = () => {
               <div className="bg-gray-50 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900">Slow stores are invisible to AI</h3>
                 <p className="mt-3 text-gray-600">
-                  Average Shopify store loads in 2-4 seconds. Worse: Shopify themes render with JavaScript — unreadable to ChatGPT, Perplexity, and Google AI Overviews. AI shopping is growing 165× faster than organic search.
+                  Average Shopify store loads in 2-4 seconds. Worse: Shopify themes render with JavaScript, unreadable to ChatGPT, Perplexity, and Google AI Overviews. AI shopping is growing 165× faster than organic search.
                 </p>
               </div>
             </div>
@@ -179,10 +179,10 @@ const SolutionsD2CBrands: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     ['Monthly fee', '$39+', '$0'],
-                    ['Essential apps', '$100-500/mo (typical stack)', '$0 — included'],
+                    ['Essential apps', '$100-500/mo (typical stack)', '$0, included'],
                     ['Page load', '2-4 seconds', '<1 second'],
                     ['AI/LLM-readable', 'No (JavaScript-rendered)', 'Yes (static HTML + llms.txt)'],
-                    ['Shopping feeds (5 channels)', '$20+/mo per app', '$0 — built-in'],
+                    ['Shopping feeds (5 channels)', '$20+/mo per app', '$0, built-in'],
                     ['Schema.org SEO', 'Basic, requires apps', 'Auto-generated'],
                     ['Custom domain', 'Included', 'Included'],
                     ['Direct payment to your bank', 'Yes', 'Yes'],
@@ -235,13 +235,13 @@ const SolutionsD2CBrands: React.FC = () => {
               One AI Add-on. Replaces 10,000 Apps.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Other platforms force you to subscribe to dozens of apps for integrations, automation, and analytics. Our AI add-on connects to any system, runs your routine operations, and surfaces what matters — all from one premium add-on, decoupled from your commerce stack so heavy lifting never slows your storefront.
+              Other platforms force you to subscribe to dozens of apps for integrations, automation, and analytics. Our AI add-on connects to any system, runs your routine operations, and surfaces what matters. All from one premium add-on, decoupled from your commerce stack so heavy lifting never slows your storefront.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Connect ERP, CRM, accounting, fulfillment — any system, no custom code. The AI handles the data plumbing.
+                  Connect ERP, CRM, accounting, fulfillment, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -253,12 +253,12 @@ const SolutionsD2CBrands: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order updates, quote follow-ups, status notifications — handled by AI so your team focuses on decisions.
+                  Order updates, quote follow-ups, status notifications, all handled by AI so your team focuses on decisions.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -327,7 +327,7 @@ const SolutionsD2CBrands: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-extrabold text-gray-900">See a Real Store, Built on BusinessCart.ai</h2>
               <p className="mt-4 text-gray-600">
-                <strong>uSetGo INC</strong> — a live D2C brand running on BusinessCart.ai with a custom domain, full catalog, sub-second load times, and AI-readable product pages.
+                <strong>uSetGo INC</strong>, a live D2C brand running on BusinessCart.ai with a custom domain, full catalog, sub-second load times, and AI-readable product pages.
               </p>
             </div>
 
@@ -337,7 +337,7 @@ const SolutionsD2CBrands: React.FC = () => {
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
                   <img
                     src="/screenshots/d2c/home.webp"
-                    alt="uSetGo storefront homepage — Grip Life with Style hero, branded teal palette"
+                    alt="uSetGo storefront homepage: Grip Life with Style hero, branded teal palette"
                     width="1200"
                     height="750"
                     loading="lazy"
@@ -353,7 +353,7 @@ const SolutionsD2CBrands: React.FC = () => {
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
                   <img
                     src="/screenshots/d2c/catalog.webp"
-                    alt="uSetGo catalog — 28 products, category filters, sale badges"
+                    alt="uSetGo catalog: 28 products, category filters, sale badges"
                     width="1200"
                     height="750"
                     loading="lazy"
@@ -369,7 +369,7 @@ const SolutionsD2CBrands: React.FC = () => {
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 group-hover:shadow-xl transition-shadow">
                   <img
                     src="/screenshots/d2c/product.webp"
-                    alt="uSetGo product detail — Silicon Baking Gloves with pricing, deal discount, attributes"
+                    alt="uSetGo product detail: Silicon Baking Gloves with pricing, deal discount, attributes"
                     width="1200"
                     height="667"
                     loading="lazy"
@@ -402,7 +402,7 @@ const SolutionsD2CBrands: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-extrabold text-gray-900">Inside the Admin Dashboard</h2>
               <p className="mt-4 text-gray-600">
-                Real seller view, real data — products, orders, customers, revenue, low-stock, and your auto-applied pricing tier all in one place. No app store. No Klaviyo + ReCharge + Loox + Gorgias stack to wire together.
+                Real seller view, real data: products, orders, customers, revenue, low-stock, and your auto-applied pricing tier all in one place. No app store. No Klaviyo + ReCharge + Loox + Gorgias stack to wire together.
               </p>
             </div>
 
@@ -417,7 +417,7 @@ const SolutionsD2CBrands: React.FC = () => {
               >
                 <img
                   src="/screenshots/d2c/admin-top.webp"
-                  alt="BusinessCart admin dashboard — Welcome header, pricing tier card showing Starter with progress to Growth and estimated $2.35 bill, four stat cards, revenue chart and low stock alerts"
+                  alt="BusinessCart admin dashboard: Welcome header, pricing tier card showing Starter with progress to Growth and estimated $2.35 bill, four stat cards, revenue chart and low stock alerts"
                   width="1855"
                   height="950"
                   loading="lazy"
@@ -427,7 +427,7 @@ const SolutionsD2CBrands: React.FC = () => {
                 />
               </a>
               <p className="mt-3 text-sm text-gray-600 text-center">
-                <strong className="text-gray-900">Everything in one view.</strong> Auto-applied pricing tier, revenue, orders, products, customers, low-stock alerts, analytics — no app store, no third-party tags, no extra dashboard logins. Click to zoom.
+                <strong className="text-gray-900">Everything in one view.</strong> Auto-applied pricing tier, revenue, orders, products, customers, low-stock alerts, analytics. No app store, no third-party tags, no extra dashboard logins. Click to zoom.
               </p>
               <p className="mt-2 text-sm text-center">
                 <a

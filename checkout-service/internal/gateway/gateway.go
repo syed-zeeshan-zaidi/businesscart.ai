@@ -83,6 +83,8 @@ type PaymentSession struct {
 	Status            string             `bson:"status" json:"status"`
 	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
 	ExpiresAt         time.Time          `bson:"expiresAt" json:"expiresAt"`
+	VisitorID         string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
+	ClickIDs          map[string]string  `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
 }
 
 // Registry maps gateway names to implementations.

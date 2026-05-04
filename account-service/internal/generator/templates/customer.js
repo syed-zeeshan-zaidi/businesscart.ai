@@ -32,7 +32,6 @@
 
             if (status === 'success') {
                 if (window.D2C_CART) window.D2C_CART.clear();
-                if (window.D2C_TRACKER && orderId) window.D2C_TRACKER.trackOrder(orderId, 0);
                 this._showOrderConfirmation(orderId);
             } else {
                 const messages = {
@@ -74,12 +73,14 @@
                 </div>`;
             document.body.appendChild(overlay);
 
+            let orderGrandTotal = 0;
             if (orderId && this.token) {
                 try {
                     const orders = await this.getOrders();
                     const order = orders?.find(o => (o._id || o.id) === orderId);
                     const details = document.getElementById('order-confirm-details');
                     if (order && details) {
+                        orderGrandTotal = order.grandTotal || 0;
                         const shortId = (order._id || order.id || '').slice(-6).toUpperCase();
                         details.innerHTML = `
                             <div style="background:#f8fafc;border-radius:12px;padding:1.25rem;margin-bottom:0.5rem;">
@@ -115,6 +116,14 @@
             } else {
                 const details = document.getElementById('order-confirm-details');
                 if (details) details.innerHTML = '';
+            }
+            // Fire conversion event exactly once per orderId, with real grandTotal when available.
+            if (orderId && window.D2C_TRACKER) {
+                this._trackedOrderIds = this._trackedOrderIds || new Set();
+                if (!this._trackedOrderIds.has(orderId)) {
+                    this._trackedOrderIds.add(orderId);
+                    window.D2C_TRACKER.trackOrder(orderId, orderGrandTotal);
+                }
             }
         },
 
@@ -327,11 +336,15 @@
 
         async placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId) {
             if (!this.token) return null;
+            const visitorId = (function(){ try { return localStorage.getItem('bc_visitor_id') || ''; } catch(e) { return ''; } })();
+            const clickIds = (function(){ try { return JSON.parse(localStorage.getItem('bc_clickids') || '{}'); } catch(e) { return {}; } })();
             const body = {
                 quoteId: quoteId,
                 paymentMethod: paymentMethod || 'pickup_&_pay',
                 deliveryMethod: deliveryMethod || 'shipping_out',
-                returnUrl: window.location.protocol === 'file:' ? (document.querySelector('link[rel="canonical"]')?.href || window.D2C_CONFIG.apiBase) : window.location.origin + window.location.pathname
+                returnUrl: window.location.protocol === 'file:' ? (document.querySelector('link[rel="canonical"]')?.href || window.D2C_CONFIG.apiBase) : window.location.origin + window.location.pathname,
+                visitorId: visitorId,
+                clickIds: clickIds
             };
             if (pickupLocationId) body.pickupLocationId = pickupLocationId;
             if (deliveryAddressId) body.deliveryAddressId = deliveryAddressId;
@@ -997,7 +1010,6 @@
                 }
 
                 const placedOrderId = result._id || result.id || '';
-                if (window.D2C_TRACKER) window.D2C_TRACKER.trackOrder(placedOrderId, result.grandTotal || 0);
                 setTimeout(() => {
                     document.getElementById('d2c-checkout-overlay')?.remove();
                     this._showOrderConfirmation(placedOrderId);

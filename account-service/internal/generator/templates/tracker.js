@@ -8,7 +8,9 @@
     var SELLER = (window.D2C_CONFIG || {}).sellerId || '';
     var VID_KEY = 'bc_visitor_id';
     var ATTR_KEY = 'bc_attribution';
+    var CLICK_KEY = 'bc_clickids';
     var SESSION_KEY = 'bc_session';
+    var CLICK_KEYS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid', 'ttclid', 'epik', 'sccid', 'rdt_cid'];
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -24,10 +26,33 @@
         return id;
     }
 
+    function clickIds() {
+        var p = new URLSearchParams(window.location.search);
+        var fresh = {};
+        for (var i = 0; i < CLICK_KEYS.length; i++) {
+            var v = p.get(CLICK_KEYS[i]);
+            if (v) fresh[CLICK_KEYS[i]] = v;
+        }
+        if (Object.keys(fresh).length) {
+            lsSet(CLICK_KEY, JSON.stringify(fresh));
+            return fresh;
+        }
+        try {
+            var cached = lsGet(CLICK_KEY);
+            if (cached) return JSON.parse(cached);
+        } catch (e) {}
+        return {};
+    }
+
     function attribution() {
+        var ids = clickIds();
         try {
             var cached = lsGet(ATTR_KEY);
-            if (cached) return JSON.parse(cached);
+            if (cached) {
+                var c = JSON.parse(cached);
+                c.clickIds = ids;
+                return c;
+            }
         } catch (e) {}
         var p = new URLSearchParams(window.location.search);
         var attr = {
@@ -40,6 +65,7 @@
             utm_term: p.get('utm_term') || ''
         };
         lsSet(ATTR_KEY, JSON.stringify(attr));
+        attr.clickIds = ids;
         return attr;
     }
 
@@ -70,6 +96,7 @@
                 utm_campaign: attr.utm_campaign,
                 utm_content: attr.utm_content,
                 utm_term: attr.utm_term,
+                clickIds: attr.clickIds || {},
                 timezone: (function() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e) { return ''; } })(),
                 screenWidth: window.screen ? window.screen.width : 0,
                 screenHeight: window.screen ? window.screen.height : 0,

@@ -41,14 +41,14 @@ const liveFeatures = [
   { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'No subscription. No setup fees. Pay only when an order comes in.' },
   { icon: LockClosedIcon, title: 'Code-gated regulars portal', desc: 'Your menu lives behind a private code you share with regulars and corporate accounts. No competitors next to you.' },
   { icon: BanknotesIcon, title: 'Cash on pickup + cash on delivery', desc: 'Accept Stripe, Amazon Pay, Authorize.net, or cash. You decide which method per customer.' },
-  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage multiple kitchens, food trucks, or pickup points — each with hours, capacity, and contact details.' },
+  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage multiple kitchens, food trucks, or pickup points, each with hours, capacity, and contact details.' },
   { icon: ClipboardDocumentListIcon, title: 'Catering quote workflow', desc: 'Customer requests a catering order. You quote, comment, counter. They approve. Full negotiation history preserved.' },
   { icon: UserGroupIcon, title: 'Per-customer pricing', desc: 'Corporate accounts get their negotiated discount automatically. Repeat customers pay their preferred rate. No promo codes needed.' },
   { icon: BoltIcon, title: 'Sub-1-second menu pages', desc: 'Static HTML on a global CDN. Your menu loads instantly on any device, any connection.' },
   { icon: TagIcon, title: 'Time-based deals', desc: 'Schedule daily specials, happy hour pricing, or weekend promotions with start and end dates. Built in.' },
   { icon: DevicePhoneMobileIcon, title: 'PWA installable customer app', desc: 'Customers install your menu as a mobile app from any browser. No App Store fees.' },
-  { icon: ShieldCheckIcon, title: 'You own customer data', desc: 'Every customer\'s email, phone, and order history is yours — not sold to a delivery app, not used to upsell competitors.' },
-  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your menu lives on yourrestaurant.com — not a DoorDash subpage.' },
+  { icon: ShieldCheckIcon, title: 'You own customer data', desc: 'Every customer\'s email, phone, and order history is yours, not sold to a delivery app, not used to upsell competitors.' },
+  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your menu lives on yourrestaurant.com, not a DoorDash subpage.' },
   { icon: PhotoIcon, title: 'Image CDN included', desc: 'High-quality menu photos delivered globally with year-long cache. No third-party CDN bill.' },
 ];
 
@@ -63,14 +63,14 @@ const roadmap = [
   { quarter: 'q3' as const, feature: 'Recurring catering orders', why: 'Standing weekly orders for offices, schools, regular events' },
   { quarter: 'q4' as const, feature: 'Menu modifiers (no onions, allergens)', why: 'Custom item configuration at checkout' },
   { quarter: 'q4' as const, feature: 'Time-based menus (breakfast vs lunch)', why: 'Show the right menu items at the right time of day' },
-  { quarter: 'q4' as const, feature: 'POS integration (Toast first, others to follow)', why: 'Sync orders to your existing POS — Toast prioritized as the largest restaurant POS' },
-  { quarter: 'y2027' as const, feature: 'Driver dispatch + tracking', why: 'Major undertaking — likely via integration with established dispatch service rather than building from scratch' },
+  { quarter: 'q4' as const, feature: 'POS integration (Toast first, others to follow)', why: 'Sync orders to your existing POS. Toast prioritized as the largest restaurant POS' },
+  { quarter: 'y2027' as const, feature: 'Driver dispatch + tracking', why: 'Major undertaking, likely via integration with established dispatch service rather than building from scratch' },
 ];
 
 const faqs = [
   {
     q: 'Is this a DoorDash alternative?',
-    a: 'No — and that is a feature. DoorDash is built for impulse delivery from full-service restaurants with kitchens and drivers. We are built for the food businesses DoorDash serves poorly: catering, meal-prep, bakeries, food trucks, corporate lunch, and businesses with regulars. Different model, different math, different customer.',
+    a: 'No, and that is a feature. DoorDash is built for impulse delivery from full-service restaurants with kitchens and drivers. We are built for the food businesses DoorDash serves poorly: catering, meal-prep, bakeries, food trucks, corporate lunch, and businesses with regulars. Different model, different math, different customer.',
   },
   {
     q: 'Who is this best for?',
@@ -78,7 +78,7 @@ const faqs = [
   },
   {
     q: 'How do customers find my menu?',
-    a: 'You share your custom domain (yourshop.com) or your customer code with regulars, corporate accounts, and email lists. Your menu is private — code-gated — so it stays focused on the customers you want, not random delivery-app shoppers.',
+    a: 'You share your custom domain (yourshop.com) or your customer code with regulars, corporate accounts, and email lists. Your menu is private (code-gated), so it stays focused on the customers you want, not random delivery-app shoppers.',
   },
   {
     q: 'Can I take cash on pickup or cash on delivery?',
@@ -86,7 +86,7 @@ const faqs = [
   },
   {
     q: 'Do you do delivery?',
-    a: 'Pickup, scheduled delivery, and shipping — yes, all today. Real-time driver dispatch and live tracking is on the Q4 2026 roadmap. If you need same-day driver dispatch today (like DoorDash), we are not the right fit yet.',
+    a: 'Pickup, scheduled delivery, and shipping: yes, all today. Real-time driver dispatch and live tracking is on the Q4 2026 roadmap. If you need same-day driver dispatch today (like DoorDash), we are not the right fit yet.',
   },
   {
     q: 'What about POS integration (Toast, Square, Clover)?',
@@ -110,7 +110,7 @@ const SolutionsRestaurants: React.FC = () => {
                 <span className="text-teal-400">DoorDash Ignores.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Catering, meal-prep, bakeries, food trucks, and corporate lunch — code-gated regulars portal, pickup and scheduled delivery, $0 monthly fee, no 30% commission.
+                Catering, meal-prep, bakeries, food trucks, and corporate lunch. Code-gated regulars portal, pickup and scheduled delivery, $0 monthly fee, no 30% commission.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 Built for the slice DoorDash serves poorly · You own your customers · Cash, card, or PO accepted
@@ -149,7 +149,7 @@ const SolutionsRestaurants: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Delivery apps take 15-30% per order</h3>
                 </div>
                 <p className="text-gray-600">
-                  On a $40 order, that's $6-12 going to DoorDash or UberEats. On 200 orders/month, you lose $1,200-$2,400. It's a tax on your existing customers — the ones who already know you.
+                  On a $40 order, that's $6-12 going to DoorDash or UberEats. On 200 orders/month, you lose $1,200-$2,400. It's a tax on your existing customers, the ones who already know you.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -158,7 +158,7 @@ const SolutionsRestaurants: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">You don't own your customer relationship</h3>
                 </div>
                 <p className="text-gray-600">
-                  DoorDash keeps the customer email, phone, and order history. They use it to upsell your competitors. You can't email a regular about a daily special — DoorDash will, on behalf of your competition.
+                  DoorDash keeps the customer email, phone, and order history. They use it to upsell your competitors. You can't email a regular about a daily special. DoorDash will, on behalf of your competition.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -191,8 +191,8 @@ const SolutionsRestaurants: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     ['Cost', '15-30% per order', '$49-499/mo', '$0-1,999/mo (3 tiers)'],
-                    ['You own customer data', 'No', 'Sometimes', 'Yes — fully'],
-                    ['Code-gated regulars-only menu', 'No', 'Limited (paid tiers)', 'Yes — built-in'],
+                    ['You own customer data', 'No', 'Sometimes', 'Yes, fully'],
+                    ['Code-gated regulars-only menu', 'No', 'Limited (paid tiers)', 'Yes, built-in'],
                     ['Catering quote workflow', 'No', 'Limited', 'Built-in'],
                     ['Cash on pickup / delivery', 'No', 'Limited', 'Yes'],
                     ['Per-customer corporate pricing', 'No', 'No', 'Yes'],
@@ -248,13 +248,13 @@ const SolutionsRestaurants: React.FC = () => {
               One AI Add-on. Replaces 10,000 Apps.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect your POS, accounting, or kitchen-display system without writing code. The AI add-on runs heavy operations decoupled from your menu pages — your storefront stays fast while the AI handles the back-office.
+              Connect your POS, accounting, or kitchen-display system without writing code. The AI add-on runs heavy operations decoupled from your menu pages. Your storefront stays fast while the AI handles the back-office.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  POS, accounting, inventory — any system, no custom code. The AI handles the data plumbing.
+                  POS, accounting, inventory, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -266,12 +266,12 @@ const SolutionsRestaurants: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, status updates, catering follow-ups — handled by AI so your team focuses on cooking.
+                  Order confirmations, status updates, catering follow-ups, all handled by AI so your team focuses on cooking.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -339,7 +339,7 @@ const SolutionsRestaurants: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See a Live Storefront</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront built on BusinessCart.ai. Custom domain, sub-second menu pages, full catalog.
+              <strong>uSetGo INC</strong>, a live storefront built on BusinessCart.ai. Custom domain, sub-second menu pages, full catalog.
             </p>
             <div className="mt-8">
               <a

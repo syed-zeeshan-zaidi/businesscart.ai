@@ -46,7 +46,7 @@ const PrivacyPolicy: React.FC = () => {
               <section id="introduction">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Introduction</h2>
                 <p className="text-gray-600 mb-4">
-                  BusinessCart.ai is a US-based e-commerce platform that provides businesses with their own branded online store, private commerce portal, and B2B tools. This Privacy Policy explains how we collect, use, and protect information across the platform — including the web portal, mobile app, D2C storefronts, and API.
+                  BusinessCart.ai is a US-based e-commerce platform that provides businesses with their own branded online store, private commerce portal, and B2B tools. This Privacy Policy explains how we collect, use, and protect information across the platform, including the web portal, mobile app, D2C storefronts, and API.
                 </p>
                 <p className="text-gray-600">
                   By using BusinessCart.ai, you agree to the collection and use of information as described in this policy. If you do not agree, please do not use the platform.
@@ -71,7 +71,7 @@ const PrivacyPolicy: React.FC = () => {
                   <li><b>Company Data:</b> Business name, logo, brand colors, product catalog (names, descriptions, prices, images), location details, and operating hours uploaded by companies.</li>
                   <li><b>Order Data:</b> Items purchased, quantities, delivery addresses, order status, and order history.</li>
                   <li><b>B2B Configuration:</b> Per-customer pricing, payment method preferences, delivery options, spending limits, and credit limits set by companies for their customers.</li>
-                  <li><b>Device and Usage Data:</b> Browser type, device type, and pages visited — used to maintain platform performance and security.</li>
+                  <li><b>Device and Usage Data:</b> Browser type, device type, and pages visited, used to maintain platform performance and security.</li>
                 </ul>
               </section>
 
@@ -94,7 +94,7 @@ const PrivacyPolicy: React.FC = () => {
                   <b>BusinessCart.ai does not process or store credit card numbers, bank account details, or other sensitive financial information.</b>
                 </p>
                 <p className="text-gray-600 mb-4">
-                  Payments are processed entirely through the company's own payment provider — Stripe, Amazon Pay, or Authorize.net. When a customer makes a payment, they are redirected to or interact with the payment provider's secure interface. BusinessCart.ai receives only a confirmation that the payment succeeded or failed.
+                  Payments are processed entirely through the company's own payment provider: Stripe, Amazon Pay, or Authorize.net. When a customer makes a payment, they are redirected to or interact with the payment provider's secure interface. BusinessCart.ai receives only a confirmation that the payment succeeded or failed.
                 </p>
                 <p className="text-gray-600">
                   Companies configure their own payment provider credentials on the platform. These credentials are encrypted at rest using AES-256-GCM encryption and are never exposed through the interface or API.
@@ -107,7 +107,7 @@ const PrivacyPolicy: React.FC = () => {
                 <ul className="list-disc list-inside space-y-2 text-gray-600">
                   <li><b>Between Companies and Their Customers:</b> When a customer places an order, the company receives the customer's name, delivery address, and order details necessary to fulfill the order.</li>
                   <li><b>Payment Providers:</b> Order amount and reference information is shared with the company's configured payment provider (Stripe, Amazon Pay, or Authorize.net) to process payments.</li>
-                  <li><b>Public Storefronts:</b> Product names, descriptions, prices, images, and company branding are published on the company's public D2C storefront. This is by design — storefronts are intended to be publicly accessible.</li>
+                  <li><b>Public Storefronts:</b> Product names, descriptions, prices, images, and company branding are published on the company's public D2C storefront. This is by design. Storefronts are intended to be publicly accessible.</li>
                   <li><b>Legal Requirements:</b> We may disclose information if required by law, subpoena, or legal process, or to protect the rights, property, or safety of BusinessCart.ai, our users, or others.</li>
                 </ul>
               </section>
@@ -141,7 +141,7 @@ const PrivacyPolicy: React.FC = () => {
               <section id="data-ownership">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Data Ownership</h2>
                 <p className="text-gray-600 mb-4">
-                  <b>Companies own their data.</b> Your products, customer relationships, order history, and business configuration belong to you. BusinessCart.ai is a platform — we host and process your data to provide the service, but we do not claim ownership of it.
+                  <b>Companies own their data.</b> Your products, customer relationships, order history, and business configuration belong to you. BusinessCart.ai is a platform. We host and process your data to provide the service, but we do not claim ownership of it.
                 </p>
                 <p className="text-gray-600">
                   If you close your account, we will delete your data from our active systems upon request. Some data may be retained temporarily in backups or as required by law.
@@ -164,7 +164,7 @@ const PrivacyPolicy: React.FC = () => {
                   If you have questions about this Privacy Policy or how your data is handled, contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>
                 </p>
                 <p className="text-gray-600 mt-2">
-                  BusinessCart, Inc. — United States
+                  BusinessCart, Inc., United States
                 </p>
               </section>
             </div>

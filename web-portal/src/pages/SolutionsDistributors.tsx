@@ -36,9 +36,9 @@ const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' }> = ({ kind 
 };
 
 const liveFeatures = [
-  { icon: AdjustmentsHorizontalIcon, title: 'Per-customer pricing tiers', desc: 'Retailers, wholesalers, end customers — each gets their negotiated rate automatically. Margins protected without manual intervention.' },
+  { icon: AdjustmentsHorizontalIcon, title: 'Per-customer pricing tiers', desc: 'Retailers, wholesalers, end customers, each gets their negotiated rate automatically. Margins protected without manual intervention.' },
   { icon: ShieldCheckIcon, title: 'Credit limit enforcement', desc: 'Reject orders exceeding a customer\'s credit cap before they ship. No more chasing AR after the fact.' },
-  { icon: ClipboardDocumentListIcon, title: 'Custom quote workflow', desc: 'Volume orders, special configurations, drop-ship requests — full negotiation with comments and history.' },
+  { icon: ClipboardDocumentListIcon, title: 'Custom quote workflow', desc: 'Volume orders, special configurations, drop-ship requests. Full negotiation with comments and history.' },
   { icon: LockClosedIcon, title: 'Code-gated catalog', desc: 'Each customer gets a private code unlocking your catalog with their pricing. Channel pricing stays private.' },
   { icon: ArrowsRightLeftIcon, title: 'Multi-supplier customer accounts', desc: 'When your suppliers also use BusinessCart, your buyers can manage upstream orders from the same account.' },
   { icon: CubeIcon, title: 'High-SKU catalog support', desc: 'Static HTML catalog handles thousands of SKUs without slowing down. Fast browse, instant search.' },
@@ -46,7 +46,7 @@ const liveFeatures = [
   { icon: MapPinIcon, title: 'Multiple warehouse locations', desc: 'Manage inventory across distribution centers, regional warehouses, drop-ship points.' },
   { icon: UserGroupIcon, title: 'Customer groups (retail tiers)', desc: 'Group customers (Tier 1 Retail, Tier 2, Wholesale, Direct) with auto-applied tier discounts.' },
   { icon: CommandLineIcon, title: 'Full REST API for inventory sync', desc: 'Push stock levels from your warehouse system. Pull orders into your fulfillment system. Real-time, no batch jobs.' },
-  { icon: EnvelopeIcon, title: 'Transactional emails built in', desc: 'Order confirmations, shipping updates, quote responses — branded and sent automatically.' },
+  { icon: EnvelopeIcon, title: 'Transactional emails built in', desc: 'Order confirmations, shipping updates, quote responses, all branded and sent automatically.' },
   { icon: CurrencyDollarIcon, title: 'Monthly + yearly spend caps', desc: 'Useful for new account trials, risk management, or limiting promotional pricing exposure.' },
 ];
 
@@ -58,7 +58,7 @@ const betaFeatures = [
 const roadmap = [
   { quarter: 'q3' as const, feature: 'Drop-shipping coordination', why: 'Route orders from distributor portal directly to manufacturer fulfillment' },
   { quarter: 'q3' as const, feature: 'Recurring customer orders', why: 'Standing orders for retailers with predictable replenishment cycles' },
-  { quarter: 'q3' as const, feature: 'Native ERP/WMS connectors', why: 'NetSuite, SAP, QuickBooks — direct sync without the AI add-on' },
+  { quarter: 'q3' as const, feature: 'Native ERP/WMS connectors', why: 'NetSuite, SAP, QuickBooks: direct sync without the AI add-on' },
   { quarter: 'q3' as const, feature: 'Net-30 / net-60 / net-90 terms', why: 'Standard B2B credit terms with auto-aging' },
   { quarter: 'q4' as const, feature: 'Multi-currency checkout', why: 'Distribute internationally without currency friction' },
 ];
@@ -66,7 +66,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'I distribute for multiple manufacturers. Can I sell across all their products on one storefront?',
-    a: 'Yes. You aggregate products from all your suppliers into your own catalog, set your own pricing per customer, and your customers see one unified ordering experience. Your suppliers do not need to use BusinessCart for this to work — you upload products like any catalog.',
+    a: 'Yes. You aggregate products from all your suppliers into your own catalog, set your own pricing per customer, and your customers see one unified ordering experience. Your suppliers do not need to use BusinessCart for this to work. You upload products like any catalog.',
   },
   {
     q: 'What if my suppliers also use BusinessCart? Can I order from them through the same platform?',
@@ -78,15 +78,15 @@ const faqs = [
   },
   {
     q: 'How is this different from selling on Amazon Business?',
-    a: 'Amazon Business takes commissions, owns the customer relationship, and pressures your margins. BusinessCart is your private portal — your customers, your pricing, your data, $0/month. You can sell on both — many distributors use Amazon Business for discovery and BusinessCart for repeat-customer self-serve.',
+    a: 'Amazon Business takes commissions, owns the customer relationship, and pressures your margins. BusinessCart is your private portal: your customers, your pricing, your data, $0/month. You can sell on both. Many distributors use Amazon Business for discovery and BusinessCart for repeat-customer self-serve.',
   },
   {
     q: 'Can my retailers self-serve, or does it require a sales rep?',
-    a: 'Retailers self-serve through their private portal with their negotiated pricing, payment terms, and credit limits all enforced automatically. Reps stop being order-takers and become relationship managers — focused on growth, not data entry.',
+    a: 'Retailers self-serve through their private portal with their negotiated pricing, payment terms, and credit limits all enforced automatically. Reps stop being order-takers and become relationship managers, focused on growth, not data entry.',
   },
   {
     q: 'Can I integrate with my warehouse management system?',
-    a: 'Yes — two paths. (1) REST API: every operation has an endpoint, full read/write. (2) AI Add-on: connect any WMS without code. Native NetSuite/SAP/QuickBooks/major-WMS connectors ship Q3 2026.',
+    a: 'Yes, two paths. (1) REST API: every operation has an endpoint, full read/write. (2) AI Add-on: connect any WMS without code. Native NetSuite/SAP/QuickBooks/major-WMS connectors ship Q3 2026.',
   },
 ];
 
@@ -106,7 +106,7 @@ const SolutionsDistributors: React.FC = () => {
                 <span className="text-teal-400">Stop Running Orders Through Email and PDFs.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Per-customer pricing tiers, credit enforcement, multi-warehouse inventory, and quote workflows — all in one platform. Your retailers self-serve. Your reps focus on growth, not order entry.
+                Per-customer pricing tiers, credit enforcement, multi-warehouse inventory, and quote workflows, all in one platform. Your retailers self-serve. Your reps focus on growth, not order entry.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · High-SKU catalog support · Margin protection at quote time · Multi-supplier ready
@@ -186,10 +186,10 @@ const SolutionsDistributors: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     ['Cost', '$0 (and pain)', '$2,000+/mo', '$2,000-10,000+/mo', '$1,800-10,000+/mo', '$0-1,999/mo'],
-                    ['Per-customer tier pricing', 'Manual', 'Yes', 'Yes', 'Yes (custom dev)', 'Yes — enforced'],
-                    ['Credit limit enforcement', 'None', 'Limited', 'Yes', 'Yes (custom dev)', 'Yes — at quote time'],
+                    ['Per-customer tier pricing', 'Manual', 'Yes', 'Yes', 'Yes (custom dev)', 'Yes, enforced'],
+                    ['Credit limit enforcement', 'None', 'Limited', 'Yes', 'Yes (custom dev)', 'Yes, at quote time'],
                     ['Multi-warehouse inventory', 'Yes (ERP)', 'Limited', 'Yes', 'Yes', 'Multiple locations'],
-                    ['High-SKU catalog (1000+ items)', 'Yes', 'Slow', 'Yes', 'Yes', 'Static HTML — fast'],
+                    ['High-SKU catalog (1000+ items)', 'Yes', 'Slow', 'Yes', 'Yes', 'Static HTML, fast'],
                     ['Multi-supplier buyer accounts', 'No (12 logins)', 'No', 'Custom', 'Custom', 'Built-in'],
                     ['Quote workflow', 'Email PDFs', 'Limited', 'Yes', 'Yes', 'Built-in with history'],
                     ['Setup time', 'Day one', '2-4 weeks', '6-18 months', '6-12 months', 'Days'],
@@ -245,13 +245,13 @@ const SolutionsDistributors: React.FC = () => {
               One AI Add-on. Connects Every System You Run.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              ERP, WMS, accounting, supplier portals — connect them all without writing code or hiring consultants. The AI add-on runs heavy syncs decoupled from your customer-facing portal, so distributor browsing stays fast while back-office data flows continuously.
+              ERP, WMS, accounting, supplier portals, connect them all without writing code or hiring consultants. The AI add-on runs heavy syncs decoupled from your customer-facing portal, so distributor browsing stays fast while back-office data flows continuously.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  ERP, WMS, accounting, supplier portals — any system, no custom code. The AI handles the data plumbing.
+                  ERP, WMS, accounting, supplier portals, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -263,12 +263,12 @@ const SolutionsDistributors: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, backorder notifications, supplier follow-ups — handled by AI so your team focuses on margin.
+                  Order confirmations, backorder notifications, supplier follow-ups, all handled by AI so your team focuses on margin.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -332,7 +332,7 @@ const SolutionsDistributors: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See the Platform in Action</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront on BusinessCart.ai. Public face shown below; the customer portal sits behind a code with per-customer pricing, credit limits, and quote workflow active.
+              <strong>uSetGo INC</strong>, a live storefront on BusinessCart.ai. Public face shown below; the customer portal sits behind a code with per-customer pricing, credit limits, and quote workflow active.
             </p>
             <div className="mt-8">
               <a

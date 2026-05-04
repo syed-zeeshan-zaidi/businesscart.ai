@@ -150,6 +150,7 @@ type CompanyData struct {
 	TaxRate               float64             `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
 	ShippingRate          float64             `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CouponsEnabled        bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
 	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
@@ -254,13 +255,14 @@ type Account struct {
 // ---------- visitor analytics ----------
 
 type VisitorAttribution struct {
-	Source      string `bson:"source" json:"source"`
-	Medium      string `bson:"medium" json:"medium"`
-	Campaign    string `bson:"campaign,omitempty" json:"campaign,omitempty"`
-	Content     string `bson:"content,omitempty" json:"content,omitempty"`
-	Term        string `bson:"term,omitempty" json:"term,omitempty"`
-	Referrer    string `bson:"referrer,omitempty" json:"referrer,omitempty"`
-	LandingPage string `bson:"landingPage" json:"landingPage"`
+	Source      string            `bson:"source" json:"source"`
+	Medium      string            `bson:"medium" json:"medium"`
+	Campaign    string            `bson:"campaign,omitempty" json:"campaign,omitempty"`
+	Content     string            `bson:"content,omitempty" json:"content,omitempty"`
+	Term        string            `bson:"term,omitempty" json:"term,omitempty"`
+	Referrer    string            `bson:"referrer,omitempty" json:"referrer,omitempty"`
+	LandingPage string            `bson:"landingPage" json:"landingPage"`
+	ClickIDs    map[string]string `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
 }
 
 type VisitorGeo struct {

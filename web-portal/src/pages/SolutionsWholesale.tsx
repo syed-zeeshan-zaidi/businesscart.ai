@@ -40,13 +40,13 @@ const liveFeatures = [
   { icon: ShieldCheckIcon, title: 'Credit limits enforced at quote time', desc: 'Quote rejected automatically if unpaid balance + new order exceeds the customer\'s credit cap. No more credit overruns.' },
   { icon: ClipboardDocumentListIcon, title: 'Min / max order amount + quantity', desc: 'Enforce minimum order values, case quantities, or pallet sizes per customer. Validated before quote is created.' },
   { icon: CurrencyDollarIcon, title: 'Monthly + yearly spend caps', desc: 'Set spending limits per customer relationship. Useful for staged rollouts, trial accounts, or risk management.' },
-  { icon: ClipboardDocumentListIcon, title: 'Full quote negotiation workflow', desc: 'Customer proposes, you counter, they approve, it converts to an order — with comments, history, and full audit trail.' },
+  { icon: ClipboardDocumentListIcon, title: 'Full quote negotiation workflow', desc: 'Customer proposes, you counter, they approve, it converts to an order, with comments, history, and full audit trail.' },
   { icon: LockClosedIcon, title: 'Private, code-gated catalog', desc: 'Customers only see your catalog after entering a customer code you share. No public listing, no competitors next to you.' },
   { icon: BanknotesIcon, title: 'Per-customer payment methods', desc: 'Customer A pays via Stripe. Customer B uses purchase orders. Customer C pays cash on pickup. You decide who gets what.' },
-  { icon: ServerIcon, title: 'Per-customer delivery options', desc: 'Some customers get pickup only. Some get delivery. Some get shipping. Restrict per relationship — they only see their options.' },
+  { icon: ServerIcon, title: 'Per-customer delivery options', desc: 'Some customers get pickup only. Some get delivery. Some get shipping. Restrict per relationship. They only see their options.' },
   { icon: UserGroupIcon, title: 'Customer groups with bulk discounts', desc: 'Group customers (Wholesale, Distributor, Tier-1, etc.). Apply uniform discounts across the group without configuring each customer.' },
-  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage warehouses, pickup points, and distribution centers — each with operating hours and capacity.' },
-  { icon: CubeIcon, title: 'Multi-supplier customer accounts', desc: 'Your customers can be associated with multiple suppliers, each with independent configurations — all from one login.' },
+  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage warehouses, pickup points, and distribution centers, each with operating hours and capacity.' },
+  { icon: CubeIcon, title: 'Multi-supplier customer accounts', desc: 'Your customers can be associated with multiple suppliers, each with independent configurations, all from one login.' },
   { icon: CommandLineIcon, title: 'Full REST API', desc: 'Every operation has an endpoint. Integrate with your ERP, accounting, or warehouse system.' },
 ];
 
@@ -58,9 +58,9 @@ const betaFeatures = [
 ];
 
 const roadmap = [
-  { quarter: 'q3' as const, feature: 'Recurring / subscription orders', why: 'Standing orders for repeat customers — major B2B reorder use case' },
+  { quarter: 'q3' as const, feature: 'Recurring / subscription orders', why: 'Standing orders for repeat customers, major B2B reorder use case' },
   { quarter: 'q3' as const, feature: 'Tiered customer pricing levels', why: 'Customer tiers (Tier 1, Tier 2, Wholesale, Distributor) with auto-applied levels' },
-  { quarter: 'q3' as const, feature: 'Native ERP/accounting connectors', why: 'QuickBooks, Xero, NetSuite — direct sync without the AI add-on if you prefer' },
+  { quarter: 'q3' as const, feature: 'Native ERP/accounting connectors', why: 'QuickBooks, Xero, NetSuite: direct sync without the AI add-on if you prefer' },
   { quarter: 'q4' as const, feature: 'Multi-language portals', why: 'Sell wholesale internationally in your customer\'s language' },
   { quarter: 'q4' as const, feature: 'Multi-currency checkout', why: 'Charge customers in their local currency at checkout' },
 ];
@@ -72,15 +72,15 @@ const faqs = [
   },
   {
     q: 'How long does setup take?',
-    a: 'Days, not months. Sign up, add your products, define your customer groups and per-customer overrides, share customer codes with your buyers. There is no implementation consultant, no migration project, no training program required. NetSuite-class B2B portals typically take 6-18 months to deploy — for the per-customer ordering layer specifically, we ship in days.',
+    a: 'Days, not months. Sign up, add your products, define your customer groups and per-customer overrides, share customer codes with your buyers. There is no implementation consultant, no migration project, no training program required. NetSuite-class B2B portals typically take 6-18 months to deploy. For the per-customer ordering layer specifically, we ship in days.',
   },
   {
     q: 'Can I migrate my customer pricing and terms from QuickBooks or spreadsheets?',
-    a: 'Yes — manual entry today, bulk CSV import in beta and shipping Q2 2026. The data model maps cleanly: each customer gets a discount percentage, payment methods, delivery options, credit limit, and order limits. If you have it in a spreadsheet, you can move it.',
+    a: 'Yes, manual entry today, bulk CSV import in beta and shipping Q2 2026. The data model maps cleanly: each customer gets a discount percentage, payment methods, delivery options, credit limit, and order limits. If you have it in a spreadsheet, you can move it.',
   },
   {
     q: 'What if a sales rep needs to place an order on behalf of a customer?',
-    a: 'Reps log in as admin and can create quotes on behalf of any customer. The customer\'s pricing, payment methods, and limits all apply automatically — the rep cannot accidentally override them. The customer sees the quote in their portal and can approve or counter.',
+    a: 'Reps log in as admin and can create quotes on behalf of any customer. The customer\'s pricing, payment methods, and limits all apply automatically, the rep cannot accidentally override them. The customer sees the quote in their portal and can approve or counter.',
   },
   {
     q: 'How does the quote workflow handle counter-offers?',
@@ -88,7 +88,7 @@ const faqs = [
   },
   {
     q: 'Can I integrate with my ERP, accounting, or warehouse system?',
-    a: 'Yes — two paths. (1) Use our REST API directly: every operation is exposed, full read/write, no limits. (2) Use our AI Add-on — connect any system without writing code. The AI handles the data plumbing. Native QuickBooks/Xero/NetSuite connectors are on the Q3 2026 roadmap if you prefer no-code.',
+    a: 'Yes, two paths. (1) Use our REST API directly: every operation is exposed, full read/write, no limits. (2) Use our AI Add-on to connect any system without writing code. The AI handles the data plumbing. Native QuickBooks/Xero/NetSuite connectors are on the Q3 2026 roadmap if you prefer no-code.',
   },
 ];
 
@@ -108,7 +108,7 @@ const SolutionsWholesale: React.FC = () => {
                 <span className="text-teal-400">Spreadsheets.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Per-customer pricing, credit limits, spend caps, and quote negotiation — enforced automatically at every order. Your customers self-serve through their own private portal. You stop being the bottleneck.
+                Per-customer pricing, credit limits, spend caps, and quote negotiation, all enforced automatically at every order. Your customers self-serve through their own private portal. You stop being the bottleneck.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · Live in hours, not months · Real B2B enforcement, not just "tags"
@@ -188,9 +188,9 @@ const SolutionsWholesale: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     ['Monthly cost', '$0 (and pain)', '$2,000+', '$2,000-10,000+', '$1,800-10,000+', '$499-1,999'],
-                    ['Per-customer pricing', 'Manual', 'Yes', 'Yes', 'Yes (custom dev)', 'Yes — enforced'],
-                    ['Credit limit enforcement', 'None', 'Limited', 'Yes', 'Yes (custom dev)', 'Yes — at quote time'],
-                    ['Min/max order limits', 'None', 'Limited', 'Yes', 'Custom dev', 'Yes — enforced'],
+                    ['Per-customer pricing', 'Manual', 'Yes', 'Yes', 'Yes (custom dev)', 'Yes, enforced'],
+                    ['Credit limit enforcement', 'None', 'Limited', 'Yes', 'Yes (custom dev)', 'Yes, at quote time'],
+                    ['Min/max order limits', 'None', 'Limited', 'Yes', 'Custom dev', 'Yes, enforced'],
                     ['Monthly/yearly spend caps', 'None', 'No', 'Custom', 'Custom dev', 'Built-in'],
                     ['Quote negotiation workflow', 'Email PDFs', 'Limited', 'Yes', 'Yes', 'Built-in with history'],
                     ['Customer self-serve', 'No', 'Yes', 'Yes', 'Yes', 'Yes'],
@@ -217,7 +217,7 @@ const SolutionsWholesale: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-extrabold text-gray-900">Real B2B Enforcement, Not Just "Tags"</h2>
               <p className="mt-4 text-gray-600">
-                Every feature below is <Badge kind="live" /> today. Not a roadmap promise — working code that rejects invalid orders before they happen.
+                Every feature below is <Badge kind="live" /> today. Not a roadmap promise. Working code that rejects invalid orders before they happen.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -249,13 +249,13 @@ const SolutionsWholesale: React.FC = () => {
               One AI Add-on. Replaces 10,000 Apps.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect your ERP, accounting, warehouse, or CRM without writing code. The AI add-on is decoupled from your commerce stack — heavy lifting never slows your storefront. One add-on covers what Shopify and NetSuite force you to assemble from dozens of plugins and custom integrations.
+              Connect your ERP, accounting, warehouse, or CRM without writing code. The AI add-on is decoupled from your commerce stack. Heavy lifting never slows your storefront. One add-on covers what Shopify and NetSuite force you to assemble from dozens of plugins and custom integrations.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  ERP, CRM, accounting, fulfillment — any system, no custom code. The AI handles the data plumbing.
+                  ERP, CRM, accounting, fulfillment, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -267,12 +267,12 @@ const SolutionsWholesale: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order updates, quote follow-ups, status notifications — handled by AI so your team focuses on decisions.
+                  Order updates, quote follow-ups, status notifications, all handled by AI so your team focuses on decisions.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -340,7 +340,7 @@ const SolutionsWholesale: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See the Platform in Action</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront on BusinessCart.ai. Public face shown below; the B2B portal sits behind a customer code with per-customer pricing, credit limits, and quote workflow active.
+              <strong>uSetGo INC</strong>, a live storefront on BusinessCart.ai. Public face shown below; the B2B portal sits behind a customer code with per-customer pricing, credit limits, and quote workflow active.
             </p>
             <div className="mt-8">
               <a

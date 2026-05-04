@@ -1493,6 +1493,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		UTMCampaign string `json:"utm_campaign"`
 		UTMContent string `json:"utm_content"`
 		UTMTerm    string `json:"utm_term"`
+		ClickIDs   map[string]string `json:"clickIds"`
 		Timezone     string `json:"timezone"`
 		ScreenWidth  int    `json:"screenWidth"`
 		ScreenHeight int    `json:"screenHeight"`
@@ -1587,6 +1588,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 			Term:        req.UTMTerm,
 			Referrer:    req.Referrer,
 			LandingPage: req.Page,
+			ClickIDs:    req.ClickIDs,
 		},
 		Geo: storage.VisitorGeo{
 			Country:  country,

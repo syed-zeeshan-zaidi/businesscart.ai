@@ -85,4 +85,6 @@ type Comment struct {
 		DiscountAmount              float64            `bson:"discountAmount,omitempty" json:"discountAmount,omitempty"`
 		Notes                       string             `bson:"notes,omitempty" json:"notes,omitempty"`
 		LeadTime                    float64            `bson:"leadTime,omitempty" json:"leadTime,omitempty"`
+		PromoCode                   string             `bson:"promoCode,omitempty" json:"promoCode,omitempty"`
+		PromoDiscount               float64            `bson:"promoDiscount,omitempty" json:"promoDiscount,omitempty"`
 	}

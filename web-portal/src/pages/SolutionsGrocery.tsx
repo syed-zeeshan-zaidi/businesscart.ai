@@ -40,15 +40,15 @@ const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' | 'y2027' }> 
 const liveFeatures = [
   { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'No subscription. No setup fees. Pay only when an order comes in.' },
   { icon: LockClosedIcon, title: 'Code-gated regulars portal', desc: 'Your catalog lives behind a private code you share with regulars and corporate buyers (restaurants, offices). No competitors next to you.' },
-  { icon: BanknotesIcon, title: 'Cash, card, or PO accepted', desc: 'Cash on pickup, cash on delivery, Stripe, Amazon Pay, Authorize.net, purchase orders — you decide which method per customer.' },
-  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage multiple storefronts, warehouses, or pickup points — each with operating hours and contact details.' },
+  { icon: BanknotesIcon, title: 'Cash, card, or PO accepted', desc: 'Cash on pickup, cash on delivery, Stripe, Amazon Pay, Authorize.net, purchase orders. You decide which method per customer.' },
+  { icon: MapPinIcon, title: 'Multiple locations', desc: 'Manage multiple storefronts, warehouses, or pickup points, each with operating hours and contact details.' },
   { icon: ShoppingBagIcon, title: 'Google Shopping + 4 more channels', desc: 'Auto-synced feeds for Google Shopping, Facebook, Bing, Pinterest, and TikTok. Local grocery shoppers find you on Google.' },
   { icon: BoltIcon, title: 'Sub-1-second catalog pages', desc: 'Static HTML on a global CDN. Hundreds of products, instant load on any device.' },
   { icon: TagIcon, title: 'Time-based deals', desc: 'Schedule weekly specials, weekend markdowns, end-of-day perishable discounts with start and end dates.' },
   { icon: UserGroupIcon, title: 'Per-customer pricing', desc: 'Restaurants and corporate accounts get their negotiated wholesale rate automatically. Retail customers see retail prices.' },
   { icon: CpuChipIcon, title: 'AI-readable product pages', desc: 'ChatGPT, Perplexity, and Google AI can read your catalog directly. Local searches like "Halal butcher near me" surface your products.' },
-  { icon: ShieldCheckIcon, title: 'You own customer data', desc: 'Every customer\'s contact info and order history belongs to you — not Instacart, not a marketplace, not a competitor.' },
-  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your store lives on yourgrocery.com — your brand, your URL, your discoverability.' },
+  { icon: ShieldCheckIcon, title: 'You own customer data', desc: 'Every customer\'s contact info and order history belongs to you, not Instacart, not a marketplace, not a competitor.' },
+  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your store lives on yourgrocery.com: your brand, your URL, your discoverability.' },
   { icon: PhotoIcon, title: 'Image CDN included', desc: 'High-quality product photos delivered globally. Fresh produce, perfect cuts of meat, displayed beautifully.' },
 ];
 
@@ -62,8 +62,8 @@ const roadmap = [
   { quarter: 'q4' as const, feature: 'Weight-based pricing ($/lb)', why: 'Sell produce, meat, cheese, deli items by weight at checkout' },
   { quarter: 'q4' as const, feature: 'Time-slot delivery (2-4pm windows)', why: 'Customers pick a delivery window at checkout' },
   { quarter: 'q4' as const, feature: 'Multi-language storefronts', why: 'Serve ethnic grocery customers in their preferred language' },
-  { quarter: 'y2027' as const, feature: 'Substitution rules ("if no organic, use regular")', why: 'Complex UX + business logic — moved to 2027 to ship correctly rather than rush' },
-  { quarter: 'y2027' as const, feature: 'EBT / SNAP payments (US)', why: 'USDA certification + TPP processor partnership is a 12-18 month process — honest timeline is 2027+' },
+  { quarter: 'y2027' as const, feature: 'Substitution rules ("if no organic, use regular")', why: 'Complex UX + business logic, moved to 2027 to ship correctly rather than rush' },
+  { quarter: 'y2027' as const, feature: 'EBT / SNAP payments (US)', why: 'USDA certification + TPP processor partnership is a 12-18 month process. Honest timeline is 2027+' },
 ];
 
 const faqs = [
@@ -73,19 +73,19 @@ const faqs = [
   },
   {
     q: 'How is this different from Instacart?',
-    a: 'Instacart is a marketplace that takes 10-15% per order plus delivery fees, keeps your customer data, and uses it to upsell competitors. We are a direct ordering platform — your customers come to your store, on your domain, paying you directly. You own everything.',
+    a: 'Instacart is a marketplace that takes 10-15% per order plus delivery fees, keeps your customer data, and uses it to upsell competitors. We are a direct ordering platform. Your customers come to your store, on your domain, paying you directly. You own everything.',
   },
   {
     q: 'Can I sell items by weight (per pound)?',
-    a: 'Not yet — weight-based pricing ships Q3 2026. Today, products are priced per unit. For now, you can use packaged increments (1/4 lb, 1/2 lb, 1 lb pre-packaged) as separate SKUs. If weight-based pricing is critical from day one, talk to us about timing.',
+    a: 'Not yet, weight-based pricing ships Q3 2026. Today, products are priced per unit. For now, you can use packaged increments (1/4 lb, 1/2 lb, 1 lb pre-packaged) as separate SKUs. If weight-based pricing is critical from day one, talk to us about timing.',
   },
   {
     q: 'Do you support EBT or SNAP payments?',
-    a: 'EBT/SNAP is on the 2027+ roadmap. USDA SNAP certification and partnership with a Third-Party Processor (TPP) is a 12-18 month process minimum, so we are not promising it sooner than we can deliver. Today we support cash, card (Stripe, Amazon Pay, Authorize.net), and purchase orders. If EBT is critical for your market, let us know — strong demand can accelerate prioritization.',
+    a: 'EBT/SNAP is on the 2027+ roadmap. USDA SNAP certification and partnership with a Third-Party Processor (TPP) is a 12-18 month process minimum, so we are not promising it sooner than we can deliver. Today we support cash, card (Stripe, Amazon Pay, Authorize.net), and purchase orders. If EBT is critical for your market, let us know. Strong demand can accelerate prioritization.',
   },
   {
     q: 'Can restaurants and corporate buyers order from me with their own pricing?',
-    a: 'Yes — that is built in. Per-customer pricing, payment methods, credit limits, min/max order amounts, monthly and yearly spend caps — all enforced automatically. Your retail customers see retail prices; your wholesale customers see their negotiated rate.',
+    a: 'Yes, that is built in. Per-customer pricing, payment methods, credit limits, min/max order amounts, monthly and yearly spend caps, all enforced automatically. Your retail customers see retail prices; your wholesale customers see their negotiated rate.',
   },
   {
     q: 'How do customers find my store?',
@@ -105,11 +105,11 @@ const SolutionsGrocery: React.FC = () => {
             <div className="max-w-3xl">
               <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Solutions · Grocery &amp; Specialty Food</p>
               <h1 className="mt-4 text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
-                Online Ordering for Independent Grocers —{' '}
+                Online Ordering for Independent Grocers:{' '}
                 <span className="text-teal-400">Without Instacart's Cut.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Specialty, ethnic, organic, butcher, bakery, pet supply — your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
+                Specialty, ethnic, organic, butcher, bakery, pet supply. Your regulars order direct, you keep 100% of the margin and 100% of the customer relationship.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · No commission to a marketplace · Cash, card, or PO accepted · You own every customer
@@ -157,7 +157,7 @@ const SolutionsGrocery: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">You don't own your customers</h3>
                 </div>
                 <p className="text-gray-600">
-                  Marketplaces keep customer contact info. You can't email a regular about a fresh shipment. You can't build loyalty. The marketplace can — for your competitor.
+                  Marketplaces keep customer contact info. You can't email a regular about a fresh shipment. You can't build loyalty. The marketplace can, for your competitor.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -166,7 +166,7 @@ const SolutionsGrocery: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Generic platforms don't fit your business</h3>
                 </div>
                 <p className="text-gray-600">
-                  Specialty grocers, ethnic markets, butcher shops, bakeries — your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
+                  Specialty grocers, ethnic markets, butcher shops, bakeries. Your customers know you and want a fast, private way to order. Generic Shopify-style storefronts make you look like every other shop.
                 </p>
               </div>
             </div>
@@ -190,7 +190,7 @@ const SolutionsGrocery: React.FC = () => {
                 <tbody className="divide-y divide-gray-100">
                   {[
                     ['Cost', '10-15% + delivery fees', '$99-499/mo', '$0-1,999/mo (3 tiers)'],
-                    ['You own customer data', 'No', 'Limited', 'Yes — fully'],
+                    ['You own customer data', 'No', 'Limited', 'Yes, fully'],
                     ['Custom domain', 'No', 'Sometimes', 'Yes'],
                     ['Code-gated wholesale customers', 'No', 'No', 'Yes'],
                     ['Per-customer pricing (restaurants/offices)', 'No', 'Limited', 'Built-in'],
@@ -247,13 +247,13 @@ const SolutionsGrocery: React.FC = () => {
               One AI Add-on. Replaces 10,000 Apps.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect your inventory, accounting, or supplier system without writing code. The AI add-on handles heavy operations decoupled from your storefront — pages stay fast while the AI manages the back-office.
+              Connect your inventory, accounting, or supplier system without writing code. The AI add-on handles heavy operations decoupled from your storefront. Pages stay fast while the AI manages the back-office.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Inventory, suppliers, accounting — any system, no custom code. The AI handles the data plumbing.
+                  Inventory, suppliers, accounting, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -265,12 +265,12 @@ const SolutionsGrocery: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, restock alerts, special-order follow-ups — handled by AI so your team focuses on customers.
+                  Order confirmations, restock alerts, special-order follow-ups, all handled by AI so your team focuses on customers.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -338,7 +338,7 @@ const SolutionsGrocery: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See a Live Storefront</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront built on BusinessCart.ai. Custom domain, sub-second catalog pages, full product listing.
+              <strong>uSetGo INC</strong>, a live storefront built on BusinessCart.ai. Custom domain, sub-second catalog pages, full product listing.
             </p>
             <div className="mt-8">
               <a
@@ -362,7 +362,7 @@ const SolutionsGrocery: React.FC = () => {
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-3">
               {[
-                { step: '1', title: 'Add your catalog', desc: 'Upload products with photos, prices, and categories. Use CSV bulk-add (beta — Q2 2026) or web portal entry today.' },
+                { step: '1', title: 'Add your catalog', desc: 'Upload products with photos, prices, and categories. Use CSV bulk-add (beta, Q2 2026) or web portal entry today.' },
                 { step: '2', title: 'Configure ordering', desc: 'Set delivery vs pickup options, locations, payment methods (cash + card + PO), and per-customer rules for wholesale buyers.' },
                 { step: '3', title: 'Go live', desc: 'Share your custom domain with the public, your code with regulars and wholesale customers. Google Shopping feed auto-syncs.' },
               ].map((s) => (

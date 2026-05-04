@@ -13,6 +13,7 @@ import (
 	"github.com/syed/businesscart/checkout-service/internal/gateway"
 	"github.com/syed/businesscart/checkout-service/internal/handler"
 	"github.com/syed/businesscart/checkout-service/internal/order"
+	"github.com/syed/businesscart/checkout-service/internal/promotion"
 	"github.com/syed/businesscart/checkout-service/internal/quote"
 	"github.com/syed/businesscart/checkout-service/internal/statement"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,6 +35,7 @@ func main() {
 	quoteService := quote.NewService(db)
 	orderService := order.NewService(db)
 	statementService := statement.NewService(db)
+	promotionService := promotion.NewService()
 
 	// Initialize gateway system
 	var gatewayStore *gateway.Store
@@ -65,7 +67,7 @@ func main() {
 		Password: os.Getenv("EMAIL_SMTP_PASSWORD"),
 	})
 
-	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, statementService, gatewayStore, gatewayRegistry, cfg.JWTSecret, cfg.APIBaseURL, emailSender)
+	lambdaHandler := handler.NewLambdaHandler(cartService, quoteService, orderService, statementService, gatewayStore, gatewayRegistry, promotionService, cfg.JWTSecret, cfg.APIBaseURL, emailSender)
 
 	log.Println("Starting Lambda handler...")
 	lambda.Start(func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

@@ -38,15 +38,15 @@ const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' | 'y2027' }> 
 
 const liveFeatures = [
   { icon: CodeBracketIcon, title: 'Static HTML storefronts', desc: 'No JavaScript rendering. AI crawlers read your products directly from the source.' },
-  { icon: DocumentTextIcon, title: 'schema.org JSON-LD on every product', desc: 'Structured product data (price, availability, image, description, organization, offer) — the format AI engines extract.' },
-  { icon: CpuChipIcon, title: 'llms.txt — AI agent guide', desc: 'Plain-text store guide AI crawlers use to understand your catalog and navigation.' },
-  { icon: DocumentTextIcon, title: 'Markdown product pages', desc: 'Every product available as a .md file — optimized for LLM ingestion and citation.' },
+  { icon: DocumentTextIcon, title: 'schema.org JSON-LD on every product', desc: 'Structured product data (price, availability, image, description, organization, offer): the format AI engines extract.' },
+  { icon: CpuChipIcon, title: 'llms.txt for AI agents', desc: 'Plain-text store guide AI crawlers use to understand your catalog and navigation.' },
+  { icon: DocumentTextIcon, title: 'Markdown product pages', desc: 'Every product available as a .md file, optimized for LLM ingestion and citation.' },
   { icon: ShareIcon, title: 'OpenGraph + meta tags', desc: 'Auto-generated for social sharing and AI summary cards.' },
   { icon: MapIcon, title: 'Auto-generated sitemap.xml + robots.txt', desc: 'Tells crawlers exactly what to index and how to reach it.' },
   { icon: ShoppingBagIcon, title: '5 shopping feeds, included', desc: 'Auto-synced feeds for Google, Facebook, Bing, Pinterest, and TikTok.' },
   { icon: BoltIcon, title: 'Sub-1-second page load', desc: 'Static HTML on CloudFront\'s 200+ edge locations. Core Web Vitals green by default.' },
-  { icon: ChartBarIcon, title: 'Privacy-safe analytics', desc: 'UTM, geo, conversion funnel — track which AI channels send traffic. First-party only, no third-party cookies.' },
-  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your brand owns the AI-citation surface — not a marketplace, not a subdomain.' },
+  { icon: ChartBarIcon, title: 'Privacy-safe analytics', desc: 'UTM, geo, conversion funnel. Track which AI channels send traffic. First-party only, no third-party cookies.' },
+  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your brand owns the AI-citation surface, not a marketplace, not a subdomain.' },
   { icon: CommandLineIcon, title: 'Full REST API', desc: 'Sync to additional discovery channels as they emerge. Every operation has an endpoint.' },
   { icon: MagnifyingGlassIcon, title: 'Built for the AI shopping era', desc: 'The first storefront architecture designed from the ground up for AI-native discovery.' },
 ];
@@ -56,36 +56,36 @@ const betaFeatures = [
 ];
 
 const roadmap = [
-  { quarter: 'q3' as const, feature: 'Product reviews + ratings', why: 'Reviews appear in LLM citations — adds context AI engines value' },
+  { quarter: 'q3' as const, feature: 'Product reviews + ratings', why: 'Reviews appear in LLM citations, adds context AI engines value' },
   { quarter: 'q4' as const, feature: 'Conversational search on storefront', why: 'Natural-language search on your store, powered by your own catalog' },
   { quarter: 'q4' as const, feature: 'Multi-language storefronts', why: 'Sell to international AI queries in their language' },
-  { quarter: 'y2027' as const, feature: 'AI agent transaction support', why: 'Direct purchases from ChatGPT, Perplexity, and other agents — gated on those platforms releasing public commerce APIs (timing outside our control)' },
+  { quarter: 'y2027' as const, feature: 'AI agent transaction support', why: 'Direct purchases from ChatGPT, Perplexity, and other agents. Gated on those platforms releasing public commerce APIs (timing outside our control)' },
 ];
 
 const faqs = [
   {
     q: 'How do I know AI assistants are actually reading my store?',
-    a: 'Test it directly. Once your store is live, ask ChatGPT, Perplexity, or Google AI Overviews about a product on your site. Because AI engines can parse your static HTML, schema.org markup, and llms.txt file, your products become eligible for citation — but citation is not deterministic, it depends on query, ranking, and model behavior. We also expose privacy-safe analytics so you can see referral traffic from AI channels as it grows.',
+    a: 'Test it directly. Once your store is live, ask ChatGPT, Perplexity, or Google AI Overviews about a product on your site. Because AI engines can parse your static HTML, schema.org markup, and llms.txt file, your products become eligible for citation, but citation is not deterministic, it depends on query, ranking, and model behavior. We also expose privacy-safe analytics so you can see referral traffic from AI channels as it grows.',
   },
   {
     q: 'What is llms.txt and why does it matter?',
-    a: 'llms.txt is an emerging standard — like robots.txt for AI crawlers. It tells AI agents how your site is structured, what products you sell, and how to navigate. Most platforms do not support it. We auto-generate it for every storefront.',
+    a: 'llms.txt is an emerging standard, like robots.txt for AI crawlers. It tells AI agents how your site is structured, what products you sell, and how to navigate. Most platforms do not support it. We auto-generate it for every storefront.',
   },
   {
     q: 'Does this work for ChatGPT, Perplexity, and Google AI Overviews?',
-    a: 'Yes. All three (and Microsoft Copilot, Claude, and emerging agents) prefer clean static HTML with structured data. Our architecture optimizes for the formats they actually parse — not for the JavaScript-heavy patterns most platforms use.',
+    a: 'Yes. All three (and Microsoft Copilot, Claude, and emerging agents) prefer clean static HTML with structured data. Our architecture optimizes for the formats they actually parse, not for the JavaScript-heavy patterns most platforms use.',
   },
   {
     q: 'Will my Shopify SEO transfer if I move?',
-    a: 'Yes — and usually improves. Static HTML, auto-generated schema.org, sitemap, and llms.txt typically lift rankings within 60-90 days. Sub-second load is a Core Web Vitals win that compounds with AI-readability.',
+    a: 'Yes, and usually improves. Static HTML, auto-generated schema.org, sitemap, and llms.txt typically lift rankings within 60-90 days. Sub-second load is a Core Web Vitals win that compounds with AI-readability.',
   },
   {
     q: 'Can I track AI-driven traffic and sales?',
-    a: 'Partially today, fully later. Our analytics track UTM parameters and referrers, so direct AI traffic is visible. Multi-touch attribution for AI shopping is still maturing across the industry — no platform has perfect AI attribution yet, but we expose what is trackable.',
+    a: 'Partially today, fully later. Our analytics track UTM parameters and referrers, so direct AI traffic is visible. Multi-touch attribution for AI shopping is still maturing across the industry. No platform has perfect AI attribution yet, but we expose what is trackable.',
   },
   {
     q: 'What if AI shopping does not take off?',
-    a: 'Then you still get a sub-second-loading, SEO-optimized, custom-domain storefront with $0 monthly cost. AI-readability is additive — none of the work goes to waste. But the data: AI shopping is growing 165× faster than organic search. McKinsey projects $900B-$1T in US agentic commerce revenue by 2030. The bet has asymmetric upside.',
+    a: 'Then you still get a sub-second-loading, SEO-optimized, custom-domain storefront with $0 monthly cost. AI-readability is additive. None of the work goes to waste. But the data: AI shopping is growing 165× faster than organic search. McKinsey projects $900B-$1T in US agentic commerce revenue by 2030. The bet has asymmetric upside.',
   },
 ];
 
@@ -106,7 +106,7 @@ const SolutionsAICommerce: React.FC = () => {
                 and Google AI.
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Your product catalog written in the format AI assistants actually read. Static HTML, schema.org structured data, llms.txt, and markdown product pages — so when shoppers ask an AI "what should I buy?", your brand is the answer.
+                Your product catalog written in the format AI assistants actually read. Static HTML, schema.org structured data, llms.txt, and markdown product pages, so when shoppers ask an AI "what should I buy?", your brand is the answer.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 AI shopping is growing 165× faster than organic search · Brands cited in AI Overviews get 35% more clicks
@@ -148,7 +148,7 @@ const SolutionsAICommerce: React.FC = () => {
               <div className="bg-gray-50 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900">AI shopping grows 165× faster than organic search</h3>
                 <p className="mt-3 text-gray-600">
-                  McKinsey projects $900B-$1T in US agentic commerce revenue by 2030. Today it's roughly 1% of traffic — but compounding fast. Brands cited in AI Overviews get 35% more clicks. Sites not optimized for AI lose share every quarter.
+                  McKinsey projects $900B-$1T in US agentic commerce revenue by 2030. Today it's roughly 1% of traffic, but compounding fast. Brands cited in AI Overviews get 35% more clicks. Sites not optimized for AI lose share every quarter.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -176,12 +176,12 @@ const SolutionsAICommerce: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[
-                    ['Pre-rendered static HTML', 'No — JavaScript-heavy themes', 'Yes — every page'],
+                    ['Pre-rendered static HTML', 'No (JavaScript-heavy themes)', 'Yes, every page'],
                     ['llms.txt (AI agent guide)', 'Not supported', 'Auto-generated'],
                     ['Markdown product pages (.md)', 'Not supported', 'Auto-generated for every product'],
                     ['Page load (Core Web Vitals)', '2-4 seconds typical', '<1 second'],
                     ['Rich product schema.org JSON-LD', 'Basic theme defaults', 'Full schema (price, availability, image, offer, organization)'],
-                    ['Shopping feeds (Google/FB/Bing/Pinterest/TikTok)', '$20+/mo per app', '$0 — all 5 built-in'],
+                    ['Shopping feeds (Google/FB/Bing/Pinterest/TikTok)', '$20+/mo per app', '$0, all 5 built-in'],
                     ['Custom domain', 'Included', 'Included'],
                     ['Cost', '$39+/mo before first sale', '$0 Starter / $499 Growth / $1,999 Enterprise'],
                   ].map(([feat, shopify, bc]) => (
@@ -233,13 +233,13 @@ const SolutionsAICommerce: React.FC = () => {
               One AI Add-on. Replaces 10,000 Apps.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Other platforms force you to subscribe to dozens of apps for integrations, automation, and analytics. Our AI add-on connects to any system, runs your routine operations, and surfaces what matters — all from one premium add-on, decoupled from your commerce stack so heavy lifting never slows your storefront.
+              Other platforms force you to subscribe to dozens of apps for integrations, automation, and analytics. Our AI add-on connects to any system, runs your routine operations, and surfaces what matters. All from one premium add-on, decoupled from your commerce stack so heavy lifting never slows your storefront.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Connect ERP, CRM, accounting, fulfillment — any system, no custom code. The AI handles the data plumbing.
+                  Connect ERP, CRM, accounting, fulfillment, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -251,12 +251,12 @@ const SolutionsAICommerce: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order updates, quote follow-ups, status notifications — handled by AI so your team focuses on decisions.
+                  Order updates, quote follow-ups, status notifications, all handled by AI so your team focuses on decisions.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -293,7 +293,7 @@ const SolutionsAICommerce: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-extrabold text-gray-900">Where We're Going</h2>
               <p className="mt-4 text-gray-600">
-                Specific dates so you know exactly what to plan around. AI-relevant items only — see other Solutions pages for the full roadmap.
+                Specific dates so you know exactly what to plan around. AI-relevant items only. See other Solutions pages for the full roadmap.
               </p>
             </div>
             <div className="mt-10 overflow-x-auto">
@@ -324,11 +324,11 @@ const SolutionsAICommerce: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See an AI-Readable Store in Action</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront built on BusinessCart.ai. View the page source: clean static HTML, schema.org markup, OpenGraph tags. Visit <code className="bg-gray-200 px-1 rounded">www.usetgo.com/llms.txt</code> to see what AI agents see when they visit.
+              <strong>uSetGo INC</strong>, a live storefront built on BusinessCart.ai. View the page source: clean static HTML, schema.org markup, OpenGraph tags. Visit <code className="bg-gray-200 px-1 rounded">www.usetgo.com/llms.txt</code> to see what AI agents see when they visit.
             </p>
             <div className="mt-6 inline-flex items-center bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700">
               <ChatBubbleLeftRightIcon className="h-5 w-5 text-teal-700 mr-2" />
-              <span>Try asking ChatGPT or Perplexity about products from <strong>usetgo.com</strong> — see what AI assistants find.</span>
+              <span>Try asking ChatGPT or Perplexity about products from <strong>usetgo.com</strong> to see what AI assistants find.</span>
             </div>
             <div className="mt-8">
               <a

@@ -5,7 +5,7 @@ import { Account, CustomerConfiguration, CustomerGroup } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { PencilIcon, TrashIcon, PlusIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, Cog6ToothIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -275,12 +275,16 @@ const UserForm = () => {
             {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
               <>
                 <button
+                  type="button"
                   onClick={async () => {
                     try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
                   }}
-                  className="bg-gray-100 text-gray-700 px-3 py-1.5 text-sm rounded-md hover:bg-gray-200"
+                  className="shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1.5 px-3"
+                  aria-label="Export accounts"
+                  title="Export accounts"
                 >
-                  Export CSV
+                  <ArrowDownTrayIcon className="h-5 w-5" />
+                  <span className="hidden sm:inline text-sm font-medium">Export</span>
                 </button>
                 <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800">
                   <PlusIcon className="h-4 w-4 inline mr-1" /> Add Account

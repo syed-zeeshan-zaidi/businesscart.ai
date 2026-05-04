@@ -340,13 +340,27 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	filter := bson.M{"visitorId": visitor.VisitorID}
 
 	setOnInsert := bson.M{
-		"attribution": visitor.Attribution,
-		"firstVisit":  now,
-		"createdAt":   now,
-		"registered":  false,
-		"ordered":     false,
-		"totalOrders": 0,
+		"attribution.source":      visitor.Attribution.Source,
+		"attribution.medium":      visitor.Attribution.Medium,
+		"attribution.landingPage": visitor.Attribution.LandingPage,
+		"firstVisit":   now,
+		"createdAt":    now,
+		"registered":   false,
+		"ordered":      false,
+		"totalOrders":  0,
 		"totalRevenue": 0,
+	}
+	if visitor.Attribution.Campaign != "" {
+		setOnInsert["attribution.campaign"] = visitor.Attribution.Campaign
+	}
+	if visitor.Attribution.Content != "" {
+		setOnInsert["attribution.content"] = visitor.Attribution.Content
+	}
+	if visitor.Attribution.Term != "" {
+		setOnInsert["attribution.term"] = visitor.Attribution.Term
+	}
+	if visitor.Attribution.Referrer != "" {
+		setOnInsert["attribution.referrer"] = visitor.Attribution.Referrer
 	}
 	if visitor.SellerID != "" {
 		setOnInsert["sellerId"] = visitor.SellerID
@@ -373,6 +387,9 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	}
 	if visitor.CustomerID != "" {
 		setFields["customerId"] = visitor.CustomerID
+	}
+	if len(visitor.Attribution.ClickIDs) > 0 {
+		setFields["attribution.clickIds"] = visitor.Attribution.ClickIDs
 	}
 
 	update := bson.M{
