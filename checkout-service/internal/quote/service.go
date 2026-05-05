@@ -62,6 +62,8 @@ func (s *Service) CreateQuote(quote *Quote) (*Quote, error) {
 			"discountPercentage":          quote.DiscountPercentage,
 			"discountAmount":              quote.DiscountAmount,
 			"notes":                       quote.Notes,
+			"promoCode":                   quote.PromoCode,
+			"promoDiscount":               quote.PromoDiscount,
 		},
 		"$setOnInsert": bson.M{
 			"_id":       primitive.NewObjectID(),

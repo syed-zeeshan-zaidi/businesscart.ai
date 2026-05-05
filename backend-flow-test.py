@@ -354,6 +354,37 @@ class BackendFlowTest:
         assert_status(resp, 200, "Update company1 settings")
         ok("Company1 defaults set")
 
+        # API-first contract: backend rejects type mismatches at the boundary so
+        # the DB never holds invalid state. The actual prod-bug shape was empty
+        # string for shippingRate (frontend cleared <input type=number>), which
+        # silently corrupted the doc and 500'd every later admin GET /accounts.
+        step("Reject empty string for numeric field (the actual prod bug shape)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"shippingRate": ""},
+        })
+        assert_status(resp, 400, "Empty string for numeric field")
+        ok("Empty string for shippingRate rejected with 400")
+
+        step("Reject string for boolean field")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"taxableGoods": "yes"},
+        })
+        assert_status(resp, 400, "String for boolean field")
+        ok("String for taxableGoods rejected with 400")
+
+        step("Backward compat: null clears a numeric field (still allowed)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"leadTime": None},
+        })
+        assert_status(resp, 200, "Null for numeric field accepted")
+        ok("Null for leadTime accepted (backward compatible)")
+
+        # Re-set leadTime so downstream tests have the value they expect
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"leadTime": 3},
+        })
+        assert_status(resp, 200, "Restore leadTime")
+
         step("Set customer override (creditLimit: 300)")
         cust_id = self.ids["customer"]
         resp = self.api.patch(f"/customers/{cust_id}/configuration", {
@@ -607,6 +638,184 @@ class BackendFlowTest:
                 ok(f"{rk}: {len(data) if data else 0} orders")
 
         self.run_test("Get orders per role", test_get_orders)
+
+        # 5f. PPC attribution: place an order with visitorId + click IDs and verify they persist
+        def test_order_attribution():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            quote_resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 5000, "minOrderAmountLimit": 20, "maxOrderAmountLimit": 5000,
+            })
+            assert_status(quote_resp, 200, "Quote for attribution test")
+            quote_id = quote_resp.json().get("id")
+
+            self.use_token("customer")
+            order_resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+                "visitorId": "v___test__attr_order",
+                "clickIds": {"gclid": "ord_gclid_aaa", "msclkid": "ord_msclkid_bbb"},
+            })
+            assert_status(order_resp, 200, "Place order with attribution")
+            o = order_resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing from response"
+            self.tracker.track_order(order_id)
+
+            # Assert attribution on POST response
+            assert o.get("visitorId") == "v___test__attr_order", f"POST order.visitorId: {o.get('visitorId')}"
+            click_ids = o.get("clickIds") or {}
+            assert click_ids.get("gclid") == "ord_gclid_aaa", f"POST order.clickIds.gclid: {click_ids.get('gclid')}"
+            assert click_ids.get("msclkid") == "ord_msclkid_bbb", f"POST order.clickIds.msclkid: {click_ids.get('msclkid')}"
+            ok("POST response carries visitorId + clickIds")
+
+            # GET back from /checkout/orders to confirm Mongo persistence (proves bson tags wrote correctly)
+            self.use_token("admin")
+            list_resp = self.api.get("/checkout/orders")
+            assert_status(list_resp, 200, "List orders for persistence check")
+            persisted = next((x for x in (list_resp.json() or []) if (x.get("id") or x.get("_id")) == order_id), None)
+            assert persisted, f"Order {order_id} not found in GET /checkout/orders"
+            assert persisted.get("visitorId") == "v___test__attr_order", f"persisted.visitorId: {persisted.get('visitorId')}"
+            p_click = persisted.get("clickIds") or {}
+            assert p_click.get("gclid") == "ord_gclid_aaa", f"persisted.clickIds.gclid: {p_click.get('gclid')}"
+            assert p_click.get("msclkid") == "ord_msclkid_bbb", f"persisted.clickIds.msclkid: {p_click.get('msclkid')}"
+            ok("Mongo-persisted order has visitorId + clickIds (gclid, msclkid)")
+
+            # Orders export: wide window (yesterday to tomorrow) covers this just-placed order.
+            now = datetime.datetime.now(datetime.timezone.utc)
+            from_iso = (now - datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            to_iso = (now + datetime.timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            self.use_token("admin")
+            # Generic format: full ledger; should include the just-placed order with email + visitorId + clickIds columns.
+            gen_resp = self.api.get(f"/checkout/orders/export?format=generic&from={from_iso}&to={to_iso}")
+            assert_status(gen_resp, 200, "Generic orders export")
+            assert "text/csv" in gen_resp.headers.get("Content-Type", ""), f"content-type: {gen_resp.headers.get('Content-Type')}"
+            gen_body = gen_resp.text
+            assert "Order ID,Created (UTC),Status,Customer Email" in gen_body, "Generic CSV header mismatch"
+            assert order_id in gen_body, "Generic CSV missing the order ID"
+            assert "v___test__attr_order" in gen_body, "Generic CSV missing visitorId"
+            assert "ord_gclid_aaa" in gen_body, "Generic CSV missing gclid column value"
+            ok("Generic orders CSV includes order with attribution columns")
+
+            # Google format: Ads offline-conversions shape; only orders with gclid.
+            g_resp = self.api.get(f"/checkout/orders/export?format=google&from={from_iso}&to={to_iso}")
+            assert_status(g_resp, 200, "Google orders export")
+            g_body = g_resp.text
+            assert "Parameters:TimeZone=+0000" in g_body, "Google CSV missing Parameters preamble"
+            assert "Google Click ID,Conversion Name,Conversion Time,Order ID,Conversion Value,Conversion Currency" in g_body, "Google CSV header mismatch"
+            assert "ord_gclid_aaa" in g_body, "Google CSV missing the test gclid"
+            ok("Google Ads CSV includes attributed order")
+
+            # Bing format: bulk offline conversions; only orders with msclkid.
+            b_resp = self.api.get(f"/checkout/orders/export?format=bing&from={from_iso}&to={to_iso}")
+            assert_status(b_resp, 200, "Bing orders export")
+            b_body = b_resp.text
+            assert "Type,Status,Id,Parent Id,Client Id,Name,Conversion Currency Code,Conversion Name,Conversion Time,Conversion Value,Microsoft Click Id" in b_body, "Bing CSV header mismatch"
+            assert "Format Version,,,,,6.0,,,,," in b_body, "Bing CSV missing Format Version row"
+            assert "ord_msclkid_bbb" in b_body, "Bing CSV missing the test msclkid"
+            assert "Offline Conversion" in b_body, "Bing CSV missing Type literal"
+            ok("Microsoft Ads CSV includes attributed order")
+
+            # Bad input: unsupported format
+            bad = self.api.get(f"/checkout/orders/export?format=tiktok&from={from_iso}&to={to_iso}")
+            assert_status(bad, 400, "Unsupported format rejected")
+            ok("Unsupported format rejected with 400")
+
+            # Cross-company isolation: company2 must NOT see company1's orders.
+            # The order was placed for sellerId=c1_id; company2 logs in and queries: handler forces
+            # sellerId=their accountID (c2_id), so they see only their own (none in this case).
+            self.use_token("company2")
+            c2_resp = self.api.get(f"/checkout/orders/export?format=generic&from={from_iso}&to={to_iso}")
+            assert_status(c2_resp, 200, "Company2 generic export call")
+            assert order_id not in c2_resp.text, "ISOLATION BREACH: company2 saw company1's order"
+            ok("Cross-company isolation: company2 cannot see company1's orders")
+
+            # Even when company2 tries to override sellerId to company1's id, the handler MUST
+            # ignore it and scope to their own accountID. If this assertion fails, any company
+            # could exfiltrate every other tenant's orders by guessing sellerIds.
+            c2_attempt = self.api.get(f"/checkout/orders/export?format=generic&from={from_iso}&to={to_iso}&sellerId={c1_id}")
+            assert order_id not in c2_attempt.text, "ISOLATION BREACH: sellerId query override worked for company role"
+            ok("Cross-company isolation: sellerId override ignored for company role")
+
+            # Cancel so this purchase_order doesn't accrue credit balance for downstream credit-limit test (6e).
+            self.use_token("company1")
+            self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
+
+            # After cancel: PPC formats must exclude (cancelled orders corrupt ROAS bidding signals);
+            # generic format must still include (full ledger view for accounting).
+            self.use_token("admin")
+            g2 = self.api.get(f"/checkout/orders/export?format=google&from={from_iso}&to={to_iso}")
+            assert "ord_gclid_aaa" not in g2.text, "Google CSV still includes cancelled order"
+            ok("Cancelled order excluded from Google Ads CSV")
+            gen2 = self.api.get(f"/checkout/orders/export?format=generic&from={from_iso}&to={to_iso}")
+            assert order_id in gen2.text, "Generic CSV missing cancelled order (should include for accounting)"
+            ok("Cancelled order still in Generic CSV (ledger view preserved)")
+
+        self.run_test("5f. Order PPC attribution + conversions export", test_order_attribution)
+
+        # 5g. Coupon promo: SAVE5/SAVE10 hardcoded codes, gated by company CouponsEnabled.
+        # Verifies (1) discount applied when enabled, (2) no discount when disabled (gate works),
+        # (3) unknown code returns no discount, (4) case-insensitive normalization.
+        def test_coupon_promo():
+            base_extra = {
+                "creditLimit": 5000, "minOrderAmountLimit": 20, "maxOrderAmountLimit": 5000,
+            }
+
+            # 5g-1. SAVE10 with coupons enabled → 10% off subtotal
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                **base_extra, "promoCode": "SAVE10", "couponsEnabled": True,
+            })
+            assert_status(resp, 200, "Quote with SAVE10 + couponsEnabled=true")
+            q = resp.json()
+            subtotal = q.get("subtotal", 0)
+            promo_discount = q.get("promoDiscount", 0)
+            expected = subtotal * 0.10
+            assert abs(promo_discount - expected) < 0.01, f"SAVE10 discount: expected {expected:.2f}, got {promo_discount:.2f}"
+            assert q.get("promoCode") == "SAVE10", f"promoCode persisted: got {q.get('promoCode')}"
+            assert abs(q.get("grandTotal", 0) - (subtotal + q.get("shippingCost", 0) + q.get("taxAmount", 0) - promo_discount)) < 0.01, "grandTotal must reflect discount"
+            ok(f"SAVE10 enabled: subtotal=${subtotal:.2f}, discount=${promo_discount:.2f}")
+
+            # 5g-2. SAVE10 with coupons DISABLED → no discount (gate works)
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                **base_extra, "promoCode": "SAVE10", "couponsEnabled": False,
+            })
+            assert_status(resp, 200, "Quote with SAVE10 + couponsEnabled=false")
+            q = resp.json()
+            assert q.get("promoDiscount", 0) == 0, f"BREACH: discount applied when couponsEnabled=false: {q.get('promoDiscount')}"
+            ok("SAVE10 with coupons disabled: gate enforced, no discount")
+
+            # 5g-3. Unknown code with coupons enabled → no discount
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                **base_extra, "promoCode": "FAKEXX", "couponsEnabled": True,
+            })
+            assert_status(resp, 200, "Quote with unknown code")
+            q = resp.json()
+            assert q.get("promoDiscount", 0) == 0, f"Unknown code gave discount: {q.get('promoDiscount')}"
+            ok("Unknown code: no discount applied")
+
+            # 5g-4. Lowercase 'save5' should normalize to SAVE5 → 5% off
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                **base_extra, "promoCode": "save5", "couponsEnabled": True,
+            })
+            assert_status(resp, 200, "Quote with lowercase save5")
+            q = resp.json()
+            subtotal = q.get("subtotal", 0)
+            promo_discount = q.get("promoDiscount", 0)
+            expected = subtotal * 0.05
+            assert abs(promo_discount - expected) < 0.01, f"save5 discount: expected {expected:.2f}, got {promo_discount:.2f}"
+            ok(f"Lowercase 'save5' normalized: discount=${promo_discount:.2f}")
+
+        self.run_test("5g. Coupon promo (SAVE5/SAVE10, gating, case-insensitive)", test_coupon_promo)
 
     # ── Phase 5b: Tiered pricing tests ─────────────────────────────
 
@@ -1511,6 +1720,7 @@ class BackendFlowTest:
                 "utm_campaign": "shopify-alt",
                 "utm_content": "ad-v1",
                 "utm_term": "shopify alternative no monthly fee",
+                "clickIds": {"gclid": "test_gclid_abc123", "msclkid": "test_msclkid_xyz789"},
                 "timezone": "America/New_York",
                 "screenWidth": 1920,
                 "screenHeight": 1080,
@@ -1572,6 +1782,12 @@ class BackendFlowTest:
             assert attr.get("landingPage") == "/", f"landingPage: {attr.get('landingPage')}"
             ok("Attribution fields correct (source, medium, campaign, content, term, landingPage)")
 
+            # Click IDs (PPC attribution)
+            click_ids = attr.get("clickIds", {})
+            assert click_ids.get("gclid") == "test_gclid_abc123", f"gclid: {click_ids.get('gclid')}"
+            assert click_ids.get("msclkid") == "test_msclkid_xyz789", f"msclkid: {click_ids.get('msclkid')}"
+            ok("Click IDs captured (gclid, msclkid)")
+
             # Geo — timezone from browser fallback
             geo = v.get("geo", {})
             assert geo.get("timezone") == "America/New_York", f"timezone: {geo.get('timezone')}"
@@ -1616,6 +1832,31 @@ class BackendFlowTest:
             ok("Milestone (add_to_cart) stored with metadata")
 
         self.run_test("Visitor milestone event", test_milestone)
+
+        # Test 6: Click IDs follow last-click semantics; UTMs + landing page stay first-click
+        def test_clickid_last_click_overwrite():
+            resp = self.api.post("/visitors/event", {
+                "visitorId": test_vid,
+                "event": "page_view",
+                "page": "/products/other.html",
+                "utm_source": "bing",  # different source: must be IGNORED (first-click UTMs)
+                "utm_medium": "cpc",
+                "clickIds": {"gclid": "NEW_gclid_999"},  # different gclid: must WIN (last-click)
+            })
+            assert_status(resp, 200, "Return visit accepted")
+
+            self.use_token("admin")
+            v = self.api.get(f"/visitors?visitorId={test_vid}").json().get("visitors", [])[0]
+            attr = v.get("attribution", {})
+            # Last-click: new gclid wins; msclkid cleared (replaced map)
+            assert attr.get("clickIds", {}).get("gclid") == "NEW_gclid_999", f"gclid not overwritten: {attr.get('clickIds')}"
+            assert "msclkid" not in attr.get("clickIds", {}), f"msclkid not cleared: {attr.get('clickIds')}"
+            # First-click: original UTMs and landing page preserved
+            assert attr.get("source") == "google", f"source clobbered: {attr.get('source')}"
+            assert attr.get("landingPage") == "/", f"landingPage clobbered: {attr.get('landingPage')}"
+            ok("Last-click clickIds + first-click UTMs/landingPage preserved")
+
+        self.run_test("Click IDs last-click + UTMs first-click", test_clickid_last_click_overwrite)
 
         # Cleanup: delete test visitor
         def test_cleanup_visitor():

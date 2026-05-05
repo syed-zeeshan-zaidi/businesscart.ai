@@ -26,6 +26,7 @@ type CustomerConfiguration struct {
 	DeliveryMethods       *[]storage.DeliveryMethod    `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions    *[]storage.ShippingOutOption `json:"shippingOutOptions,omitempty"`
 	QuotesAllowed         *bool                        `json:"quotesAllowed,omitempty"`
+	CouponsEnabled        *bool                        `json:"couponsEnabled,omitempty"`
 	CreditLimit           *float64                     `json:"creditLimit,omitempty"`
 	MinOrderAmountLimit   *float64                     `json:"minOrderAmountLimit,omitempty"`
 	MaxOrderAmountLimit   *float64                     `json:"maxOrderAmountLimit,omitempty"`

@@ -37,17 +37,17 @@ const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' }> = ({ kind 
 
 const liveFeatures = [
   { icon: AdjustmentsHorizontalIcon, title: 'Per-distributor pricing', desc: 'Each distributor gets their negotiated discount applied to every order automatically. No price lists in PDFs.' },
-  { icon: ClipboardDocumentListIcon, title: 'Per-distributor MOQ enforcement', desc: 'Set minimum order quantities per distributor relationship — small accounts get a different floor than national distributors.' },
-  { icon: ClockIcon, title: 'Per-distributor lead times', desc: 'Configure lead time per distributor — distributors see realistic delivery dates at order time, not after the fact.' },
+  { icon: ClipboardDocumentListIcon, title: 'Per-distributor MOQ enforcement', desc: 'Set minimum order quantities per distributor relationship. Small accounts get a different floor than national distributors.' },
+  { icon: ClockIcon, title: 'Per-distributor lead times', desc: 'Configure lead time per distributor. Distributors see realistic delivery dates at order time, not after the fact.' },
   { icon: ShieldCheckIcon, title: 'Credit limit enforcement', desc: 'Reject orders that would exceed a distributor\'s credit cap. No more chasing AR after a problem order.' },
   { icon: CurrencyDollarIcon, title: 'Monthly + yearly spend caps', desc: 'Useful for staged rollouts, new distributor trial periods, or risk management on emerging accounts.' },
   { icon: ClipboardDocumentListIcon, title: 'Custom quote workflow', desc: 'Distributor requests custom volume, packaging, or specs. You quote, counter, finalize. Full negotiation history preserved.' },
-  { icon: LockClosedIcon, title: 'Private, code-gated catalog', desc: 'Each distributor gets a code that unlocks your catalog. Channel conflict eliminated — no public price list to undercut your channel.' },
+  { icon: LockClosedIcon, title: 'Private, code-gated catalog', desc: 'Each distributor gets a code that unlocks your catalog. Channel conflict eliminated. No public price list to undercut your channel.' },
   { icon: BanknotesIcon, title: 'Per-distributor payment terms', desc: 'Distributor A pays via PO. Distributor B uses Stripe. Distributor C pays Net 30 (Q3 2026 native, today via PO + offline).' },
   { icon: UserGroupIcon, title: 'Distributor tiers via customer groups', desc: 'Group distributors (Authorized, Preferred, National, Regional) with auto-applied tier discounts.' },
   { icon: CubeIcon, title: 'Multi-buyer accounts', desc: 'Distributors with multiple buyers (purchasing teams, branch buyers) all log into the same account, same configuration.' },
   { icon: CommandLineIcon, title: 'Full REST API for ERP sync', desc: 'Every operation has an endpoint. Push orders into your ERP, pull stock from production system, in real time.' },
-  { icon: EnvelopeIcon, title: 'Transactional emails built in', desc: 'Order confirmations, quote requests, status updates — branded and sent automatically via SES.' },
+  { icon: EnvelopeIcon, title: 'Transactional emails built in', desc: 'Order confirmations, quote requests, status updates, all branded and sent automatically via SES.' },
 ];
 
 const betaFeatures = [
@@ -70,19 +70,19 @@ const faqs = [
   },
   {
     q: 'Can each distributor see their own pricing, MOQ, and lead times?',
-    a: 'Yes — and only their own. Per-distributor configuration is enforced at quote time: pricing, MOQ, payment methods, delivery options, credit limits, and lead times all apply automatically. Distributor A never sees Distributor B\'s terms.',
+    a: 'Yes, and only their own. Per-distributor configuration is enforced at quote time: pricing, MOQ, payment methods, delivery options, credit limits, and lead times all apply automatically. Distributor A never sees Distributor B\'s terms.',
   },
   {
     q: 'How do we handle channel conflict? Our distributors do not want public pricing.',
-    a: 'Your catalog is code-gated by default — there is no public price list. Each distributor enters a code to unlock the catalog with their pricing. The most common form of channel conflict — public price exposure that lets one distributor undercut another — is eliminated by default. (Other forms of channel conflict like gray market or parallel imports require ongoing channel management beyond what any platform alone can solve.)',
+    a: 'Your catalog is code-gated by default. There is no public price list. Each distributor enters a code to unlock the catalog with their pricing. The most common form of channel conflict (public price exposure that lets one distributor undercut another) is eliminated by default. (Other forms of channel conflict like gray market or parallel imports require ongoing channel management beyond what any platform alone can solve.)',
   },
   {
     q: 'Can our sales reps place orders on behalf of distributors?',
-    a: 'Yes. Reps log in as admin and create quotes on behalf of any distributor. The distributor\'s pricing, MOQ, payment methods, and lead times all apply automatically — reps cannot accidentally override them. The distributor sees the quote in their portal.',
+    a: 'Yes. Reps log in as admin and create quotes on behalf of any distributor. The distributor\'s pricing, MOQ, payment methods, and lead times all apply automatically, reps cannot accidentally override them. The distributor sees the quote in their portal.',
   },
   {
     q: 'How long does setup take?',
-    a: 'Days, not months. Add your products, configure customer groups (distributor tiers), set per-distributor overrides, share customer codes. There is no implementation consultant, no training program. SAP-class B2B portals typically take 12-18 months to deploy — for distributor self-serve ordering specifically, we ship in days. (We do not replicate SAP\'s broader ERP scope; we cover the distributor ordering layer.)',
+    a: 'Days, not months. Add your products, configure customer groups (distributor tiers), set per-distributor overrides, share customer codes. There is no implementation consultant, no training program. SAP-class B2B portals typically take 12-18 months to deploy. For distributor self-serve ordering specifically, we ship in days. (We do not replicate SAP\'s broader ERP scope; we cover the distributor ordering layer.)',
   },
   {
     q: 'What happens when our distributors need to escalate or renegotiate?',
@@ -106,7 +106,7 @@ const SolutionsManufacturers: React.FC = () => {
                 <span className="text-teal-400">Without the Email Chains.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Per-distributor pricing, MOQ, lead times, credit limits — enforced automatically at every order. Your distributors self-serve through their own private portal. Your sales reps stop being the bottleneck.
+                Per-distributor pricing, MOQ, lead times, credit limits, all enforced automatically at every order. Your distributors self-serve through their own private portal. Your sales reps stop being the bottleneck.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · Live in days, not months · Channel conflict structurally impossible · Real B2B enforcement
@@ -151,7 +151,7 @@ const SolutionsManufacturers: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Pricing in spreadsheets per distributor</h3>
                 </div>
                 <p className="text-gray-600">
-                  Tier pricing, volume breaks, promotional rates — all tracked across files, sales rep notes, and sometimes just memory. Distributors call to "verify" prices because they don\'t trust the price list.
+                  Tier pricing, volume breaks, promotional rates, all tracked across files, sales rep notes, and sometimes just memory. Distributors call to "verify" prices because they don\'t trust the price list.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -160,7 +160,7 @@ const SolutionsManufacturers: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Existing platforms cost $100K+ and take a year</h3>
                 </div>
                 <p className="text-gray-600">
-                  SAP Commerce, Oracle, NetSuite SuiteCommerce — months of consultants, $100K-$500K all-in, and you still need a developer to maintain it. Not viable for mid-market manufacturers.
+                  SAP Commerce, Oracle, NetSuite SuiteCommerce: months of consultants, $100K-$500K all-in, and you still need a developer to maintain it. Not viable for mid-market manufacturers.
                 </p>
               </div>
             </div>
@@ -186,7 +186,7 @@ const SolutionsManufacturers: React.FC = () => {
                   {[
                     ['Cost', '$0 (and pain)', '$100K-$500K all-in', '$22K-$125K+/yr (license + dev)', '$0-$1,999/mo'],
                     ['Setup time', 'Day one (errors)', '6-18 months', '6-12 months', 'Days'],
-                    ['Per-distributor pricing', 'Manual', 'Yes (custom dev)', 'Yes (custom dev)', 'Yes — built-in'],
+                    ['Per-distributor pricing', 'Manual', 'Yes (custom dev)', 'Yes (custom dev)', 'Yes, built-in'],
                     ['Per-distributor MOQ + lead times', 'Manual', 'Custom dev', 'Custom dev', 'Built-in'],
                     ['Credit limit enforcement', 'None', 'Yes (custom rules)', 'Yes (custom dev)', 'Built-in at quote time'],
                     ['Quote negotiation workflow', 'Email PDFs', 'Yes', 'Yes', 'Built-in with history'],
@@ -243,13 +243,13 @@ const SolutionsManufacturers: React.FC = () => {
               One AI Add-on. Replaces Months of ERP Integration Work.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect SAP, NetSuite, Oracle, JD Edwards, or any production system without writing code or hiring consultants. The AI add-on runs heavy data syncs decoupled from your distributor portal — orders flow in real time, ERP catches up asynchronously. Note: scope of integration depends on your ERP\'s API surface; we cover the data plumbing, you own business logic.
+              Connect SAP, NetSuite, Oracle, JD Edwards, or any production system without writing code or hiring consultants. The AI add-on runs heavy data syncs decoupled from your distributor portal. Orders flow in real time, ERP catches up asynchronously. Note: scope of integration depends on your ERP\'s API surface; we cover the data plumbing, you own business logic.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  ERP, MES, WMS, accounting — any system, no custom code. The AI handles the data plumbing.
+                  ERP, MES, WMS, accounting, any system. No custom code. The AI handles the data plumbing.
                 </p>
               </div>
               <div>
@@ -261,12 +261,12 @@ const SolutionsManufacturers: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, lead-time updates, allocation notifications — handled by AI so reps focus on relationships.
+                  Order confirmations, lead-time updates, allocation notifications, all handled by AI so reps focus on relationships.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -330,7 +330,7 @@ const SolutionsManufacturers: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See the Platform in Action</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront on BusinessCart.ai. Public face shown below; the distributor portal sits behind a customer code with per-distributor pricing, MOQ, and quote workflow active.
+              <strong>uSetGo INC</strong>, a live storefront on BusinessCart.ai. Public face shown below; the distributor portal sits behind a customer code with per-distributor pricing, MOQ, and quote workflow active.
             </p>
             <div className="mt-8">
               <a

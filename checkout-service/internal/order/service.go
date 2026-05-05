@@ -103,6 +103,48 @@ func (s *Service) GetSellerOrdersInPeriod(sellerID string, from, to time.Time) (
 	return orders, nil
 }
 
+// GetOrdersForExport returns orders within [from, to) for the seller, with
+// format-specific filters layered on:
+//   - "generic": all orders in the window (including cancelled). Use for
+//     accounting reconciliation, monthly reports, tax filings.
+//   - "google":  non-cancelled orders carrying a gclid (Google Ads offline
+//     conversion upload; cancelled orders would corrupt ROAS bidding).
+//   - "bing":    non-cancelled orders carrying an msclkid.
+//
+// Optional sellerID scopes to one seller (empty = all sellers, admin only).
+func (s *Service) GetOrdersForExport(sellerID, format string, from, to time.Time) ([]*Order, error) {
+	filter := bson.M{
+		"createdAt": bson.M{"$gte": from, "$lt": to},
+	}
+	if sellerID != "" {
+		filter["sellerId"] = sellerID
+	}
+	switch format {
+	case "generic":
+		// No additional filter: full ledger view.
+	case "google":
+		filter["status"] = bson.M{"$ne": "cancelled"}
+		// Google's legacy CSV file upload accepts only gclid; gbraid/wbraid
+		// require the Google Ads API (Enhanced Conversions).
+		filter["clickIds.gclid"] = bson.M{"$exists": true, "$ne": ""}
+	case "bing":
+		filter["status"] = bson.M{"$ne": "cancelled"}
+		filter["clickIds.msclkid"] = bson.M{"$exists": true, "$ne": ""}
+	default:
+		return nil, nil
+	}
+	cursor, err := s.collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	var orders []*Order
+	if err = cursor.All(context.Background(), &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
 func (s *Service) DeleteOrder(id primitive.ObjectID) error {
 	_, err := s.collection.DeleteOne(context.Background(), bson.M{"_id": id})
 	return err

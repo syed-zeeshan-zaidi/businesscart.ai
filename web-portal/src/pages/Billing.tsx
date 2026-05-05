@@ -245,7 +245,7 @@ const CompanyView: React.FC<{ accountId: string }> = ({ accountId }) => {
           ) : (
             <>
               <div className="bg-white p-5 rounded-lg shadow mb-6">
-                <p className="text-sm text-gray-500">Projected total — {period.label} (in progress)</p>
+                <p className="text-sm text-gray-500">Projected total for {period.label} (in progress)</p>
                 <p className="text-3xl font-bold text-teal-700 mt-1">
                   ${(current?.totalDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>

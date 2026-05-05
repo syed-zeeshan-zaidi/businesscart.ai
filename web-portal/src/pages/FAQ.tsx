@@ -23,22 +23,22 @@ const sections: Section[] = [
       {
         id: 'what-is-businesscart',
         question: 'What is BusinessCart.ai?',
-        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools — free to start. Every feature is included in every tier — no feature locks. Your tier auto-applies based on your monthly order volume: Starter ($0/mo) up to 100 orders, Growth ($499/mo) for 101–1,000, Enterprise ($1,999/mo) at 1,001+.',
+        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools, free to start. Every feature is included in every tier. No feature locks. Your tier auto-applies based on your monthly order volume: Starter ($0/mo) up to 100 orders, Growth ($499/mo) for 101-1,000, Enterprise ($1,999/mo) at 1,001+.',
       },
       {
         id: 'who-is-it-for',
         question: 'Who is BusinessCart.ai for?',
-        answer: 'Any business that sells products — restaurants, retail stores, wholesalers, distributors, manufacturers, D2C brands, and more. Whether you sell to consumers, other businesses, or both, the platform adapts to your model.',
+        answer: 'Any business that sells products: restaurants, retail stores, wholesalers, distributors, manufacturers, D2C brands, and more. Whether you sell to consumers, other businesses, or both, the platform adapts to your model.',
       },
       {
         id: 'how-is-it-different',
         question: 'How is this different from Shopify or other platforms?',
-        answer: 'Three main differences: (1) Free to start — the Starter tier is $0/month, you only pay when you sell. (2) No feature locks — every feature is in every tier; your monthly fee scales with your order volume, not with what features you need. (3) Speed — your storefront loads in under 1 second because it is generated as static HTML, not rendered by a JavaScript framework.',
+        answer: 'Three main differences: (1) Free to start: the Starter tier is $0/month, you only pay when you sell. (2) No feature locks: every feature is in every tier; your monthly fee scales with your order volume, not with what features you need. (3) Speed: your storefront loads in under 1 second because it is generated as static HTML, not rendered by a JavaScript framework.',
       },
       {
         id: 'pricing',
         question: 'How much does it cost?',
-        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume — no manual upgrades, no feature locks, no surprise bills. Starter: $0/month + 6% per order (capped at $5/order) for up to 100 orders/month. Growth: $499/month + 1% per order for 101–1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Optional AI integration add-on starts at $99/month and is available on any tier. 30-day money-back on Growth and Enterprise.',
+        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Starter: $0/month + 6% per order (capped at $5/order) for up to 100 orders/month. Growth: $499/month + 1% per order for 101-1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Optional AI integration add-on starts at $99/month and is available on any tier. 30-day money-back on Growth and Enterprise.',
       },
     ],
   },
@@ -49,7 +49,7 @@ const sections: Section[] = [
       {
         id: 'how-to-get-started',
         question: 'How do I get started as a company?',
-        answer: 'Contact us at help@businesscart.ai with your company name and business email. We will create your account, give you a business code, and walk you through setup — from adding products to connecting your payment provider. Most companies are live within 30 minutes.',
+        answer: 'Contact us at help@businesscart.ai with your company name and business email. We will create your account, give you a business code, and walk you through setup, from adding products to connecting your payment provider. Most companies are live within 30 minutes.',
       },
       {
         id: 'what-is-business-code',
@@ -59,7 +59,7 @@ const sections: Section[] = [
       {
         id: 'how-customers-find-me',
         question: 'How do my customers find and access my store?',
-        answer: 'Two ways: (1) Your public D2C storefront — anyone can visit it and buy directly. It gets its own URL (yourcompany.businesscart.ai or your own custom domain). (2) The private portal — you give your customers a customer code, they register, and they see your private catalog with their personalized pricing.',
+        answer: 'Two ways: (1) Your public D2C storefront, anyone can visit it and buy directly. It gets its own URL (yourcompany.businesscart.ai or your own custom domain). (2) The private portal: you give your customers a customer code, they register, and they see your private catalog with their personalized pricing.',
       },
       {
         id: 'customer-codes',
@@ -74,7 +74,7 @@ const sections: Section[] = [
       {
         id: 'payment-gateways',
         question: 'What payment methods can I accept?',
-        answer: 'Stripe, Amazon Pay, and Authorize.net for online payments. For offline payments: pickup and pay, delivery and pay, and purchase orders. You connect your own payment provider — BusinessCart.ai never touches your money. Payments go directly to your account.',
+        answer: 'Stripe, Amazon Pay, and Authorize.net for online payments. For offline payments: pickup and pay, delivery and pay, and purchase orders. You connect your own payment provider. BusinessCart.ai never touches your money. Payments go directly to your account.',
       },
       {
         id: 'manage-products',
@@ -121,12 +121,12 @@ const sections: Section[] = [
       {
         id: 'what-is-storefront',
         question: 'What is a D2C storefront?',
-        answer: 'Every company on BusinessCart.ai gets an automatically generated public online store. It displays your products with your branding, logo, and colors. Anyone can visit it and make a purchase — no portal registration needed.',
+        answer: 'Every company on BusinessCart.ai gets an automatically generated public online store. It displays your products with your branding, logo, and colors. Anyone can visit it and make a purchase. No portal registration needed.',
       },
       {
         id: 'storefront-speed',
         question: 'Why are the storefronts so fast?',
-        answer: 'Storefronts are generated as pure static HTML — no JavaScript framework, no database queries at page load. They are served from a global content delivery network, which means pages load in under 1 second from anywhere in the world.',
+        answer: 'Storefronts are generated as pure static HTML. No JavaScript framework, no database queries at page load. They are served from a global content delivery network, which means pages load in under 1 second from anywhere in the world.',
       },
       {
         id: 'custom-domain',
@@ -141,12 +141,22 @@ const sections: Section[] = [
       {
         id: 'ai-ready',
         question: 'What does "AI-ready" mean?',
-        answer: 'Your storefront is built as plain HTML that AI assistants like ChatGPT, Google, and Alexa can read directly. Most e-commerce platforms use JavaScript to render products, which AI cannot read. Your store is visible to the next generation of shopping — AI-powered discovery and voice search.',
+        answer: 'Your storefront is built as plain HTML that AI assistants like ChatGPT, Google, and Alexa can read directly. Most e-commerce platforms use JavaScript to render products, which AI cannot read. Your store is visible to the next generation of shopping: AI-powered discovery and voice search.',
       },
       {
         id: 'shopping-feeds',
         question: 'How do I list my products on Google Shopping, Facebook, Pinterest, etc.?',
-        answer: 'Go to your company settings and enable the shopping channels you want. BusinessCart auto-generates product feeds for Google Shopping, Facebook/Instagram, Bing, Pinterest, and TikTok. Copy the feed URL and submit it to each channel\'s merchant center — feeds update automatically whenever you update products. No apps, no plugins, no extra cost.',
+        answer: 'Go to your company settings and enable the shopping channels you want. BusinessCart auto-generates product feeds for Google Shopping, Facebook/Instagram, Bing, Pinterest, and TikTok. Copy the feed URL and submit it to each channel\'s merchant center. Feeds update automatically whenever you update products. No apps, no plugins, no extra cost.',
+      },
+      {
+        id: 'order-export',
+        question: 'Can I export my orders for accounting or tax filings?',
+        answer: 'Yes. From the Orders page, click Export, pick Generic CSV format, and choose your date range. The CSV includes order ID, date, status, customer email, payment and delivery method, subtotal, shipping, tax, grand total, item count, tracking, and ad click IDs. Suitable for monthly P&L, AR reconciliation, or tax filings. No app subscription, no extra cost.',
+      },
+      {
+        id: 'ppc-conversions',
+        question: 'How do I track Google Ads or Microsoft Ads conversions?',
+        answer: 'Click IDs from paid ads (gclid, msclkid) are captured automatically when shoppers land on your storefront and stored on the resulting order. From the Orders page, click Export, pick Google Ads or Microsoft Ads format, choose a date range, and upload the CSV to Google Ads (Tools → Conversions → Uploads) or Microsoft Advertising (Tools → Bulk Operations → Upload bulk file). Bidding algorithms learn from real conversions within hours. No Zapier, no monthly app, no third-party tags.',
       },
     ],
   },
@@ -157,7 +167,7 @@ const sections: Section[] = [
       {
         id: 'contact-support',
         question: 'How do I contact support?',
-        answer: 'Email us at help@businesscart.ai or call +1 (657) 501-0200. Our team is entirely US-based — you talk to the same people who build the platform. We respond within one business day.',
+        answer: 'Email us at help@businesscart.ai or call +1 (657) 501-0200. Our team is entirely US-based. You talk to the same people who build the platform. We respond within one business day.',
       },
       {
         id: 'data-security',
@@ -190,7 +200,7 @@ const FAQ: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Frequently Asked Questions</h1>
             <p className="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-              Everything you need to know about the platform — for companies and customers.
+              Everything you need to know about the platform, for companies and customers.
             </p>
           </div>
         </div>

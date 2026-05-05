@@ -158,7 +158,7 @@ const Account: React.FC = () => {
                               company.address?.city,
                               company.address?.state,
                               company.address?.zip
-                            ].filter(Boolean).join(', ') || '—'}
+                            ].filter(Boolean).join(', ') || '-'}
                           />
                         </dl>
                       </li>

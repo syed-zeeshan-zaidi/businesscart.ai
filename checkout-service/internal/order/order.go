@@ -31,4 +31,6 @@ type Order struct {
 	ShippedAt         *time.Time         `bson:"shippedAt,omitempty" json:"shippedAt,omitempty"`
 	DeliveredAt       *time.Time         `bson:"deliveredAt,omitempty" json:"deliveredAt,omitempty"`
 	UpdatedAt         *time.Time         `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
+	VisitorID         string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
+	ClickIDs          map[string]string  `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
 }

@@ -118,6 +118,31 @@ export const exportCustomers = async (): Promise<void> => {
   window.URL.revokeObjectURL(url);
 };
 
+// Download a CSV of orders for a date range. Format selects the column shape:
+//   - 'generic': full ledger (accounting reconciliation, monthly reports, tax)
+//   - 'google':  Google Ads offline click-conversions upload (gclid orders)
+//   - 'bing':    Microsoft Advertising bulk offline conversions (msclkid orders)
+// Mirrors the customer export pattern at /accounts/export.
+export const exportOrders = async (
+  from: string,        // ISO-8601 (RFC3339)
+  to: string,          // ISO-8601 (RFC3339)
+  format: 'generic' | 'google' | 'bing' = 'generic',
+  conversionName?: string,
+  sellerId?: string,   // admin only; ignored for company role
+): Promise<void> => {
+  const params = new URLSearchParams({ from, to, format });
+  if (conversionName && format !== 'generic') params.set('conversionName', conversionName);
+  if (sellerId) params.set('sellerId', sellerId);
+  const response = await api.get(`${API_URL}/checkout/orders/export?${params}`, { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const a = document.createElement('a');
+  a.href = url;
+  const prefix = format === 'generic' ? 'orders' : format === 'google' ? 'orders-google-ads' : 'orders-microsoft-ads';
+  a.download = `${prefix}-${from.slice(0, 10)}-to-${to.slice(0, 10)}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
 export const getAccount = async (id: string): Promise<Account> => {
   const response = await api.get(`${API_URL}/accounts/${id}`);
   return response.data;
@@ -214,6 +239,8 @@ export interface GatewayConfigResponse {
   sandbox: boolean;
   credentialKeys: string[];
   sandboxCredentialKeys: string[];
+  credentialLast4?: Record<string, string>;
+  sandboxCredentialLast4?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }

@@ -48,16 +48,16 @@ const marketplaceCosts = [
 ];
 
 const liveFeatures = [
-  { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'No subscription. No setup fees. Pay only when you sell — and keep 94% instead of 70-85%.' },
-  { icon: ShieldCheckIcon, title: 'You own every customer', desc: 'Email, phone, order history — yours forever. Email them, remarket to them, build loyalty without a marketplace in the middle.' },
-  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your store lives on yourbrand.com — not a marketplace subpage with competitor ads next to your products.' },
-  { icon: LockClosedIcon, title: 'Code-gated for B2B / regulars', desc: 'Optional private mode for repeat customers and corporate accounts. Or fully public — your choice.' },
+  { icon: CurrencyDollarIcon, title: '$0/month, 6% per order', desc: 'No subscription. No setup fees. Pay only when you sell, and keep 94% instead of 70-85%.' },
+  { icon: ShieldCheckIcon, title: 'You own every customer', desc: 'Email, phone, order history, yours forever. Email them, remarket to them, build loyalty without a marketplace in the middle.' },
+  { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your store lives on yourbrand.com, not a marketplace subpage with competitor ads next to your products.' },
+  { icon: LockClosedIcon, title: 'Code-gated for B2B / regulars', desc: 'Optional private mode for repeat customers and corporate accounts. Or fully public, your choice.' },
   { icon: BoltIcon, title: 'Sub-1-second pages', desc: 'Static HTML on a global CDN. Faster than Shopify, much faster than any marketplace listing page.' },
-  { icon: CpuChipIcon, title: 'AI-readable catalog', desc: 'ChatGPT, Perplexity, Google AI can read your products directly. Marketplace listings are buried — yours surface in AI shopping.' },
+  { icon: CpuChipIcon, title: 'AI-readable catalog', desc: 'ChatGPT, Perplexity, Google AI can read your products directly. Marketplace listings are buried. Yours surface in AI shopping.' },
   { icon: ShoppingBagIcon, title: '5 shopping channels included', desc: 'Auto-synced feeds for Google, Facebook, Bing, Pinterest, TikTok. Reach customers without paying marketplace ads.' },
   { icon: BanknotesIcon, title: 'Direct payment to your bank', desc: 'Stripe, Amazon Pay, Authorize.net, cash. Money goes straight to you. No 14-30 day marketplace payout hold.' },
-  { icon: UserGroupIcon, title: 'Per-customer pricing', desc: 'Loyalty discounts, wholesale rates, friends-and-family — all enforced automatically. Marketplaces force one price for everyone.' },
-  { icon: EnvelopeIcon, title: 'Branded transactional emails', desc: 'Order confirmations from yourbrand.com — not "Order from Amazon." Customers remember who they bought from.' },
+  { icon: UserGroupIcon, title: 'Per-customer pricing', desc: 'Loyalty discounts, wholesale rates, friends-and-family, all enforced automatically. Marketplaces force one price for everyone.' },
+  { icon: EnvelopeIcon, title: 'Branded transactional emails', desc: 'Order confirmations from yourbrand.com, not "Order from Amazon." Customers remember who they bought from.' },
 ];
 
 const verticalLinks = [
@@ -70,11 +70,11 @@ const verticalLinks = [
 const faqs = [
   {
     q: 'I make 80% of my sales on a marketplace. Can I really replace it?',
-    a: 'Probably not all of it — at least not at first. The realistic path is gradual: keep selling on the marketplace, add a direct store, and start funneling repeat customers to it via post-purchase emails and packaging inserts. Over time, your direct channel grows and your marketplace dependency shrinks. We do not require exclusivity, and we recommend running both in parallel during the transition.',
+    a: 'Probably not all of it, at least not at first. The realistic path is gradual: keep selling on the marketplace, add a direct store, and start funneling repeat customers to it via post-purchase emails and packaging inserts. Over time, your direct channel grows and your marketplace dependency shrinks. We do not require exclusivity, and we recommend running both in parallel during the transition.',
   },
   {
     q: 'How do customers find my store if I leave the marketplace?',
-    a: 'Multiple channels: (1) Existing customers — once they\'ve bought from you on the marketplace, they\'ll come direct to save money or get loyalty rewards. (2) Google Shopping, Facebook, Pinterest, TikTok feeds — all included. (3) AI-readable pages get cited by ChatGPT, Perplexity, Google AI for shopping queries. (4) SEO — sub-second static pages rank well.',
+    a: 'Multiple channels: (1) Existing customers: once they\'ve bought from you on the marketplace, they\'ll come direct to save money or get loyalty rewards. (2) Google Shopping, Facebook, Pinterest, TikTok feeds, all included. (3) AI-readable pages get cited by ChatGPT, Perplexity, Google AI for shopping queries. (4) SEO: sub-second static pages rank well.',
   },
   {
     q: 'What about marketplace customer service and trust signals?',
@@ -86,11 +86,11 @@ const faqs = [
   },
   {
     q: 'How is BusinessCart different from Shopify for marketplace escape?',
-    a: 'Shopify is $39+/mo before your first sale and requires $300-500/mo in apps for SEO, reviews, email, etc. BusinessCart is $0/mo, includes shopping channel feeds, AI-readability, and per-customer pricing built in. For escaping marketplaces, the unit economics matter — you do not want to swap a marketplace tax for a SaaS tax.',
+    a: 'Shopify is $39+/mo before your first sale and requires $300-500/mo in apps for SEO, reviews, email, etc. BusinessCart is $0/mo, includes shopping channel feeds, AI-readability, and per-customer pricing built in. For escaping marketplaces, the unit economics matter. You do not want to swap a marketplace tax for a SaaS tax.',
   },
   {
     q: 'What are realistic results in the first 6 months?',
-    a: 'Honest answer: results vary widely by category, customer base, and how aggressively you funnel marketplace buyers to your direct store. The math is asymmetric — even a modest percentage of customers moved off-marketplace recovers significant margin, because you go from paying 15-30% per order to paying 6%. We do not have benchmark data to publish yet; talk to us about your specific category and we will share what we are seeing in similar verticals.',
+    a: 'Honest answer: results vary widely by category, customer base, and how aggressively you funnel marketplace buyers to your direct store. The math is asymmetric. Even a modest percentage of customers moved off-marketplace recovers significant margin, because you go from paying 15-30% per order to paying 6%. We do not have benchmark data to publish yet; talk to us about your specific category and we will share what we are seeing in similar verticals.',
   },
 ];
 
@@ -110,7 +110,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
                 <span className="text-teal-400">Own Your Customers.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Etsy, Amazon, eBay, DoorDash, Instacart, Faire — all take 6-30% of every order and keep your customer data. Build your direct store on $0/month and keep 94% of every sale, plus the relationship that drives the next one.
+                Etsy, Amazon, eBay, DoorDash, Instacart, Faire all take 6-30% of every order and keep your customer data. Build your direct store on $0/month and keep 94% of every sale, plus the relationship that drives the next one.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 Run alongside marketplaces or replace them entirely · No exclusivity · Repeat customers move first
@@ -184,7 +184,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Customer ownership</h3>
                 </div>
                 <p className="text-gray-600">
-                  Marketplaces keep customer email, phone, and purchase history. You can't email a buyer about a new release. The marketplace can — promoting your competitor.
+                  Marketplaces keep customer email, phone, and purchase history. You can't email a buyer about a new release. The marketplace can, promoting your competitor.
                 </p>
               </div>
               <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -193,7 +193,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Algorithm dependency</h3>
                 </div>
                 <p className="text-gray-600">
-                  An Etsy ranking change, an Amazon policy update, a DoorDash featured-restaurant rotation — any of them can cut your sales in half overnight. You\'re not building a business; you\'re renting one.
+                  An Etsy ranking change, an Amazon policy update, a DoorDash featured-restaurant rotation. Any of them can cut your sales in half overnight. You\'re not building a business; you\'re renting one.
                 </p>
               </div>
               <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -202,7 +202,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Forced ad spend</h3>
                 </div>
                 <p className="text-gray-600">
-                  "Promoted Listings" on Etsy. Amazon Sponsored Products. Featured restaurants on DoorDash. The "free" exposure disappeared years ago — now you pay commissions AND ads to be seen.
+                  "Promoted Listings" on Etsy. Amazon Sponsored Products. Featured restaurants on DoorDash. The "free" exposure disappeared years ago. Now you pay commissions AND ads to be seen.
                 </p>
               </div>
             </div>
@@ -245,13 +245,13 @@ const SolutionsMarketplaceEscape: React.FC = () => {
               One AI Add-on. Replaces the App Stack You'd Build on Shopify.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Don't escape one tax just to pay another. The AI add-on replaces what would be 5-10 separate Shopify apps (Klaviyo, ReCharge, Judge.me, Loox, Gorgias) — running heavy operations decoupled from your storefront.
+              Don't escape one tax just to pay another. The AI add-on replaces what would be 5-10 separate Shopify apps (Klaviyo, ReCharge, Judge.me, Loox, Gorgias), running heavy operations decoupled from your storefront.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Connect your existing email, accounting, fulfillment systems — no custom code.
+                  Connect your existing email, accounting, fulfillment systems. No custom code.
                 </p>
               </div>
               <div>
@@ -268,7 +268,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier — starts at $99/mo.{' '}
+              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
                 Talk to us about pricing →
               </Link>
@@ -315,7 +315,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">See a Live Store</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
-              <strong>uSetGo INC</strong> — a live storefront built on BusinessCart.ai. Custom domain, sub-second pages, full catalog. Their direct store, not a marketplace listing.
+              <strong>uSetGo INC</strong>, a live storefront built on BusinessCart.ai. Custom domain, sub-second pages, full catalog. Their direct store, not a marketplace listing.
             </p>
             <div className="mt-8">
               <a

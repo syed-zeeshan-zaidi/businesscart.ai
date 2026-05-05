@@ -15,7 +15,7 @@ const About: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Your Commerce, Your Rules.</h1>
             <p className="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-              We help businesses sell directly to their customers — with their own branded store, their own payment processing, and a free tier to get started.
+              We help businesses sell directly to their customers, with their own branded store, their own payment processing, and a free tier to get started.
             </p>
           </div>
         </div>
@@ -28,7 +28,7 @@ const About: React.FC = () => {
               Too many businesses are stuck choosing between marketplace reach and owning their commerce. Manufacturers pay 15-30% commissions to platforms that keep their customer data. Distributors manage per-customer pricing in spreadsheets. Local brands lose their identity inside generic storefronts.
             </p>
             <p>
-              BusinessCart.ai was built to solve that. We give every business its own branded storefront and private commerce portal — with per-customer B2B configuration, direct payment collection, and automatic SEO. No marketplace commissions. No monthly subscriptions. Businesses across restaurants, retail, grocery, and wholesale already use the platform to sell on their own terms.
+              BusinessCart.ai was built to solve that. We give every business its own branded storefront and private commerce portal, with per-customer B2B configuration, direct payment collection, and automatic SEO. No marketplace commissions. No monthly subscriptions. Businesses across restaurants, retail, grocery, and wholesale already use the platform to sell on their own terms.
             </p>
           </div>
         </div>
@@ -43,7 +43,7 @@ const About: React.FC = () => {
                   <CurrencyDollarIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-gray-900">Pricing That Scales With You</h3>
-                <p className="mt-2 text-gray-500">Every feature in every tier — no feature locks. Starter is $0/month + 6% capped at $5/order; Growth and Enterprise apply automatically as your monthly order volume grows. 30-day money-back on paid tiers.</p>
+                <p className="mt-2 text-gray-500">Every feature in every tier. No feature locks. Starter is $0/month + 6% capped at $5/order; Growth and Enterprise apply automatically as your monthly order volume grows. 30-day money-back on paid tiers.</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
@@ -71,7 +71,7 @@ const About: React.FC = () => {
                   <GlobeAltIcon className="h-6 w-6" />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-gray-900">Built for How People Shop Now</h3>
-                <p className="mt-2 text-gray-500">Your products are discoverable by Google, AI assistants, and voice search — not just customers who already know your name.</p>
+                <p className="mt-2 text-gray-500">Your products are discoverable by Google, AI assistants, and voice search, not just customers who already know your name.</p>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mx-auto">
@@ -89,7 +89,7 @@ const About: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Our Commitment</h2>
           <div className="space-y-4 text-gray-600 text-lg leading-relaxed">
             <p>
-              The platform scales with your business — from your first order to thousands a day — without configuration changes, downtime, or surprise fees. We handle the infrastructure, the security, and the updates. You focus on your customers.
+              The platform scales with your business (from your first order to thousands a day) without configuration changes, downtime, or surprise fees. We handle the infrastructure, the security, and the updates. You focus on your customers.
             </p>
             <p>
               Every feature we build is designed to save you time and reduce your costs. Your storefront gets automatic SEO. Your checkout connects to your payment provider in minutes. Your B2B customers get personalized pricing without spreadsheets. We do the heavy lifting so you do not have to.

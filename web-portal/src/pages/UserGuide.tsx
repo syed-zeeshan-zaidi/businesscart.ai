@@ -13,6 +13,7 @@ const UserGuide: React.FC = () => {
     { id: 'product-management', title: '2.1 Product Management: Curate Your Catalog with Precision' },
     { id: 'customer-management', title: '2.2 Customer Relationship Management: Build Lasting Partnerships' },
     { id: 'company-profile', title: '2.3 Company Profile & Settings' },
+    { id: 'order-export', title: '2.4 Exporting Orders (Accounting & Ad Tracking)' },
     { id: 'for-customers', title: '3. For Customers: Streamlined Purchasing & Account Management' },
     { id: 'browsing-discovery', title: '3.1 Browsing & Discovery: Find Exactly What You Need' },
     { id: 'checkout-experience', title: '3.2 The BusinessCart.ai Checkout Experience' },
@@ -115,6 +116,13 @@ const UserGuide: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">2.3 Company Profile & Settings</h3>
                 <p className="text-gray-600 mb-2">
                   Maintain your company's brand identity and operational efficiency by easily updating your company information, branding assets, and contact details. Manage user roles and permissions within your company account to ensure secure and appropriate access levels. BusinessCart.ai is designed for flexibility, offering potential integration with external systems such as ERP and CRM platforms to further automate your workflows and enhance data synchronization.
+                </p>
+              </section>
+
+              <section id="order-export">
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">2.4 Exporting Orders (Accounting & Ad Tracking)</h3>
+                <p className="text-gray-600 mb-2">
+                  From the Orders page, click the Export button next to Refresh. Pick a date range and one of three formats. <strong>Generic CSV</strong> is the full ledger (every status including cancelled) with order ID, date, customer email, payment and delivery method, subtotal, shipping, tax, grand total, item count, tracking, and ad click IDs. Use it for monthly P&L, AR reconciliation, or tax filings. <strong>Google Ads</strong> format produces an offline click-conversions upload (gclid match, cancelled excluded). Upload the CSV in Google Ads under Tools, Conversions, Uploads. <strong>Microsoft Ads</strong> format produces a bulk offline conversions file (msclkid match, cancelled excluded). Upload it in Microsoft Advertising under Tools, Bulk Operations, Upload bulk file. The Conversion Name you enter must match the action you set up in the ad platform (default: Purchase). No app subscription, no Zapier, no third-party tags. Bidding algorithms learn from real conversions within hours of upload.
                 </p>
               </section>
 

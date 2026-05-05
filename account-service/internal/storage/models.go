@@ -150,6 +150,7 @@ type CompanyData struct {
 	TaxRate               float64             `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
 	ShippingRate          float64             `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CouponsEnabled        bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
 	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
@@ -186,6 +187,7 @@ type AttachedCompaniesData struct {
 	ShippingRate          float64             `json:"shippingRate,omitempty"`
 	Status                string              `json:"status"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CouponsEnabled        bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
 	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
 	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
@@ -199,6 +201,7 @@ type CustomerConfiguration struct {
 	DeliveryMethods       *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
 	ShippingOutOptions    *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
 	QuotesAllowed         *bool                `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
+	CouponsEnabled        *bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	CreditLimit           *float64             `bson:"creditLimit,omitempty" json:"creditLimit,omitempty"`
 	MinOrderAmountLimit   *float64             `bson:"minOrderAmountLimit,omitempty" json:"minOrderAmountLimit,omitempty"`
 	MaxOrderAmountLimit   *float64             `bson:"maxOrderAmountLimit,omitempty" json:"maxOrderAmountLimit,omitempty"`
@@ -254,13 +257,14 @@ type Account struct {
 // ---------- visitor analytics ----------
 
 type VisitorAttribution struct {
-	Source      string `bson:"source" json:"source"`
-	Medium      string `bson:"medium" json:"medium"`
-	Campaign    string `bson:"campaign,omitempty" json:"campaign,omitempty"`
-	Content     string `bson:"content,omitempty" json:"content,omitempty"`
-	Term        string `bson:"term,omitempty" json:"term,omitempty"`
-	Referrer    string `bson:"referrer,omitempty" json:"referrer,omitempty"`
-	LandingPage string `bson:"landingPage" json:"landingPage"`
+	Source      string            `bson:"source" json:"source"`
+	Medium      string            `bson:"medium" json:"medium"`
+	Campaign    string            `bson:"campaign,omitempty" json:"campaign,omitempty"`
+	Content     string            `bson:"content,omitempty" json:"content,omitempty"`
+	Term        string            `bson:"term,omitempty" json:"term,omitempty"`
+	Referrer    string            `bson:"referrer,omitempty" json:"referrer,omitempty"`
+	LandingPage string            `bson:"landingPage" json:"landingPage"`
+	ClickIDs    map[string]string `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
 }
 
 type VisitorGeo struct {

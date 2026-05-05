@@ -1,9 +1,9 @@
 // src/components/OrderForm.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getOrders, deleteOrder, updateOrder } from '../api';
+import { getOrders, deleteOrder, updateOrder, exportOrders } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
-import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
 /* ------------------------------------------------------------------ */
@@ -80,6 +80,35 @@ const OrderForm = () => {
   const [editCarrier, setEditCarrier] = useState('');
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Export modal state: matches customer export pattern, with format selector for Google/Bing PPC.
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportToday = new Date();
+  const exportMonthAgo = new Date(exportToday.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const fmtExportDate = (d: Date) => d.toISOString().slice(0, 10);
+  const [exportFrom, setExportFrom] = useState(fmtExportDate(exportMonthAgo));
+  const [exportTo, setExportTo] = useState(fmtExportDate(exportToday));
+  const [exportFormat, setExportFormat] = useState<'generic' | 'google' | 'bing'>('generic');
+  const [exportConversionName, setExportConversionName] = useState('Purchase');
+  const [exportRunning, setExportRunning] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    if (exportRunning) return;
+    setExportRunning(true);
+    try {
+      // Parse date input as LOCAL time (no 'Z'), so a user in PST picking
+      // "May 3 → May 3" gets all of May 3 PST, not May 3 UTC.
+      const fromIso = new Date(exportFrom + 'T00:00:00').toISOString();
+      const toIso = new Date(exportTo + 'T23:59:59').toISOString();
+      await exportOrders(fromIso, toIso, exportFormat, exportConversionName);
+      toast.success('Orders CSV downloaded');
+      setExportOpen(false);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportRunning(false);
+    }
+  }, [exportRunning, exportFrom, exportTo, exportFormat, exportConversionName]);
 
   /* ------------------------ Derived ------------------------ */
   const currentUser = useMemo(() => getCurrentUser(), []);
@@ -254,6 +283,16 @@ const OrderForm = () => {
               title="Refresh"
             >
               <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1.5 px-3"
+              aria-label="Export orders"
+              title="Export orders"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              <span className="hidden sm:inline text-sm font-medium">Export</span>
             </button>
           </div>
         </section>
@@ -642,6 +681,70 @@ const OrderForm = () => {
                 className="px-4 py-2 border rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exportOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4" onClick={() => setExportOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Export Orders</h2>
+              <button type="button" onClick={() => setExportOpen(false)} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Format</label>
+                <select
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value as 'generic' | 'google' | 'bing')}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="generic">Generic CSV (full ledger for accounting, reporting)</option>
+                  <option value="google">Google Ads offline conversions upload</option>
+                  <option value="bing">Microsoft Ads bulk offline conversions</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+                  <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+                  <input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                </div>
+              </div>
+              {exportFormat !== 'generic' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Conversion Name</label>
+                  <input type="text" value={exportConversionName} onChange={(e) => setExportConversionName(e.target.value)} placeholder="Purchase" className="w-full p-2 border border-gray-300 rounded-md text-sm" />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must match the action you set up in {exportFormat === 'google' ? 'Google Ads (Tools → Conversions)' : 'Microsoft Advertising (Conversion Goals)'}.
+                  </p>
+                </div>
+              )}
+              {exportFormat === 'generic' && (
+                <p className="text-xs text-gray-500">
+                  Includes every order in the window (all statuses) with totals, customer email, payment/delivery, tracking, and PPC click IDs.
+                </p>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button type="button" onClick={() => setExportOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exportRunning || !exportFrom || !exportTo}
+                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {exportRunning ? 'Downloading…' : 'Download CSV'}
               </button>
             </div>
           </div>

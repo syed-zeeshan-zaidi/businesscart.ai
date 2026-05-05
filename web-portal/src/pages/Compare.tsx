@@ -36,7 +36,7 @@ const Compare: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Monthly Fee</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0 / $499 / $1,999 — auto-applies by order volume, every feature in every tier</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$0 / $499 / $1,999, auto-applies by order volume, every feature in every tier</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$39-399/mo (Plus: $2,300+/mo); features locked to plan</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$30-100/mo (hosting + plugins)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">$0 (but 15-30% per order)</td>
@@ -50,7 +50,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Payment Gateway Freedom</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes — bring your own gateway, no extra fee</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes, bring your own gateway, no extra fee</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Extra 2% fee if not using Shopify Payments</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Yes, but you configure it</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
@@ -71,14 +71,14 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">AI / LLM Discoverable</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes — products readable by AI assistants</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes, products readable by AI assistants</td>
                   <td className="px-6 py-4 text-sm text-gray-500">No (JavaScript-rendered)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">No (PHP-rendered, plugin-dependent)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">No (walled garden)</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">B2B + D2C on One Platform</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes — wholesale and direct-to-consumer from one account</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes, wholesale and direct-to-consumer from one account</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Separate Shopify Plus required for B2B ($2,300+/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Via plugins (often clunky)</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
@@ -99,28 +99,28 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Per-Customer Tax & Shipping</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — override per customer</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, override per customer</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus or app needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles it</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Spending & Credit Limits</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — per-customer caps</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, per-customer caps</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus or custom development</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Order Limits (Min/Max)</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — per-customer enforcement</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, per-customer enforcement</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace-controlled</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Multi-Company Customers</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — one buyer, multiple suppliers</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, one buyer, multiple suppliers</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
@@ -141,21 +141,21 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Flexible Delivery Methods</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — pickup, shipping, local delivery</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, pickup, shipping, local delivery</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shipping only (apps needed for pickup)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin-dependent</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles it</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Multi-Location Support</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — warehouses, pickup points, storefronts</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, warehouses, pickup points, storefronts</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus or apps</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin-dependent</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">White-Label Storefront</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes — your brand, no platform branding</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes, your brand, no platform branding</td>
                   <td className="px-6 py-4 text-sm text-gray-500">"Powered by Shopify" unless you pay more</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Yes</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
@@ -169,21 +169,28 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Volume Price Tiers</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — bulk pricing per product</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, bulk pricing per product</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-50/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Shopping Channel Feeds</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — Google, Facebook, Bing, Pinterest, TikTok</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, Google, Facebook, Bing, Pinterest, TikTok</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-100/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires plugin ($0-200/yr)</td>
-                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Locked in — no feed export</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Locked in, no feed export</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">PPC Offline Conversion Upload (Google / Microsoft Ads)</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in CSV. No app. No Zapier.</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Requires app or Zapier</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin or Zapier needed</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Not applicable</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Customer-Company Association</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — code-based access control</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, code-based access control</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
@@ -211,7 +218,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">PWA (Install as App)</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in — install from browser, $0</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, install from browser, $0</td>
                   <td className="px-6 py-4 text-sm text-gray-500">No native PWA, app needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Their own app only</td>
@@ -226,11 +233,11 @@ const Compare: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="font-bold text-gray-900 mb-2">B2B Wholesalers</h3>
-                <p className="text-sm text-gray-600">Per-customer pricing, quote negotiation, company codes, and flexible payment terms — built for how wholesale actually works.</p>
+                <p className="text-sm text-gray-600">Per-customer pricing, quote negotiation, company codes, and flexible payment terms, built for how wholesale actually works.</p>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="font-bold text-gray-900 mb-2">D2C Brands</h3>
-                <p className="text-sm text-gray-600">Launch your own branded storefront with sub-second speed, full SEO, and AI discoverability — no monthly fee until you sell.</p>
+                <p className="text-sm text-gray-600">Launch your own branded storefront with sub-second speed, full SEO, and AI discoverability. No monthly fee until you sell.</p>
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="font-bold text-gray-900 mb-2">Restaurants & Food Service</h3>
@@ -254,13 +261,13 @@ const Compare: React.FC = () => {
                     <h4 className="font-semibold text-lg text-gray-900 mb-2">Choose BusinessCart.ai if:</h4>
                     <ul className="list-disc list-inside space-y-2 text-gray-600">
                       <li>You do not want to pay monthly fees before making your first sale.</li>
-                      <li>You need B2B features — per-customer pricing, quotes, payment and delivery configuration.</li>
+                      <li>You need B2B features: per-customer pricing, quotes, payment and delivery configuration.</li>
                       <li>You want the fastest possible storefront (sub-1-second loads vs 2-4 seconds).</li>
                       <li>You want your products discoverable by AI assistants and voice search.</li>
                       <li>You want to use your own payment gateway without paying extra platform fees.</li>
-                      <li>You need volume pricing, spending caps, credit limits, or order limits — built in, not a $50/mo app.</li>
+                      <li>You need volume pricing, spending caps, credit limits, or order limits, built in, not a $50/mo app.</li>
                       <li>You have buyers who work with multiple suppliers and need one login across all of them.</li>
-                      <li>You want a PWA — customers install your store as an app from the browser, no app store fees.</li>
+                      <li>You want a PWA, customers install your store as an app from the browser, no app store fees.</li>
                     </ul>
                   </div>
                   <div className="bg-white rounded-lg shadow p-6">
@@ -281,11 +288,11 @@ const Compare: React.FC = () => {
                     <h4 className="font-semibold text-lg text-gray-900 mb-2">Choose BusinessCart.ai if:</h4>
                     <ul className="list-disc list-inside space-y-2 text-gray-600">
                       <li>You want the control of owning your store without managing servers, security, and updates.</li>
-                      <li>You need B2B features built in — not bolted on through plugins.</li>
+                      <li>You need B2B features built in, not bolted on through plugins.</li>
                       <li>You want a lower total cost when you factor in hosting, maintenance, and developer time.</li>
                       <li>You want multiple payment gateways and delivery methods without plugin headaches.</li>
                       <li>You want volume pricing, spending caps, and order limits without installing and maintaining plugins.</li>
-                      <li>You want a PWA so customers can install your store as an app — no plugin or app store needed.</li>
+                      <li>You want a PWA so customers can install your store as an app, no plugin or app store needed.</li>
                     </ul>
                   </div>
                   <div className="bg-white rounded-lg shadow p-6">
@@ -308,9 +315,9 @@ const Compare: React.FC = () => {
                       <li>You want to stop paying 15-30% commission on every order.</li>
                       <li>You want to own your customer data and build direct relationships.</li>
                       <li>You want your own branded experience that you control.</li>
-                      <li>You need pickup, shipping, and local delivery — not just marketplace delivery.</li>
-                      <li>You want built-in B2B controls — per-customer pricing, tax overrides, credit limits, and order enforcement.</li>
-                      <li>You want a PWA so customers install your store as an app — no app store listing required.</li>
+                      <li>You need pickup, shipping, and local delivery, not just marketplace delivery.</li>
+                      <li>You want built-in B2B controls: per-customer pricing, tax overrides, credit limits, and order enforcement.</li>
+                      <li>You want a PWA so customers install your store as an app, no app store listing required.</li>
                     </ul>
                   </div>
                   <div className="bg-white rounded-lg shadow p-6">

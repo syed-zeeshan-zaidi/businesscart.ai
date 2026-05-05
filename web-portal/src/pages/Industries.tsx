@@ -19,42 +19,42 @@ const solutions = [
     title: 'D2C Brands',
     href: '/solutions/d2c-brands',
     icon: ShoppingBagIcon,
-    summary: 'Branded online store with sub-second pages, AI-readable products, and 5 shopping channels — without monthly fees, plugin sprawl, or marketplace commissions.',
+    summary: 'Branded online store with sub-second pages, AI-readable products, and 5 shopping channels. No monthly fees, plugin sprawl, or marketplace commissions.',
     audience: 'For: Side hustlers, Etsy/Amazon escapees, Shopify defectors',
   },
   {
     title: 'AI-Era Commerce',
     href: '/solutions/ai-commerce',
     icon: CpuChipIcon,
-    summary: 'The first storefront built for AI shopping. Static HTML, schema.org, llms.txt, and markdown — get cited by ChatGPT, Perplexity, and Google AI.',
+    summary: 'The first storefront built for AI shopping. Static HTML, schema.org, llms.txt, and markdown, get cited by ChatGPT, Perplexity, and Google AI.',
     audience: 'For: SEO-savvy merchants betting on AI discovery',
   },
   {
     title: 'Wholesale & B2B',
     href: '/solutions/wholesale',
     icon: UserGroupIcon,
-    summary: 'Per-customer pricing, credit limits, spend caps, and quote negotiation — enforced automatically. Stop running B2B in spreadsheets.',
+    summary: 'Per-customer pricing, credit limits, spend caps, and quote negotiation, all enforced automatically. Stop running B2B in spreadsheets.',
     audience: 'For: SMB wholesalers running orders via email',
   },
   {
     title: 'Restaurants & Food',
     href: '/solutions/restaurants',
     icon: CakeIcon,
-    summary: 'Direct ordering for catering, meal-prep, bakeries, food trucks, and corporate lunch — code-gated regulars portal, no DoorDash 30% tax.',
+    summary: 'Direct ordering for catering, meal-prep, bakeries, food trucks, and corporate lunch. Code-gated regulars portal, no DoorDash 30% tax.',
     audience: 'For: Food businesses DoorDash serves poorly',
   },
   {
     title: 'Grocery & Specialty Food',
     href: '/solutions/grocery',
     icon: ShoppingCartIcon,
-    summary: 'Online ordering for independent and ethnic grocers — without Instacart\'s 10-15% cut. Specialty, organic, butcher, bakery, pet supply.',
+    summary: 'Online ordering for independent and ethnic grocers. Without Instacart\'s 10-15% cut. Specialty, organic, butcher, bakery, pet supply.',
     audience: 'For: Independent specialty grocers',
   },
   {
     title: 'Manufacturers',
     href: '/solutions/manufacturers',
     icon: CubeIcon,
-    summary: 'Distributor ordering without the email chains. Per-distributor pricing, MOQ, lead times, credit limits — channel conflict structurally impossible.',
+    summary: 'Distributor ordering without the email chains. Per-distributor pricing, MOQ, lead times, credit limits. Channel conflict structurally impossible.',
     audience: 'For: Manufacturers selling to distributor networks',
   },
   {
@@ -85,7 +85,7 @@ const Industries: React.FC = () => {
               Solutions for Every Business Type
             </h1>
             <p className="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-              One platform. Eight tailored solutions. Pick the page that fits your business — each one shows what's live today, what's in beta, and what's coming in 2026.
+              One platform. Eight tailored solutions. Pick the page that fits your business. Each one shows what's live today, what's in beta, and what's coming in 2026.
             </p>
           </div>
         </section>
@@ -124,7 +124,7 @@ const Industries: React.FC = () => {
           <div className="max-w-4xl mx-auto text-center py-16 px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-extrabold text-gray-900">Not Sure Which Fits You?</h2>
             <p className="mt-4 text-lg text-gray-600">
-              Tell us about your business. We'll point you to the right solution — or build a custom one.
+              Tell us about your business. We'll point you to the right solution, or build a custom one.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
               <Link

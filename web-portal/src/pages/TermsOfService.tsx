@@ -49,14 +49,14 @@ const TermsOfService: React.FC = () => {
               <section id="acceptance-of-terms">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">1. Acceptance of Terms</h2>
                 <p className="text-gray-600">
-                  By creating an account on or using the BusinessCart.ai platform, you agree to be bound by these Terms of Service. These terms apply to all users of the platform — including companies (sellers), customers (buyers), and visitors to D2C storefronts. If you do not agree to these terms, do not use the platform.
+                  By creating an account on or using the BusinessCart.ai platform, you agree to be bound by these Terms of Service. These terms apply to all users of the platform, including companies (sellers), customers (buyers), and visitors to D2C storefronts. If you do not agree to these terms, do not use the platform.
                 </p>
               </section>
 
               <section id="the-platform">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">2. The Platform</h2>
                 <p className="text-gray-600 mb-4">
-                  BusinessCart.ai is an e-commerce platform that allows businesses to create their own branded online store, manage a product catalog, configure per-customer B2B pricing, accept payments through their own payment provider, and process orders — all without monthly subscription fees.
+                  BusinessCart.ai is an e-commerce platform that allows businesses to create their own branded online store, manage a product catalog, configure per-customer B2B pricing, accept payments through their own payment provider, and process orders, all without monthly subscription fees.
                 </p>
                 <p className="text-gray-600">
                   The platform includes a web portal, mobile app, API, and auto-generated D2C storefronts. The service is provided on an "as is" and "as available" basis. We work to maintain high availability but cannot guarantee uninterrupted access at all times.
@@ -104,7 +104,7 @@ const TermsOfService: React.FC = () => {
 
               <section id="pricing-and-fees">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">6. Pricing and Fees</h2>
-                <p className="text-gray-600 mb-4">BusinessCart.ai offers three tiers. Every feature is included in every tier — there are no feature locks. Your tier applies automatically based on your monthly paid-order volume. Growth and Enterprise include a 30-day money-back guarantee on their monthly subscription fees.</p>
+                <p className="text-gray-600 mb-4">BusinessCart.ai offers three tiers. Every feature is included in every tier. There are no feature locks. Your tier applies automatically based on your monthly paid-order volume. Growth and Enterprise include a 30-day money-back guarantee on their monthly subscription fees.</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-600">
                   <li><b>Starter:</b> $0/month + 6% per order, capped at $5/order. Applies automatically when monthly paid-order volume is 100 or fewer.</li>
                   <li><b>Growth:</b> $499/month + 1% per order. Applies automatically when monthly paid-order volume is 101 to 1,000.</li>
@@ -141,7 +141,7 @@ const TermsOfService: React.FC = () => {
               <section id="data-and-ownership">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">9. Data and Ownership</h2>
                 <p className="text-gray-600 mb-4">
-                  Companies retain ownership of their data — including products, customer information, order history, and business configuration. BusinessCart.ai uses this data solely to provide and improve the platform.
+                  Companies retain ownership of their data, including products, customer information, order history, and business configuration. BusinessCart.ai uses this data solely to provide and improve the platform.
                 </p>
                 <p className="text-gray-600 mb-4">
                   <b>Your-data-is-yours guarantee:</b> At any time, including after you stop using the platform, you may export your data through the following means:
@@ -150,7 +150,7 @@ const TermsOfService: React.FC = () => {
                   <li><b>Customer list:</b> One-click CSV download from the admin dashboard (<code className="text-sm">/accounts/export</code>).</li>
                   <li><b>Products, orders, quotes, and configuration:</b> Accessible via our REST API. Every operation has an endpoint; a technical user or consultant can extract every record programmatically.</li>
                   <li><b>Product images:</b> Stored on our CDN; URLs are embedded in the product records returned by the API. You may download all images directly from those URLs.</li>
-                  <li><b>Shopping feeds:</b> Auto-generated CSV, XML, and TSV files for Google, Meta, Bing, Pinterest, and TikTok — available to download at any time.</li>
+                  <li><b>Shopping feeds:</b> Auto-generated CSV, XML, and TSV files for Google, Meta, Bing, Pinterest, and TikTok, available to download at any time.</li>
                 </ul>
                 <p className="text-gray-600 mb-4">
                   BusinessCart.ai will not hold your data hostage. There are no cancellation fees, no export fees, and no time limits on data access while your account remains active. If you choose to close your account, we will make a reasonable effort to provide a final data package in standard formats.
@@ -189,7 +189,7 @@ const TermsOfService: React.FC = () => {
                   BusinessCart.ai provides a technology platform. We are not a party to transactions between companies and their customers. We are not responsible for the quality, safety, or legality of products sold through the platform, or for the accuracy of product listings.
                 </p>
                 <p className="text-gray-600">
-                  To the maximum extent permitted by law, BusinessCart.ai and its team shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of profits, data, or business opportunity — arising from your use of the platform.
+                  To the maximum extent permitted by law, BusinessCart.ai and its team shall not be liable for any indirect, incidental, special, consequential, or punitive damages (including loss of profits, data, or business opportunity) arising from your use of the platform.
                 </p>
               </section>
 
@@ -206,7 +206,7 @@ const TermsOfService: React.FC = () => {
                   Questions about these terms? Contact us at: <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>
                 </p>
                 <p className="text-gray-600 mt-2">
-                  BusinessCart, Inc. — United States
+                  BusinessCart, Inc., United States
                 </p>
               </section>
             </div>

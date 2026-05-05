@@ -14,7 +14,7 @@ const ContactUs: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Get in Touch</h1>
             <p className="mt-4 text-lg text-gray-200 max-w-2xl mx-auto">
-              We are a US-based, remote-first team available across all US time zones. No overseas call centers — you talk directly to the people who build the platform.
+              We are a US-based, remote-first team available across all US time zones. No overseas call centers. You talk directly to the people who build the platform.
             </p>
           </div>
         </div>
@@ -35,7 +35,7 @@ const ContactUs: React.FC = () => {
               <div className="space-y-3 mb-8">
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">We verify your business</span></div>
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">You receive a business code to register</span></div>
-                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Guided setup — your store live in under 30 minutes</span></div>
+                <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Guided setup, your store live in under 30 minutes</span></div>
               </div>
               <p className="text-gray-500 text-sm text-center mb-4">We respond within one business day.</p>
               <a

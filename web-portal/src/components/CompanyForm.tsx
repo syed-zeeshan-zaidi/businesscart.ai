@@ -95,6 +95,15 @@ const GatewayConfigPanel: React.FC<{
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  // Sync the checkbox to server truth whenever existingConfig arrives or changes.
+  // Without this, the checkbox latches on first render (when existingConfig may
+  // still be loading) and can desync from the "Live"/"Sandbox" badge — which is
+  // dangerous: clicking Update would silently flip the stored sandbox flag and
+  // route real checkouts at empty sandbox credentials.
+  useEffect(() => {
+    if (existingConfig) setSandbox(existingConfig.sandbox);
+  }, [existingConfig?.sandbox, existingConfig?.id]);
+
   if (!fieldDef) return null;
 
   const isConfigured = !!existingConfig;
@@ -133,41 +142,51 @@ const GatewayConfigPanel: React.FC<{
     }
   };
 
-  const renderFields = (values: Record<string, string>, setValues: (v: Record<string, string>) => void, label: string) => (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-gray-600">{label}</p>
-      {fieldDef.fields.map(field => (
-        <div key={field.key}>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
-          {field.type === 'textarea' ? (
-            <textarea
-              rows={3}
-              value={values[field.key] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
-            />
-          ) : field.type === 'select' ? (
-            <select
-              value={values[field.key] || field.options?.[0] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
-            >
-              {field.options?.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
-            </select>
-          ) : (
-            <input
-              type="text"
-              value={values[field.key] || ''}
-              onChange={e => setValues({ ...values, [field.key]: e.target.value })}
-              placeholder={isConfigured ? '(stored - enter new value to update)' : ''}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
+  const renderFields = (values: Record<string, string>, setValues: (v: Record<string, string>) => void, label: string) => {
+    const last4Map = label.startsWith('Production')
+      ? existingConfig?.credentialLast4
+      : existingConfig?.sandboxCredentialLast4;
+    const placeholderFor = (key: string) => {
+      const hint = last4Map?.[key];
+      if (hint) return `\u2022\u2022\u2022\u2022${hint} (enter new value to replace)`;
+      return isConfigured ? '(stored - enter new value to update)' : '';
+    };
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-gray-600">{label}</p>
+        {fieldDef.fields.map(field => (
+          <div key={field.key}>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{field.label}</label>
+            {field.type === 'textarea' ? (
+              <textarea
+                rows={3}
+                value={values[field.key] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                placeholder={placeholderFor(field.key)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+              />
+            ) : field.type === 'select' ? (
+              <select
+                value={values[field.key] || field.options?.[0] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+              >
+                {field.options?.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={values[field.key] || ''}
+                onChange={e => setValues({ ...values, [field.key]: e.target.value })}
+                placeholder={placeholderFor(field.key)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-teal-500 focus:border-teal-500"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -397,10 +416,38 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
         return;
       }
     }
+    // Coerce numeric form fields to numbers at the wire boundary. <input type=number>
+    // returns string per HTML spec, so without this the API-first backend (which now
+    // rejects type-mismatched values) would 400 on every save. Empty strings drop the
+    // field entirely so partial updates preserve the existing stored value. Form state
+    // stays as strings to keep decimal typing fluid (e.g., "15." mid-keystroke).
+    const NUMERIC_FIELDS: (keyof CompanyData)[] = [
+      'creditLimit', 'leadTime', 'taxRate', 'shippingRate',
+      'minOrderAmountLimit', 'maxOrderAmountLimit',
+      'minOrderQuantityLimit', 'maxOrderQuantityLimit',
+      'monthlyOrderLimit', 'yearlyOrderLimit',
+    ];
+    const wirePayload: Record<string, unknown> = { ...companyData };
+    for (const f of NUMERIC_FIELDS) {
+      const v = wirePayload[f];
+      if (v === '' || v === undefined || v === null) {
+        delete wirePayload[f];
+        continue;
+      }
+      if (typeof v === 'string') {
+        const n = parseFloat(v);
+        if (Number.isNaN(n)) {
+          toast.error(`${f} must be a number`);
+          return;
+        }
+        wirePayload[f] = n;
+      }
+    }
+
     setIsSaving(true);
     try {
       const updatedAccount = await updateAccount(account._id, {
-        company: companyData as CompanyData
+        company: wirePayload as unknown as CompanyData
       });
       toast.success('Company data updated successfully');
       onSave(updatedAccount);
@@ -599,9 +646,10 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {renderInput('leadTime', 'Lead Time (days)', '', false, 'number')}
               {renderInput('taxRate', 'Tax Rate (%)', 'e.g., 8.25', false, 'number')}
               {renderInput('shippingRate', 'Shipping Rate ($)', 'e.g., 10.00', false, 'number')}
-              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {renderCheckbox('taxableGoods', 'Taxable Goods')}
                 {renderCheckbox('quotesAllowed', 'Quotes Allowed')}
+                {renderCheckbox('couponsEnabled', 'Coupons Enabled')}
               </div>
             </div>
           </Section>
