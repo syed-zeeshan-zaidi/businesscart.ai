@@ -33,4 +33,9 @@ type Order struct {
 	UpdatedAt         *time.Time         `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 	VisitorID         string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
 	ClickIDs          map[string]string  `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
+	// Denormalized from Quote at order-create time. Required so admin order
+	// detail, CSV exports, and the order confirmation email can show the
+	// breakdown without joining back to the quote (which may be gone).
+	PromoCode         string             `bson:"promoCode,omitempty" json:"promoCode,omitempty"`
+	PromoDiscount     float64            `bson:"promoDiscount,omitempty" json:"promoDiscount,omitempty"`
 }

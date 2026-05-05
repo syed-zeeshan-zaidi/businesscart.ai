@@ -25,11 +25,16 @@ func renderHTML(tmplStr string, data interface{}) string {
 // ─────────────────────── Order Confirmation ───────────────────────
 
 type OrderConfirmationData struct {
-	OrderID    string
-	GrandTotal float64
-	Items      []OrderItemView
-	BrandName  string
-	BrandEmail string
+	OrderID       string
+	Subtotal      float64
+	ShippingCost  float64
+	TaxAmount     float64
+	PromoCode     string  // populated when a coupon was applied; empty otherwise
+	PromoDiscount float64 // omit the discount row when zero
+	GrandTotal    float64
+	Items         []OrderItemView
+	BrandName     string
+	BrandEmail    string
 }
 
 // brandFooterText renders the text-body sign-off. Falls back to "BusinessCart" when no brand.
@@ -67,7 +72,28 @@ func orderConfirmationText(d OrderConfirmationData) string {
 	for _, it := range d.Items {
 		fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Price)
 	}
-	fmt.Fprintf(&b, "\nTotal: $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
+	// Render full breakdown only when the data is meaningful (any sub-total
+	// is non-zero). Older callers that only set GrandTotal still get the
+	// legacy single-line total (backward compat).
+	if d.Subtotal > 0 || d.TaxAmount > 0 || d.ShippingCost > 0 || d.PromoDiscount > 0 {
+		fmt.Fprintf(&b, "\nSubtotal: $%.2f\n", d.Subtotal)
+		if d.ShippingCost > 0 {
+			fmt.Fprintf(&b, "Shipping: $%.2f\n", d.ShippingCost)
+		}
+		if d.TaxAmount > 0 {
+			fmt.Fprintf(&b, "Tax:      $%.2f\n", d.TaxAmount)
+		}
+		if d.PromoDiscount > 0 {
+			if d.PromoCode != "" {
+				fmt.Fprintf(&b, "Discount (%s): -$%.2f\n", d.PromoCode, d.PromoDiscount)
+			} else {
+				fmt.Fprintf(&b, "Discount: -$%.2f\n", d.PromoDiscount)
+			}
+		}
+		fmt.Fprintf(&b, "Total:    $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
+	} else {
+		fmt.Fprintf(&b, "\nTotal: $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
+	}
 	return b.String()
 }
 
@@ -93,9 +119,19 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
       {{end}}
     </tbody>
   </table>
+  {{if or (gt .Subtotal 0.0) (gt .TaxAmount 0.0) (gt .ShippingCost 0.0) (gt .PromoDiscount 0.0)}}
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
+    <tr><td style="padding:4px 0;color:#64748b">Subtotal</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .Subtotal}}</td></tr>
+    {{if gt .ShippingCost 0.0}}<tr><td style="padding:4px 0;color:#64748b">Shipping</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .ShippingCost}}</td></tr>{{end}}
+    {{if gt .TaxAmount 0.0}}<tr><td style="padding:4px 0;color:#64748b">Tax</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .TaxAmount}}</td></tr>{{end}}
+    {{if gt .PromoDiscount 0.0}}<tr><td style="padding:4px 0;color:#059669">Discount{{if .PromoCode}} ({{.PromoCode}}){{end}}</td><td style="padding:4px 0;text-align:right;color:#059669">-${{printf "%.2f" .PromoDiscount}}</td></tr>{{end}}
+    <tr><td style="padding:8px 0 0;font-weight:bold;border-top:1px solid #e2e8f0;font-size:16px">Total</td><td style="padding:8px 0 0;font-weight:bold;border-top:1px solid #e2e8f0;text-align:right;font-size:16px;color:#0d9488">${{printf "%.2f" .GrandTotal}}</td></tr>
+  </table>
+  {{else}}
   <p style="font-size:18px;font-weight:bold;text-align:right;margin-top:16px">
     Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
   </p>
+  {{end}}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
   <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
@@ -106,6 +142,11 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
 type NewOrderToCompanyData struct {
 	OrderID       string
 	CustomerEmail string
+	Subtotal      float64
+	ShippingCost  float64
+	TaxAmount     float64
+	PromoCode     string
+	PromoDiscount float64
 	GrandTotal    float64
 	Items         []OrderItemView
 }
@@ -129,7 +170,28 @@ func newOrderToCompanyText(d NewOrderToCompanyData) string {
 	for _, it := range d.Items {
 		fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Price)
 	}
-	fmt.Fprintf(&b, "\nTotal: $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\n— BusinessCart\n", d.GrandTotal)
+	// Show breakdown when any sub-total is non-zero so the merchant can
+	// reconcile a discounted Total against list price. Falls through to the
+	// legacy single-line total when only GrandTotal is set (backward compat).
+	if d.Subtotal > 0 || d.TaxAmount > 0 || d.ShippingCost > 0 || d.PromoDiscount > 0 {
+		fmt.Fprintf(&b, "\nSubtotal: $%.2f\n", d.Subtotal)
+		if d.ShippingCost > 0 {
+			fmt.Fprintf(&b, "Shipping: $%.2f\n", d.ShippingCost)
+		}
+		if d.TaxAmount > 0 {
+			fmt.Fprintf(&b, "Tax:      $%.2f\n", d.TaxAmount)
+		}
+		if d.PromoDiscount > 0 {
+			if d.PromoCode != "" {
+				fmt.Fprintf(&b, "Discount (%s): -$%.2f\n", d.PromoCode, d.PromoDiscount)
+			} else {
+				fmt.Fprintf(&b, "Discount: -$%.2f\n", d.PromoDiscount)
+			}
+		}
+		fmt.Fprintf(&b, "Total:    $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\nBusinessCart\n", d.GrandTotal)
+	} else {
+		fmt.Fprintf(&b, "\nTotal: $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\nBusinessCart\n", d.GrandTotal)
+	}
 	return b.String()
 }
 
@@ -156,9 +218,19 @@ const newOrderToCompanyHTMLTmpl = `<!DOCTYPE html>
       {{end}}
     </tbody>
   </table>
+  {{if or (gt .Subtotal 0.0) (gt .TaxAmount 0.0) (gt .ShippingCost 0.0) (gt .PromoDiscount 0.0)}}
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
+    <tr><td style="padding:4px 0;color:#64748b">Subtotal</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .Subtotal}}</td></tr>
+    {{if gt .ShippingCost 0.0}}<tr><td style="padding:4px 0;color:#64748b">Shipping</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .ShippingCost}}</td></tr>{{end}}
+    {{if gt .TaxAmount 0.0}}<tr><td style="padding:4px 0;color:#64748b">Tax</td><td style="padding:4px 0;text-align:right">${{printf "%.2f" .TaxAmount}}</td></tr>{{end}}
+    {{if gt .PromoDiscount 0.0}}<tr><td style="padding:4px 0;color:#059669">Discount{{if .PromoCode}} ({{.PromoCode}}){{end}}</td><td style="padding:4px 0;text-align:right;color:#059669">-${{printf "%.2f" .PromoDiscount}}</td></tr>{{end}}
+    <tr><td style="padding:8px 0 0;font-weight:bold;border-top:1px solid #e2e8f0;font-size:16px">Total</td><td style="padding:8px 0 0;font-weight:bold;border-top:1px solid #e2e8f0;text-align:right;font-size:16px;color:#0d9488">${{printf "%.2f" .GrandTotal}}</td></tr>
+  </table>
+  {{else}}
   <p style="font-size:18px;font-weight:bold;text-align:right;margin-top:16px">
     Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
   </p>
+  {{end}}
   <p style="margin:24px 0">
     <a href="https://businesscart.ai/orders" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px">View in Dashboard</a>
   </p>
