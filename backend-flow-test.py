@@ -2191,6 +2191,94 @@ class BackendFlowTest:
 
     # ── Main ─────────────────────────────────────────────────────
 
+    def _orphan_sweep(self):
+        """Scan by PREFIX (not by ownership) and delete anything matching test
+        prefixes. Catches orphans from prior crashed runs where the parent test
+        account no longer exists, so the standard discovery (which queries via
+        known account logins) cannot find them.
+
+        Strict prefix match (startswith) + per-collection safety cap.
+        Requires admin token already in self.jwts['admin']."""
+        SAFETY_CAP = 100
+        if "admin" not in self.jwts:
+            return  # standard discovery handles current-run state if available
+        self.use_token("admin")
+        deleted = {"accounts": 0, "products": 0, "visitors": 0, "codes": 0}
+
+        # Accounts: __test__ or __smoke prefix, excluding ones we just logged in to
+        # (those are tracked through the standard cleanup path).
+        known_ids = set(self.ids.values())
+        try:
+            resp = self.api.get("/accounts")
+            if resp.status_code == 200:
+                orphans = [a for a in (resp.json() or [])
+                           if (a.get("email", "").startswith("__test__") or a.get("email", "").startswith("__smoke"))
+                           and a.get("_id") not in known_ids]
+                if len(orphans) > SAFETY_CAP:
+                    print(f"  ⚠ orphan-sweep: {len(orphans)} accounts exceeds cap {SAFETY_CAP}, aborting")
+                    return
+                for a in orphans:
+                    if self.api.delete(f"/accounts/{a['_id']}").status_code in (200, 204):
+                        deleted["accounts"] += 1
+        except Exception:
+            pass
+
+        # Products: __TEST__ prefix
+        try:
+            resp = self.api.get("/products")
+            if resp.status_code == 200:
+                orphans = [p for p in (resp.json() or []) if p.get("name", "").startswith("__TEST__")]
+                if len(orphans) > SAFETY_CAP:
+                    print(f"  ⚠ orphan-sweep: {len(orphans)} products exceeds cap {SAFETY_CAP}, aborting")
+                    return
+                for p in orphans:
+                    if self.api.delete(f"/products/{p['_id']}").status_code in (200, 204):
+                        deleted["products"] += 1
+        except Exception:
+            pass
+
+        # Visitors: v___test__ prefix
+        try:
+            resp = self.api.get("/visitors")
+            if resp.status_code == 200:
+                body = resp.json() or {}
+                visitors = body.get("visitors", []) if isinstance(body, dict) else body
+                orphans = [v for v in visitors if v.get("visitorId", "").startswith("v___test__")]
+                if len(orphans) > SAFETY_CAP:
+                    print(f"  ⚠ orphan-sweep: {len(orphans)} visitors exceeds cap {SAFETY_CAP}, aborting")
+                    return
+                for v in orphans:
+                    if self.api.delete(f"/visitors?visitorId={v['visitorId']}").status_code in (200, 204):
+                        deleted["visitors"] += 1
+        except Exception:
+            pass
+
+        # Codes: __TEST__ prefix, EXCLUDING ones phase1 just created (in
+        # self.tracker.codes). Without this exclusion the sweep deletes the
+        # codes the current run depends on.
+        try:
+            resp = self.api.get("/codes")
+            if resp.status_code == 200:
+                known_codes = set(self.tracker.codes)
+                orphans = [c for c in (resp.json() or [])
+                           if c.get("companyCode", "").startswith("__TEST__")
+                           and c.get("companyCode") not in known_codes]
+                if len(orphans) > SAFETY_CAP:
+                    print(f"  ⚠ orphan-sweep: {len(orphans)} codes exceeds cap {SAFETY_CAP}, aborting")
+                    return
+                for c in orphans:
+                    code = c.get("companyCode")
+                    if code and self.api.delete(f"/codes/{code}").status_code in (200, 204):
+                        deleted["codes"] += 1
+        except Exception:
+            pass
+
+        total = sum(deleted.values())
+        if total > 0:
+            ok(f"Orphan sweep removed: {deleted}")
+        else:
+            ok("Orphan sweep: no orphans found")
+
     def discover_and_cleanup(self):
         """Log in to known test accounts, discover any leftover test data, and
         run the standard cleanup. Used both in --cleanup-only mode and as a
@@ -2272,6 +2360,14 @@ class BackendFlowTest:
 
         try:
             self.phase1_setup()
+            # Orphan sweep runs AFTER phase1 (admin is now logged in via
+            # login_or_register). Catches __test__/__TEST__ data orphaned by
+            # prior crashed runs whose parent accounts no longer exist.
+            # self.ids has phase1's just-created accounts so sweep excludes them.
+            try:
+                self._orphan_sweep()
+            except Exception as e:
+                print(f"  ⚠ orphan-sweep skipped due to error: {e}")
             self.phase2_company_settings()
             self.phase3_catalog()
             self.phase4_jwt_verification()
