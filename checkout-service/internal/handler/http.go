@@ -98,7 +98,24 @@ func NewLambdaHandler(cartService *cart.Service, quoteService *quote.Service, or
 }
 
 // HandleRequest processes an API Gateway Proxy Request.
-func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (resp events.APIGatewayProxyResponse, err error) {
+	// Panic recover with admin alert. Without this, a panic at checkout time
+	// (the highest-stakes path in the system) becomes a silent 500 from API
+	// Gateway. NotifyAdmin is dedup'd so a repeating panic does not flood.
+	defer func() {
+		if r := recover(); r != nil {
+			// Subject keyed on Resource (route template like /checkout/orders/{orderId}),
+			// not Path (contains unique order IDs). Without this, the dedup map
+			// grows once per unique URL and leaks memory over Lambda container
+			// lifetime. Body keeps the actual path for debugging.
+			body := fmt.Sprintf("path=%s method=%s\npanic=%v", request.Path, request.HTTPMethod, r)
+			mailer.NotifyAdmin(h.emailSender, "panic in checkout-service: "+request.Resource, body)
+			log.Printf("PANIC in HandleRequest path=%s: %v", request.Path, r)
+			resp = h.errorResponse(http.StatusInternalServerError, "Internal server error")
+			err = nil
+		}
+	}()
+
 	h.requestOrigin = request.Headers["origin"]
 	if h.requestOrigin == "" {
 		h.requestOrigin = request.Headers["Origin"]
@@ -924,6 +941,10 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 	}
 	if err := h.emailSender.Send(context.Background(), msg); err != nil {
 		log.Printf("ERROR: statement email send failed for seller=%s recipient=%s: %v", req.SellerID, req.RecipientEmail, err)
+		// Statements are billing artifacts. A failed send means a tenant did not
+		// get billed. Alert so we can re-trigger before month-end accounting.
+		mailer.NotifyAdmin(h.emailSender, "statement email send failed",
+			fmt.Sprintf("seller=%s recipient=%s err=%v", req.SellerID, req.RecipientEmail, err))
 		return h.errorResponse(http.StatusInternalServerError, "Failed to send email"), nil
 	}
 	log.Printf("INFO: statement email sent to %s for seller=%s period=%s total=$%.2f", req.RecipientEmail, req.SellerID, req.PeriodLabel, computed.TotalDue)
