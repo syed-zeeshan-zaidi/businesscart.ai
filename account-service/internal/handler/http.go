@@ -54,7 +54,25 @@ func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName
 	}
 }
 
-func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (resp events.APIGatewayProxyResponse, err error) {
+	// Panic recover with admin alert. Without this, a panic kills the Lambda
+	// invocation silently from the operator's perspective (just a 500 from API
+	// Gateway with no signal). Email goes through the dedup'd NotifyAdmin so a
+	// repeating panic does not flood the inbox.
+	defer func() {
+		if r := recover(); r != nil {
+			// Subject keyed on Resource (bounded route template like
+			// /accounts/{id}), not Path (contains unique IDs). Without this,
+			// the dedup map grows once per unique URL and leaks memory over
+			// Lambda container lifetime. Body keeps the actual path for debug.
+			body := fmt.Sprintf("path=%s method=%s\npanic=%v", request.Path, request.HTTPMethod, r)
+			mailer.NotifyAdmin(h.emailSender, "panic in account-service: "+request.Resource, body)
+			log.Printf("PANIC in HandleRequest path=%s: %v", request.Path, r)
+			resp = h.errorResponse(http.StatusInternalServerError, "Internal server error")
+			err = nil
+		}
+	}()
+
 	h.requestOrigin = request.Headers["origin"]
 	if h.requestOrigin == "" {
 		h.requestOrigin = request.Headers["Origin"]
@@ -454,6 +472,10 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 			}
 			if companies, err := h.db.GetAccountCompaniesDataByIDs(companyIDs); err != nil {
 				log.Printf("Warning: Failed to fetch company data for JWT enforcement: %v", err)
+				// This is the exact site that 500'd uSetGo's admin GET /accounts on
+				// 2026-05-05 (company.shippingRate stored as ""). Alert so the next
+				// data-shape regression is caught in minutes, not customer complaints.
+				mailer.NotifyAdmin(h.emailSender, "Failed to fetch company data", err.Error())
 			} else {
 				for _, c := range companies {
 					if c.CompanyData != nil {
