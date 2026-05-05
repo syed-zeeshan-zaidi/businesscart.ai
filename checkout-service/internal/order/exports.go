@@ -11,7 +11,7 @@ import (
 // cancelled — so the export reflects the full ledger.
 func FormatGenericCSV(orders []*Order) string {
 	var b strings.Builder
-	b.WriteString("Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid\n")
+	b.WriteString("Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid\n")
 	for _, o := range orders {
 		b.WriteString(csvField(o.ID.Hex()))
 		b.WriteString(",")
@@ -30,6 +30,10 @@ func FormatGenericCSV(orders []*Order) string {
 		b.WriteString(formatAmount(o.ShippingCost))
 		b.WriteString(",")
 		b.WriteString(formatAmount(o.TaxAmount))
+		b.WriteString(",")
+		b.WriteString(formatAmount(o.PromoDiscount))
+		b.WriteString(",")
+		b.WriteString(csvField(o.PromoCode))
 		b.WriteString(",")
 		b.WriteString(formatAmount(o.GrandTotal))
 		b.WriteString(",")

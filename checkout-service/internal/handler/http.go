@@ -655,6 +655,11 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		CustomerEmail:     customerEmail,
 		VisitorID:         visitorID,
 		ClickIDs:          clickIDs,
+		// Denormalize coupon from quote so admin order detail, CSV export,
+		// and confirmation email can render the breakdown without re-fetching
+		// the quote (which may be deleted later).
+		PromoCode:     q.PromoCode,
+		PromoDiscount: q.PromoDiscount,
 	}
 
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
@@ -690,11 +695,16 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		}
 		brandName, brandEmail := mailer.CompanyBrand(createdOrder.SellerID)
 		msg := mailer.OrderConfirmationMessage(customerEmail, mailer.OrderConfirmationData{
-			OrderID:    createdOrder.ID.Hex(),
-			GrandTotal: createdOrder.GrandTotal,
-			Items:      items,
-			BrandName:  brandName,
-			BrandEmail: brandEmail,
+			OrderID:       createdOrder.ID.Hex(),
+			Subtotal:      createdOrder.Subtotal,
+			ShippingCost:  createdOrder.ShippingCost,
+			TaxAmount:     createdOrder.TaxAmount,
+			PromoCode:     createdOrder.PromoCode,
+			PromoDiscount: createdOrder.PromoDiscount,
+			GrandTotal:    createdOrder.GrandTotal,
+			Items:         items,
+			BrandName:     brandName,
+			BrandEmail:    brandEmail,
 		})
 		sender, _ := mailer.SenderForCompany(context.Background(), createdOrder.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
@@ -704,10 +714,15 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		// Notify the company owner about the new order — platform sender (BC SES).
 		if ownerEmail := mailer.CompanyOwnerEmail(createdOrder.SellerID); ownerEmail != "" {
 			ownerMsg := mailer.NewOrderToCompanyMessage(ownerEmail, mailer.NewOrderToCompanyData{
-				OrderID:        createdOrder.ID.Hex(),
-				CustomerEmail:  customerEmail,
-				GrandTotal:     createdOrder.GrandTotal,
-				Items:          items,
+				OrderID:       createdOrder.ID.Hex(),
+				CustomerEmail: customerEmail,
+				Subtotal:      createdOrder.Subtotal,
+				ShippingCost:  createdOrder.ShippingCost,
+				TaxAmount:     createdOrder.TaxAmount,
+				PromoCode:     createdOrder.PromoCode,
+				PromoDiscount: createdOrder.PromoDiscount,
+				GrandTotal:    createdOrder.GrandTotal,
+				Items:         items,
 			})
 			if err := h.emailSender.Send(context.Background(), ownerMsg); err != nil {
 				log.Printf("WARN: new-order notification to owner %s failed: %v", ownerEmail, err)

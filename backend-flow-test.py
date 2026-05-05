@@ -817,6 +817,83 @@ class BackendFlowTest:
 
         self.run_test("5g. Coupon promo (SAVE5/SAVE10, gating, case-insensitive)", test_coupon_promo)
 
+        # 5h. Coupon end-to-end through email: place a real order with SAVE10,
+        # then read Mailpit and assert the discount line + code rendered in the
+        # customer confirmation AND the merchant new-order email. Pins the
+        # money-field-through-every-read-path rule (templates render what was
+        # denormalized onto the Order).
+        def test_coupon_email_render():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            quote_resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 5000, "minOrderAmountLimit": 20, "maxOrderAmountLimit": 5000,
+                "promoCode": "SAVE10", "couponsEnabled": True,
+            })
+            assert_status(quote_resp, 200, "Quote with SAVE10 for email test")
+            q = quote_resp.json()
+            quote_id = q.get("id")
+            promo_discount = q.get("promoDiscount", 0)
+            assert promo_discount > 0, f"Quote must have a discount before placing order: {promo_discount}"
+
+            self.use_token("customer")
+            order_resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            assert_status(order_resp, 200, "Place coupon order")
+            o = order_resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
+
+            # Order must carry promoCode + promoDiscount (denormalization)
+            assert o.get("promoCode") == "SAVE10", f"order.promoCode: {o.get('promoCode')}"
+            assert abs(o.get("promoDiscount", 0) - promo_discount) < 0.01, f"order.promoDiscount: {o.get('promoDiscount')}"
+            ok(f"Order persisted promoCode=SAVE10, promoDiscount=${o.get('promoDiscount', 0):.2f}")
+
+            # Mailpit: poll for the customer order confirmation. Merchant
+            # new-order email needs an SSM EMAIL_COMPANY_CONFIGS entry which
+            # only exists in prod, so locally only the customer email fires.
+            # Merchant render path is pinned by templates_test.go.
+            short_id = order_id[-6:]
+            mailpit_url = "http://localhost:8025/api/v1/messages"
+            customer_msg = None
+            for _ in range(15):
+                try:
+                    r = requests.get(mailpit_url, params={"limit": 50}, timeout=2)
+                    if r.status_code == 200:
+                        for m in (r.json().get("messages", []) or []):
+                            if m.get("Subject") == f"Order confirmation #{short_id}":
+                                customer_msg = m
+                                break
+                        if customer_msg:
+                            break
+                except Exception:
+                    pass
+                time.sleep(0.5)
+
+            assert customer_msg, f"Customer order confirmation #{short_id} not found in Mailpit"
+
+            body_resp = requests.get(f"http://localhost:8025/api/v1/message/{customer_msg['ID']}", timeout=3)
+            assert body_resp.status_code == 200, f"Mailpit fetch body: {body_resp.status_code}"
+            body = body_resp.json()
+            text = body.get("Text") or ""
+            html = body.get("HTML") or ""
+
+            assert f"Discount (SAVE10): -${promo_discount:.2f}" in text, \
+                f"text body missing 'Discount (SAVE10): -${promo_discount:.2f}'\n--- text ---\n{text}\n"
+            assert "Discount (SAVE10)" in html and f"-${promo_discount:.2f}" in html, \
+                f"HTML body missing discount row\n--- html snippet ---\n{html[:1500]}\n"
+            ok(f"Customer email renders Discount (SAVE10) -${promo_discount:.2f} in text + HTML")
+
+            # Cancel so this order's grandTotal doesn't count against the
+            # customer's outstanding balance for the credit-limit test (6e).
+            self.use_token("admin")
+            self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
+
+        self.run_test("5h. Coupon end-to-end: order email shows discount line", test_coupon_email_render)
+
     # ── Phase 5b: Tiered pricing tests ─────────────────────────────
 
     def phase5b_tiered_pricing(self):

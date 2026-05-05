@@ -88,6 +88,8 @@ export interface Order {
   shippingCost: number;
   taxAmount: number;
   grandTotal: number;
+  promoCode?: string;
+  promoDiscount?: number;
   transactionId?: string;
   createdAt: string;
   status: string;

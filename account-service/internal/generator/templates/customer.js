@@ -100,6 +100,7 @@
                                 <div style="border-top:2px solid #e2e8f0;margin-top:0.75rem;padding-top:0.75rem;">
                                     ${order.shippingCost ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.25rem;"><span>Shipping</span><span>$${order.shippingCost.toFixed(2)}</span></div>` : ''}
                                     ${order.taxAmount ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;"><span>Tax</span><span>$${order.taxAmount.toFixed(2)}</span></div>` : ''}
+                                    ${order.promoDiscount && order.promoDiscount > 0 ? (() => { const escCode = String(order.promoCode || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); return `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#059669;margin-bottom:0.5rem;"><span>Discount${escCode ? ' (' + escCode + ')' : ''}</span><span>-$${order.promoDiscount.toFixed(2)}</span></div>`; })() : ''}
                                     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:#0f172a;">
                                         <span>Total</span>
                                         <span>$${(order.grandTotal || 0).toFixed(2)}</span>
@@ -1568,6 +1569,7 @@
                             <div class="od-row"><span>Subtotal</span><span>$${(order.subtotal || 0).toFixed(2)}</span></div>
                             <div class="od-row"><span>Shipping</span><span>$${(order.shippingCost || 0).toFixed(2)}</span></div>
                             <div class="od-row"><span>Tax</span><span>$${(order.taxAmount || 0).toFixed(2)}</span></div>
+                            ${order.promoDiscount && order.promoDiscount > 0 ? `<div class="od-row" style="color:#059669"><span>Discount${order.promoCode ? ' (' + escText(order.promoCode) + ')' : ''}</span><span>-$${order.promoDiscount.toFixed(2)}</span></div>` : ''}
                             <div class="od-row total"><span>Total</span><span>$${(order.grandTotal || 0).toFixed(2)}</span></div>
                         </section>
 

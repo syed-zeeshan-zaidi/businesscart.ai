@@ -590,6 +590,9 @@ const OrderForm = () => {
                   <div className="flex justify-between text-gray-600"><dt>Subtotal</dt><dd>${editingOrder.subtotal.toFixed(2)}</dd></div>
                   <div className="flex justify-between text-gray-600"><dt>Shipping</dt><dd>${editingOrder.shippingCost.toFixed(2)}</dd></div>
                   <div className="flex justify-between text-gray-600"><dt>Tax</dt><dd>${editingOrder.taxAmount.toFixed(2)}</dd></div>
+                  {editingOrder.promoDiscount && editingOrder.promoDiscount > 0 ? (
+                    <div className="flex justify-between text-emerald-600"><dt>Discount{editingOrder.promoCode ? ` (${editingOrder.promoCode})` : ''}</dt><dd>-${editingOrder.promoDiscount.toFixed(2)}</dd></div>
+                  ) : null}
                   <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t border-gray-200"><dt>Total</dt><dd>${editingOrder.grandTotal.toFixed(2)}</dd></div>
                 </dl>
               </section>

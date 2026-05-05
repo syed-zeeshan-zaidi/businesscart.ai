@@ -120,6 +120,8 @@ func TestFormatGenericCSV(t *testing.T) {
 			TaxAmount:       2.72,
 			GrandTotal:      50.69,
 			Items:           make([]cart.CartItem, 3),
+			PromoCode:       "SAVE10",
+			PromoDiscount:   3.30,
 			TrackingNumber:  "1Z999",
 			TrackingCarrier: "ups",
 			VisitorID:       "v_abc",
@@ -129,7 +131,7 @@ func TestFormatGenericCSV(t *testing.T) {
 	out := FormatGenericCSV(orders)
 
 	// Header anchors column positions for spreadsheet imports
-	wantHeader := "Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid"
+	wantHeader := "Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid"
 	if !strings.HasPrefix(out, wantHeader) {
 		t.Errorf("CSV header mismatch.\n got: %q\nwant prefix: %q", strings.SplitN(out, "\n", 2)[0], wantHeader)
 	}
@@ -140,7 +142,7 @@ func TestFormatGenericCSV(t *testing.T) {
 		"2026-05-04 14:30:00",
 		"shipped",
 		"buyer@example.com",
-		"32.97", "15.00", "2.72", "50.69",
+		"32.97", "15.00", "2.72", "3.30", "SAVE10", "50.69",
 		",3,",        // Items column
 		"1Z999",
 		"ups",
