@@ -187,6 +187,7 @@ type AttachedCompaniesData struct {
 	ShippingRate          float64             `json:"shippingRate,omitempty"`
 	Status                string              `json:"status"`
 	QuotesAllowed         bool                `bson:"quotesAllowed" json:"quotesAllowed"`
+	CouponsEnabled        bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
 	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
 	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
@@ -200,6 +201,7 @@ type CustomerConfiguration struct {
 	DeliveryMethods       *[]DeliveryMethod    `bson:"deliveryMethods,omitempty" json:"deliveryMethods,omitempty"`
 	ShippingOutOptions    *[]ShippingOutOption `bson:"shippingOutOptions,omitempty" json:"shippingOutOptions,omitempty"`
 	QuotesAllowed         *bool                `bson:"quotesAllowed,omitempty" json:"quotesAllowed,omitempty"`
+	CouponsEnabled        *bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	CreditLimit           *float64             `bson:"creditLimit,omitempty" json:"creditLimit,omitempty"`
 	MinOrderAmountLimit   *float64             `bson:"minOrderAmountLimit,omitempty" json:"minOrderAmountLimit,omitempty"`
 	MaxOrderAmountLimit   *float64             `bson:"maxOrderAmountLimit,omitempty" json:"maxOrderAmountLimit,omitempty"`

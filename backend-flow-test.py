@@ -354,6 +354,37 @@ class BackendFlowTest:
         assert_status(resp, 200, "Update company1 settings")
         ok("Company1 defaults set")
 
+        # API-first contract: backend rejects type mismatches at the boundary so
+        # the DB never holds invalid state. The actual prod-bug shape was empty
+        # string for shippingRate (frontend cleared <input type=number>), which
+        # silently corrupted the doc and 500'd every later admin GET /accounts.
+        step("Reject empty string for numeric field (the actual prod bug shape)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"shippingRate": ""},
+        })
+        assert_status(resp, 400, "Empty string for numeric field")
+        ok("Empty string for shippingRate rejected with 400")
+
+        step("Reject string for boolean field")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"taxableGoods": "yes"},
+        })
+        assert_status(resp, 400, "String for boolean field")
+        ok("String for taxableGoods rejected with 400")
+
+        step("Backward compat: null clears a numeric field (still allowed)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"leadTime": None},
+        })
+        assert_status(resp, 200, "Null for numeric field accepted")
+        ok("Null for leadTime accepted (backward compatible)")
+
+        # Re-set leadTime so downstream tests have the value they expect
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "company": {"leadTime": 3},
+        })
+        assert_status(resp, 200, "Restore leadTime")
+
         step("Set customer override (creditLimit: 300)")
         cust_id = self.ids["customer"]
         resp = self.api.patch(f"/customers/{cust_id}/configuration", {

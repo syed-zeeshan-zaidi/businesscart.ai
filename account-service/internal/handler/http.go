@@ -510,6 +510,7 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 			// TaxableGoods: customer override only (same as existing 5 fields)
 			if e.Configuration != nil {
 				config.TaxableGoods = e.Configuration.TaxableGoods
+				config.CouponsEnabled = e.Configuration.CouponsEnabled
 			}
 
 			configs = append(configs, config)
@@ -839,6 +840,7 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 							TaxRate:               c.CompanyData.TaxRate,
 							ShippingRate:          c.CompanyData.ShippingRate,
 							QuotesAllowed:         c.CompanyData.QuotesAllowed,
+							CouponsEnabled:        c.CompanyData.CouponsEnabled,
 							Status:                c.CompanyData.Status,
 							ShippingOutOptions:    c.CompanyData.ShippingOutOptions,
 							PaymentMethods:        c.CompanyData.PaymentMethods,
@@ -876,6 +878,15 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
+	}
+
+	// API-first contract: reject type mismatches at the boundary so the DB
+	// never holds invalid state. Specifically guards against the frontend
+	// sending "" for a cleared <input type=number>, which Go's BSON decoder
+	// later rejects with "cannot decode string into a float64" → 500 on every
+	// admin GET /accounts. See validateCompanyFieldTypes for the full rule.
+	if err := validateCompanyFieldTypes(payload.Company); err != nil {
+		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 	}
 
 	// Sanitize string fields that affect URLs and display
@@ -1805,6 +1816,51 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 		"page":     page,
 		"perPage":  perPage,
 	}, http.StatusOK), nil
+}
+
+// validateCompanyFieldTypes enforces the API contract: payload fields with
+// known types in CompanyData must arrive as that type. Empty strings for
+// numeric fields, strings for booleans, etc. are rejected with 400 BEFORE
+// any DB write — preventing the silent corruption pattern where a cleared
+// <input type=number> on the admin form sends "" and the BSON decoder later
+// 500s on every read of that doc.
+//
+// Rules:
+//   - numericFields: must be float64 if present and non-null
+//   - booleanFields: must be bool if present and non-null
+//   - null is allowed for any optional field (clears it)
+//   - missing fields are allowed (partial update — backward compatible)
+//   - any other field passes through unchanged (string sanitization, D2C,
+//     customerGroups validation are handled downstream as before)
+func validateCompanyFieldTypes(company map[string]interface{}) error {
+	numericFields := []string{
+		"shippingRate", "taxRate", "creditLimit", "leadTime",
+		"minOrderAmountLimit", "maxOrderAmountLimit",
+		"minOrderQuantityLimit", "maxOrderQuantityLimit",
+		"monthlyOrderLimit", "yearlyOrderLimit",
+	}
+	for _, field := range numericFields {
+		v, ok := company[field]
+		if !ok || v == nil {
+			continue
+		}
+		if _, isNum := v.(float64); !isNum {
+			return fmt.Errorf("%s must be a number, got %T (%v)", field, v, v)
+		}
+	}
+
+	booleanFields := []string{"taxableGoods", "quotesAllowed", "couponsEnabled"}
+	for _, field := range booleanFields {
+		v, ok := company[field]
+		if !ok || v == nil {
+			continue
+		}
+		if _, isBool := v.(bool); !isBool {
+			return fmt.Errorf("%s must be a boolean, got %T (%v)", field, v, v)
+		}
+	}
+
+	return nil
 }
 
 func validatePassword(password string) error {

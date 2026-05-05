@@ -305,23 +305,31 @@
             return response.ok ? await response.json() : null;
         },
 
-        async createQuote(sellerId, addresses) {
+        async createQuote(sellerId, addresses, promoCode) {
             if (!this.token) return null;
             const cfg = window.D2C_CONFIG || {};
+            const body = {
+                sellerId: sellerId,
+                paymentMethods: cfg.paymentMethods || ['pickup_&_pay'],
+                deliveryMethods: cfg.deliveryMethods || ['shipping_out'],
+                shippingOutOptions: cfg.shippingOutOptions || ['standard'],
+                quotesAllowed: false,
+                companyLocations: [],
+                customerAddresses: addresses || [],
+                configurations: [],
+                quoteType: 'standard'
+            };
+            // Coupon: only sent if the company has the feature enabled (baked into
+            // D2C_CONFIG at storefront-gen time). Customer-level override on the JWT
+            // is applied server-side; the server is the source of truth.
+            if (cfg.couponsEnabled) {
+                body.couponsEnabled = true;
+                if (promoCode) body.promoCode = String(promoCode).trim();
+            }
             const response = await fetch(`${API_BASE}/checkout/quotes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-                body: JSON.stringify({
-                    sellerId: sellerId,
-                    paymentMethods: cfg.paymentMethods || ['pickup_&_pay'],
-                    deliveryMethods: cfg.deliveryMethods || ['shipping_out'],
-                    shippingOutOptions: cfg.shippingOutOptions || ['standard'],
-                    quotesAllowed: false,
-                    companyLocations: [],
-                    customerAddresses: addresses || [],
-                    configurations: [],
-                    quoteType: 'standard'
-                })
+                body: JSON.stringify(body)
             });
             return response.ok ? await response.json() : null;
         },
@@ -426,6 +434,22 @@
             overlay.style = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)';
             overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:3rem;text-align:center;font-weight:700;color:#374151">Preparing checkout...</div>';
             document.body.appendChild(overlay);
+        },
+
+        // Renders only the totals block. Called on initial overlay render and again
+        // after a coupon is applied (innerHTML swap, no full overlay rebuild).
+        // Inline escape (escText is scoped inside _showCheckoutOverlay; this method
+        // is invoked both from inside that scope and from the apply handler).
+        _renderCheckoutTotals(quote) {
+            const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const promo = quote.promoDiscount || 0;
+            return `
+                <div class="checkout-summary-row"><span>Subtotal</span><span>$${(quote.subtotal || 0).toFixed(2)}</span></div>
+                <div class="checkout-summary-row"><span>Shipping</span><span>$${(quote.shippingCost || 0).toFixed(2)}</span></div>
+                <div class="checkout-summary-row"><span>Tax</span><span>$${(quote.taxAmount || 0).toFixed(2)}</span></div>
+                ${promo > 0 ? `<div class="checkout-summary-row" style="color:#059669"><span>Discount${quote.promoCode ? ' (' + esc(quote.promoCode) + ')' : ''}</span><span>-$${promo.toFixed(2)}</span></div>` : ''}
+                <div class="checkout-summary-row total"><span>Grand Total</span><span>$${(quote.grandTotal || 0).toFixed(2)}</span></div>
+            `;
         },
 
         _showCheckoutOverlay(quote) {
@@ -700,12 +724,20 @@
                                 <div class="checkout-item-price">$${lineTotal.toFixed(2)}</div>
                             </div>`;
                         }).join('')}
-                        <div style="margin-top:12px">
-                            <div class="checkout-summary-row"><span>Subtotal</span><span>$${(quote.subtotal || 0).toFixed(2)}</span></div>
-                            <div class="checkout-summary-row"><span>Shipping</span><span>$${(quote.shippingCost || 0).toFixed(2)}</span></div>
-                            <div class="checkout-summary-row"><span>Tax</span><span>$${(quote.taxAmount || 0).toFixed(2)}</span></div>
-                            <div class="checkout-summary-row total"><span>Grand Total</span><span>$${(quote.grandTotal || 0).toFixed(2)}</span></div>
+                        <div style="margin-top:12px" id="checkout-totals">
+                            ${this._renderCheckoutTotals(quote)}
                         </div>
+
+                        ${(window.D2C_CONFIG || {}).couponsEnabled ? `
+                        <div class="checkout-section" id="checkout-coupon-section">
+                            <h3>Coupon</h3>
+                            <div style="display:flex;gap:8px">
+                                <input type="text" id="checkout-coupon-input" placeholder="Enter code (e.g., SAVE10)" value="${escAttr(quote.promoCode || '')}" autocomplete="off" inputmode="latin" style="flex:1;padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;text-transform:uppercase">
+                                <button type="button" id="checkout-coupon-apply" style="background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">Apply</button>
+                            </div>
+                            <div id="checkout-coupon-status" style="font-size:12px;margin-top:6px;min-height:14px"></div>
+                        </div>
+                        ` : ''}
 
                         ${deliveryMethods.length > 1 ? `
                         <div class="checkout-section">
@@ -783,6 +815,42 @@
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.remove();
             });
+
+            // Coupon apply: rebuild quote with promoCode, swap totals in place. The Apply
+            // button is the only new network call this UI introduces; nothing fires on
+            // overlay-open or main-thread render.
+            const couponApply = document.getElementById('checkout-coupon-apply');
+            if (couponApply) {
+                couponApply.addEventListener('click', async () => {
+                    const input = document.getElementById('checkout-coupon-input');
+                    const status = document.getElementById('checkout-coupon-status');
+                    const code = (input?.value || '').trim();
+                    if (!code) { if (status) status.textContent = ''; return; }
+                    couponApply.disabled = true;
+                    if (status) { status.style.color = '#6b7280'; status.textContent = 'Applying...'; }
+                    try {
+                        const updated = await this.createQuote(quote.sellerId, customerAddresses, code);
+                        if (!updated) throw new Error('Update failed');
+                        // Update outer quote ref so place-order uses the new totals.
+                        Object.assign(quote, updated);
+                        const totalsEl = document.getElementById('checkout-totals');
+                        if (totalsEl) totalsEl.innerHTML = this._renderCheckoutTotals(quote);
+                        if (status) {
+                            if ((updated.promoDiscount || 0) > 0) {
+                                status.style.color = '#059669';
+                                status.textContent = `Code applied: -$${updated.promoDiscount.toFixed(2)}`;
+                            } else {
+                                status.style.color = '#dc2626';
+                                status.textContent = 'Code not recognized';
+                            }
+                        }
+                    } catch {
+                        if (status) { status.style.color = '#dc2626'; status.textContent = 'Could not apply code'; }
+                    } finally {
+                        couponApply.disabled = false;
+                    }
+                });
+            }
 
             // Toggle address/pickup/shipping sections when delivery method changes.
             // Multi-delivery is now a radio group; sync selected value to the hidden #checkout-delivery

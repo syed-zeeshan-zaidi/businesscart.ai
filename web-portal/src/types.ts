@@ -202,6 +202,7 @@ export interface CompanyData {
   taxRate?: number;
   shippingRate?: number;
   quotesAllowed?: boolean;
+  couponsEnabled?: boolean;
   companyCodeId?: string;
   companyCode: string;
   sellingArea: {

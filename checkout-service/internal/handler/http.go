@@ -45,6 +45,7 @@ type CustomerConfiguration struct {
 	DeliveryMethods       []string `json:"deliveryMethods,omitempty"`
 	ShippingOutOptions    []string `json:"shippingOutOptions,omitempty"`
 	QuotesAllowed         *bool    `json:"quotesAllowed,omitempty"`
+	CouponsEnabled        *bool    `json:"couponsEnabled,omitempty"`
 	CreditLimit           *float64 `json:"creditLimit,omitempty"`
 	MinOrderAmountLimit   *float64 `json:"minOrderAmountLimit,omitempty"`
 	MaxOrderAmountLimit   *float64 `json:"maxOrderAmountLimit,omitempty"`
@@ -225,6 +226,9 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 				}
 				if v, ok := configMap["taxableGoods"].(bool); ok {
 					customerConfig.TaxableGoods = &v
+				}
+				if v, ok := configMap["couponsEnabled"].(bool); ok {
+					customerConfig.CouponsEnabled = &v
 				}
 				if v, ok := configMap["taxRate"].(float64); ok {
 					customerConfig.TaxRate = &v
@@ -1303,9 +1307,18 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	grandTotal := cart.TotalPrice + shippingCost + taxAmount
 
 	// Hardcoded coupon: applies only when company has CouponsEnabled and a code was sent.
-	// Discount applies to subtotal; stacks with per-customer discount; tax computed before discount.
+	// Effective rule mirrors taxableGoods/quotesAllowed: company default from request body,
+	// per-customer override from JWT configurations (signed by account-service, not forgeable).
+	// Tax computed BEFORE the discount so the merchant remits the right tax to the state.
+	effectiveCouponsEnabled := req.CouponsEnabled
+	for _, config := range configurations {
+		if config.CompanyID == req.SellerID && config.CouponsEnabled != nil {
+			effectiveCouponsEnabled = *config.CouponsEnabled
+			break
+		}
+	}
 	var promoDiscount float64
-	if req.CouponsEnabled && req.PromoCode != "" {
+	if effectiveCouponsEnabled && req.PromoCode != "" {
 		promoDiscount = h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode)
 		grandTotal -= promoDiscount
 		if grandTotal < 0 {
