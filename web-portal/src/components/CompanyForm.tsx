@@ -416,10 +416,38 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
         return;
       }
     }
+    // Coerce numeric form fields to numbers at the wire boundary. <input type=number>
+    // returns string per HTML spec, so without this the API-first backend (which now
+    // rejects type-mismatched values) would 400 on every save. Empty strings drop the
+    // field entirely so partial updates preserve the existing stored value. Form state
+    // stays as strings to keep decimal typing fluid (e.g., "15." mid-keystroke).
+    const NUMERIC_FIELDS: (keyof CompanyData)[] = [
+      'creditLimit', 'leadTime', 'taxRate', 'shippingRate',
+      'minOrderAmountLimit', 'maxOrderAmountLimit',
+      'minOrderQuantityLimit', 'maxOrderQuantityLimit',
+      'monthlyOrderLimit', 'yearlyOrderLimit',
+    ];
+    const wirePayload: Record<string, unknown> = { ...companyData };
+    for (const f of NUMERIC_FIELDS) {
+      const v = wirePayload[f];
+      if (v === '' || v === undefined || v === null) {
+        delete wirePayload[f];
+        continue;
+      }
+      if (typeof v === 'string') {
+        const n = parseFloat(v);
+        if (Number.isNaN(n)) {
+          toast.error(`${f} must be a number`);
+          return;
+        }
+        wirePayload[f] = n;
+      }
+    }
+
     setIsSaving(true);
     try {
       const updatedAccount = await updateAccount(account._id, {
-        company: companyData as CompanyData
+        company: wirePayload as unknown as CompanyData
       });
       toast.success('Company data updated successfully');
       onSave(updatedAccount);
