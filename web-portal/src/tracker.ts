@@ -29,15 +29,32 @@ function getVisitorId(): string {
   return id;
 }
 
+// Strip self-referrals (e.g. businesscart.ai -> businesscart.ai). Backend
+// inferSource defaults unknown referrers to "referral / referral"; sending
+// an empty string makes it fall through to "direct / direct".
+function cleanReferrer(ref: string): string {
+  if (!ref) return '';
+  try {
+    const rh = new URL(ref).hostname.replace(/^www\./, '').toLowerCase();
+    const ch = window.location.hostname.replace(/^www\./, '').toLowerCase();
+    if (rh === ch) return '';
+  } catch { /* invalid URL — leave as-is */ }
+  return ref;
+}
+
 function getAttribution(): Record<string, string> {
   try {
     const existing = safeLocalGet(ATTR_KEY);
-    if (existing) return JSON.parse(existing);
+    if (existing) {
+      const cached = JSON.parse(existing);
+      cached.referrer = cleanReferrer(cached.referrer || '');
+      return cached;
+    }
   } catch { /* corrupted data — recapture */ }
 
   const params = new URLSearchParams(window.location.search);
   const attribution: Record<string, string> = {
-    referrer: document.referrer || '',
+    referrer: cleanReferrer(document.referrer || ''),
     landingPage: window.location.pathname,
     utm_source: params.get('utm_source') || '',
     utm_medium: params.get('utm_medium') || '',
