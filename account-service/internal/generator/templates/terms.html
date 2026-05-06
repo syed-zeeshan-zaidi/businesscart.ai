@@ -20,7 +20,11 @@
         h2 { font-size: 1.4rem; font-weight: 700; margin: 2rem 0 0.75rem; }
         main p, main li { color: #475569; } ul { padding-left: 1.5rem; }
         .last-updated { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; }
-        .custom-text { white-space: pre-wrap; color: #475569; background: #f1f5f9; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+        .custom-text { color: #475569; margin: 1rem 0; }
+        .custom-text h2 { font-size: 1.4rem; font-weight: 700; margin: 2rem 0 0.75rem; color: var(--text); }
+        .custom-text p { margin: 0 0 1rem; }
+        .custom-text ul { padding-left: 1.5rem; margin: 0 0 1rem; }
+        .custom-text li { margin-bottom: 0.25rem; }
         @media (max-width: 768px) { h1 { font-size: 2rem; } main { padding: 2rem 5%; } }
         [[template "global_css" .]]
     </style>
@@ -36,41 +40,7 @@
         <h1>Terms of Service</h1>
         <p class="last-updated">Last updated: [[.Timestamp]]</p>
 
-        <h2>1. Acceptance of Terms</h2>
-        <p>By accessing and using the [[.Company.Name]] online store, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use this store.</p>
-
-        <h2>2. Products and Pricing</h2>
-        <p>All products listed on this store are offered by [[.Company.Name]]. Prices are listed in USD and are subject to change without notice. We make every effort to display accurate pricing and product information, but errors may occur. We reserve the right to correct any errors and to cancel orders placed at incorrect prices.</p>
-
-        <h2>3. Orders and Payment</h2>
-        <p>When you place an order, you agree to provide accurate and complete information. All payments are processed securely through our third-party payment provider. [[.Company.Name]] does not store your credit card information. We reserve the right to refuse or cancel any order for any reason.</p>
-
-        <h2>4. Account Responsibility</h2>
-        <p>If you create an account on this store, you are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account. You agree to notify us immediately of any unauthorized use of your account.</p>
-
-        [[if .Company.DeliveryMethods]]
-        <h2>5. Delivery</h2>
-        <p>[[.Company.Name]] offers the following delivery options:</p>
-        <ul>
-            [[range .Company.DeliveryMethods]]
-            [[if eq (printf "%s" .) "pickup"]]<li>Pickup — Collect your order at our location.</li>[[end]]
-            [[if eq (printf "%s" .) "dropoff"]]<li>Dropoff — We deliver to your location.</li>[[end]]
-            [[if eq (printf "%s" .) "shipping_out"]]<li>Shipping — We ship orders to your address via carrier.</li>[[end]]
-            [[end]]
-        </ul>
-        <p>Delivery times may vary. We are not responsible for delays caused by carriers or circumstances beyond our control.</p>
-        [[end]]
-
-        <h2>6. Limitation of Liability</h2>
-        <p>[[.Company.Name]] shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of this store or your inability to use this store, including but not limited to loss of profits, data, or business opportunity.</p>
-
-        <h2>7. Changes to Terms</h2>
-        <p>We may update these terms from time to time. Continued use of this store after changes are posted constitutes acceptance of the updated terms.</p>
-
-        [[if .Config.TermsText]]
-        <h2>8. Additional Terms</h2>
-        <div class="custom-text">[[.Config.TermsText]]</div>
-        [[end]]
+        <div class="custom-text">[[safeHTML .Config.TermsText]]</div>
 
         <h2>Contact</h2>
         <p>Questions about these terms? Contact us:</p>
