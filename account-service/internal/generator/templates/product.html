@@ -243,7 +243,44 @@
         "url": "https://[[.Domain]]/products/[[.Product.Filename]].html",
         "priceCurrency": "USD",
         "price": "[[if .Product.DealPrice]][[printf "%.2f" .Product.DiscountedPrice]][[else]][[printf "%.2f" .Product.Price]][[end]]",
-        "availability": "https://schema.org/[[if gt .Product.Stock 0]]InStock[[else]]OutOfStock[[end]]"[[if .Product.DealPrice]],
+        "availability": "https://schema.org/[[if gt .Product.Stock 0]]InStock[[else]]OutOfStock[[end]]",
+        "itemCondition": "https://schema.org/NewCondition",[[if and .Product.DealPrice .Product.DealEndDate]]
+        "priceValidUntil": "[[.Product.DealEndDate.Format "2006-01-02"]]",[[end]]
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "US",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": 30,
+          "returnMethod": "https://schema.org/ReturnByMail",
+          "returnFees": "https://schema.org/FreeReturn"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": "[[if .Company.ShippingRate]][[printf "%.2f" .Company.ShippingRate]][[else]]0.00[[end]]",
+            "currency": "USD"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "US"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 0,
+              "maxValue": [[if .Company.LeadTime]][[printf "%.0f" .Company.LeadTime]][[else]]2[[end]],
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 1,
+              "maxValue": 5,
+              "unitCode": "DAY"
+            }
+          }
+        }[[if .Product.DealPrice]],
         "priceSpecification": {
           "@type": "PriceSpecification",
           "price": "[[printf "%.2f" .Product.DiscountedPrice]]",
@@ -302,6 +339,10 @@
     </nav>
 
     <main itemscope itemtype="https://schema.org/Product">
+        <meta itemprop="url" content="https://[[.Domain]]/products/[[.Product.Filename]].html">
+        <span itemprop="brand" itemscope itemtype="https://schema.org/Brand" style="display:none">
+            <meta itemprop="name" content="[[.Company.Name]]">
+        </span>
         <section class="image-section">
             <div class="image-card">
                 [[if .Product.Image]]
@@ -339,7 +380,7 @@
                         <span itemprop="priceCurrency" content="USD">$</span><span itemprop="price">[[printf "%.2f"
                             .Product.DiscountedPrice]]</span>
                     </span>
-                    <span
+                    <span aria-label="Original price"
                         style="text-decoration:line-through; font-size:2rem; opacity:0.6; font-weight:700; color:var(--text)">
                         $[[printf "%.2f" .Product.Price]]
                     </span>
@@ -427,11 +468,11 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#64748b">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                    <span>[[if .Config.ShippingBadge]][[.Config.ShippingBadge]][[else]]Shipping Available[[end]]</span>
+                    <span>[[if .Config.ShippingBadge]][[.Config.ShippingBadge]][[else]]Fast Shipping[[end]]</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:#64748b">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                    <span>[[if .Config.ReturnsBadge]][[.Config.ReturnsBadge]][[else]]Returns &amp; Refunds[[end]]</span>
+                    <span>[[if .Config.ReturnsBadge]][[.Config.ReturnsBadge]][[else]]Free 30-Day Returns[[end]]</span>
                 </div>
             </div>
 
