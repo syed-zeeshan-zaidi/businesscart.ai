@@ -44,19 +44,33 @@
         return {};
     }
 
+    // Strip self-referrals (e.g. www.usetgo.com -> usetgo.com). Backend
+    // inferSource defaults unknown referrers to "referral / referral";
+    // sending an empty string makes it fall through to "direct / direct".
+    function cleanReferrer(ref) {
+        if (!ref) return '';
+        try {
+            var rh = new URL(ref).hostname.replace(/^www\./, '').toLowerCase();
+            var ch = window.location.hostname.replace(/^www\./, '').toLowerCase();
+            if (rh === ch) return '';
+        } catch (e) {}
+        return ref;
+    }
+
     function attribution() {
         var ids = clickIds();
         try {
             var cached = lsGet(ATTR_KEY);
             if (cached) {
                 var c = JSON.parse(cached);
+                c.referrer = cleanReferrer(c.referrer || '');
                 c.clickIds = ids;
                 return c;
             }
         } catch (e) {}
         var p = new URLSearchParams(window.location.search);
         var attr = {
-            referrer: document.referrer || '',
+            referrer: cleanReferrer(document.referrer || ''),
             landingPage: window.location.pathname,
             utm_source: p.get('utm_source') || '',
             utm_medium: p.get('utm_medium') || '',
