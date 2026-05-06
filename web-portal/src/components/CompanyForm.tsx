@@ -757,6 +757,10 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                   </div>
                 </div>
 
+                <div className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <strong>Storefront pages</strong> render your text directly with no platform default content. Allowed HTML tags: <code>&lt;h2&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;li&gt;</code>. All other tags and attributes (links, images, scripts, styles) are escaped for safety.
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700">About Us (shown on storefront homepage)</label>
                   <textarea
@@ -770,37 +774,37 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Additional Privacy Policy (optional)</label>
+                  <label className="block text-sm font-medium text-gray-700">Privacy Policy</label>
                   <textarea
                     name="d2c.privacyText"
                     value={companyData.d2c?.privacyText || ''}
                     onChange={handleChange}
-                    rows={3}
-                    placeholder="Add company-specific privacy policies. A default policy is always included on your storefront."
+                    rows={5}
+                    placeholder="Your full privacy policy. If left blank the storefront privacy page will be empty."
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Additional Terms of Service (optional)</label>
+                  <label className="block text-sm font-medium text-gray-700">Terms of Service</label>
                   <textarea
                     name="d2c.termsText"
                     value={companyData.d2c?.termsText || ''}
                     onChange={handleChange}
-                    rows={3}
-                    placeholder="Add company-specific terms. Default terms are always included on your storefront."
+                    rows={5}
+                    placeholder="Your full terms of service. If left blank the storefront terms page will be empty."
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Additional Shipping & Returns Info (optional)</label>
+                  <label className="block text-sm font-medium text-gray-700">Shipping & Returns Policy</label>
                   <textarea
                     name="d2c.shippingText"
                     value={companyData.d2c?.shippingText || ''}
                     onChange={handleChange}
-                    rows={3}
-                    placeholder="Add shipping timelines, return windows, or specific policies. Default shipping info is always included."
+                    rows={5}
+                    placeholder="Your full shipping and returns policy. If left blank the storefront shipping page will be empty."
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
                   />
                 </div>

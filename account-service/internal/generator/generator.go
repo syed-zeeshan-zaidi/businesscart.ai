@@ -749,14 +749,20 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			return slugify(primary) + "-" + slugify(sub)
 		},
 		"safeHTML": func(s string) template.HTML {
-			// Allow only p, strong, br, em tags — strip everything else
-			safe := strings.ReplaceAll(s, "<script", "&lt;script")
-			safe = strings.ReplaceAll(safe, "<iframe", "&lt;iframe")
-			safe = strings.ReplaceAll(safe, "<img", "&lt;img")
-			safe = strings.ReplaceAll(safe, "<a ", "&lt;a ")
-			safe = strings.ReplaceAll(safe, "onclick", "")
-			safe = strings.ReplaceAll(safe, "onerror", "")
-			return template.HTML(safe)
+			// Allowlist: escape EVERYTHING, then re-allow a tiny set of
+			// formatting tags. Attributes are never allowed (no <a href>,
+			// no onclick/onerror, no style). This is rendered into
+			// company-controlled marketing pages (about/privacy/terms/
+			// shipping) where the operator wants light formatting only.
+			esc := template.HTMLEscapeString(s)
+			tags := []string{"p", "br", "strong", "em", "ul", "li", "h2"}
+			for _, t := range tags {
+				esc = strings.ReplaceAll(esc, "&lt;"+t+"&gt;", "<"+t+">")
+				esc = strings.ReplaceAll(esc, "&lt;/"+t+"&gt;", "</"+t+">")
+			}
+			esc = strings.ReplaceAll(esc, "&lt;br/&gt;", "<br/>")
+			esc = strings.ReplaceAll(esc, "&lt;br /&gt;", "<br />")
+			return template.HTML(esc)
 		},
 		"catCount": func(counts map[string]int, cat string) int {
 			return counts[cat]

@@ -23,7 +23,11 @@
         .method-card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .method-card h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; color: var(--text); }
         .method-card p { margin: 0.25rem 0; }
-        .custom-text { white-space: pre-wrap; color: #475569; background: #f1f5f9; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+        .custom-text { color: #475569; margin: 1rem 0; }
+        .custom-text h2 { font-size: 1.4rem; font-weight: 700; margin: 2rem 0 0.75rem; color: var(--text); }
+        .custom-text p { margin: 0 0 1rem; }
+        .custom-text ul { padding-left: 1.5rem; margin: 0 0 1rem; }
+        .custom-text li { margin-bottom: 0.25rem; }
         @media (max-width: 768px) { h1 { font-size: 2rem; } main { padding: 2rem 5%; } }
         [[template "global_css" .]]
     </style>
@@ -39,43 +43,7 @@
         <h1>Shipping & Returns</h1>
         <p class="subtitle">How we get orders to you and what to do if something is not right.</p>
 
-        [[if .Company.DeliveryMethods]]
-        <h2>Delivery Options</h2>
-        [[range .Company.DeliveryMethods]]
-        [[if eq (printf "%s" .) "pickup"]]
-        <div class="method-card">
-            <h3>Pickup</h3>
-            <p>Place your order online and pick it up at our location. You will receive a notification when your order is ready for pickup.</p>
-        </div>
-        [[end]]
-        [[if eq (printf "%s" .) "dropoff"]]
-        <div class="method-card">
-            <h3>Local Delivery</h3>
-            <p>We deliver directly to your location. Delivery times and availability may vary based on your area. You will be notified with delivery details after your order is confirmed.</p>
-        </div>
-        [[end]]
-        [[if eq (printf "%s" .) "shipping_out"]]
-        <div class="method-card">
-            <h3>Shipping</h3>
-            <p>We ship orders via carrier to your address. Shipping times vary by destination. You will receive tracking information once your order has shipped.</p>
-            [[if $.Company.ShippingOutOptions]]
-            <p style="margin-top: 0.5rem; font-size: 0.95rem;">Available shipping options are shown at checkout based on your location.</p>
-            [[end]]
-        </div>
-        [[end]]
-        [[end]]
-        [[end]]
-
-        <h2>Order Processing</h2>
-        <p>Orders are typically processed within 1-2 business days. You will receive an order confirmation by email after your purchase is complete. If there are any issues with your order, we will contact you directly.</p>
-
-        <h2>Returns & Exchanges</h2>
-        <p>If you are not satisfied with your purchase, please contact us to discuss a return or exchange. We handle returns on a case-by-case basis and will work with you to find a fair resolution. Please reach out within a reasonable timeframe after receiving your order.</p>
-
-        [[if .Config.ShippingText]]
-        <h2>Additional Shipping & Return Information</h2>
-        <div class="custom-text">[[.Config.ShippingText]]</div>
-        [[end]]
+        <div class="custom-text">[[safeHTML .Config.ShippingText]]</div>
 
         <h2>Questions?</h2>
         <p>Contact us for any shipping or return questions:</p>
