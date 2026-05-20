@@ -30,7 +30,7 @@ const ContactUs: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mt-5 mb-4 text-center">Get Started</h2>
               <p className="text-gray-600 mb-6 text-center">
-                Send us your company name and business email. No commitment, no credit card required.
+                Email your company name and business email directly to <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>. No commitment, no credit card required.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">We verify your business</span></div>
@@ -38,6 +38,9 @@ const ContactUs: React.FC = () => {
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Guided setup, your store live in under 30 minutes</span></div>
               </div>
               <p className="text-gray-500 text-sm text-center mb-4">We respond within one business day.</p>
+              <p className="text-gray-500 text-xs text-center mb-4">
+                (Clicking "Get Started" will open your email client. If it doesn't, please copy <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>)
+              </p>
               <a
                 href="mailto:help@businesscart.ai?subject=Get%20Started%20with%20BusinessCart.ai"
                 className="mt-auto inline-flex items-center justify-center w-full px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
@@ -62,6 +65,9 @@ const ContactUs: React.FC = () => {
                 <div className="flex items-center"><CheckCircleIcon className="h-5 w-5 text-teal-700 mr-3 flex-shrink-0" /><span className="text-gray-600">Live Q&amp;A with our team</span></div>
               </div>
               <p className="text-gray-500 text-sm text-center mb-4">Include your availability and we will find a time.</p>
+              <p className="text-gray-500 text-xs text-center mb-4">
+                (Clicking "Request a Demo" will open your email client. If it doesn't, please copy <a href="mailto:help@businesscart.ai" className="text-teal-700 hover:underline">help@businesscart.ai</a>)
+              </p>
               <a
                 href="mailto:help@businesscart.ai?subject=Demo%20Request%20-%20BusinessCart.ai"
                 className="mt-auto inline-flex items-center justify-center w-full px-6 py-3 border-2 border-teal-700 text-base font-medium rounded-md text-teal-700 hover:bg-teal-700 hover:text-white transition"
