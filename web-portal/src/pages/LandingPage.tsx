@@ -14,24 +14,18 @@ import {
   SparklesIcon,
   UserGroupIcon,
   ShoppingBagIcon,
-  CakeIcon,
-  ShoppingCartIcon,
   CubeIcon,
-  ArrowsRightLeftIcon,
   GlobeAltIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
-const solutions = [
-  { title: 'D2C Brands', href: '/solutions/d2c-brands', icon: ShoppingBagIcon, audience: 'Side hustlers, Etsy/Amazon escapees, Shopify defectors', summary: 'Branded online store with sub-second pages, AI-readable products, 5 shopping channels.' },
+const solutions = 
+[
+  { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'wholesalers running orders on email or spreadsheets', summary: 'Per-customer pricing, credit limits, spend caps, and quote negotiation — enforced automatically. Your buyers order without calling a rep.' },
+  { title: 'Manufacturers & Distributors', href: '/solutions/manufacturers', icon: CubeIcon, audience: 'manufacturers selling to distributor networks', summary: 'Private distributor portals with per-distributor MOQ, lead times, and channel conflict prevention built in. No more PDF price lists.' },
+  { title: 'D2C & Marketplace Exit', href: '/solutions/d2c-brands', icon: ShoppingBagIcon, audience: 'Brands ready to sell direct', summary: 'Your own branded storefront with sub-second pages and 5 shopping channels. Own your customer relationships and keep what you earn.' },
   { title: 'AI-Era Commerce', href: '/solutions/ai-commerce', icon: CpuChipIcon, audience: 'SEO-savvy merchants betting on AI discovery', summary: 'Static HTML, schema.org, llms.txt, markdown product pages, get cited by ChatGPT, Perplexity, Google AI.' },
-  { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'SMB wholesalers running orders via email', summary: 'Per-customer pricing, credit limits, spend caps, quote negotiation, all enforced automatically.' },
-  { title: 'Restaurants & Food', href: '/solutions/restaurants', icon: CakeIcon, audience: 'Food businesses DoorDash serves poorly', summary: 'Direct ordering for catering, meal-prep, bakeries, food trucks, corporate lunch. No 30% tax.' },
-  { title: 'Grocery & Specialty', href: '/solutions/grocery', icon: ShoppingCartIcon, audience: 'Independent specialty grocers', summary: 'Online ordering for ethnic, organic, butcher, bakery, pet supply. Without Instacart\'s cut.' },
-  { title: 'Manufacturers', href: '/solutions/manufacturers', icon: CubeIcon, audience: 'Manufacturers selling to distributor networks', summary: 'Distributor ordering portal. Per-distributor pricing, MOQ, lead times, credit limits enforced.' },
-  { title: 'Distributors', href: '/solutions/distributors', icon: ArrowsRightLeftIcon, audience: 'Distributors managing supplier + customer sides', summary: 'Per-customer tier pricing, multi-warehouse, multi-supplier accounts. Beats Amazon Business.' },
-  { title: 'Marketplace Escape', href: '/solutions/marketplace-escape', icon: CurrencyDollarIcon, audience: 'Anyone paying marketplace commissions', summary: 'Stop paying 15-30% to Etsy, Amazon, eBay, DoorDash, Instacart, Faire. Build direct, keep 94%.' },
-];
+ ];
 
 const pillars = [
   {
@@ -52,22 +46,28 @@ const pillars = [
 ];
 
 const whyUs = [
-  { icon: CurrencyDollarIcon, title: 'Pricing Scales With You', desc: 'Every feature in every tier. No feature locks. Starter: $0/mo + 6% per order (capped at $5). Auto-promotes to Growth ($499/mo) at 100+ orders/mo, Enterprise ($1,999/mo) at 1,001+. Your bill grows only when your business does.' },
+  { icon: CurrencyDollarIcon, title: 'Pricing Scales With You', desc: 'Every feature in every tier. No feature locks. Pay per order only — your costs grow only when your orders do.' },
   { icon: BoltIcon, title: 'Sub-1-Second Pages', desc: 'Static HTML on a global CDN. Faster than any Shopify theme, by default. No apps, no plugins, no work.' },
-  { icon: CpuChipIcon, title: 'AI-Readable from Day One', desc: 'llms.txt + schema.org + markdown product pages. ChatGPT, Perplexity, and Google AI can read your catalog directly.' },
-  { icon: ShieldCheckIcon, title: 'Direct Payment to Your Bank', desc: 'Stripe, Amazon Pay, Authorize.net, or cash. Money goes straight to you. We never touch it. You own every customer.' },
-  { icon: UserGroupIcon, title: 'Per-Customer B2B Power', desc: 'Per-customer pricing, credit limits, spend caps, quote workflow, all enforced automatically at every order. Available on every tier.' },
-  { icon: SparklesIcon, title: 'One AI Add-on Replaces Dozens', desc: 'Connect any ERP, accounting, or CRM without writing code. Decoupled from your storefront so heavy operations never slow your pages.' },
+  { icon: UserGroupIcon, title: 'Per-Customer B2B Power', desc: 'Per-customer pricing, credit limits, spend caps, tiered pricing, and quote negotiation — enforced automatically at every order. Group catalogs, one-click reorder, multiple warehouse locations, and time-based checkout windows included. No apps. No workarounds. Available on every tier.' },
+  { icon: ShieldCheckIcon, title: 'You keep 100% of every transaction', desc: 'Connect your own Stripe, Amazon Pay, or Authorize.net. Your customers pay you directly — BusinessCart never touches the money. We send you one invoice at month end for your platform fee. No payment processing markup. No gateway surcharge. No surprise deductions.' },
 ];
 
 const faqs = [
   {
+    q: 'What is BusinessCart?',
+    a: 'BusinessCart is a B2B and D2C commerce platform that lets wholesalers, manufacturers, and distributors run a private ordering portal with per-customer pricing, credit limits, spend caps, and quote negotiation — all enforced automatically. It starts at $0/month with a max $5 per order platform fee, invoiced monthly. Your customers pay you directly through your own payment accounts. BusinessCart never holds or deducts from your revenue.',
+  },
+  {
+    q: 'What is BusinessCart an alternative to?',
+    a: 'BusinessCart is an alternative to Shopify Plus ($2,300/month), Magento/Adobe Commerce (developer-heavy, $20,000+ implementation), BigCommerce B2B Edition ($1,000–3,000/month), OroCommerce (enterprise-only), and WooCommerce with B2B plugins (complex, fragile, maintenance-heavy). It includes native B2B features — per-customer pricing, credit limits, quote workflows, group catalogs, and time-based checkout windows — without the enterprise price tag or developer dependency. It also replaces email and spreadsheet-based ordering for SMB wholesalers and manufacturers who need a self-serve buyer portal at $0/month.',
+  },
+  {
     q: 'What does this actually cost me?',
-    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo + 6% per order, capped at $5) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
+    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo · max $5 per order, invoiced monthly — never deducted from your sales) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
   },
   {
     q: 'How is this different from Shopify?',
-    a: 'Shopify is $39+/month before your first sale, plus $300-500/month in essential apps (Klaviyo, ReCharge, Judge.me, etc.), and its themes render with JavaScript, invisible to AI assistants. BusinessCart is $0/month, ships AI-readable static HTML, includes 5 shopping channels and a B2B portal built in. The whole app stack collapses into one platform.',
+    a: 'Shopify is $39+/month before your first sale, plus $300-500/month in essential apps (Klaviyo, ReCharge, Judge.me, etc.), and its themes render with JavaScript, invisible to AI assistants. BusinessCart is $0/month, ships AI-readable static HTML, includes 5 shopping channels and a B2B portal built in. The whole app stack collapses into one platform. Shopify also charges a gateway surcharge if you use your own payment processor. BusinessCart never charges on payments — your revenue lands in your account, and we send you a separate monthly invoice for platform use only.',
   },
   {
     q: 'Do I need a developer?',
@@ -75,11 +75,7 @@ const faqs = [
   },
   {
     q: 'Can I migrate from Shopify, Etsy, or my existing tools?',
-    a: 'Manual product upload works today. Bulk CSV import is in beta and ships Q2 2026. Customer migration is straightforward. Most marketplaces don\'t share customer emails anyway, but you can collect them on a launch announcement.',
-  },
-  {
-    q: 'Which solution page should I read first?',
-    a: 'Pick the one closest to your business in the Solutions grid above, each card links directly. If your business spans multiple (e.g., D2C + wholesale), start with the larger revenue side. Or talk to founder for a tailored recommendation.',
+    a: 'Customer and product migration is straightforward. Export from your existing platform, import via our web portal or REST API. Most marketplaces don\'t share customer emails — set up a launch page to start capturing them directly from day one.',
   },
   {
     q: 'Can I leave if I don\'t like it?',
@@ -100,14 +96,14 @@ const LandingPage: React.FC = () => {
               {/* Left: hero text */}
               <div>
                 <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
-                  Your Online Store. Your B2B Portal.{' '}
-                  <span className="text-teal-400">$0 Monthly.</span>
+                  Your wholesale orders are still running on email.{' '}
+                  <span className="text-teal-400">There's a better way.</span>
                 </h1>
                 <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                  One platform built for D2C brands, wholesalers, restaurants, grocers, and manufacturers. Sub-second pages, AI-readable products, no plugin stack. Pay only when you sell.
+                  BusinessCart is a B2B wholesale ordering portal that starts at $0/month. Per-customer pricing, credit limits, and quote negotiation — enforced automatically at every order. Your buyers self-serve. You stop being the bottleneck. A branded D2C storefront is included on every plan.
                 </p>
                 <p className="mt-4 text-sm text-gray-300">
-                  $0 monthly · Pay only per order · Live in minutes · Powering usetgo.com today
+                  $0/month · Live in days, not months · Real B2B enforcement, not just "tags" · We invoice you — we never touch your revenue
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                   <Link
@@ -188,7 +184,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Find Your Solution</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Eight tailored playbooks. Pick the one closest to your business. Each shows what's live today, what's in beta, and what's coming in 2026.
+                Who is BusinessCart for?
               </p>
             </div>
             <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -210,6 +206,9 @@ const LandingPage: React.FC = () => {
                 </Link>
               ))}
             </div>
+            <p className="mt-8 text-center text-sm text-gray-600">
+              Also built for restaurants, grocers, and specialty retailers. → See all solutions
+            </p>
           </div>
         </section>
 
@@ -240,18 +239,20 @@ const LandingPage: React.FC = () => {
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Why Build on BusinessCart</h2>
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Why businesses switch to BusinessCart</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Six things that hold true regardless of what you sell or who you sell to.
+                Four things that hold true regardless of what you sell or who you sell to.
               </p>
             </div>
-            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 grid gap-8 md:grid-cols-2">
               {whyUs.map((w) => (
                 <div key={w.title} className="flex flex-col">
-                  <div className="flex items-center justify-center h-12 w-12 rounded-md bg-teal-700 text-white mb-4">
-                    <w.icon className="h-6 w-6" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center justify-center h-10 w-10 rounded-md bg-teal-700 text-white flex-shrink-0">
+                      <w.icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">{w.title}</h3>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">{w.title}</h3>
                   <p className="mt-2 text-gray-600">{w.desc}</p>
                 </div>
               ))}
@@ -263,17 +264,17 @@ const LandingPage: React.FC = () => {
         <section className="py-16 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Live in Under an Hour</h2>
+              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Up and running in days, not months</h2>
               <p className="mt-4 text-lg text-gray-600">
-                Four steps from signup to your first order.
+                From migration audit to your first order — we handle the heavy lifting.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
               {[
-                { step: '1', title: 'Sign up free', desc: 'No credit card. Set your brand colors, upload your logo.' },
-                { step: '2', title: 'Add your products', desc: 'Upload images, set prices, write descriptions. Manual today, bulk CSV in Q2 2026.' },
-                { step: '3', title: 'Share your URL or customer codes', desc: 'Public storefront, private B2B portal, or both, your choice per customer.' },
-                { step: '4', title: 'Get paid directly', desc: 'Stripe, Amazon Pay, cash. Money goes straight to your bank. We never touch it.' },
+                { step: '1', title: 'Free migration audit', desc: 'We review your current setup together: your product list, customer terms, pricing structure, and any edge cases. You learn exactly what moves over and how, before committing to anything.' },
+                { step: '2', title: 'Map your customers and pricing', desc: 'Share your spreadsheet, QuickBooks export, or Shopify data with us. We map every customer\'s discount, credit limit, payment method, and order rules one-to-one. You review and approve.' },
+                { step: '3', title: 'Share customer codes', desc: 'Each buyer gets a private code that unlocks your catalog with their exact pricing already applied. No training required on their end.' },
+                { step: '4', title: 'Run both in parallel until you\'re confident', desc: 'Keep your old system running while your buyers place their first orders on BusinessCart. Switch fully when you\'re ready. No forced cutover, no downtime.' }
               ].map((s) => (
                 <div key={s.step} className="text-center">
                   <div className="flex items-center justify-center h-16 w-16 rounded-full bg-teal-700 text-white text-2xl font-bold mx-auto">
@@ -308,15 +309,14 @@ const LandingPage: React.FC = () => {
         {/* Final CTA */}
         <section className="bg-white">
           <div className="max-w-4xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Ready to Own Your Commerce?</h2>
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Ready to get your buyers off email?</h2>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Customers</span>
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Revenue</span>
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Data</span>
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your Store</span>
+              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your buyers self-serve</span>
+              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">Your orders enforce themselves</span>
+              <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-teal-100 text-teal-800">You focus on the business</span>
             </div>
             <p className="mt-6 text-lg text-gray-600">
-              $0 to start · 6% per order · No surprise fees · No app stack · No marketplace commissions
+              $0 to start · Max $5 per order · No surprise fees · No app stack · No marketplace commissions
             </p>
             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
               <Link
