@@ -39,17 +39,32 @@ class D2CCart {
 
     addItem(product, qty) {
         var addQty = qty || 1;
+        var stock = (typeof product.stock === 'number') ? product.stock : Infinity;
         const existing = this.items.find(item => item._id === product._id);
         if (existing) {
-            existing.quantity = (existing.quantity || 1) + addQty;
+            var currentQty = existing.quantity || 1;
+            var maxAllowed = (typeof product.stock === 'number') ? product.stock : (typeof existing.stock === 'number' ? existing.stock : Infinity);
+            var newQty = Math.min(currentQty + addQty, maxAllowed);
+            if (typeof product.stock === 'number') existing.stock = product.stock;
+            if (newQty === currentQty) {
+                this.saveCart();
+                this.showDrawer();
+                this.showToast(`Only ${maxAllowed} in stock, already in cart`);
+                return;
+            }
+            existing.quantity = newQty;
             this.resolveTierPrice(existing);
+            this.saveCart();
+            this.showDrawer();
+            this.showToast((currentQty + addQty > maxAllowed) ? `Only ${maxAllowed} available in stock` : `Added ${product.name} to cart`);
         } else {
-            var newItem = { ...product, quantity: addQty, basePrice: product.price };
+            var initialQty = Math.min(addQty, stock);
+            var newItem = { ...product, quantity: initialQty, basePrice: product.price };
             this.items.push(newItem);
+            this.saveCart();
+            this.showDrawer();
+            this.showToast((initialQty < addQty) ? `Only ${stock} available in stock` : `Added ${product.name} to cart`);
         }
-        this.saveCart();
-        this.showDrawer();
-        this.showToast(`Added ${product.name} to cart`);
         if (window.D2C_TRACKER) window.D2C_TRACKER.trackAddToCart(product._id, product.name, product.discountedPrice || product.price);
     }
 
@@ -61,7 +76,13 @@ class D2CCart {
     updateQuantity(productId, delta) {
         const item = this.items.find(item => item._id === productId);
         if (item) {
-            item.quantity = Math.max(1, (item.quantity || 1) + delta);
+            var maxAllowed = (typeof item.stock === 'number') ? item.stock : Infinity;
+            var newQty = Math.max(1, (item.quantity || 1) + delta);
+            if (newQty > maxAllowed) {
+                newQty = maxAllowed;
+                this.showToast(`Only ${maxAllowed} available in stock`);
+            }
+            item.quantity = newQty;
             this.resolveTierPrice(item);
             this.saveCart();
         }
@@ -135,7 +156,13 @@ class D2CCart {
             return;
         }
 
-        container.innerHTML = this.items.map(item => `
+        container.innerHTML = this.items.map(item => {
+            var atMax = (typeof item.stock === 'number') && item.quantity >= item.stock;
+            var plusStyle = atMax
+                ? 'border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; padding: 2px 8px; opacity: 0.4; cursor: not-allowed;'
+                : 'border: 1px solid #ddd; background: white; border-radius: 4px; padding: 2px 8px;';
+            var stockNote = atMax ? `<div style="font-size:0.75rem;color:#c2410c;margin-top:0.25rem">Max stock reached</div>` : '';
+            return `
             <div style="display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center;">
                 <div style="width: 80px; height: 80px; background: #f5f5f5; border-radius: 12px; overflow: hidden;">
                     <img src="${item.image}" style="width: 100%; height: 100%; object-fit: cover;">
@@ -146,12 +173,14 @@ class D2CCart {
                     <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
                         <button onclick="window.D2C_CART.updateQuantity('${item._id}', -1)" style="border: 1px solid #ddd; background: white; border-radius: 4px; padding: 2px 8px;">-</button>
                         <span>${item.quantity}</span>
-                        <button onclick="window.D2C_CART.updateQuantity('${item._id}', 1)" style="border: 1px solid #ddd; background: white; border-radius: 4px; padding: 2px 8px;">+</button>
+                        <button onclick="window.D2C_CART.updateQuantity('${item._id}', 1)" ${atMax ? 'disabled' : ''} style="${plusStyle}">+</button>
                         <button onclick="window.D2C_CART.removeItem('${item._id}')" style="margin-left: auto; color: #ff4444; border: none; background: none; font-size: 0.8rem; cursor: pointer;">Remove</button>
                     </div>
+                    ${stockNote}
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         document.getElementById('cart-total').innerText = `$${this.getTotalPrice().toFixed(2)}`;
     }
@@ -198,7 +227,22 @@ class D2CCart {
     }
 }
 
+// PDP qty stepper sync: greys out -/+ buttons when at min/max stock.
+// Reads stock from data-stock attribute on #qty input. No-op if not present.
+window.D2C_QTY_SYNC = function () {
+    var q = document.getElementById('qty');
+    if (!q) return;
+    var v = Number(q.value) || 1;
+    var s = Number(q.getAttribute('data-stock')) || Infinity;
+    var m = document.getElementById('qty-minus');
+    var p = document.getElementById('qty-plus');
+    var atMin = v <= 1, atMax = v >= s;
+    if (m) { m.disabled = atMin; m.style.opacity = atMin ? '0.4' : '1'; m.style.cursor = atMin ? 'not-allowed' : 'pointer'; }
+    if (p) { p.disabled = atMax; p.style.opacity = atMax ? '0.4' : '1'; p.style.cursor = atMax ? 'not-allowed' : 'pointer'; }
+};
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     window.D2C_CART = new D2CCart();
+    window.D2C_QTY_SYNC();
 });
