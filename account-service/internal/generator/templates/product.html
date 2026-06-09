@@ -445,12 +445,12 @@
             [[if gt .Product.Stock 0]]
             <div style="display:flex;align-items:center;gap:1rem">
                 <div style="display:flex;align-items:center;border:2px solid #e2e8f0;border-radius:12px;overflow:hidden">
-                    <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.max(1,Number(q.value)-1)" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">−</button>
-                    <input id="qty" type="number" value="1" min="1" max="[[.Product.Stock]]" aria-label="Quantity" style="width:52px;height:44px;border:none;text-align:center;font-size:1rem;font-weight:700;-moz-appearance:textfield;outline:none" oninput="this.value=Math.max(1,Math.min([[.Product.Stock]],Number(this.value)||1))">
-                    <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.min([[.Product.Stock]],Number(q.value)+1)" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">+</button>
+                    <button type="button" id="qty-minus" onclick="var q=document.getElementById('qty');q.value=Math.max(1,Number(q.value)-1);window.D2C_QTY_SYNC&&window.D2C_QTY_SYNC()" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">−</button>
+                    <input id="qty" type="number" value="1" min="1" max="[[.Product.Stock]]" data-stock="[[.Product.Stock]]" aria-label="Quantity" style="width:52px;height:44px;border:none;text-align:center;font-size:1rem;font-weight:700;-moz-appearance:textfield;outline:none" oninput="this.value=Math.max(1,Math.min([[.Product.Stock]],Number(this.value)||1));window.D2C_QTY_SYNC&&window.D2C_QTY_SYNC()">
+                    <button type="button" id="qty-plus" onclick="var q=document.getElementById('qty');q.value=Math.min([[.Product.Stock]],Number(q.value)+1);window.D2C_QTY_SYNC&&window.D2C_QTY_SYNC()" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">+</button>
                 </div>
                 <button class="cta-btn" style="flex:1"
-                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]]}, Number(document.getElementById('qty').value)||1)">
+                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]], stock:[[.Product.Stock]]}, Number(document.getElementById('qty').value)||1)">
                     Add to Cart
                 </button>
             </div>
