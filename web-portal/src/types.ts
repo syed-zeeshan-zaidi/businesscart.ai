@@ -65,6 +65,7 @@ export interface Product {
   sellerID: string;
   images?: string[];
   category?: string;
+  googleProductCategory?: string;
   slug?: string;
   sku?: string;
   barcode?: string;

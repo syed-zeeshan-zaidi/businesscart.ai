@@ -29,6 +29,7 @@ type Product struct {
 	SellerID        string             `bson:"sellerID" json:"sellerID"`
 	Images          []string           `bson:"images,omitempty" json:"images,omitempty"`
 	Category        string             `bson:"category,omitempty" json:"category,omitempty"`
+	GoogleProductCategory string       `bson:"googleProductCategory,omitempty" json:"googleProductCategory,omitempty"`
 	Slug            string             `bson:"slug,omitempty" json:"slug,omitempty"`
 	SKU             string             `bson:"sku,omitempty" json:"sku,omitempty"`
 	Barcode         string             `bson:"barcode,omitempty" json:"barcode,omitempty"`

@@ -22,10 +22,10 @@ func buildGoogleFeed(data StorefrontData) ([]byte, error) {
 		if p.Price <= 0 {
 			continue
 		}
-		availability := "in_stock"
 		if p.Stock <= 0 {
-			availability = "out_of_stock"
+			continue
 		}
+		availability := "in_stock"
 
 		item := googleItem{
 			ID:           p.ID,
@@ -67,6 +67,9 @@ func buildGoogleFeed(data StorefrontData) ([]byte, error) {
 		}
 		if p.Category != "" {
 			item.ProductType = feedCategory(p.Category)
+		}
+		if p.GoogleProductCategory != "" {
+			item.GoogleProductCategory = p.GoogleProductCategory
 		}
 
 		// Product attributes → Google Shopping fields (product wins, config default fallback)
@@ -132,6 +135,7 @@ type googleItem struct {
 	GTIN                 string   `xml:"g:gtin,omitempty"`
 	MPN                  string   `xml:"g:mpn,omitempty"`
 	ProductType          string   `xml:"g:product_type,omitempty"`
+	GoogleProductCategory string  `xml:"g:google_product_category,omitempty"`
 	Color                string   `xml:"g:color,omitempty"`
 	Size                 string   `xml:"g:size,omitempty"`
 	Material             string   `xml:"g:material,omitempty"`

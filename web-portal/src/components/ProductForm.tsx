@@ -30,6 +30,7 @@ const ProductForm = () => {
     sellerID: '',
     images: [],
     category: '',
+    googleProductCategory: '',
     slug: '',
     sku: '',
     barcode: '',
@@ -157,6 +158,7 @@ const ProductForm = () => {
         sellerID: account?._id || '',
         images: [],
         category: '',
+        googleProductCategory: '',
         slug: '',
         sku: '',
         barcode: '',
@@ -250,6 +252,7 @@ const ProductForm = () => {
       sellerID: product.sellerID,
       images: product.images || [],
       category: product.category,
+      googleProductCategory: product.googleProductCategory || '',
       slug: product.slug || '',
       sku: product.sku || '',
       barcode: product.barcode || '',
@@ -331,6 +334,7 @@ const ProductForm = () => {
       sellerID: account?._id || '',
       images: [],
       category: '',
+      googleProductCategory: '',
       slug: '',
       sku: '',
       barcode: '',
@@ -580,6 +584,17 @@ const ProductForm = () => {
                               ))}
                             </datalist>
                             <p className="mt-1 text-xs text-gray-400">Use "Primary / Sub" for hierarchy (e.g. "Electronics / Phones"). Without "/" it's a standalone category.</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Google Product Category (for ad feeds)</label>
+                            <input
+                              name="googleProductCategory"
+                              value={formData.googleProductCategory || ''}
+                              onChange={handleChange}
+                              placeholder="e.g. Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils > Oven Mitts & Potholders"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-400">Paste the full path or numeric ID from <a href="https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline">Google's product taxonomy</a>. Used in Google Shopping, Facebook, Pinterest, Bing, and TikTok feeds. Leave blank to skip.</p>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700">Slug</label>
