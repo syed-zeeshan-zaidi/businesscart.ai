@@ -23,17 +23,17 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 	// Header
 	b.WriteString("id" + tab + "title" + tab + "description" + tab + "link" + tab + "image_link" + tab +
 		"price" + tab + "sale_price" + tab + "availability" + tab + "condition" + tab + "brand" + tab +
-		"gtin" + tab + "mpn" + tab + "product_type" + tab + "color" + tab + "size" + tab + "material" + tab +
+		"gtin" + tab + "mpn" + tab + "product_type" + tab + "google_product_category" + tab + "color" + tab + "size" + tab + "material" + tab +
 		"gender" + tab + "age_group" + tab + "identifier_exists\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
 			continue
 		}
-		availability := "in stock"
 		if p.Stock <= 0 {
-			availability = "out of stock"
+			continue
 		}
+		availability := "in stock"
 
 		salePrice := ""
 		if p.DealPrice > 0 && p.DiscountedPrice > 0 {
@@ -83,6 +83,7 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 			p.Barcode + tab +
 			p.SKU + tab +
 			tsvSafe(feedCategory(p.Category)) + tab +
+			tsvSafe(p.GoogleProductCategory) + tab +
 			tsvSafe(productAttr(p.Attributes, "color", "colour")) + tab +
 			tsvSafe(productAttr(p.Attributes, "size")) + tab +
 			tsvSafe(productAttr(p.Attributes, "material")) + tab +

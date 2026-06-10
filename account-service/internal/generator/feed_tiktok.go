@@ -27,10 +27,10 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 		if p.Price <= 0 {
 			continue
 		}
-		availability := "in stock"
 		if p.Stock <= 0 {
-			availability = "out of stock"
+			continue
 		}
+		availability := "in stock"
 
 		salePrice := ""
 		if p.DealPrice > 0 && p.DiscountedPrice > 0 {
@@ -51,8 +51,11 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 			image = p.Images[0]
 		}
 
-		// TikTok requires google_product_category — use category as best effort
-		googleCategory := feedCategory(p.Category)
+		// TikTok requires google_product_category — prefer the official taxonomy field, fall back to category
+		googleCategory := p.GoogleProductCategory
+		if googleCategory == "" {
+			googleCategory = feedCategory(p.Category)
+		}
 		if googleCategory == "" {
 			googleCategory = "Other"
 		}

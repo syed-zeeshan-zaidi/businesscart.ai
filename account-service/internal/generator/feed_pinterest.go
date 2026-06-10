@@ -20,16 +20,16 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 	var b strings.Builder
 
 	// Header
-	b.WriteString("id,title,description,link,image_link,price,availability,condition,brand,product_type,sale_price\n")
+	b.WriteString("id,title,description,link,image_link,price,availability,condition,brand,product_type,google_product_category,sale_price\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
 			continue
 		}
-		availability := "in stock"
 		if p.Stock <= 0 {
-			availability = "out of stock"
+			continue
 		}
+		availability := "in stock"
 
 		salePrice := ""
 		if p.DealPrice > 0 && p.DiscountedPrice > 0 {
@@ -50,7 +50,7 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 			image = p.Images[0]
 		}
 
-		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s\n",
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s\n",
 			csvEscape(p.ID),
 			csvEscape(p.Name),
 			csvEscape(stripHTML(p.Description)),
@@ -61,6 +61,7 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 			"new",
 			csvEscape(data.Company.Name),
 			csvEscape(feedCategory(p.Category)),
+			csvEscape(p.GoogleProductCategory),
 			csvEscape(salePrice),
 		))
 	}

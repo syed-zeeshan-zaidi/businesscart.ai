@@ -69,6 +69,7 @@ type ProductData struct {
 	Images          []string    `json:"images,omitempty"`
 	Image           string      `json:"image"`
 	Category        string      `json:"category"`
+	GoogleProductCategory string `json:"googleProductCategory,omitempty"`
 	Slug            string      `json:"slug"`
 	SKU             string      `json:"sku,omitempty"`
 	Barcode         string      `json:"barcode,omitempty"`

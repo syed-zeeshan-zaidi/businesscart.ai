@@ -154,6 +154,7 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 		return h.errorResponse(http.StatusBadRequest, "Product name cannot contain '/'"), nil
 	}
 	product.Category = strings.TrimSpace(product.Category)
+	product.GoogleProductCategory = strings.TrimSpace(product.GoogleProductCategory)
 	product.Slug = strings.TrimSpace(product.Slug)
 	if product.Slug == "" {
 		return h.errorResponse(http.StatusBadRequest, "Slug is required"), nil
@@ -371,6 +372,9 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 			return h.errorResponse(http.StatusBadRequest, "Category supports max one '/' for primary / sub hierarchy"), nil
 		}
 		updates["category"] = category
+	}
+	if gpc, ok := updates["googleProductCategory"].(string); ok {
+		updates["googleProductCategory"] = strings.TrimSpace(gpc)
 	}
 	if slug, ok := updates["slug"].(string); ok {
 		slug = strings.TrimSpace(slug)
