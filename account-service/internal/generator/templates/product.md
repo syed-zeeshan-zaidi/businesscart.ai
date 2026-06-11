@@ -17,6 +17,15 @@
 [[if .Product.Attributes]]## Attributes
 [[range .Product.Attributes]]- **[[.Key]]**: [[.Value]]
 [[end]][[end]]
+[[if and .Product.Rating (gt .Product.Rating.Count 0)]]## Customer Reviews
+**Average Rating**: [[printf "%.1f" .Product.Rating.Average]] / 5 (based on [[.Product.Rating.Count]] review[[if ne .Product.Rating.Count 1]]s[[end]])
+
+[[range .Product.Rating.Reviews]]### [[.Rating]] / 5[[if .Title]] — [[.Title]][[end]]
+*By [[.Name]][[if .Verified]] (Verified Purchase)[[end]] on [[.Date.Format "Jan 2, 2006"]]*
+
+[[.Body]]
+
+[[end]][[end]]
 [[if .RelatedProducts]]## Related Products
 [[range .RelatedProducts]]- [[.Name]] — $[[printf "%.2f" .Price]][[if .DealPrice]] (Sale: $[[printf "%.2f" .DiscountedPrice]])[[end]] — [View](../products/[[.Filename]].md)
 [[end]][[end]]

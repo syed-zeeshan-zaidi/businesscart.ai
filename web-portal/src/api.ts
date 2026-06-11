@@ -279,6 +279,13 @@ export const updateOrder = async (
   return response.data;
 };
 
+// Sends a post-purchase review-request email to the customer and marks
+// reviewRequestedAt on the order. Admin/company role only.
+export const requestOrderReview = async (orderId: string): Promise<Order> => {
+  const response = await api.post(`${API_URL}/checkout/orders/${orderId}/request-review`, {});
+  return response.data;
+};
+
 // ─── Billing statements ─────────────────────────────────────────────
 // Mirrors checkout-service Statement struct + send-statement endpoint.
 

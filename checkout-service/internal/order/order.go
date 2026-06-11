@@ -30,6 +30,7 @@ type Order struct {
 	TrackingURL       string             `bson:"trackingUrl,omitempty" json:"trackingUrl,omitempty"`
 	ShippedAt         *time.Time         `bson:"shippedAt,omitempty" json:"shippedAt,omitempty"`
 	DeliveredAt       *time.Time         `bson:"deliveredAt,omitempty" json:"deliveredAt,omitempty"`
+	ReviewRequestedAt *time.Time         `bson:"reviewRequestedAt,omitempty" json:"reviewRequestedAt,omitempty"`
 	UpdatedAt         *time.Time         `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 	VisitorID         string             `bson:"visitorId,omitempty" json:"visitorId,omitempty"`
 	ClickIDs          map[string]string  `bson:"clickIds,omitempty" json:"clickIds,omitempty"`
