@@ -160,10 +160,11 @@ func (s *Service) GetByID(id primitive.ObjectID) (*Order, error) {
 }
 
 type OrderUpdate struct {
-	Status          string
-	TrackingNumber  string
-	TrackingCarrier string
-	TrackingURL     string
+	Status            string
+	TrackingNumber    string
+	TrackingCarrier   string
+	TrackingURL       string
+	SetReviewRequested bool // when true, sets reviewRequestedAt = now
 }
 
 func (s *Service) UpdateOrder(id primitive.ObjectID, update OrderUpdate) (*Order, error) {
@@ -190,6 +191,9 @@ func (s *Service) UpdateOrder(id primitive.ObjectID, update OrderUpdate) (*Order
 	}
 	if update.TrackingURL != "" {
 		set["trackingUrl"] = update.TrackingURL
+	}
+	if update.SetReviewRequested {
+		set["reviewRequestedAt"] = now
 	}
 	_, err = s.collection.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": set})
 	if err != nil {

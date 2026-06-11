@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3 } from '../api';
-import { Product, Account, Attribute, PriceTier } from '../types';
+import { Product, Account, Attribute, PriceTier, Review } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -214,6 +214,32 @@ const ProductForm = () => {
     setFormData({ ...formData, attributes: newAttributes });
   };
 
+  const addReview = () => {
+    const newReview: Review = {
+      name: '',
+      rating: 5,
+      title: '',
+      body: '',
+      verified: false,
+      orderId: '',
+      date: new Date().toISOString().slice(0, 10),
+    };
+    const existing = formData.rating?.reviews || [];
+    setFormData({ ...formData, rating: { ...(formData.rating || {}), reviews: [...existing, newReview] } });
+  };
+
+  const updateReview = (index: number, field: keyof Review, value: string | number | boolean) => {
+    const reviews = [...(formData.rating?.reviews || [])];
+    reviews[index] = { ...reviews[index], [field]: value };
+    setFormData({ ...formData, rating: { ...(formData.rating || {}), reviews } });
+  };
+
+  const removeReview = (index: number) => {
+    const reviews = [...(formData.rating?.reviews || [])];
+    reviews.splice(index, 1);
+    setFormData({ ...formData, rating: { ...(formData.rating || {}), reviews } });
+  };
+
   const handleTierChange = (index: number, field: keyof PriceTier, value: string) => {
     const tiers = [...(formData.priceTiers || [])];
     tiers[index] = { ...tiers[index], [field]: field === 'minQty' ? parseInt(value) || 0 : parseFloat(value) || 0 };
@@ -253,6 +279,7 @@ const ProductForm = () => {
       images: product.images || [],
       category: product.category,
       googleProductCategory: product.googleProductCategory || '',
+      rating: product.rating,
       slug: product.slug || '',
       sku: product.sku || '',
       barcode: product.barcode || '',
@@ -938,6 +965,101 @@ const ProductForm = () => {
                             className="mt-2 text-sm text-teal-700 hover:text-teal-900 font-medium"
                           >
                             + Add Attribute
+                          </button>
+                        </div>
+
+                        {/* Customer Reviews */}
+                        <div className="sm:col-span-2 border-t border-gray-200 pt-4 mt-2">
+                          <div className="flex items-baseline justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-700">Customer Reviews</label>
+                            {formData.rating?.count ? (
+                              <span className="text-xs text-gray-500">
+                                Avg <strong>{(formData.rating.average ?? 0).toFixed(1)}</strong> / 5 · {formData.rating.count} review{formData.rating.count !== 1 ? 's' : ''}
+                                <em className="ml-2 text-gray-400">(auto-computed)</em>
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-xs text-gray-400 mb-3">
+                            Reviews are added manually (no public submission). Send a review-request email from the order detail page; transcribe the customer's reply here.
+                          </p>
+                          <div className="space-y-3">
+                            {(formData.rating?.reviews || []).map((r, i) => (
+                              <div key={i} className="p-3 border border-gray-200 rounded-md bg-gray-50">
+                                <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
+                                  <input
+                                    value={r.name}
+                                    onChange={(e) => updateReview(i, 'name', e.target.value)}
+                                    placeholder="Name"
+                                    maxLength={60}
+                                    required
+                                    className="sm:col-span-2 p-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                  <select
+                                    value={r.rating}
+                                    onChange={(e) => updateReview(i, 'rating', Number(e.target.value))}
+                                    className="p-2 border border-gray-300 rounded-md text-sm"
+                                  >
+                                    <option value={5}>★★★★★ 5</option>
+                                    <option value={4}>★★★★☆ 4</option>
+                                    <option value={3}>★★★☆☆ 3</option>
+                                    <option value={2}>★★☆☆☆ 2</option>
+                                    <option value={1}>★☆☆☆☆ 1</option>
+                                  </select>
+                                  <input
+                                    type="date"
+                                    value={(r.date || '').slice(0, 10)}
+                                    onChange={(e) => updateReview(i, 'date', e.target.value)}
+                                    className="p-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                  <input
+                                    value={r.title || ''}
+                                    onChange={(e) => updateReview(i, 'title', e.target.value)}
+                                    placeholder="Title (optional)"
+                                    maxLength={100}
+                                    className="sm:col-span-2 p-2 border border-gray-300 rounded-md text-sm"
+                                  />
+                                </div>
+                                <textarea
+                                  value={r.body}
+                                  onChange={(e) => updateReview(i, 'body', e.target.value)}
+                                  placeholder="Review body"
+                                  maxLength={2000}
+                                  rows={3}
+                                  required
+                                  className="mt-2 w-full p-2 border border-gray-300 rounded-md text-sm"
+                                />
+                                <div className="mt-2 flex items-center justify-between text-xs">
+                                  <label className="inline-flex items-center gap-2 text-gray-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={r.verified || false}
+                                      onChange={(e) => updateReview(i, 'verified', e.target.checked)}
+                                    />
+                                    Verified purchase
+                                  </label>
+                                  <input
+                                    value={r.orderId || ''}
+                                    onChange={(e) => updateReview(i, 'orderId', e.target.value)}
+                                    placeholder="Order ID (optional reference)"
+                                    className="flex-1 mx-3 p-1 border border-gray-200 rounded text-xs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeReview(i)}
+                                    className="text-red-600 hover:text-red-800 font-medium"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={addReview}
+                            className="mt-3 text-sm text-teal-700 hover:text-teal-900 font-medium"
+                          >
+                            + Add Review
                           </button>
                         </div>
                       </div>

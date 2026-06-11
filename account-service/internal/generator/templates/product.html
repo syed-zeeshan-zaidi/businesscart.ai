@@ -233,6 +233,14 @@
       [[if .Product.Image]]"image": "[[.Product.Image]]",[[end]]
       "description": "[[.Product.Description]]",
       [[if .Product.Category]]"category": "[[.Product.Category]]",[[end]]
+      [[if and .Product.Rating (gt .Product.Rating.Count 0)]]"aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "[[printf "%.1f" .Product.Rating.Average]]",
+        "reviewCount": "[[.Product.Rating.Count]]",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "review": [[reviewsJSONLD .Product.Rating.Reviews]],[[end]]
       [[if .Product.SKU]]"sku": "[[.Product.SKU]]",[[end]]
       [[if .Product.Barcode]]"gtin": "[[.Product.Barcode]]",[[end]]
       "brand": {
@@ -375,6 +383,12 @@
                     [[end]]
                 </div>
                 <h1 itemprop="name">[[.Product.Name]]</h1>
+                [[if and .Product.Rating (gt .Product.Rating.Count 0)]]
+                <a href="#reviews" style="display:inline-flex;align-items:center;gap:0.5rem;text-decoration:none;width:fit-content">
+                    <span style="color:#f59e0b;font-size:1.1rem;letter-spacing:0.1em">[[stars .Product.Rating.Average]]</span>
+                    <span style="font-size:0.9rem;color:#64748b;font-weight:600">[[printf "%.1f" .Product.Rating.Average]] · [[.Product.Rating.Count]] review[[if ne .Product.Rating.Count 1]]s[[end]]</span>
+                </a>
+                [[end]]
                 <div class="price" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap">
                     [[if .Product.DealPrice]]
                     <span itemprop="offers" itemscope itemtype="https://schema.org/Offer">
@@ -496,6 +510,64 @@
         </section>
     </main>
 
+    [[if and .Product.Rating (gt .Product.Rating.Count 0)]]
+    <section id="reviews" style="max-width:1400px;margin:0 auto;padding:0 5% 4rem">
+        <h2 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.2em;font-weight:900;margin-bottom:2rem;color:var(--text);opacity:0.7">Customer Reviews</h2>
+
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3rem;align-items:center;background:#fff;padding:2rem;border-radius:24px;border:1px solid rgba(0,0,0,0.05);box-shadow:0 10px 30px -10px rgba(0,0,0,0.06);margin-bottom:2.5rem">
+            <div style="text-align:center;padding-right:2rem;border-right:1px solid #e2e8f0">
+                <div style="font-size:3.5rem;font-weight:900;color:var(--text);line-height:1;letter-spacing:-0.02em">[[printf "%.1f" .Product.Rating.Average]]</div>
+                <div style="color:#f59e0b;font-size:1.25rem;margin:0.5rem 0;letter-spacing:0.1em">[[stars .Product.Rating.Average]]</div>
+                <div style="font-size:0.85rem;color:#64748b;font-weight:600">Based on [[.Product.Rating.Count]] review[[if ne .Product.Rating.Count 1]]s[[end]]</div>
+            </div>
+            <div>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;font-size:0.85rem">
+                    <span style="width:2rem;font-weight:700;color:#64748b">5★</span>
+                    <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><div style="height:100%;background:#f59e0b;width:[[distPct .Product.Rating 5]]%"></div></div>
+                    <span style="width:2rem;text-align:right;color:#64748b">[[distCount .Product.Rating 5]]</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;font-size:0.85rem">
+                    <span style="width:2rem;font-weight:700;color:#64748b">4★</span>
+                    <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><div style="height:100%;background:#f59e0b;width:[[distPct .Product.Rating 4]]%"></div></div>
+                    <span style="width:2rem;text-align:right;color:#64748b">[[distCount .Product.Rating 4]]</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;font-size:0.85rem">
+                    <span style="width:2rem;font-weight:700;color:#64748b">3★</span>
+                    <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><div style="height:100%;background:#f59e0b;width:[[distPct .Product.Rating 3]]%"></div></div>
+                    <span style="width:2rem;text-align:right;color:#64748b">[[distCount .Product.Rating 3]]</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;font-size:0.85rem">
+                    <span style="width:2rem;font-weight:700;color:#64748b">2★</span>
+                    <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><div style="height:100%;background:#f59e0b;width:[[distPct .Product.Rating 2]]%"></div></div>
+                    <span style="width:2rem;text-align:right;color:#64748b">[[distCount .Product.Rating 2]]</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.85rem">
+                    <span style="width:2rem;font-weight:700;color:#64748b">1★</span>
+                    <div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><div style="height:100%;background:#f59e0b;width:[[distPct .Product.Rating 1]]%"></div></div>
+                    <span style="width:2rem;text-align:right;color:#64748b">[[distCount .Product.Rating 1]]</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem">
+            [[range .Product.Rating.Reviews]]
+            <article style="background:#fff;padding:1.5rem;border-radius:16px;border:1px solid rgba(0,0,0,0.05);box-shadow:0 5px 15px -5px rgba(0,0,0,0.04)">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
+                    <div style="color:#f59e0b;font-size:1rem;letter-spacing:0.1em">[[stars .Rating]]</div>
+                    <time datetime="[[.Date.Format "2006-01-02"]]" style="font-size:0.75rem;color:#94a3b8;font-weight:600">[[.Date.Format "Jan 2, 2006"]]</time>
+                </div>
+                [[if .Title]]<h3 style="font-size:1rem;font-weight:800;margin:0 0 0.5rem;color:var(--text);line-height:1.3">[[.Title]]</h3>[[end]]
+                <p style="font-size:0.9rem;line-height:1.6;color:#475569;margin:0 0 1rem">[[.Body]]</p>
+                <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:#64748b;border-top:1px solid #f1f5f9;padding-top:0.75rem">
+                    <strong style="color:var(--text)">[[.Name]]</strong>
+                    [[if .Verified]]<span style="color:#15803d;font-weight:700;display:inline-flex;align-items:center;gap:0.25rem">✓ Verified Purchase</span>[[end]]
+                </div>
+            </article>
+            [[end]]
+        </div>
+    </section>
+    [[end]]
+
     [[if .RelatedProducts]]
     <section style="max-width:1400px;margin:0 auto;padding:0 5% 4rem">
         <h2 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.2em;font-weight:900;margin-bottom:2rem;color:var(--text);opacity:0.7">You May Also Like</h2>
@@ -508,6 +580,12 @@
                 </div>
                 <div class="category-tag">[[.Category]]</div>
                 <h3 class="product-name">[[.Name]]</h3>
+                [[if and .Rating (gt .Rating.Count 0)]]
+                <div style="display:flex;align-items:center;gap:0.4rem;margin:0.25rem 0 0.5rem;font-size:0.8rem">
+                    <span style="color:#f59e0b;letter-spacing:0.05em">[[stars .Rating.Average]]</span>
+                    <span style="color:#64748b;font-weight:600">([[.Rating.Count]])</span>
+                </div>
+                [[end]]
                 <div class="price-row">
                     [[if .DealPrice]]
                     <span class="price">$[[printf "%.2f" .DiscountedPrice]]</span>

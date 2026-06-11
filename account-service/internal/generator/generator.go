@@ -51,6 +51,30 @@ type Attribute struct {
 	Value string `json:"value"`
 }
 
+type Review struct {
+	Name      string    `json:"name"`
+	Rating    int       `json:"rating"`
+	Title     string    `json:"title,omitempty"`
+	Body      string    `json:"body"`
+	Verified  bool      `json:"verified,omitempty"`
+	Date      time.Time `json:"date"`
+}
+
+type RatingDistribution struct {
+	Star1 int `json:"star1,omitempty"`
+	Star2 int `json:"star2,omitempty"`
+	Star3 int `json:"star3,omitempty"`
+	Star4 int `json:"star4,omitempty"`
+	Star5 int `json:"star5,omitempty"`
+}
+
+type Rating struct {
+	Count        int                 `json:"count,omitempty"`
+	Average      float64             `json:"average,omitempty"`
+	Distribution *RatingDistribution `json:"distribution,omitempty"`
+	Reviews      []Review            `json:"reviews,omitempty"`
+}
+
 type PriceTier struct {
 	MinQty int     `json:"minQty"`
 	Price  float64 `json:"price"`
@@ -77,6 +101,7 @@ type ProductData struct {
 	Active          *bool       `json:"active,omitempty"`
 	Featured        bool        `json:"featured,omitempty"`
 	Attributes      []Attribute `json:"attributes"`
+	Rating          *Rating     `json:"rating,omitempty"`
 	Filename        string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
@@ -767,6 +792,103 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 		},
 		"catCount": func(counts map[string]int, cat string) int {
 			return counts[cat]
+		},
+		// stars renders a 5-star bar using filled (★) and outline (☆) glyphs.
+		// Accepts float64 (average) or int (single review). Half-star rounds up at >= 0.5.
+		"stars": func(v interface{}) template.HTML {
+			var avg float64
+			switch n := v.(type) {
+			case float64:
+				avg = n
+			case int:
+				avg = float64(n)
+			case int32:
+				avg = float64(n)
+			case int64:
+				avg = float64(n)
+			}
+			full := int(avg)
+			if avg-float64(full) >= 0.5 {
+				full++
+			}
+			if full > 5 {
+				full = 5
+			}
+			if full < 0 {
+				full = 0
+			}
+			return template.HTML(strings.Repeat("★", full) + strings.Repeat("☆", 5-full))
+		},
+		// distPct returns the percentage of reviews at a given star rating, rounded to int.
+		// Used for the distribution bar widths.
+		"distPct": func(r *Rating, star int) int {
+			if r == nil || r.Count == 0 || r.Distribution == nil {
+				return 0
+			}
+			var n int
+			switch star {
+			case 1:
+				n = r.Distribution.Star1
+			case 2:
+				n = r.Distribution.Star2
+			case 3:
+				n = r.Distribution.Star3
+			case 4:
+				n = r.Distribution.Star4
+			case 5:
+				n = r.Distribution.Star5
+			}
+			return (n * 100) / r.Count
+		},
+		// reviewsJSONLD marshals the reviews slice into a schema.org-compliant
+		// JSON array string and returns it as template.JS so html/template does
+		// NOT JSON-quote it inside <script type="application/ld+json"> blocks.
+		"reviewsJSONLD": func(reviews []Review) template.JS {
+			type schemaReview struct {
+				Type          string                 `json:"@type"`
+				Author        map[string]string      `json:"author"`
+				DatePublished string                 `json:"datePublished"`
+				ReviewRating  map[string]interface{} `json:"reviewRating"`
+				Name          string                 `json:"name,omitempty"`
+				ReviewBody    string                 `json:"reviewBody"`
+			}
+			out := make([]schemaReview, 0, len(reviews))
+			for _, r := range reviews {
+				out = append(out, schemaReview{
+					Type:          "Review",
+					Author:        map[string]string{"@type": "Person", "name": r.Name},
+					DatePublished: r.Date.Format("2006-01-02"),
+					ReviewRating: map[string]interface{}{
+						"@type":       "Rating",
+						"ratingValue": fmt.Sprintf("%d", r.Rating),
+						"bestRating":  "5",
+						"worstRating": "1",
+					},
+					Name:       r.Title,
+					ReviewBody: r.Body,
+				})
+			}
+			b, _ := json.Marshal(out)
+			return template.JS(b)
+		},
+		// distCount returns the count of reviews at a given star rating.
+		"distCount": func(r *Rating, star int) int {
+			if r == nil || r.Distribution == nil {
+				return 0
+			}
+			switch star {
+			case 1:
+				return r.Distribution.Star1
+			case 2:
+				return r.Distribution.Star2
+			case 3:
+				return r.Distribution.Star3
+			case 4:
+				return r.Distribution.Star4
+			case 5:
+				return r.Distribution.Star5
+			}
+			return 0
 		},
 	}
 

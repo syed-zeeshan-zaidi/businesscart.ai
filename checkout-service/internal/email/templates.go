@@ -310,6 +310,103 @@ func lastSix(s string) string {
 	return s[len(s)-6:]
 }
 
+// ─────────────────────── Review Request (post-purchase) ───────────────────────
+
+type ReviewRequestData struct {
+	OrderID     string
+	CustomerName string // optional; falls back to "there" in greeting
+	Items       []OrderItemView
+	BrandName   string
+	BrandEmail  string
+	StoreURL    string // homepage of the brand storefront (optional)
+}
+
+// ReviewRequestMessage builds the post-purchase review-request email sent to the
+// customer. Customer replies with their review by email; the company admin then
+// manually adds it to the product via the admin UI. Manual flow by design (no
+// public submission endpoint, no spam vector).
+func ReviewRequestMessage(to string, data ReviewRequestData) Message {
+	subj := "How was your order?"
+	if len(data.Items) == 1 {
+		subj = "How was your " + data.Items[0].Name + "?"
+	}
+	return Message{
+		To:       to,
+		Subject:  subj,
+		HTMLBody: renderHTML(reviewRequestHTMLTmpl, data),
+		TextBody: reviewRequestText(data),
+	}
+}
+
+func reviewRequestText(d ReviewRequestData) string {
+	var b bytes.Buffer
+	name := d.CustomerName
+	if name == "" {
+		name = "there"
+	}
+	fmt.Fprintf(&b, "Hi %s,\n\n", name)
+	if len(d.Items) == 1 {
+		fmt.Fprintf(&b, "Thanks for ordering %s. We hope you're enjoying it!\n\n", d.Items[0].Name)
+	} else {
+		fmt.Fprintf(&b, "Thanks for your recent order. We hope you're enjoying it!\n\n")
+	}
+	fmt.Fprintf(&b, "Would you take a minute to share your experience? Just hit reply with:\n\n")
+	fmt.Fprintf(&b, "  - Your name (as you'd like it shown)\n")
+	fmt.Fprintf(&b, "  - A rating from 1 to 5 stars\n")
+	fmt.Fprintf(&b, "  - A short title\n")
+	fmt.Fprintf(&b, "  - A few sentences about your experience\n\n")
+	fmt.Fprintf(&b, "Your honest feedback helps other shoppers decide and helps us improve.\n\n")
+	fmt.Fprintf(&b, "Order #%s\n\n", lastSix(d.OrderID))
+	fmt.Fprintf(&b, "%s\n", brandFooterText(d.BrandName, d.BrandEmail))
+	return b.String()
+}
+
+const reviewRequestHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>How was your order?</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">How was your order?</h1>
+  <p style="font-size:16px;line-height:1.5">Hi {{if .CustomerName}}{{.CustomerName}}{{else}}there{{end}},</p>
+  {{if eq (len .Items) 1}}
+    <p style="font-size:16px;line-height:1.5">Thanks for ordering <strong>{{(index .Items 0).Name}}</strong>. We hope you're enjoying it!</p>
+  {{else}}
+    <p style="font-size:16px;line-height:1.5">Thanks for your recent order. We hope you're enjoying it!</p>
+  {{end}}
+
+  {{if .Items}}
+  <table style="width:100%;border-collapse:collapse;margin:20px 0">
+    <tbody>
+      {{range .Items}}
+      <tr>
+        <td style="padding:8px 8px 8px 0;border-bottom:1px solid #f1f5f9;width:64px;vertical-align:top">
+          {{if .Image}}<img src="{{.Image}}" alt="{{.Name}}" width="56" height="56" style="width:56px;height:56px;border-radius:6px;border:1px solid #e2e8f0;object-fit:cover;display:block" />{{else}}<div style="width:56px;height:56px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px"></div>{{end}}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;vertical-align:top">
+          <div style="font-size:14px;color:#1e293b;font-weight:600">{{.Name}}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">Qty {{.Quantity}}</div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+
+  <h2 style="font-size:15px;color:#1e293b;margin-top:24px;margin-bottom:8px">Would you take a minute to share your experience?</h2>
+  <p style="font-size:15px;line-height:1.6;margin:0 0 8px">Just hit <strong>Reply</strong> with:</p>
+  <ul style="font-size:15px;line-height:1.7;color:#1e293b;margin:0 0 16px;padding-left:20px">
+    <li>Your name (as you'd like it shown)</li>
+    <li>A rating from 1 to 5 stars</li>
+    <li>A short title</li>
+    <li>A few sentences about your experience</li>
+  </ul>
+  <p style="font-size:14px;line-height:1.5;color:#64748b">Your honest feedback helps other shoppers decide and helps us improve.</p>
+
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="font-size:12px;color:#64748b">Order #{{.OrderID}}</p>
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
+</body>
+</html>`
+
 // ─────────────────────── Monthly Statement ───────────────────────
 
 // MonthlyStatementData is the flat view of a billing statement sent to a

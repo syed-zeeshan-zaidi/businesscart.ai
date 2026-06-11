@@ -45,6 +45,33 @@ export interface PriceTier {
   price: number;
 }
 
+export interface Review {
+  name: string;
+  email?: string;
+  rating: number;
+  title?: string;
+  body: string;
+  verified?: boolean;
+  orderId?: string;
+  date: string;
+  createdAt?: string;
+}
+
+export interface RatingDistribution {
+  star1?: number;
+  star2?: number;
+  star3?: number;
+  star4?: number;
+  star5?: number;
+}
+
+export interface Rating {
+  count?: number;
+  average?: number;
+  distribution?: RatingDistribution;
+  reviews?: Review[];
+}
+
 export interface CustomerGroup {
   id: string;
   name: string;
@@ -66,6 +93,7 @@ export interface Product {
   images?: string[];
   category?: string;
   googleProductCategory?: string;
+  rating?: Rating;
   slug?: string;
   sku?: string;
   barcode?: string;
@@ -104,6 +132,7 @@ export interface Order {
   trackingUrl?: string;
   shippedAt?: string;
   deliveredAt?: string;
+  reviewRequestedAt?: string;
   updatedAt?: string;
 }
 

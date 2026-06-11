@@ -376,6 +376,11 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	if gpc, ok := updates["googleProductCategory"].(string); ok {
 		updates["googleProductCategory"] = strings.TrimSpace(gpc)
 	}
+	// Reviews: backend ALWAYS recomputes count/average/distribution from the reviews
+	// array. Never trust client-sent aggregates (security + drift prevention).
+	if rating, ok := updates["rating"].(map[string]interface{}); ok {
+		updates["rating"] = recomputeRating(rating)
+	}
 	if slug, ok := updates["slug"].(string); ok {
 		slug = strings.TrimSpace(slug)
 		if slug == "" {
@@ -678,6 +683,68 @@ func sanitizeGroupIDs(in []string) []string {
 		return nil
 	}
 	return out
+}
+
+// recomputeRating normalizes the rating sub-document: filters invalid reviews,
+// recomputes count/average/distribution from the reviews array, and clamps
+// per-review ratings to 1..5. Always runs server-side; clients can lie about
+// aggregates but cannot poison the counts that drive Google Shopping stars.
+// Also normalizes each review's date string to time.Time so subsequent reads
+// decode cleanly into the storage.Review struct, and sets createdAt = now
+// when missing.
+func recomputeRating(rating map[string]interface{}) map[string]interface{} {
+	reviews, _ := rating["reviews"].([]interface{})
+	dist := map[string]int{"star1": 0, "star2": 0, "star3": 0, "star4": 0, "star5": 0}
+	sum := 0
+	count := 0
+	now := time.Now()
+	for _, r := range reviews {
+		rev, ok := r.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		var rv int
+		switch v := rev["rating"].(type) {
+		case float64:
+			rv = int(v)
+		case int:
+			rv = v
+		case int32:
+			rv = int(v)
+		}
+		if rv < 1 || rv > 5 {
+			continue
+		}
+		// Normalize date: frontend sends "2006-01-02" from a date input; mongo
+		// driver cannot decode that string into time.Time on subsequent reads.
+		// Accept either YYYY-MM-DD or RFC3339.
+		if dateStr, ok := rev["date"].(string); ok && dateStr != "" {
+			if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+				rev["date"] = t
+			} else if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
+				rev["date"] = t
+			}
+		}
+		if _, hasDate := rev["date"]; !hasDate {
+			rev["date"] = now
+		}
+		// CreatedAt is system-managed: stamp once on first save.
+		if _, hasCreated := rev["createdAt"]; !hasCreated {
+			rev["createdAt"] = now
+		}
+		sum += rv
+		count++
+		dist[fmt.Sprintf("star%d", rv)]++
+	}
+	avg := 0.0
+	if count > 0 {
+		// Round to 1 decimal place without importing math: ×10, +0.5, truncate, /10
+		avg = float64(int(float64(sum)/float64(count)*10+0.5)) / 10
+	}
+	rating["count"] = count
+	rating["average"] = avg
+	rating["distribution"] = dist
+	return rating
 }
 
 func validatePriceTiers(tiers []storage.PriceTier) error {

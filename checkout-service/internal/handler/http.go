@@ -307,6 +307,9 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 	if request.HTTPMethod == "PUT" && len(parts) == 4 { // /checkout/orders/{orderId}
 		return h.handleUpdateOrderRequest(parts[3], request, accountID, role)
 	}
+	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[4] == "request-review" { // /checkout/orders/{orderId}/request-review
+		return h.handleRequestReviewRequest(parts[3], accountID, role)
+	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
@@ -1211,6 +1214,63 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 		}
 	}
 
+	return h.successResponse(updated), nil
+}
+
+// handleRequestReviewRequest sends a post-purchase review-request email to the
+// customer and marks the order with reviewRequestedAt. Admin/company only.
+// Customer replies by email; admin manually transcribes the review into the
+// product via the catalog admin UI (intentional manual moderation, no spam vector).
+func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, role string) (events.APIGatewayProxyResponse, error) {
+	if role != "admin" && role != "company" {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: admin or company only"), nil
+	}
+	orderID, err := primitive.ObjectIDFromHex(orderIDStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid order ID"), nil
+	}
+	existing, err := h.orderService.GetByID(orderID)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Order not found"), nil
+	}
+	if role == "company" && existing.SellerID != accountID {
+		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
+	}
+	if existing.CustomerEmail == "" {
+		return h.errorResponse(http.StatusBadRequest, "Order has no customer email"), nil
+	}
+	if h.emailSender == nil {
+		return h.errorResponse(http.StatusServiceUnavailable, "Email sending not configured"), nil
+	}
+
+	items := make([]mailer.OrderItemView, 0, len(existing.Items))
+	for _, it := range existing.Items {
+		items = append(items, mailer.OrderItemView{
+			Name:     it.Name,
+			Quantity: it.Quantity,
+			Price:    effectiveLineSubtotal(it),
+			Image:    it.Image,
+		})
+	}
+	brandName, brandEmail := mailer.CompanyBrand(existing.SellerID)
+	msg := mailer.ReviewRequestMessage(existing.CustomerEmail, mailer.ReviewRequestData{
+		OrderID:    existing.ID.Hex(),
+		Items:      items,
+		BrandName:  brandName,
+		BrandEmail: brandEmail,
+	})
+	sender, _ := mailer.SenderForCompany(context.Background(), existing.SellerID, h.emailSender)
+	if err := sender.Send(context.Background(), msg); err != nil {
+		log.Printf("WARN: review-request email failed for %s: %v", existing.CustomerEmail, err)
+		return h.errorResponse(http.StatusBadGateway, "Failed to send email"), nil
+	}
+
+	updated, err := h.orderService.UpdateOrder(orderID, order.OrderUpdate{SetReviewRequested: true})
+	if err != nil {
+		// Email already sent; log + return success so UI updates even if mark fails.
+		log.Printf("WARN: failed to mark reviewRequestedAt for %s: %v", orderIDStr, err)
+		return h.successResponse(existing), nil
+	}
 	return h.successResponse(updated), nil
 }
 
