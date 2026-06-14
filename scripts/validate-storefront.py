@@ -23,6 +23,7 @@ import shutil
 import socketserver
 import subprocess
 import sys
+from xml.etree import ElementTree as ET
 import threading
 import time
 
@@ -279,6 +280,75 @@ def step_schema():
     if (blog_parse_failures == 0 and blog_missing_failures == 0
             and blog_forbidden_failures == 0 and blog_external_failures == 0):
         ok(f"all {len(blog_posts)} blog posts: Article + BreadcrumbList present, no FAQ/ItemList/Product, no external trackers")
+
+    # --- Google Product Reviews feed (optional — skip silently if no feed file) ---
+    # Verifies: file exists, XML is well-formed, schema v2.4 invariants present,
+    # review_count matches sum of catalog Rating.Count across all reviewed PDPs.
+    feeds_dir = f"{STOREFRONT_DIR}/feeds"
+    gr_files = sorted(glob.glob(f"{feeds_dir}/gr-*.xml"))
+    if gr_files:
+        feed_path = gr_files[0]
+        try:
+            tree = ET.parse(feed_path)
+            root = tree.getroot()
+        except ET.ParseError as e:
+            fail(f"google_reviews feed XML parse error: {e}")
+            return
+
+        if root.tag != "feed":
+            fail(f"google_reviews feed: root element must be <feed>, got <{root.tag}>")
+            return
+        version_el = root.find("version")
+        if version_el is None or (version_el.text or "").strip() != "2.4":
+            fail(f"google_reviews feed: must contain <version>2.4</version>")
+            return
+        publisher_el = root.find("publisher")
+        if publisher_el is None or publisher_el.find("name") is None:
+            fail(f"google_reviews feed: missing <publisher><name>")
+            return
+
+        reviews_in_feed = root.findall("./reviews/review")
+        feed_count = len(reviews_in_feed)
+
+        # Count reviews referenced in catalog (sum aggregateRating.reviewCount across PDPs).
+        catalog_count = 0
+        for pdp in pdps:
+            with open(pdp, encoding="utf-8") as fp:
+                html = fp.read()
+            for block in json_ld_re.findall(html):
+                try:
+                    d = json.loads(block)
+                except json.JSONDecodeError:
+                    continue
+                if d.get("@type") == "Product":
+                    agg = d.get("aggregateRating") or {}
+                    try:
+                        catalog_count += int(agg.get("reviewCount") or 0)
+                    except (ValueError, TypeError):
+                        pass
+
+        if feed_count != catalog_count:
+            fail(f"google_reviews feed: review count mismatch — feed has {feed_count}, "
+                 f"PDPs aggregate to {catalog_count}")
+            return
+
+        # Per-review schema invariants (spot check first 5 reviews to catch structural issues).
+        for i, r in enumerate(reviews_in_feed[:5]):
+            for required in ("review_id", "reviewer", "review_timestamp",
+                             "content", "review_url", "ratings", "products"):
+                if r.find(required) is None:
+                    fail(f"google_reviews feed: review[{i+1}] missing <{required}>")
+                    return
+            overall = r.find("./ratings/overall")
+            if overall is None or overall.get("min") != "1" or overall.get("max") != "5":
+                fail(f"google_reviews feed: review[{i+1}] ratings/overall must have min='1' max='5'")
+                return
+            review_url = r.find("review_url")
+            if review_url is None or review_url.get("type") != "singleton":
+                fail(f"google_reviews feed: review[{i+1}] review_url must have type='singleton'")
+                return
+
+        ok(f"google_reviews feed: schema v2.4 valid, {feed_count} reviews, matches catalog count, required fields present")
 
 
 # ─── Step 4: Lighthouse against served storefront ───────────────────────────
