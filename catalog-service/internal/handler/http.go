@@ -94,6 +94,36 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 
 	// Route the request
 	log.Printf("DEBUG [catalog-service]: Path=%s Method=%s", request.Path, request.HTTPMethod)
+	if strings.Contains(request.Path, "/blog") {
+		id := ""
+		hasID := false
+		pathParts := strings.Split(strings.Trim(request.Path, "/"), "/")
+		for i, part := range pathParts {
+			if part == "blog" && i+1 < len(pathParts) {
+				id = pathParts[i+1]
+				hasID = true
+				break
+			}
+		}
+		switch request.HTTPMethod {
+		case "POST":
+			return h.createBlogPost(userClaim, request.Body)
+		case "GET":
+			if hasID {
+				return h.getBlogPostByID(userClaim, id)
+			}
+			return h.getBlogPosts(userClaim)
+		case "PUT":
+			if hasID {
+				return h.updateBlogPost(userClaim, id, request.Body)
+			}
+		case "DELETE":
+			if hasID {
+				return h.deleteBlogPost(userClaim, id)
+			}
+		}
+		return h.errorResponse(http.StatusNotFound, "Route not found"), nil
+	}
 	if strings.Contains(request.Path, "/products") {
 		// Handle image upload endpoints first
 		if request.Path == "/products/upload-url" && request.HTTPMethod == "POST" {
@@ -588,6 +618,256 @@ func (h *LambdaHandler) deleteProductImages(imageUrls []string) {
 			log.Printf("WARN: failed to delete S3 image %s: %v", key, err)
 		}
 	}
+}
+
+// --- Blog Post Handlers ---
+
+// isValidSlug enforces lowercase letters, digits, and single hyphens.
+// Must start and end with an alphanumeric character. No spaces, no slashes.
+func isValidSlug(s string) bool {
+	if s == "" {
+		return false
+	}
+	if s[0] == '-' || s[len(s)-1] == '-' {
+		return false
+	}
+	prevHyphen := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		isAlphaNum := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		isHyphen := c == '-'
+		if !isAlphaNum && !isHyphen {
+			return false
+		}
+		if isHyphen && prevHyphen {
+			return false
+		}
+		prevHyphen = isHyphen
+	}
+	return true
+}
+
+func (h *LambdaHandler) createBlogPost(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+	if claimRole != "company" && claimRole != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
+	}
+
+	var post storage.BlogPost
+	if err := json.Unmarshal([]byte(body), &post); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	post.SellerID = claimID
+	post.Title = strings.TrimSpace(post.Title)
+	post.Slug = strings.TrimSpace(post.Slug)
+	post.Excerpt = strings.TrimSpace(post.Excerpt)
+	post.Author = strings.TrimSpace(post.Author)
+	post.AuthorBio = strings.TrimSpace(post.AuthorBio)
+	post.Category = strings.TrimSpace(post.Category)
+	post.MetaTitle = strings.TrimSpace(post.MetaTitle)
+	post.MetaDescription = strings.TrimSpace(post.MetaDescription)
+	post.FeaturedImage = strings.TrimSpace(post.FeaturedImage)
+
+	if !isValidSlug(post.Slug) {
+		return h.errorResponse(http.StatusBadRequest, "Slug must be lowercase letters, digits, and hyphens only"), nil
+	}
+
+	if err := validate.Struct(post); err != nil {
+		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+	}
+
+	// Slug uniqueness per seller
+	if existing, _ := h.db.GetBlogPostBySlug(post.SellerID, post.Slug); existing != nil && !existing.ID.IsZero() {
+		return h.errorResponse(http.StatusConflict, "A blog post with this slug already exists"), nil
+	}
+
+	if err := h.db.CreateBlogPost(&post); err != nil {
+		log.Printf("ERROR: CreateBlogPost failed: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to create blog post"), nil
+	}
+
+	return h.successResponse(post), nil
+}
+
+func (h *LambdaHandler) getBlogPosts(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
+	role, _ := userClaim["role"].(string)
+	accountID, _ := userClaim["id"].(string)
+
+	var filter bson.M
+	switch role {
+	case "admin":
+		filter = bson.M{}
+	case "company":
+		filter = bson.M{"sellerID": accountID}
+	case "customer", "b2c":
+		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
+		if !ok {
+			return h.successResponse([]*storage.BlogPost{}), nil
+		}
+		var companyIDs []string
+		for _, id := range associateCompanyIDs {
+			companyIDs = append(companyIDs, id.(string))
+		}
+		filter = bson.M{
+			"sellerID": bson.M{"$in": companyIDs},
+			"$or": []bson.M{
+				{"active": true},
+				{"active": bson.M{"$exists": false}},
+			},
+		}
+	default:
+		return h.errorResponse(http.StatusForbidden, "Unauthorized: Invalid role"), nil
+	}
+
+	posts, err := h.db.GetBlogPosts(filter)
+	if err != nil {
+		log.Printf("ERROR: GetBlogPosts failed: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve blog posts"), nil
+	}
+
+	if len(posts) == 0 {
+		return h.successResponse([]*storage.BlogPost{}), nil
+	}
+
+	return h.successResponse(posts), nil
+}
+
+func (h *LambdaHandler) getBlogPostByID(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
+	}
+
+	post, err := h.db.GetBlogPostByID(id)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
+	}
+
+	if claimRole != "admin" {
+		isOwner := post.SellerID == claimID
+		isAssociated := false
+		if claimRole == "customer" || claimRole == "b2c" {
+			if assoc, ok := userClaim["associate_company_ids"].([]interface{}); ok {
+				for _, cid := range assoc {
+					if cid.(string) == post.SellerID {
+						isAssociated = true
+						break
+					}
+				}
+			}
+		}
+		if !isOwner && !isAssociated {
+			return h.errorResponse(http.StatusForbidden, "Unauthorized to access this blog post"), nil
+		}
+		if isAssociated && post.Active != nil && !*post.Active {
+			return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
+		}
+	}
+
+	return h.successResponse(post), nil
+}
+
+func (h *LambdaHandler) updateBlogPost(userClaim map[string]interface{}, idStr string, body string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
+	}
+
+	post, err := h.db.GetBlogPostByID(id)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
+	}
+
+	if post.SellerID != claimID && claimRole != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Unauthorized to update this blog post"), nil
+	}
+
+	var updates bson.M
+	if err := json.Unmarshal([]byte(body), &updates); err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+
+	delete(updates, "sellerID")
+	delete(updates, "createdAt")
+
+	// Trim string fields
+	for _, k := range []string{"title", "excerpt", "author", "authorBio", "category", "metaTitle", "metaDescription", "featuredImage"} {
+		if v, ok := updates[k].(string); ok {
+			updates[k] = strings.TrimSpace(v)
+		}
+	}
+
+	// Slug: validate and check uniqueness if changing
+	if slug, ok := updates["slug"].(string); ok {
+		slug = strings.TrimSpace(slug)
+		if !isValidSlug(slug) {
+			return h.errorResponse(http.StatusBadRequest, "Slug must be lowercase letters, digits, and hyphens only"), nil
+		}
+		if slug != post.Slug {
+			if existing, _ := h.db.GetBlogPostBySlug(post.SellerID, slug); existing != nil && !existing.ID.IsZero() && existing.ID != id {
+				return h.errorResponse(http.StatusConflict, "A blog post with this slug already exists"), nil
+			}
+		}
+		updates["slug"] = slug
+	}
+
+	// Active coerce
+	if active, ok := updates["active"].(string); ok {
+		updates["active"] = active == "true"
+	}
+
+	// PublishedAt coerce (RFC3339 string → time.Time)
+	if pa, ok := updates["publishedAt"].(string); ok {
+		if pa == "" {
+			delete(updates, "publishedAt")
+		} else if t, err := time.Parse(time.RFC3339, pa); err == nil {
+			updates["publishedAt"] = t
+		} else {
+			return h.errorResponse(http.StatusBadRequest, "Invalid publishedAt, use RFC3339 format"), nil
+		}
+	}
+
+	unsetFields := bson.M{}
+	if err := h.db.UpdateBlogPost(id, updates, unsetFields); err != nil {
+		log.Printf("ERROR: UpdateBlogPost failed: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to update blog post"), nil
+	}
+
+	return h.successResponse(nil), nil
+}
+
+func (h *LambdaHandler) deleteBlogPost(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
+	claimRole, _ := userClaim["role"].(string)
+	claimID, _ := userClaim["id"].(string)
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return h.errorResponse(http.StatusBadRequest, "Invalid ID"), nil
+	}
+
+	post, err := h.db.GetBlogPostByID(id)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
+	}
+
+	if post.SellerID != claimID && claimRole != "admin" {
+		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this blog post"), nil
+	}
+
+	if err := h.db.DeleteBlogPost(id); err != nil {
+		log.Printf("ERROR: DeleteBlogPost failed: %v", err)
+		return h.errorResponse(http.StatusInternalServerError, "Failed to delete blog post"), nil
+	}
+
+	return h.successResponse(nil), nil
 }
 
 // --- Image Upload Endpoints ---

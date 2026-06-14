@@ -14,6 +14,7 @@ import {
   ChartBarIcon,
   BanknotesIcon,
   XMarkIcon,
+  NewspaperIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
@@ -80,6 +81,7 @@ const Sidebar = () => {
         { name: 'Products', path: '/products', icon: ShoppingBagIcon },
         { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
         { name: 'Quotes', path: '/quotes', icon: DocumentTextIcon },
+        ...((isAdmin || isCompany) ? [{ name: 'Blog Posts', path: '/blog-manager', icon: NewspaperIcon }] : []),
       ],
     },
     {

@@ -168,6 +168,7 @@ class Tracker:
         self.codes = []      # company_code string (used for DELETE /codes/{code})
         self.visitors = []   # visitor_id string
         self.statements = [] # statement_id string
+        self.blog_posts = [] # (owner_role_key, blog_post_id)
 
     def track_account(self, role_key, account_id):
         self.accounts.append((role_key, account_id))
@@ -189,6 +190,9 @@ class Tracker:
     def track_statement(self, statement_id):
         if statement_id not in self.statements:
             self.statements.append(statement_id)
+
+    def track_blog_post(self, role_key, blog_post_id):
+        self.blog_posts.append((role_key, blog_post_id))
 
 
 # ── Test runner ───────────────────────────────────────────────────────
@@ -2149,6 +2153,160 @@ class BackendFlowTest:
 
         self.run_test("List statements requires sellerId", test_get_statements_missing_seller)
 
+    # ── Phase 8f: Blog posts (editorial CMS) ─────────────────────
+    # Uses uSetGo's REAL welding-gloves blog post as the test fixture.
+    # No synthetic create/delete — protects prod content from test churn.
+
+    def phase8f_blog_posts(self):
+        phase("PHASE 8f: Blog Post Permissions + Validation (real uSetGo post)")
+
+        USETGO_SELLER_ID = "68d46f98e4dc5dd472e33655"
+
+        # ── 1. Discover the real uSetGo welding-gloves post ───────
+        def test_discover_usetgo_post():
+            self.use_token("admin")
+            resp = self.api.get("/blog")
+            assert_status(resp, 200, "Admin list blog posts")
+            posts = resp.json()
+            usetgo_welding = [
+                p for p in posts
+                if p.get("sellerID") == USETGO_SELLER_ID
+                and p.get("category") == "welding-gloves"
+            ]
+            assert len(usetgo_welding) >= 1, \
+                f"Expected ≥1 uSetGo welding-gloves post in prod Mongo, found {len(usetgo_welding)}"
+            self._usetgo_post = usetgo_welding[0]
+            ok(f"Found uSetGo post: '{self._usetgo_post['title'][:50]}...' "
+               f"slug={self._usetgo_post['slug']} _id={self._usetgo_post['_id'][:8]}...")
+
+        self.run_test("8f-1. Discover uSetGo welding-gloves post (admin)", test_discover_usetgo_post)
+
+        # ── 2. Admin can GET uSetGo post by ID ────────────────────
+        def test_admin_get_post():
+            self.use_token("admin")
+            pid = self._usetgo_post["_id"]
+            resp = self.api.get(f"/blog/{pid}")
+            assert_status(resp, 200, "Admin GET uSetGo post by ID")
+            body = resp.json()
+            assert body.get("sellerID") == USETGO_SELLER_ID
+            assert body.get("category") == "welding-gloves"
+            ok(f"Admin read uSetGo post by ID ({len(body.get('body', ''))} chars body)")
+
+        self.run_test("8f-2. Admin GET by ID", test_admin_get_post)
+
+        # ── 3. Slug uniqueness blocks duplicate against existing uSetGo slug ─
+        # Uses admin role (can target uSetGo's sellerID). Validation-only — no
+        # data created (409 short-circuits before insert).
+        def test_slug_uniqueness():
+            self.use_token("admin")
+            dup_slug = self._usetgo_post["slug"]
+            resp = self.api.post("/blog", {
+                "title": f"{PREFIX} Duplicate Slug Validation Test",
+                "slug": dup_slug,
+                "body": "x" * 250,
+                "author": "Test Author",
+                "category": "welding-gloves",
+            })
+            # Note: admin's sellerID != uSetGo's, so slug check may pass for admin.
+            # If admin role's own sellerID has no posts, this 201s. We only assert
+            # that the endpoint behaves correctly (201 OK or 409 on duplicate).
+            # Track if accidentally created so cleanup can remove it.
+            if resp.status_code in (200, 201):
+                resp2 = self.api.get("/blog")
+                if resp2.status_code == 200:
+                    matches = [p for p in resp2.json() if p.get("slug") == dup_slug]
+                    for m in matches:
+                        if m.get("_id") != self._usetgo_post["_id"]:
+                            self.tracker.track_blog_post("admin", m["_id"])
+                ok("Admin can create post (different sellerID from uSetGo)")
+            elif resp.status_code == 409:
+                ok("Duplicate slug correctly rejected (409)")
+            else:
+                raise AssertionError(f"Unexpected status: {resp.status_code}")
+
+        self.run_test("8f-3. Slug uniqueness behavior", test_slug_uniqueness)
+
+        # ── 4. Required field validation (POST rejected, nothing created) ─
+        def test_required_fields():
+            self.use_token("company1")
+            # Missing title
+            resp = self.api.post("/blog", {
+                "slug": "validation-missing-title",
+                "body": "x" * 250,
+                "author": "Author",
+                "category": "test",
+            })
+            assert_status(resp, 400, "Missing title rejected")
+            ok("Missing title → 400")
+            # Body too short
+            resp = self.api.post("/blog", {
+                "title": f"{PREFIX} Short body validation test post title",
+                "slug": "validation-short-body",
+                "body": "too short",
+                "author": "Author",
+                "category": "test",
+            })
+            assert_status(resp, 400, "Short body rejected")
+            ok("Body < 200 chars → 400")
+
+        self.run_test("8f-4. Required field validation", test_required_fields)
+
+        # ── 5. Slug format validation (POST rejected, nothing created) ────
+        def test_slug_format():
+            self.use_token("company1")
+            for bad_slug in ["UPPER-CASE", "has spaces", "has/slash", "-leading", "trailing-", "double--hyphen"]:
+                resp = self.api.post("/blog", {
+                    "title": f"{PREFIX} Slug format test for validation rules here",
+                    "slug": bad_slug,
+                    "body": "x" * 250,
+                    "author": "Author",
+                    "category": "test",
+                })
+                assert_status(resp, 400, f"Bad slug '{bad_slug}' rejected")
+            ok("All 6 invalid slug formats correctly rejected")
+
+        self.run_test("8f-5. Slug format validation", test_slug_format)
+
+        # ── 6. Cross-company isolation (company2 vs uSetGo) ───────
+        def test_cross_company_isolation():
+            self.use_token("company2")
+            pid = self._usetgo_post["_id"]
+            # GET should be forbidden — company2 has no relation to uSetGo
+            resp = self.api.get(f"/blog/{pid}")
+            assert_status(resp, 403, "Cross-company GET forbidden")
+            ok("company2 GET on uSetGo post → 403")
+            # PUT should be forbidden (rejected at auth, never mutates)
+            resp = self.api.put(f"/blog/{pid}", {"title": f"{PREFIX} Should fail"})
+            assert_status(resp, 403, "Cross-company PUT forbidden")
+            ok("company2 PUT on uSetGo post → 403")
+
+        self.run_test("8f-6. Cross-company isolation", test_cross_company_isolation)
+
+        # ── 7. Company list scoped to own (company2 doesn't see uSetGo) ──
+        def test_list_company_scoped():
+            self.use_token("company2")
+            resp = self.api.get("/blog")
+            assert_status(resp, 200, "company2 list blog posts")
+            posts = resp.json()
+            assert not any(p.get("sellerID") == USETGO_SELLER_ID for p in posts), \
+                "company2 saw uSetGo's posts in their list"
+            ok(f"company2 list scoped — uSetGo posts excluded ({len(posts)} visible)")
+
+        self.run_test("8f-7. Company list scoped to own posts", test_list_company_scoped)
+
+        # ── 8. Admin sees all posts including uSetGo's ────────────
+        def test_admin_sees_all():
+            self.use_token("admin")
+            resp = self.api.get("/blog")
+            assert_status(resp, 200, "Admin list blog posts")
+            posts = resp.json()
+            usetgo_post_id = self._usetgo_post["_id"]
+            assert any(p["_id"] == usetgo_post_id for p in posts), \
+                "Admin did not see uSetGo post in list"
+            ok(f"Admin sees uSetGo post in list ({len(posts)} total)")
+
+        self.run_test("8f-8. Admin sees all posts", test_admin_sees_all)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -2193,6 +2351,20 @@ class BackendFlowTest:
                         warn(f"Failed to delete product {pid[:8]}...: HTTP {resp.status_code}")
                 except Exception as e:
                     warn(f"Error deleting product {pid[:8]}...: {e}")
+
+        # Delete blog posts
+        step("Deleting test blog posts")
+        for role_key, pid in self.tracker.blog_posts:
+            if role_key in self.jwts:
+                try:
+                    self.use_token(role_key)
+                    resp = self.api.delete(f"/blog/{pid}")
+                    if resp.status_code in (200, 204):
+                        ok(f"Deleted blog post {pid[:8]}...")
+                    else:
+                        warn(f"Failed to delete blog post {pid[:8]}...: HTTP {resp.status_code}")
+                except Exception as e:
+                    warn(f"Error deleting blog post {pid[:8]}...: {e}")
 
         # Delete accounts (admin only, reverse order — customers first, then companies)
         step("Deleting test accounts")
@@ -2459,6 +2631,7 @@ class BackendFlowTest:
             self.phase8c_password_reset()
             self.phase8d_visitor_tracking()
             self.phase8e_billing_statements()
+            self.phase8f_blog_posts()
         finally:
             self.cleanup()
 

@@ -61,7 +61,15 @@
 - **This File:** https://[[.Domain]]/llms.txt
 - **Robots:** https://[[.Domain]]/robots.txt
 [[range .Products]]- **[[.Name]] (Markdown):** https://[[$.Domain]]/products/[[.Filename]].md
-[[end]]
+[[end]][[if .BlogPosts]]
+
+## Editorial Articles
+
+Buyer's guides and informational articles published by [[.Company.Name]].
+
+- **Blog Index:** https://[[.Domain]]/blog/index.html
+[[range .BlogPosts]]- **[[.Title]]** (Markdown): https://[[$.Domain]]/blog/[[.Filename]].md
+[[end]][[end]]
 
 ---
 Last generated: [[.Timestamp]] | Powered by BusinessCart.ai

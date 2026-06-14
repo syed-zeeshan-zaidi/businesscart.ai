@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    [[if .Company.LogoURL]]<link rel="icon" href="[[.Company.LogoURL]]" type="image/png">[[end]]
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[[if .Post.MetaTitle]][[.Post.MetaTitle]][[else]][[.Post.Title]] | [[.Company.Name]][[end]]</title>
+    <meta name="description" content="[[if .Post.MetaDescription]][[.Post.MetaDescription]][[else]][[.Post.Excerpt]][[end]]">
+    <link rel="canonical" href="https://[[.Domain]]/blog/[[.Post.Filename]].html">
+    <link rel="alternate" type="text/markdown" href="[[.Post.Filename]].md">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="[[.Post.Title]]">
+    <meta property="og:description" content="[[if .Post.MetaDescription]][[.Post.MetaDescription]][[else]][[.Post.Excerpt]][[end]]">
+    <meta property="og:url" content="https://[[.Domain]]/blog/[[.Post.Filename]].html">
+    [[if .Post.FeaturedImage]]<meta property="og:image" content="[[.Post.FeaturedImage]]">[[end]]
+    <meta property="article:published_time" content="[[.Post.PublishedAt.Format "2006-01-02T15:04:05Z07:00"]]">
+    <meta property="article:modified_time" content="[[.Post.UpdatedAt.Format "2006-01-02T15:04:05Z07:00"]]">
+    <meta property="article:author" content="[[.Post.Author]]">
+    <meta property="article:section" content="[[.Post.Category]]">
+    <meta name="twitter:card" content="[[if .Post.FeaturedImage]]summary_large_image[[else]]summary[[end]]">
+    <meta name="twitter:title" content="[[.Post.Title]]">
+    <meta name="twitter:description" content="[[if .Post.MetaDescription]][[.Post.MetaDescription]][[else]][[.Post.Excerpt]][[end]]">
+    [[if .Post.FeaturedImage]]<meta name="twitter:image" content="[[.Post.FeaturedImage]]">[[end]]
+    <style>
+        :root {
+            --primary: [[.Config.PrimaryColor]];
+            --secondary: [[.Config.SecondaryColor]];
+            --bg: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.7);
+            --text: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        article.blog-post {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 3rem 5% 5rem;
+        }
+
+        .breadcrumb {
+            color: #64748b;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+        }
+
+        .breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        .post-category {
+            display: inline-block;
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.35rem 0.85rem;
+            border-radius: 100px;
+            margin-bottom: 1rem;
+        }
+
+        h1.post-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            margin: 0 0 1rem;
+        }
+
+        .post-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .post-meta .author {
+            color: var(--text);
+        }
+
+        .post-featured-image {
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            margin-bottom: 2.5rem;
+            display: block;
+        }
+
+        .post-body {
+            font-size: 1.05rem;
+        }
+
+        .post-body h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 2.5rem 0 1rem;
+            line-height: 1.25;
+        }
+
+        .post-body h3 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin: 2rem 0 0.75rem;
+        }
+
+        .post-body p {
+            margin: 0 0 1.25rem;
+        }
+
+        .post-body a {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .post-body a:hover {
+            text-decoration: underline;
+        }
+
+        .post-body ul,
+        .post-body ol {
+            margin: 0 0 1.5rem;
+            padding-left: 1.5rem;
+        }
+
+        .post-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .post-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .post-body th,
+        .post-body td {
+            border: 1px solid #e2e8f0;
+            padding: 0.65rem 0.85rem;
+            text-align: left;
+        }
+
+        .post-body th {
+            background: #f1f5f9;
+            font-weight: 700;
+        }
+
+        .post-body blockquote {
+            border-left: 4px solid var(--primary);
+            padding: 0.5rem 0 0.5rem 1.25rem;
+            margin: 1.5rem 0;
+            color: #475569;
+            font-style: italic;
+        }
+
+        .post-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            display: block;
+        }
+
+        .post-body code {
+            background: #f1f5f9;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .author-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 3rem 0 0;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .author-card .author-info p {
+            margin: 0;
+        }
+
+        .author-card .author-name {
+            font-weight: 800;
+            color: var(--text);
+            font-size: 1.05rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .author-card .author-bio {
+            color: #475569;
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .related-posts {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .related-posts h3 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin: 0 0 1.5rem;
+        }
+
+        .related-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .related-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: border-color 0.15s;
+        }
+
+        .related-card:hover {
+            border-color: var(--primary);
+        }
+
+        .related-card .related-cat {
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+
+        .related-card .related-title {
+            font-weight: 700;
+            font-size: 1rem;
+            line-height: 1.35;
+        }
+
+        @media (max-width: 768px) {
+            article.blog-post {
+                padding: 2rem 5% 3rem;
+            }
+            h1.post-title {
+                font-size: 1.85rem;
+            }
+            .post-body h2 {
+                font-size: 1.45rem;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+            }
+            nav.sticky-nav, footer, .related-posts {
+                display: none !important;
+            }
+            article.blog-post {
+                max-width: 100%;
+                padding: 0;
+            }
+        }
+
+        [[template "global_css" .]]
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "[[.Post.Title]]",
+      "datePublished": "[[.Post.PublishedAt.Format "2006-01-02T15:04:05Z07:00"]]",
+      "dateModified": "[[.Post.UpdatedAt.Format "2006-01-02T15:04:05Z07:00"]]",
+      "articleSection": "[[.Post.Category]]",
+      "wordCount": [[.Post.WordCount]],
+      "inLanguage": "en-US",
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://[[.Domain]]/blog/[[.Post.Filename]].html"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "[[.Post.Author]]"[[if .Post.AuthorBio]],
+        "description": "[[.Post.AuthorBio]]"[[end]]
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "[[.Company.Name]]"[[if .Company.LogoURL]],
+        "logo": {
+          "@type": "ImageObject",
+          "url": "[[.Company.LogoURL]]"
+        }[[end]]
+      }[[if .Post.FeaturedImage]],
+      "image": {
+        "@type": "ImageObject",
+        "url": "[[.Post.FeaturedImage]]"
+      }[[end]][[if .Post.Excerpt]],
+      "description": "[[.Post.Excerpt]]"[[end]]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://[[.Domain]]/blog/index.html" },
+        { "@type": "ListItem", "position": 3, "name": "[[.Post.Category]]", "item": "https://[[.Domain]]/blog/category/[[slugify .Post.Category]].html" },
+        { "@type": "ListItem", "position": 4, "name": "[[.Post.Title]]" }
+      ]
+    }
+    </script>
+    <script>
+        window.D2C_CONFIG = {
+            sellerId: "[[.AccountID]]",
+            primaryColor: "[[.Config.PrimaryColor]]",
+            companyName: "[[.Company.Name]]",
+            companyCode: "[[.Company.CompanyCode]]",
+            apiBase: "[[.ApiBase]]"
+        };
+    </script>
+    <script src="../tracker.js" defer></script>
+    <script src="../nav.js" defer></script>
+</head>
+
+<body>
+    [[template "nav" .]]
+
+    <main>
+    <article class="blog-post">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a> / <a href="index.html">Blog</a> / <a href="category/[[slugify .Post.Category]].html">[[.Post.Category]]</a>
+        </div>
+
+        <span class="post-category">[[.Post.Category]]</span>
+        <h1 class="post-title">[[.Post.Title]]</h1>
+        <div class="post-meta">
+            <span class="author">By [[.Post.Author]]</span>
+            <span>•</span>
+            <span>[[.Post.PublishedAt.Format "January 2, 2006"]]</span>
+            <span>•</span>
+            <span>[[.Post.ReadMinutes]] min read</span>
+        </div>
+
+        [[if .Post.FeaturedImage]]
+        <img src="[[.Post.FeaturedImage]]" alt="[[.Post.Title]]" class="post-featured-image" fetchpriority="high" loading="eager" width="1200" height="630">
+        [[end]]
+
+        <div class="post-body">
+            [[rawHTML .Post.Body]]
+        </div>
+
+        [[if .Post.AuthorBio]]
+        <aside class="author-card">
+            <div class="author-info">
+                <p class="author-name">[[.Post.Author]]</p>
+                <p class="author-bio">[[.Post.AuthorBio]]</p>
+            </div>
+        </aside>
+        [[end]]
+
+        [[if .RelatedPosts]]
+        <section class="related-posts">
+            <h3>More from [[.Post.Category]]</h3>
+            <div class="related-grid">
+                [[range .RelatedPosts]]
+                <a href="[[.Filename]].html" class="related-card">
+                    <div class="related-cat">[[.Category]]</div>
+                    <div class="related-title">[[.Title]]</div>
+                </a>
+                [[end]]
+            </div>
+        </section>
+        [[end]]
+    </article>
+    </main>
+
+    [[template "footer" .]]
+</body>
+
+</html>

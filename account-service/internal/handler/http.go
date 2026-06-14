@@ -1104,12 +1104,22 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 		}
 	}
 
+	// 4b. Fetch Blog Posts (isolated — silent fail; never blocks storefront)
+	allBlogPosts := h.fetchCompanyBlogPosts(acc.ID.Hex(), jwtToken)
+	var blogPosts []generator.BlogPostData
+	for _, p := range allBlogPosts {
+		if p.Active == nil || *p.Active {
+			blogPosts = append(blogPosts, p)
+		}
+	}
+
 	// 5. Run Generator
 	genData := generator.StorefrontData{
 		AccountID: acc.ID.Hex(),
 		Company:   acc.CompanyData,
 		Config:    acc.CompanyData.D2C,
 		Products:  products,
+		BlogPosts: blogPosts,
 		ApiBase:   os.Getenv("API_BASE_URL"),
 	}
 
@@ -1187,6 +1197,52 @@ func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) 
 	}
 
 	return products
+}
+
+// fetchCompanyBlogPosts is the isolated blog fetch — mirrors fetchCompanyProducts.
+// Silent-fail returns empty slice on any error so a catalog-service outage or
+// pre-blog-deploy state never blocks storefront regeneration.
+func (h *LambdaHandler) fetchCompanyBlogPosts(companyID string, jwtToken string) []generator.BlogPostData {
+	catalogServiceURL := os.Getenv("CATALOG_SERVICE_URL")
+	if catalogServiceURL == "" {
+		return []generator.BlogPostData{}
+	}
+
+	url := fmt.Sprintf("%s/blog", catalogServiceURL)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Printf("[blog-fetch] new request error: %v", err)
+		return []generator.BlogPostData{}
+	}
+	req.Header.Add("Authorization", "Bearer "+jwtToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("[blog-fetch] request error for companyID %s: %v", companyID, err)
+		return []generator.BlogPostData{}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Could be 404 if route not deployed yet — silent skip
+		return []generator.BlogPostData{}
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []generator.BlogPostData{}
+	}
+
+	var posts []generator.BlogPostData
+	if err := json.Unmarshal(bodyBytes, &posts); err != nil {
+		log.Printf("[blog-fetch] unmarshal error: %v", err)
+		return []generator.BlogPostData{}
+	}
+
+	log.Printf("[blog-fetch] fetched %d posts for companyID %s", len(posts), companyID)
+	return posts
 }
 
 func (h *LambdaHandler) deleteAccount(userClaim map[string]interface{}, id string) (events.APIGatewayProxyResponse, error) {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress, CustomerConfiguration, CreateQuoteRequest } from './types';
+import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress, CustomerConfiguration, CreateQuoteRequest, BlogPost } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -207,6 +207,30 @@ export const updateProduct = async (id: string, data: Partial<Product>): Promise
 
 export const deleteProduct = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/products/${id}`);
+};
+
+export const createBlogPost = async (data: Omit<BlogPost, '_id' | 'createdAt' | 'updatedAt'>): Promise<BlogPost> => {
+  const response = await api.post(`${API_URL}/blog`, data);
+  return response.data;
+};
+
+export const getBlogPosts = async (): Promise<BlogPost[]> => {
+  const response = await api.get(`${API_URL}/blog`);
+  return response.data;
+};
+
+export const getBlogPost = async (id: string): Promise<BlogPost> => {
+  const response = await api.get(`${API_URL}/blog/${id}`);
+  return response.data;
+};
+
+export const updateBlogPost = async (id: string, data: Partial<BlogPost>): Promise<BlogPost> => {
+  const response = await api.put(`${API_URL}/blog/${id}`, data);
+  return response.data;
+};
+
+export const deleteBlogPost = async (id: string): Promise<void> => {
+  await api.delete(`${API_URL}/blog/${id}`);
 };
 
 export const deleteOrder = async (id: string): Promise<void> => {

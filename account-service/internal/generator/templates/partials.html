@@ -435,6 +435,7 @@ box-shadow: 0 20px 40px -8px var(--primary);
         <div class="footer-col">
             <p class="footer-heading">Info</p>
             [[if .Config.AboutText]]<a href="[[.BasePath]]about.html">About Us</a>[[end]]
+            [[if .HasBlog]]<a href="[[.BasePath]]blog/index.html">Blog</a>[[end]]
             <a href="[[.BasePath]]contact.html">Contact Us</a>
             <a href="[[.BasePath]]shipping.html">Shipping & Returns</a>
             <a href="[[.BasePath]]privacy.html">Privacy Policy</a>
