@@ -56,6 +56,7 @@ const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Billing = lazy(() => import('./pages/Billing'));
+const BlogManager = lazy(() => import('./components/BlogManager'));
 
 const AppContent = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -107,6 +108,7 @@ const AppContent = () => {
     '/locations',
     '/quote-create',
     '/analytics',
+    '/blog-manager',
   ];
 
   return (
@@ -149,6 +151,10 @@ const AppContent = () => {
               <Route
                 path="/products"
                 element={isAuthenticated ? <ProductForm /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/blog-manager"
+                element={isAuthenticated ? <BlogManager /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/catalog"

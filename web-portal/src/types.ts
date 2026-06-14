@@ -80,6 +80,27 @@ export interface CustomerGroup {
 
 export const MAX_CUSTOMER_GROUPS = 5;
 
+export interface BlogPost {
+  _id: string;
+  sellerID: string;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  body: string;
+  featuredImage?: string;
+  author: string;
+  authorBio?: string;
+  category: string;
+  tags?: string[];
+  mentionedProductIDs?: string[];
+  metaTitle?: string;
+  metaDescription?: string;
+  active?: boolean;
+  publishedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   _id: string;
   name: string;

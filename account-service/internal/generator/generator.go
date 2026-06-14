@@ -39,11 +39,40 @@ type StorefrontData struct {
 	CategoryCounts   map[string]int   // Product count per category
 	FeaturedProducts []ProductData // Subset of products for the homepage
 	DealProducts     []ProductData // Products with active deals (DealPrice > 0)
+	BlogPosts        []BlogPostData // Editorial articles (LLM-targeted)
+	BlogCategories   []string       // Unique list of blog categories
+	HasBlog          bool           // true if any active blog posts (drives footer link)
 	Year             int
 	Timestamp        string
 	BasePath         string
 	ApiBase          string // Public-facing API URL for browser JS calls
 	Domain           string // Pre-computed: CustomDomain if set, else PreviewDomain
+}
+
+// BlogPostData mirrors catalog-service storage.BlogPost for rendering.
+// Body is HTML (authored directly in admin UI, same as product descriptions).
+type BlogPostData struct {
+	ID                  string    `json:"_id"`
+	SellerID            string    `json:"sellerID"`
+	Title               string    `json:"title"`
+	Slug                string    `json:"slug"`
+	Excerpt             string    `json:"excerpt,omitempty"`
+	Body                string    `json:"body"`
+	FeaturedImage       string    `json:"featuredImage,omitempty"`
+	Author              string    `json:"author"`
+	AuthorBio           string    `json:"authorBio,omitempty"`
+	Category            string    `json:"category"`
+	Tags                []string  `json:"tags,omitempty"`
+	MentionedProductIDs []string  `json:"mentionedProductIDs,omitempty"`
+	MetaTitle           string    `json:"metaTitle,omitempty"`
+	MetaDescription     string    `json:"metaDescription,omitempty"`
+	Active              *bool     `json:"active,omitempty"`
+	PublishedAt         time.Time `json:"publishedAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	// Pre-computed by generator (NOT in DB / JSON)
+	Filename     string `json:"-"` // {slug}-{last6charsOfID}
+	ReadMinutes  int    `json:"-"` // word count / 200
+	WordCount    int    `json:"-"`
 }
 
 type Attribute struct {
@@ -187,6 +216,40 @@ func (g *Generator) Generate(data StorefrontData) error {
 			suffix = "-" + data.Products[i].ID[len(data.Products[i].ID)-6:]
 		}
 		data.Products[i].Filename = slug + suffix
+	}
+
+	// Pre-compute blog post filenames + categories so sitemap/llms.txt have them.
+	// Filter inactive here too — sitemap should never list a draft.
+	if len(data.BlogPosts) > 0 {
+		activePosts := make([]BlogPostData, 0, len(data.BlogPosts))
+		catSet := map[string]bool{}
+		for _, p := range data.BlogPosts {
+			if p.Active != nil && !*p.Active {
+				continue
+			}
+			slug := slugify(p.Slug)
+			if slug == "" {
+				slug = "post"
+			}
+			suffix := ""
+			if len(p.ID) > 6 {
+				suffix = "-" + p.ID[len(p.ID)-6:]
+			}
+			p.Filename = slug + suffix
+			p.WordCount = countWords(p.Body)
+			p.ReadMinutes = p.WordCount / 200
+			if p.ReadMinutes < 1 {
+				p.ReadMinutes = 1
+			}
+			activePosts = append(activePosts, p)
+			if !catSet[p.Category] {
+				catSet[p.Category] = true
+				data.BlogCategories = append(data.BlogCategories, p.Category)
+			}
+		}
+		sort.Strings(data.BlogCategories)
+		data.BlogPosts = activePosts
+		data.HasBlog = len(activePosts) > 0
 	}
 
 	// Extract Categories with counts (normalize "Gloves/BBQ" → "Gloves / BBQ")
@@ -347,6 +410,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories     []string
 			TopCategories  []string
 			CategoryCounts map[string]int
+			HasBlog        bool
 			BasePath       string
 			ApiBase        string
 			Domain         string
@@ -365,6 +429,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories:     data.Categories,
 			TopCategories:  data.TopCategories,
 			CategoryCounts: data.CategoryCounts,
+			HasBlog:        data.HasBlog,
 			BasePath:       "../",
 			ApiBase:        data.ApiBase,
 			Domain:         data.Domain,
@@ -456,6 +521,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories      []string
 			TopCategories   []string
 			CategoryCounts  map[string]int
+			HasBlog         bool
 			BasePath        string
 			ApiBase         string
 			Domain          string
@@ -471,6 +537,7 @@ func (g *Generator) Generate(data StorefrontData) error {
 			Categories:      data.Categories,
 			TopCategories:   data.TopCategories,
 			CategoryCounts:  data.CategoryCounts,
+			HasBlog:         data.HasBlog,
 			BasePath:        "../",
 			ApiBase:         data.ApiBase,
 			Domain:          data.Domain,
@@ -547,6 +614,9 @@ func (g *Generator) Generate(data StorefrontData) error {
 			return fmt.Errorf("%s write: %w", jsFile, err)
 		}
 	}
+
+	// Blog posts — isolated, never breaks storefront. Failures logged, not returned.
+	g.generateBlog(data, companyDir)
 
 	// Shopping channel feeds — isolated, never breaks storefront
 	g.generateFeeds(data, companyDir)
@@ -773,6 +843,13 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 				return slugify(primary)
 			}
 			return slugify(primary) + "-" + slugify(sub)
+		},
+		"rawHTML": func(s string) template.HTML {
+			// Blog post bodies are HTML authored by admin/company role users.
+			// We trust the author for structural HTML (headings, tables, links,
+			// images) but strip the worst XSS vectors as defense-in-depth.
+			out := stripScriptsAndHandlers(s)
+			return template.HTML(out)
 		},
 		"safeHTML": func(s string) template.HTML {
 			// Allowlist: escape EVERYTHING, then re-allow a tiny set of

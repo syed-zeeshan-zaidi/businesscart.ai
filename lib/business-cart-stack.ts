@@ -275,6 +275,14 @@ export class BusinessCartStack extends cdk.Stack {
     productId.addMethod('PUT', catalogInteg);
     productId.addMethod('DELETE', catalogInteg);
 
+    const blog = api.root.addResource('blog');
+    blog.addMethod('POST', catalogInteg);
+    blog.addMethod('GET', catalogInteg);
+    const blogPostId = blog.addResource('{blogPostId}');
+    blogPostId.addMethod('GET', catalogInteg);
+    blogPostId.addMethod('PUT', catalogInteg);
+    blogPostId.addMethod('DELETE', catalogInteg);
+
     const checkoutInteg = new apigw.LambdaIntegration(checkoutService, { allowTestInvoke: false });
     const checkoutRoot = api.root.addResource('checkout');
     checkoutRoot.addMethod('POST', checkoutInteg);

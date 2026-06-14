@@ -48,6 +48,31 @@ type Rating struct {
 	Reviews      []Review            `bson:"reviews,omitempty" json:"reviews,omitempty"`
 }
 
+// BlogPost is an editorial article published on a company's D2C storefront.
+// Positioned as informational content (not commercial) — no FAQ schema, no
+// ItemList/Product schema. Article + Author + Publisher + BreadcrumbList only.
+// Body is markdown source; HTML is rendered at storefront generation time.
+type BlogPost struct {
+	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	SellerID            string             `bson:"sellerID" json:"sellerID"`
+	Title               string             `bson:"title" json:"title" validate:"required,min=10,max=200"`
+	Slug                string             `bson:"slug" json:"slug" validate:"required,min=3,max=120"`
+	Excerpt             string             `bson:"excerpt,omitempty" json:"excerpt,omitempty" validate:"max=300"`
+	Body                string             `bson:"body" json:"body" validate:"required,min=200,max=100000"`
+	FeaturedImage       string             `bson:"featuredImage,omitempty" json:"featuredImage,omitempty"`
+	Author              string             `bson:"author" json:"author" validate:"required,min=2,max=100"`
+	AuthorBio           string             `bson:"authorBio,omitempty" json:"authorBio,omitempty" validate:"max=500"`
+	Category            string             `bson:"category" json:"category" validate:"required,min=2,max=80"`
+	Tags                []string           `bson:"tags,omitempty" json:"tags,omitempty"`
+	MentionedProductIDs []string           `bson:"mentionedProductIDs,omitempty" json:"mentionedProductIDs,omitempty"`
+	MetaTitle           string             `bson:"metaTitle,omitempty" json:"metaTitle,omitempty" validate:"max=70"`
+	MetaDescription     string             `bson:"metaDescription,omitempty" json:"metaDescription,omitempty" validate:"max=160"`
+	Active              *bool              `bson:"active,omitempty" json:"active,omitempty"`
+	PublishedAt         time.Time          `bson:"publishedAt" json:"publishedAt"`
+	CreatedAt           time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt           time.Time          `bson:"updatedAt" json:"updatedAt"`
+}
+
 type Product struct {
 	ID              primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
 	Name            string             `bson:"name" json:"name"`

@@ -45,5 +45,20 @@
         <lastmod>[[$.Timestamp]]</lastmod>
         <priority>0.8</priority>
     </url>
-    [[end]]
+    [[end]][[if .BlogPosts]]<url>
+        <loc>https://[[.Domain]]/blog/index.html</loc>
+        <lastmod>[[.Timestamp]]</lastmod>
+        <priority>0.7</priority>
+    </url>
+    [[range .BlogCategories]]<url>
+        <loc>https://[[$.Domain]]/blog/category/[[slugify .]].html</loc>
+        <lastmod>[[$.Timestamp]]</lastmod>
+        <priority>0.6</priority>
+    </url>
+    [[end]][[range .BlogPosts]]<url>
+        <loc>https://[[$.Domain]]/blog/[[.Filename]].html</loc>
+        <lastmod>[[$.Timestamp]]</lastmod>
+        <priority>0.6</priority>
+    </url>
+    [[end]][[end]]
 </urlset>

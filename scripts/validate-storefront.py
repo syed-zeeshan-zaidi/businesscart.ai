@@ -46,6 +46,14 @@ LH_MIN_ACCESSIBILITY = 100
 LH_MIN_BEST_PRACTICES = 95
 LH_MIN_SEO = 100
 
+# Blog pages are designed for perfect Lighthouse scores (zero new JS, no 3rd-party,
+# server-rendered, semantic HTML). Perf is 95 to absorb local-Lighthouse variance;
+# prod CDN should hit 100.
+LH_BLOG_MIN_PERFORMANCE = 95
+LH_BLOG_MIN_ACCESSIBILITY = 100
+LH_BLOG_MIN_BEST_PRACTICES = 100
+LH_BLOG_MIN_SEO = 100
+
 # ANSI colors
 GREEN = "\033[0;32m"
 RED = "\033[0;31m"
@@ -146,7 +154,7 @@ def step_regenerate():
 
 # ─── Step 3: JSON-LD schema validation ──────────────────────────────────────
 def step_schema():
-    step("Step 3/4: Schema validation (JSON-LD on every PDP)")
+    step("Step 3/4: Schema validation (JSON-LD on every PDP + blog post)")
 
     pdps = sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html"))
     if not pdps:
@@ -200,6 +208,78 @@ def step_schema():
     if parse_failures == 0 and missing_field_failures == 0 and rating_mismatch_failures == 0:
         ok(f"all {len(pdps)} PDPs: JSON-LD parses + schema fields present + rating/review consistency")
 
+    # --- Blog posts: optional editorial content ---
+    # Glob only top-level /blog/*.html, excluding category/ subdir.
+    blog_posts = sorted(
+        p for p in glob.glob(f"{STOREFRONT_DIR}/blog/*.html")
+        if os.path.basename(os.path.dirname(p)) == "blog"
+        and os.path.basename(p) not in ("index.html",)
+    )
+    if not blog_posts:
+        # Blog is optional; skip silently if no posts.
+        return
+
+    blog_parse_failures = 0
+    blog_missing_failures = 0
+    blog_forbidden_failures = 0
+    blog_external_failures = 0
+
+    for post in blog_posts:
+        with open(post, encoding="utf-8") as fp:
+            html = fp.read()
+        name = os.path.basename(post)
+
+        # 1. JSON-LD must include Article + BreadcrumbList; must NOT include FAQPage or ItemList.
+        blocks = json_ld_re.findall(html)
+        if not blocks:
+            fail(f"blog/{name}: no JSON-LD blocks found")
+            blog_parse_failures += 1
+            continue
+
+        types_seen = set()
+        for i, block in enumerate(blocks):
+            try:
+                d = json.loads(block)
+            except json.JSONDecodeError as e:
+                fail(f"blog/{name} block {i+1}: invalid JSON — {e}")
+                blog_parse_failures += 1
+                continue
+            t = d.get("@type")
+            types_seen.add(t)
+            if t == "Article":
+                for required in ("headline", "datePublished", "author", "publisher",
+                                 "articleSection", "mainEntityOfPage"):
+                    if not d.get(required):
+                        fail(f"blog/{name}: Article missing '{required}'")
+                        blog_missing_failures += 1
+
+        if "Article" not in types_seen:
+            fail(f"blog/{name}: missing Article schema")
+            blog_missing_failures += 1
+        if "BreadcrumbList" not in types_seen:
+            fail(f"blog/{name}: missing BreadcrumbList schema")
+            blog_missing_failures += 1
+        # Editorial positioning: forbid commercial schemas.
+        for forbidden in ("FAQPage", "ItemList", "Product"):
+            if forbidden in types_seen:
+                fail(f"blog/{name}: forbidden '{forbidden}' schema (editorial positioning)")
+                blog_forbidden_failures += 1
+
+        # 2. No external HTTP requests (no 3rd-party scripts/stylesheets).
+        # Strip data: and same-domain (relative or //) refs; flag http(s)://* references.
+        for tag in ("script", "link", "iframe"):
+            for m in re.finditer(rf'<{tag}[^>]+(?:src|href)\s*=\s*["\'](https?://[^"\']+)["\']', html, re.IGNORECASE):
+                url = m.group(1)
+                # Allow company CDN domains (storefront images) — these are the company's own assets.
+                # Block anything that looks like a tracker/CDN domain.
+                if "googletagmanager" in url or "google-analytics" in url or "facebook.com" in url or "doubleclick" in url:
+                    fail(f"blog/{name}: external tracker script {url}")
+                    blog_external_failures += 1
+
+    if (blog_parse_failures == 0 and blog_missing_failures == 0
+            and blog_forbidden_failures == 0 and blog_external_failures == 0):
+        ok(f"all {len(blog_posts)} blog posts: Article + BreadcrumbList present, no FAQ/ItemList/Product, no external trackers")
+
 
 # ─── Step 4: Lighthouse against served storefront ───────────────────────────
 def _start_local_server():
@@ -238,7 +318,7 @@ def _run_lighthouse(url):
 
 
 def step_lighthouse():
-    step("Step 4/4: Lighthouse (mobile, 1 PDP with reviews + 1 without + listing)")
+    step("Step 4/4: Lighthouse (mobile: PDP+reviews, PDP-no-reviews, listing, blog post, blog index)")
 
     if not os.path.exists(STOREFRONT_DIR):
         fail("storefront dir missing — skipping Lighthouse")
@@ -265,8 +345,22 @@ def step_lighthouse():
         targets.append(("PDP without reviews", os.path.basename(pdp_without_reviews)))
     targets.append(("Listing", "../products.html"))
 
+    # Blog post + index (optional — skip if no blog content yet).
+    blog_posts = sorted(
+        p for p in glob.glob(f"{STOREFRONT_DIR}/blog/*.html")
+        if os.path.basename(p) not in ("index.html",)
+        and os.path.basename(os.path.dirname(p)) == "blog"
+    )
+    blog_index_exists = os.path.exists(f"{STOREFRONT_DIR}/blog/index.html")
+    blog_targets = []
+    if blog_posts:
+        blog_targets.append(("Blog post", os.path.basename(blog_posts[0]), "blog"))
+    if blog_index_exists:
+        blog_targets.append(("Blog index", "index.html", "blog"))
+
     httpd = _start_local_server()
     try:
+        # Storefront targets (existing thresholds).
         for label, rel in targets:
             url = f"http://localhost:{HTTP_PORT}/products/{rel}"
             if rel.startswith("../"):
@@ -287,6 +381,31 @@ def step_lighthouse():
                 regressions.append(f"BP {scores['best-practices']} < {LH_MIN_BEST_PRACTICES}")
             if scores["seo"] < LH_MIN_SEO:
                 regressions.append(f"SEO {scores['seo']} < {LH_MIN_SEO}")
+
+            if regressions:
+                fail(f"{label} ({score_str}): {', '.join(regressions)}")
+            else:
+                ok(f"{label} ({score_str})")
+
+        # Blog targets (stricter thresholds — designed for 100/100/100/100).
+        for label, filename, subdir in blog_targets:
+            url = f"http://localhost:{HTTP_PORT}/{subdir}/{filename}"
+            try:
+                scores = _run_lighthouse(url)
+            except Exception as e:
+                fail(f"{label}: Lighthouse failed — {e}")
+                continue
+
+            score_str = f"P{scores['performance']} A{scores['accessibility']} BP{scores['best-practices']} S{scores['seo']}"
+            regressions = []
+            if scores["accessibility"] < LH_BLOG_MIN_ACCESSIBILITY:
+                regressions.append(f"A11y {scores['accessibility']} < {LH_BLOG_MIN_ACCESSIBILITY}")
+            if scores["performance"] < LH_BLOG_MIN_PERFORMANCE:
+                regressions.append(f"Perf {scores['performance']} < {LH_BLOG_MIN_PERFORMANCE}")
+            if scores["best-practices"] < LH_BLOG_MIN_BEST_PRACTICES:
+                regressions.append(f"BP {scores['best-practices']} < {LH_BLOG_MIN_BEST_PRACTICES}")
+            if scores["seo"] < LH_BLOG_MIN_SEO:
+                regressions.append(f"SEO {scores['seo']} < {LH_BLOG_MIN_SEO}")
 
             if regressions:
                 fail(f"{label} ({score_str}): {', '.join(regressions)}")

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    [[if .Company.LogoURL]]<link rel="icon" href="[[.Company.LogoURL]]" type="image/png">[[end]]
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[[.Category]] | Blog | [[.Company.Name]]</title>
+    <meta name="description" content="Articles in [[.Category]] from [[.Company.Name]].">
+    <link rel="canonical" href="https://[[.Domain]]/blog/category/[[slugify .Category]].html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="[[.Category]] | Blog | [[.Company.Name]]">
+    <meta property="og:url" content="https://[[.Domain]]/blog/category/[[slugify .Category]].html">
+    [[if .Company.LogoURL]]<meta property="og:image" content="[[.Company.LogoURL]]">[[end]]
+    <style>
+        :root {
+            --primary: [[.Config.PrimaryColor]];
+            --secondary: [[.Config.SecondaryColor]];
+            --bg: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.7);
+            --text: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 3rem 5% 5rem;
+        }
+
+        .breadcrumb {
+            color: #64748b;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .blog-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .blog-header h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin: 0 0 0.5rem;
+            text-transform: capitalize;
+        }
+
+        .blog-header p {
+            color: #64748b;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .category-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        .category-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1.25rem;
+            border-radius: 100px;
+            background: #fff;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+        }
+
+        .category-pill.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .post-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 2rem;
+        }
+
+        .post-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            overflow: hidden;
+            text-decoration: none;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .post-card:hover {
+            border-color: var(--primary);
+        }
+
+        .post-card-image {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            background: #f1f5f9;
+        }
+
+        .post-card-content {
+            padding: 1.25rem 1.5rem 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .post-card-cat {
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .post-card-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            line-height: 1.3;
+            margin: 0 0 0.6rem;
+        }
+
+        .post-card-excerpt {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin: 0 0 1rem;
+            flex: 1;
+        }
+
+        .post-card-meta {
+            color: #64748b;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        [[template "global_css" .]]
+    </style>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://[[.Domain]]/" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://[[.Domain]]/blog/index.html" },
+        { "@type": "ListItem", "position": 3, "name": "[[.Category]]" }
+      ]
+    }
+    </script>
+    <script>
+        window.D2C_CONFIG = {
+            sellerId: "[[.AccountID]]",
+            primaryColor: "[[.Config.PrimaryColor]]",
+            companyName: "[[.Company.Name]]",
+            companyCode: "[[.Company.CompanyCode]]",
+            apiBase: ""
+        };
+    </script>
+    <script src="../../tracker.js" defer></script>
+    <script src="../../nav.js" defer></script>
+</head>
+
+<body>
+    [[template "nav" .]]
+
+    <main>
+        <div class="breadcrumb">
+            <a href="../../index.html">Home</a> / <a href="../index.html">Blog</a> / [[.Category]]
+        </div>
+
+        <header class="blog-header">
+            <h1>[[.Category]]</h1>
+            <p>[[len .Posts]] articles</p>
+        </header>
+
+        [[if .BlogCategories]]
+        <nav class="category-pills" aria-label="Blog categories">
+            <a href="../index.html" class="category-pill">All</a>
+            [[range .BlogCategories]]
+            <a href="[[slugify .]].html" class="category-pill[[if eq . $.Category]] active[[end]]">[[.]]</a>
+            [[end]]
+        </nav>
+        [[end]]
+
+        <section class="post-grid">
+            [[range .Posts]]
+            <a href="../[[.Filename]].html" class="post-card">
+                [[if .FeaturedImage]]
+                <img src="[[.FeaturedImage]]" alt="[[.Title]]" class="post-card-image" loading="lazy" width="600" height="338">
+                [[end]]
+                <div class="post-card-content">
+                    <div class="post-card-cat">[[.Category]]</div>
+                    <h2 class="post-card-title">[[.Title]]</h2>
+                    [[if .Excerpt]]<p class="post-card-excerpt">[[.Excerpt]]</p>[[end]]
+                    <div class="post-card-meta">[[.PublishedAt.Format "January 2, 2006"]] · [[.ReadMinutes]] min read</div>
+                </div>
+            </a>
+            [[end]]
+        </section>
+    </main>
+
+    [[template "footer" .]]
+</body>
+
+</html>
