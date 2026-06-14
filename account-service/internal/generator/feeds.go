@@ -18,11 +18,12 @@ type feedDef struct {
 // feedRegistry maps channel keys to their definitions.
 // To add a new channel: add one build function + one entry here.
 var feedRegistry = map[string]feedDef{
-	"google":    {"gs", ".xml", buildGoogleFeed},
-	"facebook":  {"fb", ".csv", buildFacebookFeed},
-	"bing":      {"bg", ".tsv", buildBingFeed},
-	"pinterest": {"pt", ".csv", buildPinterestFeed},
-	"tiktok":    {"tt", ".csv", buildTikTokFeed},
+	"google":         {"gs", ".xml", buildGoogleFeed},
+	"google_reviews": {"gr", ".xml", buildGoogleReviewsFeed},
+	"facebook":       {"fb", ".csv", buildFacebookFeed},
+	"bing":           {"bg", ".tsv", buildBingFeed},
+	"pinterest":      {"pt", ".csv", buildPinterestFeed},
+	"tiktok":         {"tt", ".csv", buildTikTokFeed},
 }
 
 // FeedFileName returns the unguessable filename for a feed channel.

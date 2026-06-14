@@ -925,6 +925,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {(() => {
                 const channels = [
                   { key: 'google', prefix: 'gs', ext: '.xml', label: 'Google', submitUrl: 'https://merchants.google.com/' },
+                  { key: 'google_reviews', prefix: 'gr', ext: '.xml', label: 'Google Reviews', submitUrl: 'https://merchants.google.com/' },
                   { key: 'facebook', prefix: 'fb', ext: '.csv', label: 'Facebook', submitUrl: 'https://business.facebook.com/commerce/' },
                   { key: 'bing', prefix: 'bg', ext: '.tsv', label: 'Bing', submitUrl: 'https://merchants.ads.microsoft.com/' },
                   { key: 'pinterest', prefix: 'pt', ext: '.csv', label: 'Pinterest', submitUrl: 'https://business.pinterest.com/catalogs/' },
