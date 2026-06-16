@@ -39,4 +39,65 @@ type Order struct {
 	// breakdown without joining back to the quote (which may be gone).
 	PromoCode         string             `bson:"promoCode,omitempty" json:"promoCode,omitempty"`
 	PromoDiscount     float64            `bson:"promoDiscount,omitempty" json:"promoDiscount,omitempty"`
+
+	// Refunds: append-only sub-collection. Items[] and money fields above stay
+	// immutable as the order-of-record. Refunds track money returned (matches
+	// Shopify/WooCommerce/Stripe industry pattern). Status field auto-set to
+	// "refunded" only when a refund makes the sum equal to GrandTotal.
+	Refunds []Refund `bson:"refunds,omitempty" json:"refunds,omitempty"`
+}
+
+// Refund is a single refund event against an order. Each refund corresponds to
+// a manual Stripe refund (we store the Stripe refund ID for traceability but
+// do not call Stripe). Multiple refunds per order are supported.
+type Refund struct {
+	ID              primitive.ObjectID     `bson:"_id" json:"id"`
+	StripeRefundID  string                 `bson:"stripeRefundID" json:"stripeRefundID"`
+	Amount          float64                `bson:"amount" json:"amount"`
+	Reason          string                 `bson:"reason,omitempty" json:"reason,omitempty"`
+	ItemAdjustments []RefundItemAdjustment `bson:"itemAdjustments,omitempty" json:"itemAdjustments,omitempty"`
+	RefundedAt      time.Time              `bson:"refundedAt" json:"refundedAt"`
+	RefundedBy      string                 `bson:"refundedBy,omitempty" json:"refundedBy,omitempty"`
+}
+
+// RefundItemAdjustment tracks which items + qty were returned for a refund.
+// Optional: an admin can record a money-only refund (e.g. shipping/tax dispute)
+// without itemizing.
+type RefundItemAdjustment struct {
+	ProductID  string  `bson:"productID" json:"productID"`
+	Quantity   int     `bson:"quantity" json:"quantity"`
+	LineAmount float64 `bson:"lineAmount" json:"lineAmount"`
+}
+
+// TotalRefunded sums all refund amounts. Returns 0 if no refunds.
+func (o *Order) TotalRefunded() float64 {
+	total := 0.0
+	for _, r := range o.Refunds {
+		total += r.Amount
+	}
+	return total
+}
+
+// NetTotal is the customer-paid amount after refunds. Downstream consumers
+// (statements, CSV exports, conversion attribution) should use NetTotal, not
+// GrandTotal, once refunds exist.
+func (o *Order) NetTotal() float64 {
+	net := o.GrandTotal - o.TotalRefunded()
+	if net < 0 {
+		return 0
+	}
+	return net
+}
+
+// RefundStatus is the aggregate refund state. Empty when no refunds.
+// "partial" when refunds exist but total < GrandTotal.
+// "full" when refund total equals or exceeds GrandTotal.
+func (o *Order) RefundStatus() string {
+	if len(o.Refunds) == 0 {
+		return ""
+	}
+	if o.TotalRefunded() >= o.GrandTotal {
+		return "full"
+	}
+	return "partial"
 }

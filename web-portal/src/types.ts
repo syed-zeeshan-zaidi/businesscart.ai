@@ -128,6 +128,22 @@ export interface Product {
   updatedAt: Date;
 }
 
+export interface RefundItemAdjustment {
+  productID: string;
+  quantity: number;
+  lineAmount: number;
+}
+
+export interface Refund {
+  id: string;
+  stripeRefundID: string;
+  amount: number;
+  reason?: string;
+  itemAdjustments?: RefundItemAdjustment[];
+  refundedAt: string;
+  refundedBy?: string;
+}
+
 export interface Order {
   id: string;
   quoteId: string;
@@ -155,6 +171,7 @@ export interface Order {
   deliveredAt?: string;
   reviewRequestedAt?: string;
   updatedAt?: string;
+  refunds?: Refund[];
 }
 
 export interface NewCartItem {

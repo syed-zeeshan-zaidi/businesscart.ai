@@ -1111,6 +1111,7 @@ func (h *LambdaHandler) handleDeleteOrderRequest(orderIDStr string, role string)
 var validOrderStatuses = map[string]bool{
 	"pending": true, "processing": true, "shipped": true,
 	"delivered": true, "cancelled": true, "returned": true,
+	"refunded": true,
 }
 
 var validTrackingCarriers = map[string]bool{
@@ -1157,9 +1158,22 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 		Status          string `json:"status"`
 		TrackingNumber  string `json:"trackingNumber"`
 		TrackingCarrier string `json:"trackingCarrier"`
+		// Refund fields. When refundAmount > 0, a refund record is appended and
+		// status auto-transitions to "refunded" if it makes the sum equal GrandTotal.
+		// Status cannot be set to "refunded" directly via this endpoint (data
+		// integrity: refunded status implies a refund record exists).
+		StripeRefundID  string                          `json:"stripeRefundID"`
+		RefundAmount    float64                         `json:"refundAmount"`
+		RefundReason    string                          `json:"refundReason"`
+		RefundItemAdjustments []order.RefundItemAdjustment `json:"refundItemAdjustments"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
+	}
+	// Reject direct status="refunded" — must come through refund flow.
+	if req.Status == "refunded" && req.RefundAmount <= 0 {
+		return h.errorResponse(http.StatusBadRequest,
+			"Cannot set status to refunded directly. Provide refundAmount + stripeRefundID to record a refund."), nil
 	}
 	if req.Status != "" && !validOrderStatuses[req.Status] {
 		return h.errorResponse(http.StatusBadRequest, "Invalid status"), nil
@@ -1175,14 +1189,100 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
 	}
 
-	updated, err := h.orderService.UpdateOrder(orderID, order.OrderUpdate{
+	// Build OrderUpdate. Include refund block only when refundAmount > 0.
+	upd := order.OrderUpdate{
 		Status:          req.Status,
 		TrackingNumber:  req.TrackingNumber,
 		TrackingCarrier: req.TrackingCarrier,
 		TrackingURL:     trackingURLFor(req.TrackingCarrier, req.TrackingNumber),
-	})
+	}
+	if req.RefundAmount > 0 {
+		if req.StripeRefundID == "" {
+			return h.errorResponse(http.StatusBadRequest,
+				"stripeRefundID is required when refundAmount > 0"), nil
+		}
+		upd.AddRefund = &order.Refund{
+			StripeRefundID:  req.StripeRefundID,
+			Amount:          req.RefundAmount,
+			Reason:          req.RefundReason,
+			ItemAdjustments: req.RefundItemAdjustments,
+			RefundedBy:      accountID,
+		}
+		// Caller's intent: clear any explicit status here — refund flow controls
+		// transition to "refunded" automatically when it becomes full.
+		upd.Status = ""
+	}
+
+	updated, err := h.orderService.UpdateOrder(orderID, upd)
 	if err != nil {
+		// Refund validation errors (cap exceeded, etc.) surface as 400 not 500.
+		if strings.Contains(err.Error(), "refund") || strings.Contains(err.Error(), "stripeRefundID") {
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
 		return h.errorResponse(http.StatusInternalServerError, "Failed to update order"), nil
+	}
+
+	// Refund notifications: when a refund was just appended, notify both the
+	// customer and the company owner. Synchronous send (same Lambda
+	// goroutine-vs-freeze concern as other order emails).
+	if req.RefundAmount > 0 && len(updated.Refunds) > len(existing.Refunds) && h.emailSender != nil {
+		justAdded := updated.Refunds[len(updated.Refunds)-1]
+		refundType := updated.RefundStatus() // "partial" or "full"
+
+		// Build itemized view from the refund's adjustments (look up product
+		// names from the order's existing Items so the email shows readable text).
+		nameByProduct := map[string]string{}
+		for _, it := range updated.Items {
+			nameByProduct[it.ProductID] = it.Name
+		}
+		refundItems := make([]mailer.OrderRefundedItem, 0, len(justAdded.ItemAdjustments))
+		for _, adj := range justAdded.ItemAdjustments {
+			name := nameByProduct[adj.ProductID]
+			if name == "" {
+				name = "Item"
+			}
+			refundItems = append(refundItems, mailer.OrderRefundedItem{
+				Name:     name,
+				Quantity: adj.Quantity,
+				Amount:   adj.LineAmount,
+			})
+		}
+
+		// Stripe reference: last 8 chars for trust signal without exposing full ID.
+		stripeRef := justAdded.StripeRefundID
+		if len(stripeRef) > 8 {
+			stripeRef = stripeRef[len(stripeRef)-8:]
+		}
+
+		brandName, brandEmail := mailer.CompanyBrand(updated.SellerID)
+		data := mailer.OrderRefundedData{
+			OrderID:         updated.ID.Hex(),
+			Type:            refundType,
+			RefundAmount:    justAdded.Amount,
+			GrandTotal:      updated.GrandTotal,
+			NetTotal:        updated.NetTotal(),
+			Reason:          justAdded.Reason,
+			StripeRefundRef: stripeRef,
+			Items:           refundItems,
+			BrandName:       brandName,
+			BrandEmail:      brandEmail,
+		}
+		sender, _ := mailer.SenderForCompany(context.Background(), updated.SellerID, h.emailSender)
+
+		// Send to customer (always, if email present).
+		if updated.CustomerEmail != "" {
+			if err := sender.Send(context.Background(),
+				mailer.OrderRefundedMessage(updated.CustomerEmail, data)); err != nil {
+				log.Printf("WARN: refund email to customer %s failed: %v", updated.CustomerEmail, err)
+			}
+		}
+		// Send to company owner (if known).
+		if ownerEmail := mailer.CompanyOwnerEmail(updated.SellerID); ownerEmail != "" {
+			if err := sender.Send(context.Background(),
+				mailer.OrderRefundedMessage(ownerEmail, data)); err != nil {
+				log.Printf("WARN: refund email to company owner %s failed: %v", ownerEmail, err)
+			}
+		}
 	}
 
 	// Notify customer when order first transitions to "shipped" — synchronous so it
