@@ -1440,7 +1440,7 @@
                 return;
             }
 
-            const statusColors = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706' };
+            const statusColors = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706', refunded: '#a855f7' };
             this._cachedOrders = orders;
 
             container.innerHTML = `
@@ -1449,11 +1449,13 @@
                 const color = statusColors[o.status] || '#64748b';
                 const oid = o._id || o.id;
                 const trackingLabel = [o.trackingCarrier ? o.trackingCarrier.toUpperCase() : '', o.trackingNumber || ''].filter(Boolean).join(' ');
+                const refundedAmt = (o.refunds || []).reduce((s, r) => s + (r.amount || 0), 0);
+                const netTotal = Math.max(0, (o.grandTotal || 0) - refundedAmt);
                 return `
                     <div class="dash-card" style="cursor:pointer" onclick="if(event.target.tagName==='BUTTON'||event.target.tagName==='A')return; D2C_CUSTOMER.showOrderDetail('${oid}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
                             <span style="font-weight:700; font-size:0.9rem">Order #${(oid || '').slice(-6)}</span>
-                            <span style="font-weight:800; color:var(--primary)">$${(o.grandTotal || 0).toFixed(2)}</span>
+                            <span style="font-weight:800; color:var(--primary)">${refundedAmt > 0 ? `<span style="text-decoration:line-through;color:#94a3b8;font-weight:400;font-size:0.85em;margin-right:4px">$${(o.grandTotal || 0).toFixed(2)}</span>$${netTotal.toFixed(2)}` : `$${(o.grandTotal || 0).toFixed(2)}`}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem">
                             <span class="dash-badge" style="background:${color}15; color:${color}">${o.status}</span>
@@ -1488,7 +1490,7 @@
                 'pickup_&_pay': 'Pay at Pickup', deliver_pay: 'Pay on Delivery',
             };
             const DELIVERY_LABELS = { shipping_out: 'Ship to address', pickup: 'Pick up at store', dropoff: 'Local delivery' };
-            const STATUS_COLORS = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706' };
+            const STATUS_COLORS = { pending: '#f59e0b', processing: '#3b82f6', shipped: '#8b5cf6', delivered: '#16a34a', cancelled: '#ef4444', returned: '#d97706', refunded: '#a855f7' };
             const labelFor = (m, k) => m[k] || (k || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || '—';
             const oid = order._id || order.id || '';
             const color = STATUS_COLORS[order.status] || '#64748b';
@@ -1571,6 +1573,13 @@
                             <div class="od-row"><span>Tax</span><span>$${(order.taxAmount || 0).toFixed(2)}</span></div>
                             ${order.promoDiscount && order.promoDiscount > 0 ? `<div class="od-row" style="color:#059669"><span>Discount${order.promoCode ? ' (' + escText(order.promoCode) + ')' : ''}</span><span>-$${order.promoDiscount.toFixed(2)}</span></div>` : ''}
                             <div class="od-row total"><span>Total</span><span>$${(order.grandTotal || 0).toFixed(2)}</span></div>
+                            ${(() => {
+                                const refunded = (order.refunds || []).reduce((s, r) => s + (r.amount || 0), 0);
+                                if (refunded <= 0) return '';
+                                const net = Math.max(0, (order.grandTotal || 0) - refunded);
+                                const lines = (order.refunds || []).map(r => `<div class="od-row" style="font-size:12px"><span>${r.refundedAt ? escText(new Date(r.refundedAt).toLocaleDateString()) : ''}${r.reason ? ' &middot; ' + escText(r.reason) : ''}</span><span>-$${(r.amount || 0).toFixed(2)}</span></div>`).join('');
+                                return `<div class="od-row" style="color:#a855f7;font-weight:600"><span>Refunded</span><span>-$${refunded.toFixed(2)}</span></div>${lines}<div class="od-row total"><span>Net Total</span><span>$${net.toFixed(2)}</span></div>`;
+                            })()}
                         </section>
 
                         <section class="od-section">

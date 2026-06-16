@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3 } from '../api';
 import { Product, Account, Attribute, PriceTier, Review } from '../types';
 import Navbar from './Navbar';
@@ -42,11 +42,38 @@ const ProductForm = () => {
     groupIDs: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Row flash: briefly highlight the just-edited row so the eye lands on it
+  // when the modal closes back to a paginated list.
+  const [flashId, setFlashId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!flashId) return;
+    const t = setTimeout(() => setFlashId(null), 1500);
+    return () => clearTimeout(t);
+  }, [flashId]);
   const [slugUnlocked, setSlugUnlocked] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // Each pending file carries its own blob preview URL. Allocate the URL once
+  // at add-time, revoke once at remove/clear-time. This avoids re-creating
+  // URLs on every render (which caused flicker when adding a 2nd file).
+  type PendingFile = { file: File; previewUrl: string };
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  // Drag enter/leave fire on every child crossing, so we track depth instead
+  // of a boolean. isDragging only flips off when depth returns to zero.
+  const dragDepth = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Revoke every pending blob URL and clear the list. Single helper used by
+  // save-success, close-and-reset, open-modal, and handle-edit so every
+  // clear path stays leak-free.
+  const clearPendingFiles = useCallback(() => {
+    setPendingFiles((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
+  }, []);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -76,13 +103,23 @@ const ProductForm = () => {
     loadInitialData();
   }, [decodeJWT]);
 
+  // Search changes jump back to page 1 (user expects to see top matches).
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Recompute filtered list when products refresh or search changes. Clamp
+  // currentPage if the list shrunk (e.g. after a delete) so we never sit on
+  // an empty page — but do NOT force page 1, so editing an item keeps the
+  // user on the page they were viewing.
   useEffect(() => {
     const filtered = products.filter((product) =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredProducts(filtered);
-    setCurrentPage(1);
-  }, [searchQuery, products]);
+    const totalPagesNow = Math.max(1, Math.ceil(filtered.length / productsPerPage));
+    setCurrentPage((p) => Math.min(p, totalPagesNow));
+  }, [products, searchQuery, productsPerPage]);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -144,6 +181,8 @@ const ProductForm = () => {
       }
       const dataToSave = { ...formData, images: allImages };
 
+      const editedId = editingId;
+      const wasEdit = !!editingId;
       if (editingId) {
         await updateProduct(editingId, dataToSave as Product);
         toast.success('Product updated successfully');
@@ -151,31 +190,45 @@ const ProductForm = () => {
         await createProduct(dataToSave as Omit<Product, '_id'>);
         toast.success('Product created successfully');
       }
-      setFormData({
-        name: '',
-        price: 0,
-        dealPrice: undefined,
-        description: '',
-        sellerID: account?._id || '',
-        images: [],
-        category: '',
-        googleProductCategory: '',
-        slug: '',
-        sku: '',
-        barcode: '',
-        stock: 0,
-        active: true,
-        featured: false,
-        attributes: [],
-        priceTiers: [],
-        groupIDs: [],
-      });
-      setEditingId(null);
-      setSlugUnlocked(false);
-      setPendingFiles([]);
-      setIsModalOpen(false);
+      // Pending files are now uploaded — clear them in both flows so the
+      // "Pending" badges disappear and the real S3 URLs render in their place.
+      clearPendingFiles();
+
+      if (wasEdit) {
+        // Edit: keep the modal open with the refreshed image list so the
+        // admin sees Pending → real-image transition without reopening.
+        // Other fields stay as-is so they can continue editing.
+        setFormData((prev) => ({ ...prev, images: allImages }));
+      } else {
+        // Create: reset the form and close — list view is the next destination.
+        setFormData({
+          name: '',
+          price: 0,
+          dealPrice: undefined,
+          dealStartDate: undefined,
+          dealEndDate: undefined,
+          description: '',
+          sellerID: account?._id || '',
+          images: [],
+          category: '',
+          googleProductCategory: '',
+          slug: '',
+          sku: '',
+          barcode: '',
+          stock: 0,
+          active: true,
+          featured: false,
+          attributes: [],
+          priceTiers: [],
+          groupIDs: [],
+        });
+        setEditingId(null);
+        setSlugUnlocked(false);
+        setIsModalOpen(false);
+      }
       invalidateCache();
       await fetchProducts();
+      if (editedId) setFlashId(editedId);
       setErrors([]);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to save product');
@@ -301,7 +354,9 @@ const ProductForm = () => {
     });
     setEditingId(product._id);
     setSlugUnlocked(false);
-    setPendingFiles([]);
+    clearPendingFiles();
+    dragDepth.current = 0;
+    setIsDragging(false);
     setIsModalOpen(true);
   };
 
@@ -327,18 +382,82 @@ const ProductForm = () => {
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Shared add-files path used by both the <input type=file> change handler
+  // and the drag-drop handler. Filters out non-image files (matters for drop
+  // since the OS file picker already filters via the `accept` attribute).
+  // Does not touch the S3 upload path — pending files still upload via
+  // uploadPendingFiles on save.
+  const addFiles = useCallback((files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (images.length === 0) {
+      toast.error('Please add image files only (jpg, png, webp)');
+      return;
+    }
+    const newPending = images.map((file) => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setPendingFiles((prev) => [...prev, ...newPending]);
+    toast.success(
+      images.length === 1
+        ? 'Image added — will upload when you save'
+        : `${images.length} images added — will upload when you save`
+    );
+  }, []);
 
-    setPendingFiles(prev => [...prev, file]);
-    toast.success('Image added — will upload when you save');
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    addFiles(files);
     e.target.value = '';
   };
 
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current += 1;
+    if (e.dataTransfer.types?.includes('Files')) setIsDragging(true);
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Hint the OS to use the "copy" cursor instead of "no-drop".
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    if (isLoading) return; // ignore drops during save so files don't get wiped
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) addFiles(files);
+  };
+
+  // Prevent the browser from navigating away when a dropped file misses the
+  // dropzone (default behavior: open the file in a new tab). Scoped to the
+  // window so it covers the modal too.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('dragover', prevent);
+    window.addEventListener('drop', prevent);
+    return () => {
+      window.removeEventListener('dragover', prevent);
+      window.removeEventListener('drop', prevent);
+    };
+  }, []);
+
   const uploadPendingFiles = async (): Promise<string[]> => {
     const uploadedUrls: string[] = [];
-    for (const file of pendingFiles) {
+    for (const { file } of pendingFiles) {
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const { uploadUrl, imageUrl } = await getUploadUrl(file.type, ext, formData.slug);
       await uploadFileToS3(uploadUrl, file);
@@ -363,10 +482,31 @@ const ProductForm = () => {
     });
   };
 
+  // Reset transient modal state on close-without-save so abandoned pending
+  // files don't leak into the next opened product, and drag depth doesn't
+  // get stuck if the modal closed mid-drag (no dragLeave fires).
+  const closeAndReset = useCallback(() => {
+    // Guard: don't close while a save is in flight. The Cancel/X buttons are
+    // also visually disabled, but Dialog's backdrop/Esc still routes here, so
+    // gate at the single chokepoint.
+    if (isLoading) return;
+    clearPendingFiles();
+    dragDepth.current = 0;
+    setIsDragging(false);
+    setErrors([]);
+    setIsModalOpen(false);
+  }, [clearPendingFiles, isLoading]);
+
   const openModal = () => {
+    clearPendingFiles();
+    dragDepth.current = 0;
+    setIsDragging(false);
     setFormData({
       name: '',
       price: 0,
+      dealPrice: undefined,
+      dealStartDate: undefined,
+      dealEndDate: undefined,
       description: '',
       sellerID: account?._id || '',
       images: [],
@@ -377,8 +517,10 @@ const ProductForm = () => {
       barcode: '',
       stock: 0,
       active: true,
-    featured: false,
+      featured: false,
       attributes: [],
+      priceTiers: [],
+      groupIDs: [],
     });
     setEditingId(null);
     setSlugUnlocked(false);
@@ -441,8 +583,7 @@ const ProductForm = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Image</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributes</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Price (%)</th>
 
@@ -451,7 +592,10 @@ const ProductForm = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentProducts.map((product) => (
-                    <tr key={product._id} className="hover:bg-gray-50">
+                    <tr
+                      key={product._id}
+                      className={`hover:bg-gray-50 transition-colors duration-1000 ${flashId === product._id ? 'bg-yellow-100' : ''}`}
+                    >
                       <td className="px-4 py-2 whitespace-nowrap">
                         {product.images && product.images[0] ? (
                           <img
@@ -466,10 +610,30 @@ const ProductForm = () => {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <div>{product.name}</div>
+                        {(product.category || (product.attributes && product.attributes.length > 0)) && (
+                          <div className="mt-0.5 text-xs font-normal text-gray-500">
+                            {product.category}
+                            {product.category && product.attributes && product.attributes.length > 0 && ' · '}
+                            {product.attributes && product.attributes.length > 0 && (
+                              <span>{product.attributes.length} attribute{product.attributes.length === 1 ? '' : 's'}</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{product.active !== false ? <span className="text-green-700 font-medium">Active</span> : <span className="text-red-600 font-medium">Inactive</span>}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.attributes?.length || 0}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {product.stock === undefined || product.stock === null ? (
+                          <span className="text-gray-400">—</span>
+                        ) : product.stock === 0 ? (
+                          <span className="text-red-600 font-medium">Out of stock</span>
+                        ) : product.stock <= 5 ? (
+                          <span className="text-amber-700 font-medium">{product.stock} left</span>
+                        ) : (
+                          <span className="text-gray-700">{product.stock} in stock</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {product.dealPrice ? (
@@ -545,7 +709,7 @@ const ProductForm = () => {
 
         {/* Product Form Modal */}
         <Transition appear show={isModalOpen} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
+          <Dialog as="div" className="relative z-50" onClose={closeAndReset}>
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
@@ -576,8 +740,9 @@ const ProductForm = () => {
                       </Dialog.Title>
                       <button
                         type="button"
-                        onClick={() => setIsModalOpen(false)}
-                        className="text-gray-400 hover:text-gray-600 rounded p-1"
+                        onClick={closeAndReset}
+                        disabled={isLoading}
+                        className="text-gray-400 hover:text-gray-600 rounded p-1 disabled:opacity-40 disabled:cursor-not-allowed"
                         aria-label="Close"
                       >
                         <XMarkIcon className="h-5 w-5" />
@@ -842,56 +1007,103 @@ const ProductForm = () => {
                         {((formData.images || []).length > 0 || pendingFiles.length > 0) && (
                           <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
                             {(formData.images || []).map((url, i) => (
-                              <div key={`existing-${i}`} className={`relative group rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-teal-700' : 'border-gray-200'} hover:border-teal-500 transition-colors`}>
+                              <div key={`existing-${i}`} className={`relative rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-teal-700' : 'border-gray-200'} transition-colors`}>
                                 <div className="aspect-square cursor-pointer" onClick={() => setPreviewImage(url)}>
                                   <img src={url} alt={`Product ${i + 1}`} className="w-full h-full object-cover" />
                                 </div>
+                                {/* Delete: top-LEFT (red), always visible for mobile */}
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(i)}
+                                  className="absolute top-1 left-1 bg-white/95 text-red-600 rounded-full p-2 shadow-md hover:bg-red-50 active:scale-95 transition"
+                                  title="Remove"
+                                  aria-label={`Remove image ${i + 1}`}
+                                >
+                                  <XMarkIcon className="h-4 w-4" />
+                                </button>
+                                {/* Star (set main): top-RIGHT (teal), only for non-main */}
+                                {i !== 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMainImage(i)}
+                                    className="absolute top-1 right-1 bg-white/95 text-teal-700 rounded-full p-2 shadow-md hover:bg-teal-50 active:scale-95 transition"
+                                    title="Set as main"
+                                    aria-label={`Set image ${i + 1} as main`}
+                                  >
+                                    <StarIcon className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {/* Main badge: bottom-LEFT so top-left stays free for delete */}
                                 {i === 0 && (
-                                  <span className="absolute top-1 left-1 flex items-center gap-0.5 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">
+                                  <span className="absolute bottom-1 left-1 flex items-center gap-0.5 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">
                                     <StarIconSolid className="h-3 w-3" /> Main
                                   </span>
                                 )}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors pointer-events-none" />
-                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {i !== 0 && (
-                                    <button type="button" onClick={() => setMainImage(i)} className="bg-white text-teal-700 rounded-full p-1 shadow hover:bg-teal-50" title="Set as main">
-                                      <StarIcon className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                  <button type="button" onClick={() => removeImage(i)} className="bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50" title="Remove">
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
                               </div>
                             ))}
-                            {pendingFiles.map((file, i) => (
-                              <div key={`pending-${i}`} className="relative group rounded-lg overflow-hidden border-2 border-dashed border-teal-500">
+                            {pendingFiles.map((pending, i) => (
+                              <div key={`pending-${i}`} className="relative rounded-lg overflow-hidden border-2 border-dashed border-teal-500">
                                 <div className="aspect-square">
-                                  <img src={URL.createObjectURL(file)} alt={`New ${i + 1}`} className="w-full h-full object-cover" />
+                                  <img src={pending.previewUrl} alt={`New ${i + 1}`} className="w-full h-full object-cover" />
                                 </div>
-                                <span className="absolute top-1 left-1 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">Pending</span>
-                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))} className="bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50" title="Remove">
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setPendingFiles((prev) => {
+                                    URL.revokeObjectURL(prev[i].previewUrl);
+                                    return prev.filter((_, idx) => idx !== i);
+                                  })}
+                                  className="absolute top-1 left-1 bg-white/95 text-red-600 rounded-full p-2 shadow-md hover:bg-red-50 active:scale-95 transition"
+                                  title="Remove"
+                                  aria-label={`Remove pending image ${i + 1}`}
+                                >
+                                  <XMarkIcon className="h-4 w-4" />
+                                </button>
+                                <span className="absolute bottom-1 left-1 bg-teal-700 text-white text-xs px-1.5 py-0.5 rounded">Pending</span>
                               </div>
                             ))}
                           </div>
                         )}
-                        <label className="mt-3 flex items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-teal-500 hover:bg-teal-50/50 transition-all">
-                          <input
-                            type="file"
-                            accept="image/webp,image/jpeg,image/png"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            disabled={isLoading}
-                          />
-                          <div className="flex flex-col items-center text-sm text-gray-500">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/webp,image/jpeg,image/png"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={isLoading}
+                        />
+                        <div
+                          role="button"
+                          tabIndex={isLoading ? -1 : 0}
+                          aria-disabled={isLoading}
+                          onClick={() => { if (!isLoading) fileInputRef.current?.click(); }}
+                          onKeyDown={(e) => {
+                            if (isLoading) return;
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              fileInputRef.current?.click();
+                            }
+                          }}
+                          onDragEnter={handleDragEnter}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          className={`mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                            isLoading
+                              ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                              : isDragging
+                              ? 'border-teal-600 bg-teal-50 ring-2 ring-teal-300 cursor-pointer'
+                              : 'border-gray-300 hover:border-teal-500 hover:bg-teal-50/50 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center text-sm text-gray-600 pointer-events-none">
                             <PhotoIcon className="h-6 w-6 mb-1" />
-                            <span>Click to add image</span>
+                            <span className="font-medium">
+                              {isDragging ? 'Drop to add image' : 'Drag & drop or click to add image'}
+                            </span>
+                            <span className="text-xs text-gray-400 mt-0.5">JPG, PNG, or WEBP</span>
                           </div>
-                        </label>
+                        </div>
                         <div className="mt-2 flex items-center space-x-2">
                           <input
                             type="text"
@@ -1092,8 +1304,9 @@ const ProductForm = () => {
                       <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 flex-shrink-0">
                         <button
                           type="button"
-                          onClick={() => setIsModalOpen(false)}
-                          className="w-full sm:w-auto px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          onClick={closeAndReset}
+                          disabled={isLoading}
+                          className="w-full sm:w-auto px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Cancel
                         </button>
