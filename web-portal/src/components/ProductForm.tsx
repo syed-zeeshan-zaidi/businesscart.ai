@@ -42,6 +42,7 @@ const ProductForm = () => {
     groupIDs: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [slugUnlocked, setSlugUnlocked] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
@@ -170,6 +171,7 @@ const ProductForm = () => {
         groupIDs: [],
       });
       setEditingId(null);
+      setSlugUnlocked(false);
       setPendingFiles([]);
       setIsModalOpen(false);
       invalidateCache();
@@ -188,8 +190,15 @@ const ProductForm = () => {
     const { name, value } = e.target;
     const parsed = (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
     const updates: Partial<Product> = { [name]: parsed };
-    // Auto-generate slug from name (only if slug hasn't been manually edited)
-    if (name === 'name' && (!formData.slug || formData.slug === toSlug(formData.name || ''))) {
+    // Auto-generate slug from name only when CREATING a new product.
+    // Slugs are permanent URLs once a product exists: editing the title must
+    // never silently change the slug because that breaks external links
+    // (Google Shopping feed, search engines, customer bookmarks).
+    // Within create mode: keep auto-syncing as long as the user hasn't
+    // manually overridden the slug (i.e., it still matches the previous
+    // auto-generated value from the prior name).
+    if (name === 'name' && !editingId &&
+        (!formData.slug || formData.slug === toSlug(formData.name || ''))) {
       updates.slug = toSlug(value);
     }
     setFormData({ ...formData, ...updates });
@@ -291,6 +300,7 @@ const ProductForm = () => {
       groupIDs: product.groupIDs || [],
     });
     setEditingId(product._id);
+    setSlugUnlocked(false);
     setPendingFiles([]);
     setIsModalOpen(true);
   };
@@ -371,6 +381,7 @@ const ProductForm = () => {
       attributes: [],
     });
     setEditingId(null);
+    setSlugUnlocked(false);
     setErrors([]);
     setIsModalOpen(true);
   };
@@ -630,8 +641,22 @@ const ProductForm = () => {
                               value={formData.slug}
                               onChange={handleChange}
                               placeholder="product-slug"
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                              disabled={!!editingId && !slugUnlocked}
+                              className={`mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 ${!!editingId && !slugUnlocked ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
                             />
+                            {editingId && (
+                              <label className="mt-2 flex items-start gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={slugUnlocked}
+                                  onChange={(e) => setSlugUnlocked(e.target.checked)}
+                                  className="mt-0.5 h-4 w-4 text-teal-700 focus:ring-teal-500 border-gray-300 rounded"
+                                />
+                                <span className="text-xs text-gray-600 leading-snug">
+                                  <strong>Allow slug edit.</strong> Changing the slug breaks the product URL and existing Google Shopping feed entries. Only check if you intentionally want to change the URL.
+                                </span>
+                              </label>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700">SKU</label>
