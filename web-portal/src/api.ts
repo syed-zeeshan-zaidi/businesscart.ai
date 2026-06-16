@@ -297,7 +297,15 @@ export const getOrders = async (sellerId?: string): Promise<Order[]> => {
 
 export const updateOrder = async (
   id: string,
-  data: { status?: string; trackingCarrier?: string; trackingNumber?: string }
+  data: {
+    status?: string;
+    trackingCarrier?: string;
+    trackingNumber?: string;
+    stripeRefundID?: string;
+    refundAmount?: number;
+    refundReason?: string;
+    refundItemAdjustments?: { productID: string; quantity: number; lineAmount: number }[];
+  }
 ): Promise<Order> => {
   const response = await api.put(`${API_URL}/checkout/orders/${id}`, data);
   return response.data;

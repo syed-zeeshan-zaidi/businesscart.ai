@@ -233,7 +233,11 @@ const OrderHistory: React.FC = () => {
         ) : filteredOrders && filteredOrders.length > 0 ? (
           <div className="shadow-lg rounded-lg overflow-hidden">
             <div className="divide-y divide-gray-200">
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order) => {
+                const refunded = (order.refunds || []).reduce((s, r) => s + r.amount, 0);
+                const netTotal = Math.max(0, order.grandTotal - refunded);
+                const isPartiallyRefunded = refunded > 0 && order.status !== 'refunded';
+                return (
                 <div key={order.id} className="bg-white shadow rounded-lg p-6 mb-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                     <div>
@@ -242,18 +246,31 @@ const OrderHistory: React.FC = () => {
                       <p className="text-sm text-gray-500">Company: {getCompanyName(order.sellerId)}</p>
                     </div>
                     <div className="mt-2 sm:mt-0 text-left sm:text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
                         <span>Status:</span>
-                        <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                        <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : order.status === 'refunded' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                           {order.status}
                         </span>
+                        {isPartiallyRefunded && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                            Partially refunded
+                          </span>
+                        )}
                         {userRole === 'admin' && (
                           <button onClick={() => handleDeleteOrder(order.id)} className="text-red-500 hover:text-red-700 ml-2" title="Delete order">
                             <TrashIcon className="h-4 w-4" />
                           </button>
                         )}
                       </div>
-                      <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
+                      {refunded > 0 ? (
+                        <>
+                          <p className="text-sm text-gray-500 mt-1 line-through">${order.grandTotal.toFixed(2)}</p>
+                          <p className="text-xl font-bold text-gray-800">${netTotal.toFixed(2)}</p>
+                          <p className="text-xs text-purple-700">${refunded.toFixed(2)} refunded</p>
+                        </>
+                      ) : (
+                        <p className="text-xl font-bold text-gray-800 mt-1">${order.grandTotal.toFixed(2)}</p>
+                      )}
                       {order.trackingNumber && (
                         <p className="text-xs text-gray-600 mt-1">
                           {[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}
@@ -294,8 +311,35 @@ const OrderHistory: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                  {refunded > 0 && (
+                    <div className="border-t border-gray-200 pt-4 mt-4">
+                      <h4 className="font-semibold text-purple-800 mb-2">Refunds</h4>
+                      <ul className="space-y-2">
+                        {(order.refunds || []).map((r) => (
+                          <li key={r.id} className="text-sm text-gray-700 bg-purple-50 border border-purple-100 rounded-md p-3">
+                            <div className="flex justify-between items-start">
+                              <span className="font-semibold text-purple-900">${r.amount.toFixed(2)} refunded</span>
+                              <span className="text-xs text-gray-500">{new Date(r.refundedAt).toLocaleDateString()}</span>
+                            </div>
+                            {r.reason && <p className="text-xs text-gray-600 mt-1">{r.reason}</p>}
+                            {r.itemAdjustments && r.itemAdjustments.length > 0 && (
+                              <ul className="text-xs text-gray-600 mt-1 space-y-0.5">
+                                {r.itemAdjustments.map((a, i) => {
+                                  const item = order.items.find((it) => it.productId === a.productID);
+                                  return (
+                                    <li key={i}>Returned {a.quantity}x {item ? item.name : a.productID}</li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : (

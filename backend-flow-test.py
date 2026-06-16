@@ -898,6 +898,96 @@ class BackendFlowTest:
 
         self.run_test("5h. Coupon end-to-end: order email shows discount line", test_coupon_email_render)
 
+        # 5i. Refund flow: partial then full, with input-validation guards.
+        # Covers the append-only refunds[] pattern, auto status-transition to
+        # "refunded" on full coverage, and the two PUT validation contracts
+        # (status=refunded direct, refundAmount without stripeRefundID).
+        def test_refund_flow():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 2)
+            quote_resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 5000, "minOrderAmountLimit": 1, "maxOrderAmountLimit": 5000,
+            })
+            assert_status(quote_resp, 200, "Quote for refund flow")
+            quote_id = quote_resp.json().get("id")
+
+            self.use_token("customer")
+            order_resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            assert_status(order_resp, 200, "Place order for refund flow")
+            o = order_resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
+            grand_total = o.get("grandTotal", 0)
+            assert grand_total > 1, f"grandTotal must be > 1 for split-refund: {grand_total}"
+            ok(f"Refund-flow order placed: id={order_id} grandTotal=${grand_total:.2f}")
+
+            self.use_token("admin")
+
+            # Validation A: status=refunded without refundAmount must be rejected.
+            bad_a = self.api.put(f"/checkout/orders/{order_id}", {"status": "refunded"})
+            assert_status(bad_a, 400, "Direct status=refunded rejected")
+            assert "refundAmount" in (bad_a.json().get("message") or ""), \
+                f"Expected error to mention refundAmount: {bad_a.text}"
+            ok("Validation: status=refunded without refundAmount rejected with 400")
+
+            # Validation B: refundAmount > 0 without stripeRefundID must be rejected.
+            bad_b = self.api.put(f"/checkout/orders/{order_id}", {"refundAmount": 1.00})
+            assert_status(bad_b, 400, "refundAmount without stripeRefundID rejected")
+            assert "stripeRefundID" in (bad_b.json().get("message") or ""), \
+                f"Expected error to mention stripeRefundID: {bad_b.text}"
+            ok("Validation: refundAmount without stripeRefundID rejected with 400")
+
+            # Partial refund: half of grandTotal. Status must NOT transition.
+            first_amount = round(grand_total / 2, 2)
+            r1 = self.api.put(f"/checkout/orders/{order_id}", {
+                "stripeRefundID": "re_test_first_xyz123",
+                "refundAmount": first_amount,
+                "refundReason": "partial qty adjustment",
+            })
+            assert_status(r1, 200, "Partial refund accepted")
+            o1 = r1.json()
+            refunds1 = o1.get("refunds") or []
+            assert len(refunds1) == 1, f"Expected 1 refund after partial, got {len(refunds1)}: {refunds1}"
+            assert abs(refunds1[0].get("amount", 0) - first_amount) < 0.01, \
+                f"Refund amount mismatch: {refunds1[0].get('amount')} vs {first_amount}"
+            assert o1.get("status") != "refunded", \
+                f"Partial refund must not auto-transition status to refunded: {o1.get('status')}"
+            ok(f"Partial refund stored: ${first_amount:.2f}, status remained '{o1.get('status')}'")
+
+            # Cap check: try to refund more than remaining. Must fail with 400.
+            remaining = grand_total - first_amount
+            over = round(remaining + 5.00, 2)
+            bad_c = self.api.put(f"/checkout/orders/{order_id}", {
+                "stripeRefundID": "re_test_over_xyz",
+                "refundAmount": over,
+            })
+            assert_status(bad_c, 400, "Over-cap refund rejected")
+            ok(f"Cap enforcement: ${over:.2f} > remaining ${remaining:.2f} rejected with 400")
+
+            # Final refund to clear the balance: status must auto-transition to refunded.
+            r2 = self.api.put(f"/checkout/orders/{order_id}", {
+                "stripeRefundID": "re_test_final_abc456",
+                "refundAmount": round(remaining, 2),
+                "refundReason": "balance refunded",
+            })
+            assert_status(r2, 200, "Final refund accepted")
+            o2 = r2.json()
+            refunds2 = o2.get("refunds") or []
+            assert len(refunds2) == 2, f"Expected 2 refunds after final, got {len(refunds2)}"
+            assert o2.get("status") == "refunded", \
+                f"Full refund must auto-transition status to 'refunded', got '{o2.get('status')}'"
+            ok("Full coverage auto-transitions status to 'refunded' and appends second refund record")
+
+            # Cancel so this order doesn't pollute credit-limit accounting downstream.
+            self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
+
+        self.run_test("5i. Refund flow: partial + full + validation guards", test_refund_flow)
+
     # ── Phase 5b: Tiered pricing tests ─────────────────────────────
 
     def phase5b_tiered_pricing(self):

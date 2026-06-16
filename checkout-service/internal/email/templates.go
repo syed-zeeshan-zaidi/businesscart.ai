@@ -600,3 +600,124 @@ const orderShippedHTMLTmpl = `<!DOCTYPE html>
   <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
 </html>`
+
+// ─────────────────────── Order Refunded ───────────────────────
+// Sent to both the customer and the company admin when a refund is recorded
+// against an order. Works for partial and full refunds; the "Type" field
+// drives the wording ("partial refund" vs "full refund").
+
+type OrderRefundedItem struct {
+	Name     string
+	Quantity int
+	Amount   float64
+}
+
+type OrderRefundedData struct {
+	OrderID         string
+	Type            string // "partial" or "full"
+	RefundAmount    float64
+	GrandTotal      float64
+	NetTotal        float64
+	Reason          string
+	StripeRefundRef string // last 4-8 chars of Stripe refund ID for trust signal
+	Items           []OrderRefundedItem
+	BrandName       string
+	BrandEmail      string
+}
+
+func OrderRefundedMessage(to string, data OrderRefundedData) Message {
+	subject := fmt.Sprintf("Refund processed for order #%s", lastSix(data.OrderID))
+	if data.Type == "full" {
+		subject = fmt.Sprintf("Full refund processed for order #%s", lastSix(data.OrderID))
+	}
+	return Message{
+		To:       to,
+		Subject:  subject,
+		HTMLBody: renderHTML(orderRefundedHTMLTmpl, data),
+		TextBody: orderRefundedText(data),
+	}
+}
+
+func orderRefundedText(d OrderRefundedData) string {
+	var b bytes.Buffer
+	kind := "partial refund"
+	if d.Type == "full" {
+		kind = "full refund"
+	}
+	fmt.Fprintf(&b, "A %s has been processed for order #%s.\n\n", kind, lastSix(d.OrderID))
+	fmt.Fprintf(&b, "Refunded: $%.2f\n", d.RefundAmount)
+	fmt.Fprintf(&b, "Original order total: $%.2f\n", d.GrandTotal)
+	if d.Type == "partial" {
+		fmt.Fprintf(&b, "Net after refund: $%.2f\n", d.NetTotal)
+	}
+	if d.StripeRefundRef != "" {
+		fmt.Fprintf(&b, "Stripe reference: ...%s\n", d.StripeRefundRef)
+	}
+	if d.Reason != "" {
+		fmt.Fprintf(&b, "\nReason: %s\n", d.Reason)
+	}
+	if len(d.Items) > 0 {
+		fmt.Fprintf(&b, "\nItems refunded:\n")
+		for _, it := range d.Items {
+			fmt.Fprintf(&b, "  - %s x%d  $%.2f\n", it.Name, it.Quantity, it.Amount)
+		}
+	}
+	fmt.Fprintf(&b, "\nThe refund typically appears on your statement within 5-10 business days.\n")
+	fmt.Fprintf(&b, "Reply to this email if you have any questions.\n\n%s\n", brandFooterText(d.BrandName, d.BrandEmail))
+	return b.String()
+}
+
+const orderRefundedHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Refund processed</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">{{if eq .Type "full"}}Full refund processed{{else}}Refund processed{{end}}</h1>
+  <p style="font-size:14px;color:#64748b;margin-top:0">Order #{{.OrderID}}</p>
+
+  <table style="width:100%;background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0">
+    <tr>
+      <td style="padding:6px 8px;font-size:14px"><strong>Refunded:</strong></td>
+      <td style="padding:6px 8px;font-size:14px;text-align:right"><strong>${{printf "%.2f" .RefundAmount}}</strong></td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b">Original order total</td>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b;text-align:right">${{printf "%.2f" .GrandTotal}}</td>
+    </tr>
+    {{if eq .Type "partial"}}
+    <tr>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b">Net after refund</td>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b;text-align:right">${{printf "%.2f" .NetTotal}}</td>
+    </tr>
+    {{end}}
+    {{if .StripeRefundRef}}
+    <tr>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b">Stripe reference</td>
+      <td style="padding:6px 8px;font-size:13px;color:#64748b;text-align:right;font-family:monospace">...{{.StripeRefundRef}}</td>
+    </tr>
+    {{end}}
+  </table>
+
+  {{if .Reason}}
+  <p style="font-size:14px;color:#1e293b;margin:16px 0"><strong>Reason:</strong> {{.Reason}}</p>
+  {{end}}
+
+  {{if .Items}}
+  <h2 style="font-size:15px;color:#1e293b;margin-top:24px;margin-bottom:8px">Items refunded</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <tbody>
+      {{range .Items}}
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px">{{.Name}}</td>
+        <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b">Qty {{.Quantity}}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;font-size:14px;font-weight:600">${{printf "%.2f" .Amount}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+
+  <p style="color:#64748b;font-size:13px;margin-top:24px">The refund typically appears on your statement within 5-10 business days. Reply to this email if you have any questions.</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">{{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
+</body>
+</html>`

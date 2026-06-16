@@ -2,6 +2,8 @@ package order
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -165,6 +167,11 @@ type OrderUpdate struct {
 	TrackingCarrier   string
 	TrackingURL       string
 	SetReviewRequested bool // when true, sets reviewRequestedAt = now
+	// AddRefund: when non-nil, append a refund record. The service will:
+	//   - assign a new ObjectID + timestamps
+	//   - validate sum-of-refunds does not exceed GrandTotal
+	//   - auto-set order.Status = "refunded" if this refund makes it full
+	AddRefund *Refund
 }
 
 func (s *Service) UpdateOrder(id primitive.ObjectID, update OrderUpdate) (*Order, error) {
@@ -195,6 +202,63 @@ func (s *Service) UpdateOrder(id primitive.ObjectID, update OrderUpdate) (*Order
 	if update.SetReviewRequested {
 		set["reviewRequestedAt"] = now
 	}
+
+	// Refund append: validate against current state, then $push + auto-status
+	// transition if this refund makes the sum equal GrandTotal.
+	if update.AddRefund != nil {
+		newRefund := *update.AddRefund
+		if newRefund.ID.IsZero() {
+			newRefund.ID = primitive.NewObjectID()
+		}
+		if newRefund.RefundedAt.IsZero() {
+			newRefund.RefundedAt = now
+		}
+		if newRefund.Amount <= 0 {
+			return nil, errors.New("refund amount must be greater than zero")
+		}
+		if newRefund.StripeRefundID == "" {
+			return nil, errors.New("stripeRefundID is required")
+		}
+		// Cap check: existing refunds + this one must not exceed GrandTotal.
+		newTotalRefunded := current.TotalRefunded() + newRefund.Amount
+		// Allow small rounding tolerance (1 cent) to handle float math.
+		if newTotalRefunded > current.GrandTotal+0.01 {
+			return nil, fmt.Errorf("refund total %.2f would exceed order grand total %.2f",
+				newTotalRefunded, current.GrandTotal)
+		}
+
+		// Apply via $push so we never mutate other refund entries.
+		pushOps := bson.M{"refunds": newRefund}
+		// If this refund makes the order fully refunded, auto-transition status.
+		// Otherwise leave Status alone (partial refund keeps lifecycle status like "delivered").
+		if newTotalRefunded >= current.GrandTotal-0.01 {
+			set["status"] = "refunded"
+		}
+
+		// Optimistic concurrency: only apply if the refunds array hasn't grown
+		// since we read `current`. Prevents two concurrent refunds both passing
+		// the cap check and together exceeding GrandTotal.
+		expectedSize := len(current.Refunds)
+		filter := bson.M{"_id": id}
+		if expectedSize == 0 {
+			filter["$or"] = bson.A{
+				bson.M{"refunds": bson.M{"$exists": false}},
+				bson.M{"refunds": bson.M{"$size": 0}},
+			}
+		} else {
+			filter["refunds"] = bson.M{"$size": expectedSize}
+		}
+		result, err := s.collection.UpdateOne(context.Background(), filter,
+			bson.M{"$set": set, "$push": pushOps})
+		if err != nil {
+			return nil, err
+		}
+		if result.MatchedCount == 0 {
+			return nil, errors.New("refund conflict: another refund was recorded concurrently, please refresh and retry")
+		}
+		return s.GetByID(id)
+	}
+
 	_, err = s.collection.UpdateOne(context.Background(), bson.M{"_id": id}, bson.M{"$set": set})
 	if err != nil {
 		return nil, err

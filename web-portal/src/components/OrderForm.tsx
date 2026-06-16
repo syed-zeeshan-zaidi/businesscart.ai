@@ -18,6 +18,7 @@ const STATUS_COLORS: Record<string, string> = {
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-700',
   returned: 'bg-amber-100 text-amber-700',
+  refunded: 'bg-purple-100 text-purple-700',
 };
 const PAYMENT_LABELS: Record<string, string> = {
   amazon_pay: 'Amazon Pay',
@@ -80,6 +81,13 @@ const OrderForm = () => {
   const [editCarrier, setEditCarrier] = useState('');
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Refund modal state (separate from edit modal — refund is a discrete event).
+  const [refundingOrder, setRefundingOrder] = useState<Order | null>(null);
+  const [refundStripeID, setRefundStripeID] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundItemQtys, setRefundItemQtys] = useState<Record<string, string>>({});
 
   // Export modal state: matches customer export pattern, with format selector for Google/Bing PPC.
   const [exportOpen, setExportOpen] = useState(false);
@@ -215,6 +223,112 @@ const OrderForm = () => {
     setEditCarrier('');
     setEditTrackingNumber('');
   }, []);
+
+  // ----- Refund handlers -----
+
+  const totalRefunded = useCallback((order: Order) =>
+    (order.refunds || []).reduce((sum, r) => sum + (r.amount || 0), 0), []);
+
+  const netTotal = useCallback((order: Order) =>
+    Math.max(0, order.grandTotal - totalRefunded(order)), [totalRefunded]);
+
+  // Sum of qty already returned for each product across all prior refunds.
+  // Used to cap the per-product return-qty input in the refund modal so an
+  // admin can't accidentally over-record returns (e.g., 4+3 of 6 ordered).
+  const alreadyReturnedByProduct = useCallback((order: Order): Record<string, number> => {
+    const map: Record<string, number> = {};
+    for (const r of order.refunds || []) {
+      for (const a of r.itemAdjustments || []) {
+        map[a.productID] = (map[a.productID] || 0) + a.quantity;
+      }
+    }
+    return map;
+  }, []);
+
+  const openRefundModal = useCallback((order: Order) => {
+    setRefundingOrder(order);
+    // Default refund amount: remaining balance (full refund of what's left).
+    const remaining = Math.max(0, order.grandTotal - totalRefunded(order));
+    setRefundAmount(remaining > 0 ? remaining.toFixed(2) : '');
+    setRefundStripeID('');
+    setRefundReason('');
+    setRefundItemQtys({});
+  }, [totalRefunded]);
+
+  const closeRefundModal = useCallback(() => {
+    setRefundingOrder(null);
+    setRefundStripeID('');
+    setRefundAmount('');
+    setRefundReason('');
+    setRefundItemQtys({});
+  }, []);
+
+  const handleSubmitRefund = useCallback(async () => {
+    if (!refundingOrder) return;
+    const amount = parseFloat(refundAmount);
+    if (!refundStripeID.trim()) {
+      toast.error('Stripe refund ID is required');
+      return;
+    }
+    if (!amount || amount <= 0) {
+      toast.error('Refund amount must be greater than 0');
+      return;
+    }
+    const remaining = refundingOrder.grandTotal - totalRefunded(refundingOrder);
+    if (amount > remaining + 0.01) {
+      toast.error(`Refund cannot exceed remaining $${remaining.toFixed(2)}`);
+      return;
+    }
+    // Build item adjustments from filled qty inputs (optional — admin may
+    // record a money-only refund without itemizing).
+    const priorReturned = alreadyReturnedByProduct(refundingOrder);
+    for (const it of refundingOrder.items) {
+      const qty = parseInt(refundItemQtys[it.productId] || '0', 10);
+      if (!qty || qty <= 0) continue;
+      const remainingForItem = it.quantity - (priorReturned[it.productId] || 0);
+      if (qty > remainingForItem) {
+        toast.error(`Cannot return ${qty}x ${it.name} (only ${remainingForItem} left to return)`);
+        return;
+      }
+    }
+    const itemAdjustments = refundingOrder.items
+      .map((it) => {
+        const qty = parseInt(refundItemQtys[it.productId] || '0', 10);
+        if (!qty || qty <= 0) return null;
+        const unit = it.discountedPrice ?? it.price ?? 0;
+        return {
+          productID: it.productId,
+          quantity: qty,
+          lineAmount: parseFloat((unit * qty).toFixed(2)),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    setIsLoading(true);
+    try {
+      const updated = await updateOrder(refundingOrder.id, {
+        stripeRefundID: refundStripeID.trim(),
+        refundAmount: amount,
+        refundReason: refundReason.trim() || undefined,
+        refundItemAdjustments: itemAdjustments.length > 0 ? itemAdjustments : undefined,
+      });
+      toast.success('Refund added and notifications sent');
+      invalidateCache();
+      await fetchOrders();
+      // Refresh edit-modal state with the updated order so the Refunds list,
+      // Net Total, Add-Refund-button gating, and editStatus all reflect the
+      // backend's new state (including any auto-transition to "refunded").
+      setEditingOrder(updated);
+      setEditStatus(updated.status);
+      setEditCarrier(updated.trackingCarrier || '');
+      setEditTrackingNumber(updated.trackingNumber || '');
+      closeRefundModal();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to record refund');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refundingOrder, refundStripeID, refundAmount, refundReason, refundItemQtys, totalRefunded, alreadyReturnedByProduct, fetchOrders, invalidateCache, closeRefundModal]);
 
   const handleSaveEdit = useCallback(async () => {
     if (!editingOrder) return;
@@ -594,7 +708,62 @@ const OrderForm = () => {
                     <div className="flex justify-between text-emerald-600"><dt>Discount{editingOrder.promoCode ? ` (${editingOrder.promoCode})` : ''}</dt><dd>-${editingOrder.promoDiscount.toFixed(2)}</dd></div>
                   ) : null}
                   <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t border-gray-200"><dt>Total</dt><dd>${editingOrder.grandTotal.toFixed(2)}</dd></div>
+                  {totalRefunded(editingOrder) > 0 && (
+                    <>
+                      <div className="flex justify-between text-purple-700"><dt>Refunded</dt><dd>-${totalRefunded(editingOrder).toFixed(2)}</dd></div>
+                      <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t border-gray-200"><dt>Net Total</dt><dd>${netTotal(editingOrder).toFixed(2)}</dd></div>
+                    </>
+                  )}
                 </dl>
+              </section>
+
+              {/* Refunds */}
+              <section className="border-t border-gray-200 pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Refunds</h3>
+                  {editingOrder.grandTotal - totalRefunded(editingOrder) > 0.01 && (
+                    <button
+                      type="button"
+                      onClick={() => openRefundModal(editingOrder)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200"
+                    >
+                      Add Refund
+                    </button>
+                  )}
+                </div>
+                {(editingOrder.refunds || []).length === 0 ? (
+                  <p className="text-sm text-gray-500">No refunds on this order.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(editingOrder.refunds || []).map((r) => (
+                      <li key={r.id} className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="text-sm">
+                            <div className="font-semibold text-gray-900">${r.amount.toFixed(2)}</div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(r.refundedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                              {r.refundedBy ? ` · by ${r.refundedBy}` : ''}
+                            </div>
+                          </div>
+                          <div className="text-xs font-mono text-gray-500 break-all max-w-[50%] text-right">{r.stripeRefundID}</div>
+                        </div>
+                        {r.reason && <p className="mt-2 text-sm text-gray-700">{r.reason}</p>}
+                        {r.itemAdjustments && r.itemAdjustments.length > 0 && (
+                          <ul className="mt-2 text-xs text-gray-600 space-y-0.5">
+                            {r.itemAdjustments.map((a, i) => {
+                              const item = editingOrder.items.find((it) => it.productId === a.productID);
+                              return (
+                                <li key={i}>
+                                  · {a.quantity}× {item ? item.name : a.productID} (${a.lineAmount.toFixed(2)})
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
 
               {/* Update controls */}
@@ -654,6 +823,128 @@ const OrderForm = () => {
                 className="px-4 py-2 rounded-md text-sm font-medium text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-50"
               >
                 {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Modal */}
+      {refundingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={closeRefundModal}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-start">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Add Refund</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Order #{refundingOrder.id.slice(-6).toUpperCase()}</p>
+              </div>
+              <button onClick={closeRefundModal} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6 space-y-5">
+              <div className="bg-purple-50 border border-purple-100 rounded-md p-3 text-sm">
+                <div className="flex justify-between text-gray-700"><span>Order total</span><span>${refundingOrder.grandTotal.toFixed(2)}</span></div>
+                <div className="flex justify-between text-gray-700"><span>Already refunded</span><span>-${totalRefunded(refundingOrder).toFixed(2)}</span></div>
+                <div className="flex justify-between font-semibold text-purple-900 pt-1 border-t border-purple-200 mt-1">
+                  <span>Refundable</span>
+                  <span>${(refundingOrder.grandTotal - totalRefunded(refundingOrder)).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Stripe refund ID <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={refundStripeID}
+                  onChange={(e) => setRefundStripeID(e.target.value)}
+                  placeholder="re_3PqXyZ2abc..."
+                  className="w-full p-2 border border-gray-300 rounded-md font-mono text-sm focus:ring-purple-500 focus:border-purple-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">Process the refund in Stripe first, then paste the refund ID here.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Refund amount (USD) <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  rows={2}
+                  placeholder="e.g., Customer adjusted order from 6 pairs to 1 pair."
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Items returned (optional)</label>
+                <p className="text-xs text-gray-500 mb-2">Leave blank for a money-only refund (e.g., shipping/tax adjustment).</p>
+                <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
+                  {(() => {
+                    const priorReturned = alreadyReturnedByProduct(refundingOrder);
+                    return refundingOrder.items.map((it) => {
+                      const returnedSoFar = priorReturned[it.productId] || 0;
+                      const remaining = it.quantity - returnedSoFar;
+                      return (
+                        <div key={it.productId} className="flex items-center justify-between p-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{it.name}</div>
+                            <div className="text-xs text-gray-500">
+                              Ordered: {it.quantity} × ${(it.discountedPrice ?? it.price).toFixed(2)}
+                              {returnedSoFar > 0 && (
+                                <span className="text-purple-700"> · {returnedSoFar} already returned</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-3">
+                            <label className="text-xs text-gray-600">Return qty</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={remaining}
+                              disabled={remaining <= 0}
+                              value={refundItemQtys[it.productId] || ''}
+                              onChange={(e) => setRefundItemQtys({ ...refundItemQtys, [it.productId]: e.target.value })}
+                              className="w-16 p-1.5 border border-gray-300 rounded-md text-sm text-center disabled:bg-gray-100 disabled:text-gray-400"
+                            />
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-2 flex-shrink-0">
+              <button
+                onClick={closeRefundModal}
+                className="px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitRefund}
+                disabled={isLoading}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : 'Add Refund'}
               </button>
             </div>
           </div>
