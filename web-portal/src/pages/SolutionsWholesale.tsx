@@ -68,7 +68,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'How is this different from Shopify B2B?',
-    a: 'Shopify B2B requires Shopify Plus ($2,000+/mo) and offers basic per-customer pricing. We enforce all the things Shopify B2B does not: credit limits at quote time, min/max order amounts, quantity limits, monthly and yearly spend caps. We also include quote negotiation workflows out of the box. And we are $0/month.',
+    a: 'Shopify B2B requires Shopify Plus ($2,300+/mo) and offers basic per-customer pricing. We enforce all the things Shopify B2B does not: credit limits at quote time, min/max order amounts, quantity limits, monthly and yearly spend caps. We also include quote negotiation workflows out of the box. And we are $0/month.',
   },
   {
     q: 'How long does setup take?',
@@ -162,7 +162,7 @@ const SolutionsWholesale: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Existing platforms cost a fortune or do too little</h3>
                 </div>
                 <p className="text-gray-600">
-                  Shopify B2B requires Plus at $2,000+/mo and still misses credit enforcement. NetSuite SuiteCommerce typically runs $2,000-10,000+/mo (with users + modules) and takes 6-18 months to deploy. Generic ecommerce treats every customer the same.
+                  Shopify B2B requires Plus at $2,300+/mo and still misses credit enforcement. NetSuite SuiteCommerce typically runs $5,000-15,000/mo (with users + modules) plus $50,000-$250,000 Year 1 implementation, and takes 6-18 months to deploy. Generic ecommerce treats every customer the same.
                 </p>
               </div>
             </div>
@@ -187,13 +187,14 @@ const SolutionsWholesale: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {[
-                    ['Monthly cost', '$0 (and pain)', '$2,000+', '$2,000-10,000+', '$1,800-10,000+', '$499-1,999'],
+                    ['Monthly cost', '$0 (and pain)', '$2,300+', '$5,000-15,000+', '$1,800-15,000+', '$0-1,999'],
                     ['Per-customer pricing', 'Manual', 'Yes', 'Yes', 'Yes (custom dev)', 'Yes, enforced'],
                     ['Credit limit enforcement', 'None', 'Limited', 'Yes', 'Yes (custom dev)', 'Yes, at quote time'],
                     ['Min/max order limits', 'None', 'Limited', 'Yes', 'Custom dev', 'Yes, enforced'],
                     ['Monthly/yearly spend caps', 'None', 'No', 'Custom', 'Custom dev', 'Built-in'],
                     ['Quote negotiation workflow', 'Email PDFs', 'Limited', 'Yes', 'Yes', 'Built-in with history'],
                     ['Customer self-serve', 'No', 'Yes', 'Yes', 'Yes', 'Yes'],
+                    ['Setup cost', '$0', '$0-$10K (optional agency)', '$50K-$250K', '$50K-$150K', '$0'],
                     ['Setup time', 'Day one (pain)', '2-4 weeks', '6-18 months', '6-12 months', 'Days'],
                   ].map((row) => (
                     <tr key={row[0]}>
