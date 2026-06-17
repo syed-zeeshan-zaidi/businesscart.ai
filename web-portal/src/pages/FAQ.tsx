@@ -23,7 +23,7 @@ const sections: Section[] = [
       {
         id: 'what-is-businesscart',
         question: 'What is BusinessCart.ai?',
-        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools, free to start. Every feature is included in every tier. No feature locks. Your tier auto-applies based on your monthly order volume: Starter ($0/mo) up to 100 orders, Growth ($499/mo) for 101-1,000, Enterprise ($1,999/mo) at 1,001+.',
+        answer: 'BusinessCart.ai is an e-commerce platform that gives businesses their own branded online store, private commerce portal, and B2B tools, free to start with a $5 max platform fee per order, no matter the size. Every feature is included in every tier. No feature locks. Your tier auto-applies based on your monthly order volume: Starter ($0/mo) up to 100 orders, Growth ($499/mo) for 101-1,000, Enterprise ($1,999/mo) at 1,001+.',
       },
       {
         id: 'who-is-it-for',
@@ -38,7 +38,7 @@ const sections: Section[] = [
       {
         id: 'pricing',
         question: 'How much does it cost?',
-        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Starter: $0/month + 6% per order (capped at $5/order) for up to 100 orders/month. Growth: $499/month + 1% per order for 101-1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Optional AI integration add-on starts at $99/month and is available on any tier. 30-day money-back on Growth and Enterprise.',
+        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Starter: $0/month with a $5 max per order (no matter the size) for up to 100 orders/month. A $10,000 wholesale order costs $5 in fees. Growth: $499/month + 1% per order for 101-1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Optional AI integration add-on starts at $99/month and is available on any tier. 30-day money-back on Growth and Enterprise.',
       },
     ],
   },

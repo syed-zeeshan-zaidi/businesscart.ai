@@ -6,18 +6,18 @@ import { Toaster } from 'react-hot-toast';
 const UserGuide: React.FC = () => {
   const sections = [
     { id: 'introduction', title: 'Introduction' },
-    { id: 'getting-started', title: '1. Getting Started: Your Gateway to Seamless Commerce' },
+    { id: 'getting-started', title: '1. Getting Started' },
     { id: 'account-registration', title: '1.1 Account Registration & Setup' },
-    { id: 'navigating-dashboard', title: '1.2 Navigating the BusinessCart.ai Dashboard' },
-    { id: 'for-companies', title: '2. For Companies: Mastering Your E-commerce Operations' },
-    { id: 'product-management', title: '2.1 Product Management: Curate Your Catalog with Precision' },
-    { id: 'customer-management', title: '2.2 Customer Relationship Management: Build Lasting Partnerships' },
+    { id: 'navigating-dashboard', title: '1.2 Navigating the Dashboard' },
+    { id: 'for-companies', title: '2. For Companies' },
+    { id: 'product-management', title: '2.1 Product Management' },
+    { id: 'customer-management', title: '2.2 Customer Management' },
     { id: 'company-profile', title: '2.3 Company Profile & Settings' },
     { id: 'order-export', title: '2.4 Exporting Orders (Accounting & Ad Tracking)' },
-    { id: 'for-customers', title: '3. For Customers: Streamlined Purchasing & Account Management' },
-    { id: 'browsing-discovery', title: '3.1 Browsing & Discovery: Find Exactly What You Need' },
-    { id: 'checkout-experience', title: '3.2 The BusinessCart.ai Checkout Experience' },
-    { id: 'your-account', title: '3.3 Your Account: Control at Your Fingertips' },
+    { id: 'for-customers', title: '3. For Customers' },
+    { id: 'browsing-discovery', title: '3.1 Browsing & Discovery' },
+    { id: 'checkout-experience', title: '3.2 Checkout' },
+    { id: 'your-account', title: '3.3 Your Account' },
     { id: 'advanced-features', title: '4. Advanced Features & Support' },
     { id: 'api-troubleshooting', title: '4.1 API Status & Troubleshooting' },
     { id: 'security-privacy', title: '4.2 Security & Data Privacy' },
@@ -47,14 +47,14 @@ const UserGuide: React.FC = () => {
               <section id="introduction">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Introduction</h2>
                 <p className="text-gray-600">
-                  Welcome to BusinessCart.ai, your premier B2B & D2C e-commerce platform designed to empower businesses of all sizes. From local enterprises to large corporations, BusinessCart.ai provides a robust, scalable, and intuitive solution to streamline your sales operations, cultivate direct customer relationships, and achieve unparalleled efficiency. Our platform is engineered to adapt to your unique business needs, offering a powerful alternative to traditional marketplaces by putting you in complete control of your commerce experience.
+                  BusinessCart.ai runs B2B and D2C commerce on one platform. This guide covers how to set up an account, manage products and customers as a seller, place orders as a buyer, and use the API, security, and export tools.
                 </p>
               </section>
 
               <section id="getting-started">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">1. Getting Started: Your Gateway to Seamless Commerce</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">1. Getting Started</h2>
                 <p className="text-gray-600">
-                  Embark on your BusinessCart.ai journey with confidence. This section guides you through the essential steps of setting up your account and understanding the foundational elements of our platform, ensuring a smooth and efficient start.
+                  Register an account and find your way around the dashboard.
                 </p>
               </section>
 
@@ -62,60 +62,60 @@ const UserGuide: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">1.1 Account Registration & Setup</h3>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">For Companies (Sellers):</h4>
                 <p className="text-gray-600 mb-2">
-                  As a company, your journey begins with establishing your presence on BusinessCart. This involves creating your comprehensive company profile, which serves as the foundation for your e-commerce operations. You will designate administrative users who will manage your product catalog, customer relationships, and overall platform settings. A critical feature for companies is the ability to issue and manage "Business Codes," which are unique identifiers that grant your specific customers exclusive access to your products and tailored pricing. Furthermore, you'll configure essential operational settings such as linking your preferred payment gateways and defining shipping zones to ensure seamless transactions and delivery.
+                  Register as a company. Fill in your business name, logo, and contact info. Assign admin users who can manage products and customers. Issue Business Codes to give specific customers access to your catalog with their own pricing. Link a payment gateway (Stripe, Amazon Pay, or Authorize.net) and define shipping zones.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">For Customers (Buyers):</h4>
                 <p className="text-gray-600 mb-2">
-                  Customers gain access to BusinessCart.ai through a streamlined registration process. To ensure a secure and personalized buying experience, customers require a unique "Business Code" provided by the company they wish to purchase from. This code acts as your key to accessing exclusive product catalogs and customized pricing. Upon successful registration, you will be guided to your personalized dashboard, where you can manage your profile, update shipping addresses, and begin exploring the curated product offerings from your associated companies.
+                  Customers register with a Business Code from the company they want to buy from. The code links your account to that company's catalog with your specific pricing. After registration you land on your dashboard where you can update your profile, manage addresses, and browse products from any company you're linked to.
                 </p>
               </section>
 
               <section id="navigating-dashboard">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">1.2 Navigating the BusinessCart.ai Dashboard</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">1.2 Navigating the Dashboard</h3>
                 <p className="text-gray-600">
-                  The BusinessCart.ai dashboard is your central command center, offering a high-level overview of your e-commerce activities. For companies, it provides quick access to sales performance metrics, inventory alerts, and pending orders. Customers will find their dashboard tailored to display recent orders, favorite products, and easy access to their associated companies' catalogs. Both interfaces are designed for intuitive navigation, ensuring that key information and functionalities are always within reach.
+                  For companies, the dashboard shows revenue, orders, low-stock alerts, and your current tier with order-volume usage. For customers, it shows recent orders (with refund status if any), saved addresses, and a switcher between companies you're linked to.
                 </p>
               </section>
 
               <section id="for-companies">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">2. For Companies: Mastering Your E-commerce Operations</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">2. For Companies</h2>
                 <p className="text-gray-600">
-                  BusinessCart.ai empowers companies with a comprehensive suite of tools to efficiently manage their e-commerce operations. From meticulous product curation to robust customer relationship management, this section details how to leverage our platform to its fullest potential.
+                  Tools for managing products, customers, company settings, and order exports.
                 </p>
               </section>
 
               <section id="product-management">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">2.1 Product Management: Curate Your Catalog with Precision</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">2.1 Product Management</h3>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Adding and Editing Products:</h4>
                 <p className="text-gray-600 mb-2">
-                  Effortlessly list your products with our intuitive interface. Provide detailed descriptions, upload high-resolution imagery, and specify key attributes to ensure your products are accurately represented. Manage product variants, such as different sizes, colors, or configurations, to offer a diverse selection. Organize your products into logical categories to enhance discoverability and improve the customer browsing experience.
+                  Add products from the Products page. Each product takes a name, description, price, images, stock, and category. Add variants for size, color, or configuration if you sell them. Organize products into categories so customers can browse them on the storefront.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">Inventory Control:</h4>
                 <p className="text-gray-600 mb-2">
-                  Maintain optimal stock levels with real-time inventory tracking. Set automated reorder points and receive timely alerts to prevent stockouts and ensure continuous product availability. Our system provides a clear overview of your inventory, enabling proactive management.
+                  Stock counts update in real time. The dashboard shows low-stock alerts so you know when to restock.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">Dynamic Pricing Strategies:</h4>
                 <p className="text-gray-600 mb-2">
-                  Implement sophisticated pricing strategies tailored to your business model. Configure tiered pricing for bulk purchases, apply volume discounts, and establish customer-specific pricing to reward loyalty or cater to unique agreements. Create and manage promotional codes to drive sales and engage your customer base effectively.
+                  Set tiered pricing for bulk purchases, volume discounts, and customer-specific pricing for individual buyers. Create and manage promotional codes to drive sales.
                 </p>
               </section>
 
               <section id="customer-management">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">2.2 Customer Relationship Management: Build Lasting Partnerships</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">2.2 Customer Management</h3>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Inviting and Managing Customers:</h4>
                 <p className="text-gray-600 mb-2">
-                  BusinessCart.ai empowers you to control who accesses your product catalog. Issue and manage unique Business Codes to grant specific customers exclusive access. Segment your customer base for targeted marketing campaigns and personalized pricing structures. Gain valuable insights by viewing individual customer order histories and preferences, fostering stronger relationships.
+                  Issue Business Codes to give specific customers access to your catalog. Group customers into segments with their own pricing. View each customer's order history from the Customers page.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">Order Fulfillment & Management:</h4>
                 <p className="text-gray-600 mb-2">
-                  Efficiently process incoming orders from quote approval through to shipment. Our platform provides comprehensive tools for tracking order status, facilitating clear communication with your customers, and managing returns and refunds with ease, ensuring a smooth post-purchase experience.
+                  Process orders from quote approval through shipment. Track order status, update tracking numbers, and record refunds from the order detail page. Refunds are append-only and trigger an automatic email to the customer.
                 </p>
               </section>
 
               <section id="company-profile">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">2.3 Company Profile & Settings</h3>
                 <p className="text-gray-600 mb-2">
-                  Maintain your company's brand identity and operational efficiency by easily updating your company information, branding assets, and contact details. Manage user roles and permissions within your company account to ensure secure and appropriate access levels. BusinessCart.ai is designed for flexibility, offering potential integration with external systems such as ERP and CRM platforms to further automate your workflows and enhance data synchronization.
+                  Update your company information, logo, and contact details. Manage admin user accounts. ERP and CRM integration is available through the REST API or the optional AI add-on.
                 </p>
               </section>
 
@@ -127,76 +127,76 @@ const UserGuide: React.FC = () => {
               </section>
 
               <section id="for-customers">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">3. For Customers: Streamlined Purchasing & Account Management</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">3. For Customers</h2>
                 <p className="text-gray-600">
-                  Experience a seamless and efficient purchasing journey with BusinessCart. This section guides customers through browsing products, managing their cart, navigating the secure checkout process, and effectively managing their account.
+                  Browse products, build a cart, place an order, and manage your account.
                 </p>
               </section>
 
               <section id="browsing-discovery">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.1 Browsing & Discovery: Find Exactly What You Need</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.1 Browsing & Discovery</h3>
                 <p className="text-gray-600 mb-2">
-                  Explore personalized product catalogs curated specifically for your business needs. Utilize robust search and filtering options to quickly locate desired products. Stay informed about exclusive deals and promotions tailored to your account, ensuring you always get the best value.
+                  Each company you're linked to has its own catalog with your specific pricing. Use search and filters to find products. Active deals appear on the Deals page.
                 </p>
               </section>
 
               <section id="checkout-experience">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.2 The BusinessCart.ai Checkout Experience</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.2 Checkout</h3>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Building Your Cart:</h4>
                 <p className="text-gray-600 mb-2">
-                  Effortlessly add products to your cart and adjust quantities as needed. Review your cart contents, including estimated totals, before proceeding to the next step of your purchase.
+                  Add products to your cart and adjust quantities. Review the cart with subtotal, shipping, and tax before checkout.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">The Two-Step Checkout Process:</h4>
                 <p className="text-gray-600 mb-2">
-                  BusinessCart.ai employs a secure and transparent two-step checkout process to ensure accuracy and control over your orders.
+                  Checkout has two steps: quote generation, then order placement.
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-gray-600 mb-2 ml-4">
-                  <li><b>Quote Generation:</b> Understand how your quote is meticulously generated, incorporating all applicable taxes, shipping costs, and any eligible promotions. This step provides a clear breakdown of your total investment before commitment.</li>
-                  <li><b>Order Placement:</b> Once you approve the quote, securely place your order using a payment token. Our system ensures that your transaction is processed efficiently and safely.</li>
+                  <li><b>Quote Generation:</b> Your cart converts to a quote showing line items, taxes, shipping, promotions, and grand total. Review before approving.</li>
+                  <li><b>Order Placement:</b> Approve the quote and pay with your linked gateway (Stripe, Amazon Pay, Authorize.net, or offline payment). The order is created on payment confirmation.</li>
                 </ul>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">Payment & Shipping Options:</h4>
                 <p className="text-gray-600 mb-2">
-                  Manage and select from multiple secure payment methods. Choose your preferred shipping addresses and methods, ensuring timely and convenient delivery of your products.
+                  Pick from the payment methods your company has enabled. Choose a saved address or add a new one for delivery.
                 </p>
               </section>
 
               <section id="your-account">
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.3 Your Account: Control at Your Fingertips</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">3.3 Your Account</h3>
                 <h4 className="text-lg font-medium text-gray-700 mb-2">Order History & Tracking:</h4>
                 <p className="text-gray-600 mb-2">
-                  Access a comprehensive record of your past orders, facilitating easy reordering and detailed tracking of current shipments. Stay informed every step of the way.
+                  View all past orders. Click an order to see its status, tracking number, refund history, and line items. Use the reorder button to repeat an order.
                 </p>
                 <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4">Profile & Address Management:</h4>
                 <p className="text-gray-600 mb-2">
-                  Effortlessly update your personal and business information. Manage multiple shipping and billing addresses for ultimate convenience and flexibility in your purchasing process.
+                  Update your profile and contact info. Add multiple shipping and billing addresses; pick one at checkout.
                 </p>
               </section>
 
               <section id="advanced-features">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">4. Advanced Features & Support</h2>
                 <p className="text-gray-600">
-                  BusinessCart.ai is built with advanced capabilities to ensure reliability and provide comprehensive support.
+                  API status, troubleshooting, and security details.
                 </p>
               </section>
 
               <section id="api-troubleshooting">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">4.1 API Status & Troubleshooting</h3>
                 <p className="text-gray-600 mb-2">
-                  For real-time updates on system performance and availability, please refer to our dedicated API Status page. This resource provides insights into the operational health of BusinessCart.ai services. Should you encounter any issues, our comprehensive troubleshooting tips can guide you through common resolutions. For persistent technical assistance, our support team is readily available to provide expert guidance.
+                  The API Status page shows current uptime and any incidents. If something breaks, check the status page first. Email help@businesscart.ai for support.
                 </p>
               </section>
 
               <section id="security-privacy">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">4.2 Security & Data Privacy</h3>
                 <p className="text-gray-600 mb-2">
-                  At BusinessCart, we are unwavering in our commitment to safeguarding your data and ensuring the utmost privacy. Our platform employs industry-leading security protocols, including robust JWT-based authentication for secure access and encrypted transactions. We adhere to stringent data privacy standards, providing you with peace of mind that your business-critical information is protected.
+                  Authentication uses JWT access tokens (72-hour) and refresh tokens (7-day). All traffic is encrypted in transit. Card payments are tokenized through the payment gateway; we never store card numbers. See the Privacy Policy for data handling details.
                 </p>
               </section>
 
               <section id="conclusion">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Conclusion</h2>
                 <p className="text-gray-600">
-                  BusinessCart.ai is more than just an e-commerce platform; it's a strategic partner designed to give you unparalleled control, efficiency, and growth opportunities in the B2B and D2C landscape. By empowering you to own your customer relationships and streamline your operations, we enable you to focus on what truly matters: building a thriving business. Ready to elevate your e-commerce experience? Contact us today for personalized support or to schedule a comprehensive demo tailored to your specific business needs.
+                  Questions? Email help@businesscart.ai or request a demo from the contact page.
                 </p>
               </section>
             </div>

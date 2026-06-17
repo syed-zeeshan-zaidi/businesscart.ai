@@ -106,7 +106,7 @@ const TermsOfService: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">6. Pricing and Fees</h2>
                 <p className="text-gray-600 mb-4">BusinessCart.ai offers three tiers. Every feature is included in every tier. There are no feature locks. Your tier applies automatically based on your monthly paid-order volume. Growth and Enterprise include a 30-day money-back guarantee on their monthly subscription fees.</p>
                 <ul className="list-disc list-inside space-y-2 text-gray-600">
-                  <li><b>Starter:</b> $0/month + 6% per order, capped at $5/order. Applies automatically when monthly paid-order volume is 100 or fewer.</li>
+                  <li><b>Starter:</b> $0/month with a $5 max per order (6% applies to orders under $83, capped at $5 above). Applies automatically when monthly paid-order volume is 100 or fewer.</li>
                   <li><b>Growth:</b> $499/month + 1% per order. Applies automatically when monthly paid-order volume is 101 to 1,000.</li>
                   <li><b>Enterprise:</b> $1,999/month + 0.25% per order. Applies automatically when monthly paid-order volume is 1,001 or more. Includes dedicated success manager and SLA.</li>
                 </ul>

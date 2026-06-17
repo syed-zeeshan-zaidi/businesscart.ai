@@ -9,7 +9,7 @@ interface PricingSectionProps {
 
 const includedFeatures = [
   'Branded storefront on your custom domain (sub-second loads, AI-readable)',
-  'Private B2B portal — gate access with customer codes',
+  'Private B2B portal: gate access with customer codes',
   'Per-customer pricing, credit limits, spend caps & quote negotiation',
   'Customer groups & custom catalogs for B2B segments',
   'All payment options: Stripe, Amazon Pay, Authorize.net, PO, offline',
@@ -17,7 +17,7 @@ const includedFeatures = [
   'AI discovery built-in: schema.org, llms.txt, markdown product pages',
   'Multiple pickup and warehouse locations',
   'Time-based deals and automated email notifications',
-  'Real-time dashboard with built-in analytics and visitor tracking — revenue, orders, low-stock, CSV export, no Google Analytics or third-party tags needed',
+  'Real-time dashboard with built-in analytics and visitor tracking: revenue, orders, low-stock, CSV export, no Google Analytics or third-party tags needed',
   'Full REST API for custom integrations, apps, and ERP sync',
   'End-to-end support: technical, migration, integration, and onboarding',
 ];
@@ -34,13 +34,13 @@ const PricingSection: React.FC<PricingSectionProps> = ({
         Pricing That Scales With You. Every Feature, Every Tier.
       </h2>
       <p className="mt-6 inline-block bg-teal-50 border-l-4 border-teal-700 text-gray-800 text-base sm:text-lg px-6 py-4 rounded-r-md text-left font-medium">
-        Your tier auto-applies based on monthly order volume —{" "}
+        Your tier auto-applies based on monthly order volume.{" "}
         <strong className="text-teal-800">
-          no manual upgrades, no feature locks, and tier changes only at month
+          No manual upgrades, no feature locks, and tier changes only at month
           boundaries so you always see them coming.
         </strong>{" "}
         Your customers pay you directly through your own payment accounts.
-        BusinessCart invoices you separately at month end — we never hold or
+        BusinessCart invoices you separately at month end. We never hold or
         deduct from your revenue.
       </p>
     </div>
@@ -48,7 +48,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
     {/* What's included for everyone */}
     <div className="mt-10 max-w-5xl mx-auto bg-teal-50 border border-teal-200 rounded-lg p-6 sm:p-8">
       <h3 className="text-lg font-semibold text-teal-900 text-center">
-        Included in every tier — Starter through Enterprise
+        Included in every tier (Starter through Enterprise)
       </h3>
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm text-gray-700">
         {includedFeatures.map((feat) => (
@@ -78,14 +78,14 @@ const PricingSection: React.FC<PricingSectionProps> = ({
           </span>
         </div>
         <p className="mt-2 text-xs text-gray-500">
-          6% on orders under $83 · capped at $5 above that
+          $5 max per order, no matter the size · 6% only on tiny orders under $83
         </p>
         <p className="mt-1 text-xs text-gray-500">
-          Invoiced monthly — never deducted from your sales
+          Invoiced monthly, never deducted from your sales
         </p>
         <p className="mt-auto pt-6 text-xs text-gray-500 flex items-start justify-center gap-1">
           <span className="text-teal-700 font-medium">→</span>
-          Moves to Growth when you cross 100 orders/mo — always at month
+          Moves to Growth when you cross 100 orders/mo. Always at month
           boundaries, never mid-month
         </p>
       </div>
@@ -99,14 +99,14 @@ const PricingSection: React.FC<PricingSectionProps> = ({
         </span>
         <h3 className="text-2xl font-bold text-gray-900">Growth</h3>
         <p className="mt-2 text-xs font-semibold text-teal-700 uppercase tracking-wider">
-          101 – 1,000 orders / month
+          101 to 1,000 orders / month
         </p>
         <p className="mt-5 text-4xl font-extrabold text-teal-700">
           $499<span className="text-lg font-medium text-gray-500"> / mo</span>
         </p>
         <p className="mt-3 text-base text-gray-700">+ 1% per order</p>
         <p className="mt-1 text-xs text-gray-500">
-          Invoiced monthly — never deducted from your sales
+          Invoiced monthly, never deducted from your sales
         </p>
         <div className="mt-auto pt-6 space-y-2 text-left">
           {[
@@ -122,7 +122,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
           ))}
           <p className="text-xs text-gray-500 pt-2 flex items-start gap-1">
             <span className="text-teal-700 font-medium">→</span>
-            Moves to Enterprise when you cross 1,000 orders/mo — always at month
+            Moves to Enterprise when you cross 1,000 orders/mo. Always at month
             boundaries, never mid-month
           </p>
         </div>
@@ -139,7 +139,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
         </p>
         <p className="mt-3 text-base text-gray-700">+ 0.25% per order</p>
         <p className="mt-1 text-xs text-gray-500">
-          Invoiced monthly — never deducted from your sales
+          Invoiced monthly, never deducted from your sales
         </p>
         <div className="mt-auto pt-6 space-y-2 text-left">
           {[
@@ -155,7 +155,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
           ))}
           <p className="text-xs text-gray-500 pt-2 flex items-start gap-1">
             <span className="text-teal-700 font-medium">→</span>
-            Moves here when you cross 1,000 orders/mo — always at month
+            Moves here when you cross 1,000 orders/mo. Always at month
             boundaries, never mid-month
           </p>
         </div>
@@ -168,7 +168,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
       <strong className="text-gray-800">
         A $10,000 wholesale order costs $5 in platform fees.
       </strong>{" "}
-      The cap is designed for B2B — high-value orders, low platform cost.
+      The cap is designed for B2B: high-value orders, low platform cost.
     </p>
  
     {/* Footer note */}

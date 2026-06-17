@@ -21,7 +21,7 @@ import {
 
 const solutions = 
 [
-  { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'wholesalers running orders on email or spreadsheets', summary: 'Per-customer pricing, credit limits, spend caps, and quote negotiation — enforced automatically. Your buyers order without calling a rep.' },
+  { title: 'Wholesale & B2B', href: '/solutions/wholesale', icon: UserGroupIcon, audience: 'wholesalers running orders on email or spreadsheets', summary: 'Per-customer pricing, credit limits, spend caps, and quote negotiation, enforced automatically. Your buyers order without calling a rep.' },
   { title: 'Manufacturers & Distributors', href: '/solutions/manufacturers', icon: CubeIcon, audience: 'manufacturers selling to distributor networks', summary: 'Private distributor portals with per-distributor MOQ, lead times, and channel conflict prevention built in. No more PDF price lists.' },
   { title: 'D2C & Marketplace Exit', href: '/solutions/d2c-brands', icon: ShoppingBagIcon, audience: 'Brands ready to sell direct', summary: 'Your own branded storefront with sub-second pages and 5 shopping channels. Own your customer relationships and keep what you earn.' },
   { title: 'AI-Era Commerce', href: '/solutions/ai-commerce', icon: CpuChipIcon, audience: 'SEO-savvy merchants betting on AI discovery', summary: 'Static HTML, schema.org, llms.txt, markdown product pages, get cited by ChatGPT, Perplexity, Google AI.' },
@@ -46,28 +46,28 @@ const pillars = [
 ];
 
 const whyUs = [
-  { icon: CurrencyDollarIcon, title: 'Pricing Scales With You', desc: 'Every feature in every tier. No feature locks. Pay per order only — your costs grow only when your orders do.' },
+  { icon: CurrencyDollarIcon, title: 'Pricing Scales With You', desc: 'Every feature in every tier. No feature locks. Pay per order only. Your costs grow only when your orders do.' },
   { icon: BoltIcon, title: 'Sub-1-Second Pages', desc: 'Static HTML on a global CDN. Faster than any Shopify theme, by default. No apps, no plugins, no work.' },
-  { icon: UserGroupIcon, title: 'Per-Customer B2B Power', desc: 'Per-customer pricing, credit limits, spend caps, tiered pricing, and quote negotiation — enforced automatically at every order. Group catalogs, one-click reorder, multiple warehouse locations, and time-based checkout windows included. No apps. No workarounds. Available on every tier.' },
-  { icon: ShieldCheckIcon, title: 'You keep 100% of every transaction', desc: 'Connect your own Stripe, Amazon Pay, or Authorize.net. Your customers pay you directly — BusinessCart never touches the money. We send you one invoice at month end for your platform fee. No payment processing markup. No gateway surcharge. No surprise deductions.' },
+  { icon: UserGroupIcon, title: 'Per-Customer B2B Power', desc: 'Per-customer pricing, credit limits, spend caps, tiered pricing, and quote negotiation, enforced automatically at every order. Group catalogs, one-click reorder, multiple warehouse locations, and time-based checkout windows included. No apps. No workarounds. Available on every tier.' },
+  { icon: ShieldCheckIcon, title: 'You keep 100% of every transaction', desc: 'Connect your own Stripe, Amazon Pay, or Authorize.net. Your customers pay you directly. BusinessCart never touches the money. We send you one invoice at month end for your platform fee. No payment processing markup. No gateway surcharge. No surprise deductions.' },
 ];
 
 const faqs = [
   {
     q: 'What is BusinessCart?',
-    a: 'BusinessCart is a B2B and D2C commerce platform that lets wholesalers, manufacturers, and distributors run a private ordering portal with per-customer pricing, credit limits, spend caps, and quote negotiation — all enforced automatically. It starts at $0/month with a max $5 per order platform fee, invoiced monthly. Your customers pay you directly through your own payment accounts. BusinessCart never holds or deducts from your revenue.',
+    a: 'BusinessCart is a B2B and D2C commerce platform that lets wholesalers, manufacturers, and distributors run a private ordering portal with per-customer pricing, credit limits, spend caps, and quote negotiation, all enforced automatically. It starts at $0/month with a max $5 per order platform fee, invoiced monthly. Your customers pay you directly through your own payment accounts. BusinessCart never holds or deducts from your revenue.',
   },
   {
     q: 'What is BusinessCart an alternative to?',
-    a: 'BusinessCart is an alternative to Shopify Plus ($2,300/month), Magento/Adobe Commerce (developer-heavy, $20,000+ implementation), BigCommerce B2B Edition ($1,000–3,000/month), OroCommerce (enterprise-only), and WooCommerce with B2B plugins (complex, fragile, maintenance-heavy). It includes native B2B features — per-customer pricing, credit limits, quote workflows, group catalogs, and time-based checkout windows — without the enterprise price tag or developer dependency. It also replaces email and spreadsheet-based ordering for SMB wholesalers and manufacturers who need a self-serve buyer portal at $0/month.',
+    a: 'BusinessCart is an alternative to Shopify Plus ($2,300/month), Magento/Adobe Commerce (developer-heavy, $20,000+ implementation), BigCommerce B2B Edition ($1,000-3,000/month), OroCommerce (enterprise-only), and WooCommerce with B2B plugins (complex, fragile, maintenance-heavy). It includes native B2B features (per-customer pricing, credit limits, quote workflows, group catalogs, and time-based checkout windows) without the enterprise price tag or developer dependency. It also replaces email and spreadsheet-based ordering for SMB wholesalers and manufacturers who need a self-serve buyer portal at $0/month.',
   },
   {
     q: 'What does this actually cost me?',
-    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo · max $5 per order, invoiced monthly — never deducted from your sales) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
+    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo · max $5 per order, invoiced monthly, never deducted from your sales) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
   },
   {
     q: 'How is this different from Shopify?',
-    a: 'Shopify is $39+/month before your first sale, plus $300-500/month in essential apps (Klaviyo, ReCharge, Judge.me, etc.), and its themes render with JavaScript, invisible to AI assistants. BusinessCart is $0/month, ships AI-readable static HTML, includes 5 shopping channels and a B2B portal built in. The whole app stack collapses into one platform. Shopify also charges a gateway surcharge if you use your own payment processor. BusinessCart never charges on payments — your revenue lands in your account, and we send you a separate monthly invoice for platform use only.',
+    a: 'Shopify is $39+/month before your first sale, plus $300-500/month in essential apps (Klaviyo, ReCharge, Judge.me, etc.), and its themes render with JavaScript, invisible to AI assistants. BusinessCart is $0/month, ships AI-readable static HTML, includes 5 shopping channels and a B2B portal built in. The whole app stack collapses into one platform. Shopify also charges a gateway surcharge if you use your own payment processor. BusinessCart never charges on payments. Your revenue lands in your account, and we send you a separate monthly invoice for platform use only.',
   },
   {
     q: 'Do I need a developer?',
@@ -75,7 +75,7 @@ const faqs = [
   },
   {
     q: 'Can I migrate from Shopify, Etsy, or my existing tools?',
-    a: 'Customer and product migration is straightforward. Export from your existing platform, import via our web portal or REST API. Most marketplaces don\'t share customer emails — set up a launch page to start capturing them directly from day one.',
+    a: 'Customer and product migration is straightforward. Export from your existing platform, import via our web portal or REST API. Most marketplaces don\'t share customer emails. Set up a launch page to start capturing them directly from day one.',
   },
   {
     q: 'Can I leave if I don\'t like it?',
@@ -100,10 +100,10 @@ const LandingPage: React.FC = () => {
                   <span className="text-teal-400">There's a better way.</span>
                 </h1>
                 <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                  BusinessCart is a B2B wholesale ordering portal that starts at $0/month. Per-customer pricing, credit limits, and quote negotiation — enforced automatically at every order. Your buyers self-serve. You stop being the bottleneck. A branded D2C storefront is included on every plan.
+                  BusinessCart is a B2B wholesale ordering portal that starts at $0/month with a $5 max platform fee per order, no matter the size. Per-customer pricing, credit limits, and quote negotiation, enforced automatically at every order. Your buyers self-serve. You stop being the bottleneck. A branded D2C storefront is included on every plan.
                 </p>
                 <p className="mt-4 text-sm text-gray-300">
-                  $0/month · Live in days, not months · Real B2B enforcement, not just "tags" · We invoice you — we never touch your revenue
+                  $0/month · $5 max per order, no matter the size · A $10,000 wholesale order costs $5 in fees · We invoice you, never touch your revenue
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
                   <Link
@@ -266,7 +266,7 @@ const LandingPage: React.FC = () => {
             <div className="text-center">
               <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">Up and running in days, not months</h2>
               <p className="mt-4 text-lg text-gray-600">
-                From migration audit to your first order — we handle the heavy lifting.
+                From migration audit to your first order, we handle the heavy lifting.
               </p>
             </div>
             <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">

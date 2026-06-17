@@ -43,7 +43,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Per-Order Fee</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">6% capped at $5 (Starter) / 1% (Growth) / 0.25% (Enterprise)</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">$5 max per order (Starter) / 1% (Growth) / 0.25% (Enterprise). A $10,000 order = $5 in fees.</td>
                   <td className="px-6 py-4 text-sm text-gray-500">2.9% + 30c (payment processing only)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">2.9% + 30c (payment processing only)</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">15-30% commission</td>
@@ -222,6 +222,69 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">No native PWA, app needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Their own app only</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Built-in Analytics</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Real-time dashboard: revenue, orders, visitor tracking, CSV export</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Built-in reports + GA4 or paid app for full analytics</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed (Site Kit, MonsterInsights)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Limited marketplace dashboard</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Customer Groups & Custom Catalogs</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, different catalog per customer segment</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus only (Companies + Catalogs)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">B2B Statements & Credit Terms</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: monthly statements, snapshot persistence, admin retraction</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus + app</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">One-Click Reorder</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Requires app</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Yes (within marketplace)</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Refund Tracking</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: append-only, race-safe, customer + admin views</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Built-in (Refunds + Returns)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Built-in, plugin-enhanced</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles per their rules</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Transactional Emails</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Branded SES included, no third-party app needed</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Built-in basic + Klaviyo ($20-$200+/mo) for marketing</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed (WP Mail SMTP, Mailchimp)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Built-in Blog</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Native blog with SEO + AI-readable markdown</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Native</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Native (WordPress)</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Review & Rating System</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in. Email request sent only after delivery, admin-entered from verified buyer reply. No public forms, no fake reviews.</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Judge.me / Yotpo apps ($15-$199/mo), customer-submitted via public form</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed, customer-submitted</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Marketplace-owned, you cannot moderate</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">REST API</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Full REST API: catalog, orders, customers, integrations</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Admin + Storefront API, rate-limited on lower plans</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">REST API (you maintain)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Limited, marketplace-controlled</td>
                 </tr>
               </tbody>
             </table>
