@@ -1,6 +1,8 @@
 const API_URL = import.meta.env.VITE_API_URL;
 const VISITOR_KEY = 'bc_visitor_id';
 const ATTR_KEY = 'bc_attribution';
+const CLICK_KEY = 'bc_clickids';
+const CLICK_KEYS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid', 'ttclid', 'epik', 'sccid', 'rdt_cid'];
 
 const PUBLIC_PAGES = [
   '/', '/about', '/contact-us', '/careers', '/faq',
@@ -27,6 +29,26 @@ function getVisitorId(): string {
     safeLocalSet(VISITOR_KEY, id);
   }
   return id;
+}
+
+// Read paid-ad click IDs (gclid, msclkid, fbclid, etc.) from URL, cache in
+// localStorage so they survive SPA navigation. Returns cached if no fresh.
+function clickIds(): Record<string, string> {
+  const params = new URLSearchParams(window.location.search);
+  const fresh: Record<string, string> = {};
+  for (const k of CLICK_KEYS) {
+    const v = params.get(k);
+    if (v) fresh[k] = v;
+  }
+  if (Object.keys(fresh).length) {
+    safeLocalSet(CLICK_KEY, JSON.stringify(fresh));
+    return fresh;
+  }
+  try {
+    const cached = safeLocalGet(CLICK_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch { /* corrupted, return empty */ }
+  return {};
 }
 
 // Strip self-referrals (e.g. businesscart.ai -> businesscart.ai). Backend
@@ -104,6 +126,7 @@ export function trackPageView(page: string) {
           utm_campaign: attribution.utm_campaign,
           utm_content: attribution.utm_content,
           utm_term: attribution.utm_term,
+          clickIds: clickIds(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
           screenWidth: window.screen?.width || 0,
           screenHeight: window.screen?.height || 0,
@@ -129,6 +152,40 @@ export function trackPageView(page: string) {
     } else {
       window.addEventListener('load', deferredSend, { once: true });
     }
+  } catch {
+    // Never crash the app
+  }
+}
+
+// Fires a contact_conversion event when a paid-ad visitor reaches /contact-us
+// AFTER visiting at least one prior page in this session. Filters direct loads
+// (returning users, bookmarks, bots) and non-PPC traffic. The landingPage check
+// uses cached attribution: if /contact-us is the recorded first page, the
+// visitor came straight here without browsing first.
+export function trackContactConversion(page: string) {
+  try {
+    if (page !== '/contact-us') return;
+    if (!API_URL) return;
+    if (isInternalUser()) return;
+
+    const attr = getAttribution();
+    if (attr.landingPage === '/contact-us') return;  // direct land, skip
+
+    const ids = clickIds();
+    if (!ids.gclid) return;  // not from Google Ads, skip
+
+    fetch(`${API_URL}/visitors/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId: getVisitorId(),
+        event: 'contact_conversion',
+        page,
+        clickIds: ids,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      }),
+      keepalive: true,
+    }).catch(() => {});
   } catch {
     // Never crash the app
   }

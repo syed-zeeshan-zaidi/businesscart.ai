@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import LoadingIndicator from './components/LoadingIndicator';
-import { trackPageView } from './tracker';
+import { trackPageView, trackContactConversion } from './tracker';
 // Eager-import LandingPage (homepage) so React hydration doesn't briefly
 // replace the SSR'd hero with a Suspense fallback. This is the highest-traffic
 // page; the small bundle-size cost is worth the LCP win.
@@ -66,6 +66,7 @@ const AppContent = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     trackPageView(location.pathname);
+    trackContactConversion(location.pathname);
     setIsLoading(true);
     const timer = setTimeout(() => setIsLoading(false), 500);
     return () => clearTimeout(timer);
