@@ -172,7 +172,7 @@ export function trackContactConversion(page: string) {
     if (attr.landingPage === '/contact-us') return;  // direct land, skip
 
     const ids = clickIds();
-    if (!ids.gclid) return;  // not from Google Ads, skip
+    if (Object.keys(ids).length === 0) return;  // not from any paid ad (Google, Microsoft, Meta, TikTok, etc.), skip
 
     fetch(`${API_URL}/visitors/event`, {
       method: 'POST',
