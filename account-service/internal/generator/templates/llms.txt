@@ -7,7 +7,7 @@
 ## Store Information
 
 - **Store Name:** [[.Company.Name]]
-- **Website:** https://[[.Domain]]
+- **Website:** [https://[[.Domain]]](https://[[.Domain]])
 - **Email:** [[.Config.ContactEmail]]
 - **Phone:** [[.Config.ContactPhone]]
 - **Total Products:** [[len .Products]]
@@ -16,12 +16,12 @@
 
 ## How to Navigate This Store
 
-- Homepage: https://[[.Domain]]/
-- All Products: https://[[.Domain]]/products.html
-- Browse by Category: https://[[.Domain]]/category/{category-name}.html
-- Individual Product: https://[[.Domain]]/products/{product-slug}.html
-- Full Catalog (markdown): https://[[.Domain]]/products.md
-- Sitemap: https://[[.Domain]]/sitemap.xml
+- [Homepage](https://[[.Domain]]/): main landing page
+- [All Products](https://[[.Domain]]/products.html): full product listing
+- [Sitemap](https://[[.Domain]]/sitemap.xml): every URL in XML
+- [Full Catalog (Markdown)](https://[[.Domain]]/products.md): all products in structured markdown
+- Browse by Category: pattern `https://[[.Domain]]/category/{category-slug}.html`
+- Individual Product: pattern `https://[[.Domain]]/products/{product-slug}.html`
 
 ## Categories
 
@@ -39,8 +39,8 @@
 - **Specifications:**[[range .Attributes]]
   - [[.Key]]: [[.Value]][[end]][[end]][[if .Image]]
 - **Image:** [[.Image]][[end]]
-- **Product Page:** https://[[$.Domain]]/products/[[.Filename]].html
-- **Product Details (markdown):** https://[[$.Domain]]/products/[[.Filename]].md
+- [Product Page](https://[[$.Domain]]/products/[[.Filename]].html): HTML purchase page
+- [Product Details (Markdown)](https://[[$.Domain]]/products/[[.Filename]].md): structured catalog entry
 
 [[end]]
 
@@ -55,20 +55,20 @@
 
 ## Machine-Readable Resources
 
-- **Sitemap (XML):** https://[[.Domain]]/sitemap.xml
-- **Full Catalog (Markdown):** https://[[.Domain]]/products.md
-- **Store Overview (Markdown):** https://[[.Domain]]/index.md
-- **This File:** https://[[.Domain]]/llms.txt
-- **Robots:** https://[[.Domain]]/robots.txt
-[[range .Products]]- **[[.Name]] (Markdown):** https://[[$.Domain]]/products/[[.Filename]].md
+- [Sitemap (XML)](https://[[.Domain]]/sitemap.xml): all URLs in XML
+- [Full Catalog (Markdown)](https://[[.Domain]]/products.md): all products in structured markdown
+- [Store Overview (Markdown)](https://[[.Domain]]/index.md): high-level storefront summary
+- [This File](https://[[.Domain]]/llms.txt): this LLM-readable index
+- [Robots](https://[[.Domain]]/robots.txt): crawler rules
+[[range .Products]]- [[printf "[%s (Markdown)](https://%s/products/%s.md)" .Name $.Domain .Filename]]: structured product entry
 [[end]][[if .BlogPosts]]
 
 ## Editorial Articles
 
 Buyer's guides and informational articles published by [[.Company.Name]].
 
-- **Blog Index:** https://[[.Domain]]/blog/index.html
-[[range .BlogPosts]]- **[[.Title]]** (Markdown): https://[[$.Domain]]/blog/[[.Filename]].md
+- [Blog Index](https://[[.Domain]]/blog/index.html): list of all articles
+[[range .BlogPosts]]- [[printf "[%s (Markdown)](https://%s/blog/%s.md)" .Title $.Domain .Filename]]: article content
 [[end]][[end]]
 
 ---
