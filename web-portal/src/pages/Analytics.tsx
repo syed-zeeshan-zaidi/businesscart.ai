@@ -14,6 +14,8 @@ import {
   ChevronRightIcon,
   FunnelIcon,
   XMarkIcon,
+  ShoppingCartIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 
 interface Stats {
@@ -21,6 +23,8 @@ interface Stats {
   totalBots: number;
   totalRegistered: number;
   totalOrdered: number;
+  totalCartAdds: number;
+  totalContactedUs: number;
   todayVisitors: number;
   weekVisitors: number;
   monthVisitors: number;
@@ -146,7 +150,7 @@ const Analytics: React.FC = () => {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [timeRange, setTimeRange] = useState('');
-  const perPage = 50;
+  const perPage = 100;
 
   const loadStats = async (sellerId?: string, since?: string) => {
     try {
@@ -218,13 +222,17 @@ const Analytics: React.FC = () => {
 
   const applyFilters = async () => {
     setPage(1);
+    setRefreshing(true);
     await loadVisitors(1, filters, scope || undefined, timeRange);
+    setRefreshing(false);
   };
 
   const clearFilters = async () => {
     setFilters({});
     setPage(1);
+    setRefreshing(true);
     await loadVisitors(1, {}, scope || undefined, timeRange);
+    setRefreshing(false);
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -286,12 +294,16 @@ const Analytics: React.FC = () => {
           {stats && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <StatCard icon={UsersIcon} label="Total Visitors" value={stats.totalVisitors} sub={`${stats.todayVisitors} today`} />
-                <StatCard icon={UsersIcon} label="This Week" value={stats.weekVisitors} sub={`${stats.monthVisitors} this month`} />
+                <StatCard icon={UsersIcon} label="Total Visitors" value={stats.totalVisitors} sub={`${stats.todayVisitors} today · ${stats.totalBots} bots (${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%)`} />
+                <StatCard icon={ShoppingCartIcon} label="Cart Adds" value={stats.totalCartAdds} sub={stats.totalCartAdds > 0 ? `${((stats.totalOrdered / stats.totalCartAdds) * 100).toFixed(1)}% to order` : '—'} />
                 <StatCard icon={GlobeAltIcon} label="Registered" value={stats.totalRegistered} sub={`${stats.totalVisitors > 0 ? ((stats.totalRegistered / stats.totalVisitors) * 100).toFixed(1) : 0}% conversion`} />
                 <StatCard icon={UsersIcon} label="Ordered" value={stats.totalOrdered} sub={`${stats.totalRegistered > 0 ? ((stats.totalOrdered / stats.totalRegistered) * 100).toFixed(1) : 0}% of registered`} />
                 <StatCard icon={CurrencyDollarIcon} label="Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} sub={`${stats.totalOrders} orders`} />
-                <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
+                {isAdmin && (scope === '' || scope === 'portal') ? (
+                  <StatCard icon={EnvelopeIcon} label="Contacted Us" value={stats.totalContactedUs} sub={stats.totalVisitors > 0 ? `${((stats.totalContactedUs / stats.totalVisitors) * 100).toFixed(1)}% of visitors` : '—'} />
+                ) : (
+                  <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -311,7 +323,7 @@ const Analytics: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {Object.values(filters).some(Boolean) && (
-                  <button onClick={clearFilters} className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={clearFilters} disabled={refreshing} className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded disabled:opacity-50 disabled:cursor-not-allowed">
                     <XMarkIcon className="h-4 w-4" /> Clear
                   </button>
                 )}
@@ -350,16 +362,37 @@ const Analytics: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Status</label>
-                  <select value={filters.registered ? 'registered' : filters.ordered ? 'ordered' : ''} onChange={(e) => {
-                    const v = e.target.value;
-                    setFilters({ ...filters, registered: v === 'registered' ? 'true' : '', ordered: v === 'ordered' ? 'true' : '' });
-                  }} className="border rounded px-2 py-1 text-sm">
+                  <select
+                    value={
+                      filters.registered ? 'registered'
+                      : filters.ordered ? 'ordered'
+                      : filters.addedToCart ? 'addedToCart'
+                      : filters.contactedUs ? 'contactedUs'
+                      : ''
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setFilters({
+                        ...filters,
+                        registered: v === 'registered' ? 'true' : '',
+                        ordered: v === 'ordered' ? 'true' : '',
+                        addedToCart: v === 'addedToCart' ? 'true' : '',
+                        contactedUs: v === 'contactedUs' ? 'true' : '',
+                      });
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
                     <option value="">All</option>
                     <option value="registered">Registered</option>
                     <option value="ordered">Ordered</option>
+                    <option value="addedToCart">Added to Cart</option>
+                    {isAdmin && <option value="contactedUs">Contacted Us</option>}
                   </select>
                 </div>
-                <button onClick={applyFilters} className="px-4 py-1.5 bg-teal-700 text-white text-sm rounded hover:bg-teal-800">Apply</button>
+                <button onClick={applyFilters} disabled={refreshing} className="flex items-center gap-2 px-4 py-1.5 bg-teal-700 text-white text-sm rounded hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {refreshing && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+                  {refreshing ? 'Applying...' : 'Apply'}
+                </button>
               </div>
             )}
 
@@ -458,6 +491,8 @@ const Analytics: React.FC = () => {
                                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Ordered</span>
                                 ) : v.registered ? (
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Registered</span>
+                                ) : v.milestones?.some(m => m.event === 'add_to_cart') ? (
+                                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Added Cart</span>
                                 ) : (
                                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Visitor</span>
                                 )}

@@ -1861,6 +1861,15 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 	if v := q["ordered"]; v == "true" {
 		filter["ordered"] = true
 	}
+	// Filter added-to-cart: any visitor whose milestones include an add_to_cart event.
+	if v := q["addedToCart"]; v == "true" {
+		filter["milestones.event"] = "add_to_cart"
+	}
+	// Filter contacted-us: portal visitor reached /contact-us after landing elsewhere.
+	if v := q["contactedUs"]; v == "true" {
+		filter["pages"] = "/contact-us"
+		filter["attribution.landingPage"] = bson.M{"$ne": "/contact-us"}
+	}
 	// Search by visitorId
 	if v := q["visitorId"]; v != "" {
 		filter["visitorId"] = v
