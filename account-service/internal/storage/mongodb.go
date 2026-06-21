@@ -509,6 +509,11 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 	bots, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"isBot": true}))
 	registered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"registered": true}))
 	ordered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"ordered": true}))
+	cartAdds, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"milestones.event": "add_to_cart"}))
+	contactedUs, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{
+		"pages":                     "/contact-us",
+		"attribution.landingPage":   bson.M{"$ne": "/contact-us"},
+	}))
 
 	today := time.Now().Truncate(24 * time.Hour)
 	todayCount, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"lastVisit": bson.M{"$gte": today}}))
@@ -580,6 +585,8 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		"totalBots":        bots,
 		"totalRegistered":  registered,
 		"totalOrdered":     ordered,
+		"totalCartAdds":    cartAdds,
+		"totalContactedUs": contactedUs,
 		"todayVisitors":    todayCount,
 		"weekVisitors":     weekCount,
 		"monthVisitors":    monthCount,
