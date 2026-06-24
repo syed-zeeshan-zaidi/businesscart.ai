@@ -11,7 +11,7 @@ const PUBLIC_PAGES = [
 ];
 
 function isPublicPage(page: string): boolean {
-  return PUBLIC_PAGES.includes(page) || page.startsWith('/blog/');
+  return PUBLIC_PAGES.includes(page) || page.startsWith('/blog/') || page.startsWith('/solutions/');
 }
 
 function safeLocalGet(key: string): string | null {
