@@ -369,20 +369,16 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		acc.CustomerData = &storage.CustomerData{CustomerConfigs: entries}
 
 	case "partner":
-		var partnerCode, partnerCodeID string
-		if req.Code != "" {
-			codeDoc, err := h.db.GetCode(bson.M{"partnerCode": req.Code, "is_claimed": false})
-			if err != nil {
-				return h.errorResponse(http.StatusBadRequest, "invalid or already-claimed partner code"), nil
-			}
-			partnerCode = codeDoc.PartnerCode
-			partnerCodeID = codeDoc.ID.Hex()
-			_ = h.db.UpdateCode(codeDoc.ID, bson.M{"is_claimed": true})
+		if req.Code == "" {
+			return h.errorResponse(http.StatusBadRequest, "partner invite code required"), nil
+		}
+		codeDoc, err := h.db.GetCode(bson.M{"partnerCode": req.Code})
+		if err != nil {
+			return h.errorResponse(http.StatusBadRequest, "invalid partner invite code"), nil
 		}
 		acc.PartnerData = &storage.PartnerData{
-			PartnerCodeID: partnerCodeID,
-			PartnerCode:   partnerCode,
-			Status:        "pending",
+			Status:    "active",
+			CompanyID: codeDoc.ID.Hex(),
 		}
 	case storage.RoleB2C:
 		if req.Code == "" {
@@ -876,6 +872,15 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 		}
 	}
 
+	// Surface the partner invite code on company reads. The Code row's _id equals
+	// the company account _id (acc.ID = codeDoc.ID at company registration), so
+	// this is a single primary-key lookup. Transient field, never persisted.
+	if acc.Role == storage.RoleCompany && acc.CompanyData != nil {
+		if codeDoc, err := h.db.GetCode(bson.M{"_id": acc.ID}); err == nil && codeDoc != nil {
+			acc.CompanyData.PartnerCode = codeDoc.PartnerCode
+		}
+	}
+
 	return h.successResponse(acc, http.StatusOK), nil
 }
 
@@ -1251,7 +1256,11 @@ func (h *LambdaHandler) deleteAccount(userClaim map[string]interface{}, id strin
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 	objID, _ := primitive.ObjectIDFromHex(id)
+	acc, _ := h.db.GetAccountByID(objID)
 	_ = h.db.DeleteAccount(objID)
+	if acc != nil && acc.Role == storage.RoleCompany {
+		_ = h.db.DeleteCode(objID) // cascade: Code._id == company.account._id by design
+	}
 	return h.successResponse(nil, http.StatusNoContent), nil
 }
 
@@ -1263,7 +1272,22 @@ func (h *LambdaHandler) createCode(userClaim map[string]interface{}, body string
 	if err := json.Unmarshal([]byte(body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
 	}
-	// ... rest of the logic from original CreateCode
+	if req.CompanyCode == "" {
+		return h.errorResponse(http.StatusBadRequest, "companyCode required"), nil
+	}
+
+	// Upsert by companyCode. If a row already exists, the request is an edit:
+	// only partnerCode is mutable; companyCode and customerCode are locked
+	// because companyCode is tied to the company account _id at registration.
+	if existing, err := h.db.GetCode(bson.M{"companyCode": req.CompanyCode}); err == nil && existing != nil {
+		if err := h.db.UpdateCode(existing.ID, bson.M{"partnerCode": req.PartnerCode}); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "failed to update code"), nil
+		}
+		doc, _ := h.db.GetCode(bson.M{"_id": existing.ID})
+		return h.successResponse(doc, http.StatusOK), nil
+	}
+
+	// Create mode: existing behavior unchanged.
 	codeDoc := &storage.Code{
 		ID:           primitive.NewObjectID(),
 		CompanyCode:  req.CompanyCode,
@@ -1304,6 +1328,9 @@ func (h *LambdaHandler) deleteCode(userClaim map[string]interface{}, code string
 	}})
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "code not found"), nil
+	}
+	if doc.IsClaimed {
+		return h.errorResponse(http.StatusConflict, "code is claimed; delete the account first"), nil
 	}
 	if err := h.db.DeleteCode(doc.ID); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "failed to delete code"), nil

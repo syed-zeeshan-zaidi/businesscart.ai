@@ -153,6 +153,7 @@ type CompanyData struct {
 	CouponsEnabled        bool                `bson:"couponsEnabled,omitempty" json:"couponsEnabled,omitempty"`
 	CompanyCodeID         string              `bson:"companyCodeId,omitempty" json:"companyCodeId,omitempty"`
 	CompanyCode           string              `bson:"companyCode" json:"companyCode"`
+	PartnerCode           string              `bson:"-" json:"partnerCode,omitempty"`
 	ShippingOutOptions    []ShippingOutOption `bson:"shippingOutOptions" json:"shippingOutOptions"`
 	PaymentMethods        []PaymentMethod     `bson:"paymentMethods" json:"paymentMethods"`
 	DeliveryMethods       []DeliveryMethod    `bson:"deliveryMethods" json:"deliveryMethods"`
@@ -233,6 +234,7 @@ type PartnerData struct {
 	PartnerCodeID string `bson:"partnerCodeId,omitempty" json:"partnerCodeId,omitempty"`
 	PartnerCode   string `bson:"partnerCode,omitempty" json:"partnerCode,omitempty"`
 	Status        string `bson:"status" json:"status"`
+	CompanyID     string `bson:"companyId,omitempty" json:"companyId,omitempty"`
 }
 
 // Full Account Document structure

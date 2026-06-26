@@ -2397,6 +2397,184 @@ class BackendFlowTest:
 
         self.run_test("8f-8. Admin sees all posts", test_admin_sees_all)
 
+    # ── Phase 10: Partner Identity (Phase 0 of partner subsystem) ─
+
+    def phase10_partner_identity(self):
+        phase("PHASE 10: Partner Identity")
+
+        set1_code = CODES["set1"]["companyCode"]
+        set1_customer_code = CODES["set1"]["customerCode"]
+        set1_partner_code = f"{PREFIX}-PART-1"
+        new_company_code = f"{PREFIX}-COMP-NEW"
+        new_customer_code = f"{PREFIX}-CUST-NEW"
+        new_partner_code = f"{PREFIX}-PART-NEW"
+
+        self._partner1_email = f"{PREFIX}partner1@test.com"
+        self._partner2_email = f"{PREFIX}partner2@test.com"
+
+        # ── 10-1. Admin upserts partner code on existing companyCode → 200 (update path)
+        def test_admin_upsert_partner_code():
+            self.use_token("admin")
+            resp = self.api.post("/codes", {
+                "companyCode": set1_code,
+                "customerCode": set1_customer_code,
+                "partnerCode": set1_partner_code,
+            })
+            assert_status(resp, 200, "Admin upsert returns 200 (update path)")
+            body = resp.json()
+            assert body.get("partnerCode") == set1_partner_code, \
+                f"partnerCode populated on returned doc, got {body.get('partnerCode')}"
+            ok(f"Admin upserted partnerCode on {set1_code}")
+        self.run_test("10-1. Admin upserts partner code on existing companyCode", test_admin_upsert_partner_code)
+
+        # ── 10-2. Upsert preserved original Code._id (== company1._id)
+        def test_upsert_preserved_id():
+            self.use_token("admin")
+            resp = self.api.get(f"/codes/{set1_code}")
+            assert_status(resp, 200, "GET code by string")
+            body = resp.json()
+            assert body.get("id") == self.ids["company1"], \
+                f"Upsert preserved Code._id (== company1._id); got {body.get('id')}"
+            assert body.get("partnerCode") == set1_partner_code, "partnerCode persisted"
+            ok("Upsert preserved Code._id == company1._id")
+        self.run_test("10-2. Upsert preserved original Code._id", test_upsert_preserved_id)
+
+        # ── 10-3. company1 sees own partnerCode via GET /accounts/{id} (Change 3 enrichment)
+        def test_company_sees_partner_code():
+            self.use_token("company1")
+            resp = self.api.get(f"/accounts/{self.ids['company1']}")
+            assert_status(resp, 200, "Company self-read")
+            body = resp.json()
+            company_data = body.get("company") or {}
+            assert company_data.get("partnerCode") == set1_partner_code, \
+                f"company.partnerCode should equal {set1_partner_code}, got {company_data.get('partnerCode')}"
+            ok("company1 sees own partnerCode in GET /accounts/{id}")
+        self.run_test("10-3. Company sees own partnerCode in GET /accounts/{id}", test_company_sees_partner_code)
+
+        # ── 10-4. Brand-new companyCode triggers insert path (201)
+        def test_admin_insert_new_companycode():
+            self.use_token("admin")
+            resp = self.api.post("/codes", {
+                "companyCode": new_company_code,
+                "customerCode": new_customer_code,
+                "partnerCode": new_partner_code,
+            })
+            assert_status(resp, 201, "Admin POST with new companyCode returns 201 (create path)")
+            self.tracker.track_code(new_company_code)
+            ok(f"Created new code row {new_company_code}")
+        self.run_test("10-4. New companyCode triggers insert path", test_admin_insert_new_companycode)
+
+        # ── 10-5. Partner registration via valid code → 201, partner.companyId set
+        def test_partner_register():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Partner One",
+                "email": self._partner1_email,
+                "password": PASSWORD,
+                "role": "partner",
+                "code": set1_partner_code,
+            })
+            assert_status(resp, 201, "Partner registration returns 201")
+            body = resp.json()
+            partner1_id = body.get("_id")
+            assert partner1_id, "Partner _id present"
+            partner_data = body.get("partner") or {}
+            assert partner_data.get("status") == "active", \
+                f"Partner status should be 'active', got {partner_data.get('status')}"
+            assert partner_data.get("companyId") == self.ids["company1"], \
+                f"Partner companyId should equal company1._id ({self.ids['company1']}), got {partner_data.get('companyId')}"
+            self.ids["partner1"] = partner1_id
+            self.tracker.track_account("partner1", partner1_id)
+            ok(f"Partner registered with companyId={partner_data.get('companyId')[:8]}...")
+        self.run_test("10-5. Partner registration links to company via Code._id", test_partner_register)
+
+        # ── 10-6. Same partnerCode is multi-use (second partner registers with same code)
+        def test_second_partner_register():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Partner Two",
+                "email": self._partner2_email,
+                "password": PASSWORD,
+                "role": "partner",
+                "code": set1_partner_code,
+            })
+            assert_status(resp, 201, "Second partner registration with same code succeeds")
+            body = resp.json()
+            partner2_id = body.get("_id")
+            assert partner2_id, "Partner _id present"
+            partner_data = body.get("partner") or {}
+            assert partner_data.get("companyId") == self.ids["company1"], \
+                "Second partner links to same company"
+            self.ids["partner2"] = partner2_id
+            self.tracker.track_account("partner2", partner2_id)
+            ok("Second partner registered with same code, same companyId")
+        self.run_test("10-6. Same partnerCode is multi-use", test_second_partner_register)
+
+        # ── 10-7. Partner registration with empty code → 400
+        def test_partner_empty_code():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Partner Empty",
+                "email": f"{PREFIX}partner_empty@test.com",
+                "password": PASSWORD,
+                "role": "partner",
+                "code": "",
+            })
+            assert_status(resp, 400, "Empty code rejected")
+            ok("Empty code rejected with 400")
+        self.run_test("10-7. Partner registration with empty code rejected", test_partner_empty_code)
+
+        # ── 10-8. Partner registration with bogus code → 400
+        def test_partner_bogus_code():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Partner Bogus",
+                "email": f"{PREFIX}partner_bogus@test.com",
+                "password": PASSWORD,
+                "role": "partner",
+                "code": "TOTALLY-MADE-UP-CODE-12345",
+            })
+            assert_status(resp, 400, "Bogus code rejected")
+            ok("Bogus code rejected with 400")
+        self.run_test("10-8. Partner registration with bogus code rejected", test_partner_bogus_code)
+
+        # ── 10-9. Partner login JWT carries role=partner
+        def test_partner_login():
+            resp = self.api.post("/accounts/login", {
+                "email": self._partner1_email,
+                "password": PASSWORD,
+            })
+            assert_status(resp, 200, "Partner login")
+            body = resp.json()
+            token = body.get("accessToken")
+            assert token, "Access token returned"
+            payload_b64 = token.split(".")[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+            assert payload["user"]["role"] == "partner", \
+                f"JWT role should be 'partner', got {payload['user'].get('role')}"
+            self.jwts["partner1"] = token
+            ok("Partner login JWT carries role=partner")
+        self.run_test("10-9. Partner login JWT carries role=partner", test_partner_login)
+
+        # ── 10-10. Delete-protection: claimed code refuses delete with 409
+        def test_delete_claimed_refused():
+            self.use_token("admin")
+            resp = self.api.delete(f"/codes/{set1_code}")
+            assert_status(resp, 409, "Claimed code rejects delete")
+            ok(f"DELETE on claimed code {set1_code} refused with 409")
+        self.run_test("10-10. Delete-protection refuses claimed code", test_delete_claimed_refused)
+
+        # ── 10-11. Claimed code still exists unchanged after rejected delete
+        def test_code_persists_after_refused_delete():
+            self.use_token("admin")
+            resp = self.api.get(f"/codes/{set1_code}")
+            assert_status(resp, 200, "Code still exists after 409")
+            body = resp.json()
+            assert body.get("companyCode") == set1_code, "Code untouched"
+            ok("Code persists unchanged after rejected delete")
+        self.run_test("10-11. Code persists after rejected delete", test_code_persists_after_refused_delete)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -2460,7 +2638,8 @@ class BackendFlowTest:
         step("Deleting test accounts")
         if "admin" in self.jwts:
             self.use_token("admin")
-            delete_order = ["b2c", "customer2", "customer", "company2", "company1"]
+            # Partners reference company1 via partner.companyId; delete partners first.
+            delete_order = ["b2c", "customer2", "customer", "partner2", "partner1", "company2", "company1"]
             for role_key in delete_order:
                 if role_key in self.ids:
                     try:
@@ -2722,6 +2901,7 @@ class BackendFlowTest:
             self.phase8d_visitor_tracking()
             self.phase8e_billing_statements()
             self.phase8f_blog_posts()
+            self.phase10_partner_identity()
         finally:
             self.cleanup()
 

@@ -80,7 +80,7 @@ const AppContent = () => {
     try {
       const decoded = decodeJWT(token);
       const role = decoded?.role || '';
-      if (!['customer', 'admin', 'company'].includes(role)) {
+      if (!['customer', 'admin', 'company', 'partner'].includes(role)) {
         localStorage.removeItem('accessToken');
         return '/login';
       }
