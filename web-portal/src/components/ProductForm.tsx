@@ -986,17 +986,19 @@ const ProductForm = () => {
                             <label className="text-sm font-medium text-gray-700">Featured on storefront homepage</label>
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700">Account ID</label>
-                          <input
-                            name="accountID"
-                            value={formData.sellerID}
-                            onChange={handleChange}
-                            placeholder="Account ID"
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 focus:ring-teal-500 focus:border-teal-500"
-                            readOnly
-                          />
-                        </div>
+                        {account?.role !== 'partner' && (
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700">Account ID</label>
+                            <input
+                              name="accountID"
+                              value={formData.sellerID}
+                              onChange={handleChange}
+                              placeholder="Account ID"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 focus:ring-teal-500 focus:border-teal-500"
+                              readOnly
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Section: Media */}

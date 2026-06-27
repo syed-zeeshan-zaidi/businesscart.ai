@@ -2575,6 +2575,82 @@ class BackendFlowTest:
             ok("Code persists unchanged after rejected delete")
         self.run_test("10-11. Code persists after rejected delete", test_code_persists_after_refused_delete)
 
+    # ── Phase 11: Partner Catalog (Phase 1 of partner subsystem) ──
+
+    def phase11_partner_catalog(self):
+        phase("PHASE 11: Partner Catalog")
+
+        # Partner JWT was issued at 10-9 (before Change A landed); re-login so
+        # this run's partner1 JWT carries the new associate_company_ids claim.
+        resp = self.api.post("/accounts/login", {
+            "email": self._partner1_email,
+            "password": PASSWORD,
+        })
+        assert_status(resp, 200, "partner1 re-login for fresh JWT")
+        self.jwts["partner1"] = resp.json().get("accessToken")
+
+        unique = int(time.time() * 1000) % 1000000
+
+        # ── 11-1. Partner creates product (sellerID = linked company, partnerId = self)
+        def test_partner_create_product():
+            self.use_token("partner1")
+            resp = self.api.post("/products", {
+                "name": f"{PREFIX} Partner Widget {unique}",
+                "slug": f"test-partner-widget-{unique}",
+                "price": 19.99,
+                "description": "Partner-vended widget for catalog test",
+            })
+            assert_status_in(resp, [200, 201], "Partner creates product")
+            # Create response can have zero ObjectID; re-fetch as partner1 to get real id
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Partner re-fetches own products")
+            mine = [p for p in resp.json() if p.get("name", "").startswith(f"{PREFIX} Partner Widget {unique}")]
+            assert len(mine) == 1, f"Expected 1 partner product, got {len(mine)}"
+            p = mine[0]
+            assert p.get("sellerID") == self.ids["company1"], \
+                f"sellerID should equal company1._id ({self.ids['company1']}), got {p.get('sellerID')}"
+            assert p.get("partnerId") == self.ids["partner1"], \
+                f"partnerId should equal partner1._id, got {p.get('partnerId')}"
+            self._partner_product_id = p["_id"]
+            self.tracker.track_product("partner1", p["_id"])
+            ok(f"Partner product created: sellerID={p['sellerID'][:8]}..., partnerId={p['partnerId'][:8]}...")
+        self.run_test("11-1. Partner creates product (sellerID = linked company, partnerId = self)", test_partner_create_product)
+
+        # ── 11-2. Partner GET /products returns ONLY own products
+        def test_partner_lists_only_own():
+            self.use_token("partner1")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Partner lists products")
+            products = resp.json()
+            for p in products:
+                assert p.get("partnerId") == self.ids["partner1"], \
+                    f"All returned products must belong to partner1; found partnerId={p.get('partnerId')}"
+            assert any(p.get("_id") == self._partner_product_id for p in products), \
+                "Partner's own product appears in the list"
+            ok(f"Partner sees only own products ({len(products)} returned)")
+        self.run_test("11-2. Partner GET /products returns only own", test_partner_lists_only_own)
+
+        # ── 11-3. Partner updates own product
+        def test_partner_updates_own_product():
+            self.use_token("partner1")
+            resp = self.api.put(f"/products/{self._partner_product_id}", {"price": 29.99})
+            assert_status(resp, 200, "Partner updates own product")
+            ok("Partner updated own product price")
+        self.run_test("11-3. Partner updates own product", test_partner_updates_own_product)
+
+        # ── 11-4. Partner cannot update company-owned product (403)
+        def test_partner_cannot_update_companys_product():
+            self.use_token("company1")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "company1 lists own products")
+            company_pid = next((p["_id"] for p in resp.json() if not p.get("partnerId")), None)
+            assert company_pid, "company1 has at least one own product"
+            self.use_token("partner1")
+            resp = self.api.put(f"/products/{company_pid}", {"price": 999.99})
+            assert_status(resp, 403, "Partner forbidden from updating company-owned product")
+            ok("Partner forbidden from updating company-owned product (403)")
+        self.run_test("11-4. Partner cannot update company-owned product", test_partner_cannot_update_companys_product)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -2902,6 +2978,7 @@ class BackendFlowTest:
             self.phase8e_billing_statements()
             self.phase8f_blog_posts()
             self.phase10_partner_identity()
+            self.phase11_partner_catalog()
         finally:
             self.cleanup()
 

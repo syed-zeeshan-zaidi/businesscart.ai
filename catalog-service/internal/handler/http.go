@@ -165,8 +165,8 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
 	claimID, _ := userClaim["id"].(string)
-	if claimRole != "company" && claimRole != "admin" {
-		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
+	if claimRole != "company" && claimRole != "admin" && claimRole != "partner" {
+		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company, admin or partner role required"), nil
 	}
 
 	var product storage.Product
@@ -179,6 +179,24 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	}
 
 	product.SellerID = claimID
+	// Partner products surface through the partner's linked company. SellerID is
+	// the linked company; PartnerID is the partner's own account id. Linked
+	// company id comes from the JWT (populated at login from partner.companyId).
+	if claimRole == "partner" {
+		assoc, _ := userClaim["associate_company_ids"].([]interface{})
+		if len(assoc) == 0 {
+			return h.errorResponse(http.StatusForbidden, "partner not linked to a company"), nil
+		}
+		companyID, _ := assoc[0].(string)
+		if companyID == "" {
+			return h.errorResponse(http.StatusForbidden, "partner not linked to a company"), nil
+		}
+		product.SellerID = companyID
+		product.PartnerID = claimID
+	} else {
+		// Company / admin cannot attribute a product to a partner via the request body.
+		product.PartnerID = ""
+	}
 	product.Name = strings.TrimSpace(product.Name)
 	if strings.Contains(product.Name, "/") {
 		return h.errorResponse(http.StatusBadRequest, "Product name cannot contain '/'"), nil
@@ -220,6 +238,8 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		filter = bson.M{}
 	case "company":
 		filter = bson.M{"sellerID": accountID}
+	case "partner":
+		filter = bson.M{"partnerId": accountID}
 	case "customer":
 		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
 		if !ok {
@@ -376,7 +396,8 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	if product.SellerID != claimID && claimRole != "admin" {
+	isOwner := product.SellerID == claimID || (claimRole == "partner" && product.PartnerID == claimID)
+	if !isOwner && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to update this product"), nil
 	}
 
@@ -385,8 +406,9 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	// Prevent updating SellerID
+	// Prevent updating SellerID or PartnerID; they are stamped at create and immutable
 	delete(updates, "sellerID")
+	delete(updates, "partnerId")
 
 	// Sanitize text fields that affect URLs and display
 	if name, ok := updates["name"].(string); ok {
@@ -586,7 +608,8 @@ func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	if product.SellerID != claimID && claimRole != "admin" {
+	isOwner := product.SellerID == claimID || (claimRole == "partner" && product.PartnerID == claimID)
+	if !isOwner && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this product"), nil
 	}
 

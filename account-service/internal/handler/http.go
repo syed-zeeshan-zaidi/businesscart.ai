@@ -535,6 +535,12 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 		}
 	}
 
+	// Partner role: carry the linked company id in assocIDs so catalog/checkout
+	// can use the existing associate_company_ids claim path without a new field.
+	if user.Role == storage.RolePartner && user.PartnerData != nil && user.PartnerData.CompanyID != "" {
+		assocIDs = append(assocIDs, user.PartnerData.CompanyID)
+	}
+
 	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, assocIDs, configs)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Token generation failed"), nil
