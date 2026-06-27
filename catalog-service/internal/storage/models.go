@@ -83,6 +83,7 @@ type Product struct {
 	DealEndDate     *time.Time         `bson:"dealEndDate,omitempty" json:"dealEndDate,omitempty"`
 	DiscountedPrice float64            `bson:"-" json:"discountedPrice,omitempty"`
 	SellerID        string             `bson:"sellerID" json:"sellerID"`
+	PartnerID       string             `bson:"partnerId,omitempty" json:"partnerId,omitempty"`
 	Images          []string           `bson:"images,omitempty" json:"images,omitempty"`
 	Category        string             `bson:"category,omitempty" json:"category,omitempty"`
 	GoogleProductCategory string       `bson:"googleProductCategory,omitempty" json:"googleProductCategory,omitempty"`

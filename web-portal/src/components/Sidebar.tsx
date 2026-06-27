@@ -48,6 +48,7 @@ const Sidebar = () => {
 
   const isAdmin = user?.role === 'admin';
   const isCompany = user?.role === 'company';
+  const isPartner = user?.role === 'partner';
 
   // Pending order count + current pricing tier from dashboard cache (no API calls).
   // Tier shown only for company role; admins see no tier (they don't have one).
@@ -68,39 +69,49 @@ const Sidebar = () => {
     } catch { /* ignore */ }
   }, [user]);
 
-  const sections: NavSection[] = [
-    {
-      label: '',
-      items: [
-        { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-      ],
-    },
-    {
-      label: 'Commerce',
-      items: [
-        { name: 'Products', path: '/products', icon: ShoppingBagIcon },
-        { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
-        { name: 'Quotes', path: '/quotes', icon: DocumentTextIcon },
-        ...((isAdmin || isCompany) ? [{ name: 'Blog Posts', path: '/blog-manager', icon: NewspaperIcon }] : []),
-      ],
-    },
-    {
-      label: 'Management',
-      items: [
-        { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
-        { name: 'Users', path: '/users', icon: UserIcon },
-        ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
-        ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon }] : []),
-        { name: 'Locations', path: '/locations', icon: MapPinIcon },
-      ],
-    },
-    {
-      label: 'Insights',
-      items: [
-        { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
-      ],
-    },
-  ];
+  const sections: NavSection[] = isPartner
+    ? [
+        {
+          label: '',
+          items: [
+            { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+            { name: 'Products', path: '/products', icon: ShoppingBagIcon },
+          ],
+        },
+      ]
+    : [
+        {
+          label: '',
+          items: [
+            { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+          ],
+        },
+        {
+          label: 'Commerce',
+          items: [
+            { name: 'Products', path: '/products', icon: ShoppingBagIcon },
+            { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
+            { name: 'Quotes', path: '/quotes', icon: DocumentTextIcon },
+            ...((isAdmin || isCompany) ? [{ name: 'Blog Posts', path: '/blog-manager', icon: NewspaperIcon }] : []),
+          ],
+        },
+        {
+          label: 'Management',
+          items: [
+            { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
+            { name: 'Users', path: '/users', icon: UserIcon },
+            ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
+            ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon }] : []),
+            { name: 'Locations', path: '/locations', icon: MapPinIcon },
+          ],
+        },
+        {
+          label: 'Insights',
+          items: [
+            { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+          ],
+        },
+      ];
 
   const navContent = (
     <div className="flex flex-col h-full">

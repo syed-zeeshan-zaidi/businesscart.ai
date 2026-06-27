@@ -18,7 +18,7 @@ import {
 interface User {
   id: string;
   name?: string;
-  role: 'customer' | 'company' | 'admin';
+  role: 'customer' | 'company' | 'admin' | 'partner';
   email: string;
 }
 
@@ -194,6 +194,29 @@ const Dashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  if (user?.role === 'partner') {
+    return (
+      <div className="flex h-screen bg-gray-100">
+        <Toaster position="top-right" />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Navbar />
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-white rounded-lg shadow p-8 mt-8">
+                <h1 className="text-2xl font-semibold text-gray-800 mb-2">
+                  Welcome{user.name ? `, ${user.name}` : ''}
+                </h1>
+                <p className="text-gray-600">
+                  Your partner account is set up. Product management, orders, and payouts will appear here as features come online.
+                </p>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">

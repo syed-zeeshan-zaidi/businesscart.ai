@@ -542,6 +542,17 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {renderInput('companyCode', 'Company Code', '', true)}
               {renderInput('companyCodeId', 'Company Code ID', '', true)}
             </div>
+            {companyData.partnerCode && (
+              <div className="bg-gray-50 rounded-md p-3 space-y-2 mt-4">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600 font-medium w-28">Partner Invite</span>
+                  <code className="text-gray-500 bg-white px-2 py-0.5 rounded truncate flex-1 mx-2">{companyData.partnerCode}</code>
+                  <div className="flex space-x-2">
+                    <button type="button" onClick={() => { navigator.clipboard.writeText(companyData.partnerCode || ''); toast.success('Copied!'); }} className="text-teal-700 hover:text-teal-500 font-medium">Copy</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </Section>
 
           <Section title="Business Address" icon={<AddressIcon />}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getCodes, createCodes, deleteCode } from '../api';
 import Navbar from './Navbar';
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -9,6 +9,7 @@ const CodeForm: React.FC = () => {
   const [codes, setCodes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [companyCode, setCompanyCode] = useState('');
   const [customerCode, setCustomerCode] = useState('');
   const [partnerCode, setPartnerCode] = useState('');
@@ -38,18 +39,47 @@ const CodeForm: React.FC = () => {
     }
   }, [user]);
 
-  const handleCreateCode = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setCompanyCode('');
+    setCustomerCode('');
+    setPartnerCode('');
+  };
+
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setCompanyCode('');
+    setCustomerCode('');
+    setPartnerCode('');
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (code: any) => {
+    setEditingId(code.id || code._id || null);
+    setCompanyCode(code.companyCode || '');
+    setCustomerCode(code.customerCode || '');
+    setPartnerCode(code.partnerCode || '');
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Frontend guard: in create mode, refuse a companyCode that already exists.
+    if (!editingId) {
+      const duplicate = codes.some((c: any) => c.companyCode === companyCode);
+      if (duplicate) {
+        toast.error('A code with this companyCode already exists. Use Edit on that row to modify it.');
+        return;
+      }
+    }
     try {
       await createCodes({ companyCode, customerCode, partnerCode });
-      toast.success('Code created successfully!');
+      toast.success(editingId ? 'Code updated successfully!' : 'Code created successfully!');
       fetchCodes();
-      setIsModalOpen(false);
-      setCompanyCode('');
-      setCustomerCode('');
-      setPartnerCode('');
+      resetForm();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to create code');
+      toast.error(err.response?.data?.message || (editingId ? 'Failed to update code' : 'Failed to create code'));
     }
   };
 
@@ -84,7 +114,7 @@ const CodeForm: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Codes</h2>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenCreate}
             className="bg-teal-700 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-teal-800"
           >
             Create Code
@@ -120,7 +150,10 @@ const CodeForm: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-right">
-                      <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:bg-red-50 rounded p-2">
+                      <button onClick={() => handleOpenEdit(code)} className="text-gray-600 hover:bg-gray-100 rounded p-2 mr-1" title="Edit">
+                        <PencilSquareIcon className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:bg-red-50 rounded p-2" title="Delete">
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </td>
@@ -139,32 +172,34 @@ const CodeForm: React.FC = () => {
             </div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <form onSubmit={handleCreateCode} className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Create a new code</h3>
+              <form onSubmit={handleSubmit} className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">{editingId ? 'Edit code' : 'Create a new code'}</h3>
                 <div className="mt-2">
                   <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="companyCode">
-                      Company Code
+                      Company Code{editingId ? ' (locked)' : ''}
                     </label>
                     <input
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline ${editingId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'text-gray-700'}`}
                       id="companyCode"
                       type="text"
                       value={companyCode}
                       onChange={(e) => setCompanyCode(e.target.value)}
+                      disabled={!!editingId}
                       required
                     />
                   </div>
                   <div className="mb-4">
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="customerCode">
-                      Customer Code
+                      Customer Code{editingId ? ' (locked)' : ''}
                     </label>
                     <input
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline ${editingId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'text-gray-700'}`}
                       id="customerCode"
                       type="text"
                       value={customerCode}
                       onChange={(e) => setCustomerCode(e.target.value)}
+                      disabled={!!editingId}
                       required
                     />
                   </div>
@@ -186,11 +221,11 @@ const CodeForm: React.FC = () => {
                     type="submit"
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                   >
-                    Create
+                    {editingId ? 'Save' : 'Create'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={resetForm}
                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Cancel

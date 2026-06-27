@@ -275,6 +275,7 @@ export interface CompanyData {
   couponsEnabled?: boolean;
   companyCodeId?: string;
   companyCode: string;
+  partnerCode?: string;
   sellingArea: {
     radius: number;
     center: { lat: number; lng: number };
