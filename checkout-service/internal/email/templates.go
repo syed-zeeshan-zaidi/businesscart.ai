@@ -25,16 +25,29 @@ func renderHTML(tmplStr string, data interface{}) string {
 // ─────────────────────── Order Confirmation ───────────────────────
 
 type OrderConfirmationData struct {
-	OrderID       string
-	Subtotal      float64
-	ShippingCost  float64
-	TaxAmount     float64
-	PromoCode     string  // populated when a coupon was applied; empty otherwise
-	PromoDiscount float64 // omit the discount row when zero
-	GrandTotal    float64
-	Items         []OrderItemView
-	BrandName     string
-	BrandEmail    string
+	OrderID         string
+	Subtotal        float64
+	ShippingCost    float64
+	TaxAmount       float64
+	PromoCode       string  // populated when a coupon was applied; empty otherwise
+	PromoDiscount   float64 // omit the discount row when zero
+	GrandTotal      float64
+	Items           []OrderItemView
+	BrandName       string
+	BrandEmail      string
+	DeliveryAddress *DeliveryAddressView // nil for pickup or legacy orders; "Ship to" block omitted when nil
+}
+
+// DeliveryAddressView is the email-side view of the order's snapshotted shipping
+// address. Fields mirror order.DeliveryAddress; defined locally so the email
+// package stays independent of the order package.
+type DeliveryAddressView struct {
+	RecipientName string
+	Street        string
+	City          string
+	State         string
+	Zip           string
+	PhoneNumber   string
 }
 
 // brandFooterText renders the text-body sign-off. Falls back to "BusinessCart" when no brand.
@@ -90,10 +103,39 @@ func orderConfirmationText(d OrderConfirmationData) string {
 				fmt.Fprintf(&b, "Discount: -$%.2f\n", d.PromoDiscount)
 			}
 		}
-		fmt.Fprintf(&b, "Total:    $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
+		fmt.Fprintf(&b, "Total:    $%.2f\n", d.GrandTotal)
 	} else {
-		fmt.Fprintf(&b, "\nTotal: $%.2f\n\n%s\n", d.GrandTotal, brandFooterText(d.BrandName, d.BrandEmail))
+		fmt.Fprintf(&b, "\nTotal: $%.2f\n", d.GrandTotal)
 	}
+	if d.DeliveryAddress != nil {
+		fmt.Fprintf(&b, "\nShip to:\n")
+		if d.DeliveryAddress.RecipientName != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.RecipientName)
+		}
+		if d.DeliveryAddress.Street != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.Street)
+		}
+		stateZip := ""
+		if d.DeliveryAddress.State != "" && d.DeliveryAddress.Zip != "" {
+			stateZip = d.DeliveryAddress.State + " " + d.DeliveryAddress.Zip
+		} else if d.DeliveryAddress.State != "" {
+			stateZip = d.DeliveryAddress.State
+		} else if d.DeliveryAddress.Zip != "" {
+			stateZip = d.DeliveryAddress.Zip
+		}
+		switch {
+		case d.DeliveryAddress.City != "" && stateZip != "":
+			fmt.Fprintf(&b, "  %s, %s\n", d.DeliveryAddress.City, stateZip)
+		case d.DeliveryAddress.City != "":
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.City)
+		case stateZip != "":
+			fmt.Fprintf(&b, "  %s\n", stateZip)
+		}
+		if d.DeliveryAddress.PhoneNumber != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.PhoneNumber)
+		}
+	}
+	fmt.Fprintf(&b, "\n%s\n", brandFooterText(d.BrandName, d.BrandEmail))
 	return b.String()
 }
 
@@ -132,6 +174,15 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
     Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
   </p>
   {{end}}
+  {{if .DeliveryAddress}}
+  <div style="margin-top:32px;padding:16px;background:#f8fafc;border-radius:8px;font-size:14px;line-height:1.5">
+    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Ship to</div>
+    {{if .DeliveryAddress.RecipientName}}<div style="color:#0f172a">{{.DeliveryAddress.RecipientName}}</div>{{end}}
+    {{if .DeliveryAddress.Street}}<div style="color:#0f172a">{{.DeliveryAddress.Street}}</div>{{end}}
+    {{if or .DeliveryAddress.City .DeliveryAddress.State .DeliveryAddress.Zip}}<div style="color:#0f172a">{{.DeliveryAddress.City}}{{if and .DeliveryAddress.City (or .DeliveryAddress.State .DeliveryAddress.Zip)}}, {{end}}{{.DeliveryAddress.State}}{{if and .DeliveryAddress.State .DeliveryAddress.Zip}} {{end}}{{.DeliveryAddress.Zip}}</div>{{end}}
+    {{if .DeliveryAddress.PhoneNumber}}<div style="color:#64748b;font-size:12px;margin-top:4px">{{.DeliveryAddress.PhoneNumber}}</div>{{end}}
+  </div>
+  {{end}}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
   <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
 </body>
@@ -140,15 +191,16 @@ const orderConfirmationHTMLTmpl = `<!DOCTYPE html>
 // ─────────────────────── New Order Notification (to company owner) ───────────────────────
 
 type NewOrderToCompanyData struct {
-	OrderID       string
-	CustomerEmail string
-	Subtotal      float64
-	ShippingCost  float64
-	TaxAmount     float64
-	PromoCode     string
-	PromoDiscount float64
-	GrandTotal    float64
-	Items         []OrderItemView
+	OrderID         string
+	CustomerEmail   string
+	Subtotal        float64
+	ShippingCost    float64
+	TaxAmount       float64
+	PromoCode       string
+	PromoDiscount   float64
+	GrandTotal      float64
+	Items           []OrderItemView
+	DeliveryAddress *DeliveryAddressView // nil for pickup or legacy orders; "Ship to" block omitted when nil
 }
 
 // NewOrderToCompanyMessage is sent to the company owner when a customer places an order
@@ -188,10 +240,39 @@ func newOrderToCompanyText(d NewOrderToCompanyData) string {
 				fmt.Fprintf(&b, "Discount: -$%.2f\n", d.PromoDiscount)
 			}
 		}
-		fmt.Fprintf(&b, "Total:    $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\nBusinessCart\n", d.GrandTotal)
+		fmt.Fprintf(&b, "Total:    $%.2f\n", d.GrandTotal)
 	} else {
-		fmt.Fprintf(&b, "\nTotal: $%.2f\n\nView in dashboard: https://businesscart.ai/orders\n\nBusinessCart\n", d.GrandTotal)
+		fmt.Fprintf(&b, "\nTotal: $%.2f\n", d.GrandTotal)
 	}
+	if d.DeliveryAddress != nil {
+		fmt.Fprintf(&b, "\nShip to:\n")
+		if d.DeliveryAddress.RecipientName != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.RecipientName)
+		}
+		if d.DeliveryAddress.Street != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.Street)
+		}
+		stateZip := ""
+		if d.DeliveryAddress.State != "" && d.DeliveryAddress.Zip != "" {
+			stateZip = d.DeliveryAddress.State + " " + d.DeliveryAddress.Zip
+		} else if d.DeliveryAddress.State != "" {
+			stateZip = d.DeliveryAddress.State
+		} else if d.DeliveryAddress.Zip != "" {
+			stateZip = d.DeliveryAddress.Zip
+		}
+		switch {
+		case d.DeliveryAddress.City != "" && stateZip != "":
+			fmt.Fprintf(&b, "  %s, %s\n", d.DeliveryAddress.City, stateZip)
+		case d.DeliveryAddress.City != "":
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.City)
+		case stateZip != "":
+			fmt.Fprintf(&b, "  %s\n", stateZip)
+		}
+		if d.DeliveryAddress.PhoneNumber != "" {
+			fmt.Fprintf(&b, "  %s\n", d.DeliveryAddress.PhoneNumber)
+		}
+	}
+	fmt.Fprintf(&b, "\nView in dashboard: https://businesscart.ai/orders\n\nBusinessCart\n")
 	return b.String()
 }
 
@@ -230,6 +311,15 @@ const newOrderToCompanyHTMLTmpl = `<!DOCTYPE html>
   <p style="font-size:18px;font-weight:bold;text-align:right;margin-top:16px">
     Total: <span style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</span>
   </p>
+  {{end}}
+  {{if .DeliveryAddress}}
+  <div style="margin-top:24px;padding:16px;background:#f8fafc;border-radius:8px;font-size:14px;line-height:1.5">
+    <div style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Ship to</div>
+    {{if .DeliveryAddress.RecipientName}}<div style="color:#0f172a;font-weight:600">{{.DeliveryAddress.RecipientName}}</div>{{end}}
+    {{if .DeliveryAddress.Street}}<div style="color:#0f172a">{{.DeliveryAddress.Street}}</div>{{end}}
+    {{if or .DeliveryAddress.City .DeliveryAddress.State .DeliveryAddress.Zip}}<div style="color:#0f172a">{{.DeliveryAddress.City}}{{if and .DeliveryAddress.City (or .DeliveryAddress.State .DeliveryAddress.Zip)}}, {{end}}{{.DeliveryAddress.State}}{{if and .DeliveryAddress.State .DeliveryAddress.Zip}} {{end}}{{.DeliveryAddress.Zip}}</div>{{end}}
+    {{if .DeliveryAddress.PhoneNumber}}<div style="color:#64748b;font-size:12px;margin-top:4px">{{.DeliveryAddress.PhoneNumber}}</div>{{end}}
+  </div>
   {{end}}
   <p style="margin:24px 0">
     <a href="https://businesscart.ai/orders" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px">View in Dashboard</a>

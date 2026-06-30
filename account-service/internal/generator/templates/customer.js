@@ -1604,6 +1604,18 @@
                             </div>` : ''}
                         </section>
 
+                        ${order.deliveryAddress ? `
+                        <section class="od-section">
+                            <h3>Ship to</h3>
+                            <div style="font-size:13px; color:#0f172a; line-height:1.5">
+                                ${order.deliveryAddress.recipientName ? `<div>${escText(order.deliveryAddress.recipientName)}</div>` : ''}
+                                ${order.deliveryAddress.street ? `<div>${escText(order.deliveryAddress.street)}</div>` : ''}
+                                ${(order.deliveryAddress.city || order.deliveryAddress.state || order.deliveryAddress.zip) ? `<div>${escText([order.deliveryAddress.city, [order.deliveryAddress.state, order.deliveryAddress.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '))}</div>` : ''}
+                                ${order.deliveryAddress.phoneNumber ? `<div style="font-size:12px; color:#64748b; margin-top:4px">${escText(order.deliveryAddress.phoneNumber)}</div>` : ''}
+                            </div>
+                        </section>
+                        ` : ''}
+
                         <section class="od-section">
                             <h3>Payment</h3>
                             <dl style="margin:0">
