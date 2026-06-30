@@ -665,6 +665,32 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		PromoDiscount: q.PromoDiscount,
 	}
 
+	// Snapshot the chosen delivery address from quote.customerAddresses so the
+	// order detail view can render the full address after the quote is deleted.
+	// Quote is source of truth: customerAddresses was denormalized at quote-create
+	// time. If deliveryAddressID does not match (legacy carts, edge cases), the
+	// snapshot is left nil — order create flow continues unchanged.
+	if deliveryAddressID != "" {
+		for i := range q.CustomerAddresses {
+			if q.CustomerAddresses[i].ID.Hex() == deliveryAddressID {
+				addr := &q.CustomerAddresses[i]
+				phone := ""
+				if addr.PhoneNumber != nil {
+					phone = *addr.PhoneNumber
+				}
+				newOrder.DeliveryAddress = &order.DeliveryAddress{
+					RecipientName: addr.RecipientName,
+					Street:        addr.Address.Street,
+					City:          addr.Address.City,
+					State:         addr.Address.State,
+					Zip:           addr.Address.Zip,
+					PhoneNumber:   phone,
+				}
+				break
+			}
+		}
+	}
+
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create order"), nil

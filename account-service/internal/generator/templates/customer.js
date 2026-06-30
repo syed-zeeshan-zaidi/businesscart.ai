@@ -412,6 +412,7 @@
                     id: a._id || a.id,
                     addressLabel: a.addressLabel || 'Address',
                     recipientName: a.recipientName || '',
+                    phoneNumber: a.phoneNumber || '',
                     address: a.address || {},
                     isDefaultShipping: !!a.isDefaultShipping
                 }));
@@ -933,9 +934,15 @@
                             id: a._id || a.id,
                             addressLabel: a.addressLabel || 'Address',
                             recipientName: a.recipientName || '',
+                            phoneNumber: a.phoneNumber || '',
                             address: a.address || {},
                             isDefaultShipping: !!a.isDefaultShipping
                         }));
+                        // Quote is source of truth; refresh it with the updated list so the new
+                        // address is in quote.customerAddresses when the order is placed and the
+                        // backend can snapshot it. Mirrors the promo-code recreate flow above.
+                        const refreshed = await this.createQuote(quote.sellerId, addrList, quote.promoCode || '');
+                        if (refreshed) Object.assign(quote, refreshed);
                         // Identify the newly created address: prefer label+street+zip match,
                         // fall back to the last list entry (insertion order).
                         const newAddr = addrList.find(a =>

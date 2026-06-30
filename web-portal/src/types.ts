@@ -163,6 +163,14 @@ export interface Order {
   deliveryMethod?: string;
   pickupLocationId?: string;
   deliveryAddressId?: string;
+  deliveryAddress?: {
+    recipientName?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    phoneNumber?: string;
+  };
   customerEmail?: string;
   trackingNumber?: string;
   trackingCarrier?: string;

@@ -601,6 +601,30 @@ const OrderForm = () => {
                     <dt className="text-gray-500">Payment method</dt>
                     <dd className="text-gray-900">{labelFor(PAYMENT_LABELS, editingOrder.paymentMethod)}</dd>
                   </div>
+                  {editingOrder.deliveryAddress && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-gray-500">Ship to</dt>
+                      <dd className="text-gray-900">
+                        {editingOrder.deliveryAddress.recipientName && (
+                          <div>{editingOrder.deliveryAddress.recipientName}</div>
+                        )}
+                        {editingOrder.deliveryAddress.street && (
+                          <div>{editingOrder.deliveryAddress.street}</div>
+                        )}
+                        {(editingOrder.deliveryAddress.city || editingOrder.deliveryAddress.state || editingOrder.deliveryAddress.zip) && (
+                          <div>
+                            {[
+                              editingOrder.deliveryAddress.city,
+                              [editingOrder.deliveryAddress.state, editingOrder.deliveryAddress.zip].filter(Boolean).join(' ')
+                            ].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                        {editingOrder.deliveryAddress.phoneNumber && (
+                          <div className="text-sm text-gray-600 mt-1">{editingOrder.deliveryAddress.phoneNumber}</div>
+                        )}
+                      </dd>
+                    </div>
+                  )}
                   {editingOrder.deliveryAddressId && (
                     <div>
                       <dt className="text-gray-500">Delivery address ID</dt>
