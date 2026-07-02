@@ -115,3 +115,17 @@ func (o *Order) RefundStatus() string {
 	}
 	return "partial"
 }
+
+// KeepOnlyItemsForPartner strips items whose PartnerID does not match partnerID.
+// Used when returning orders to a partner-role viewer on mixed-supplier orders.
+// Money fields (GrandTotal, Subtotal, TaxAmount) are the whole-order values and
+// stay untouched; UI shows N/A for those to partners.
+func (o *Order) KeepOnlyItemsForPartner(partnerID string) {
+	kept := o.Items[:0]
+	for _, it := range o.Items {
+		if it.PartnerID == partnerID {
+			kept = append(kept, it)
+		}
+	}
+	o.Items = kept
+}

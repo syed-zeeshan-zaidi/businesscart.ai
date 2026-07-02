@@ -3,6 +3,8 @@ package order
 import (
 	"testing"
 	"time"
+
+	"github.com/syed/businesscart/checkout-service/internal/cart"
 )
 
 // Pure-function tests for the refund computed methods. No DB required.
@@ -63,6 +65,99 @@ func TestOrder_NetTotal(t *testing.T) {
 				t.Errorf("NetTotal() = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestOrder_KeepOnlyItemsForPartner(t *testing.T) {
+	partnerA := "partner_a_id"
+	partnerB := "partner_b_id"
+	cases := []struct {
+		name      string
+		items     []cart.CartItem
+		partnerID string
+		wantIDs   []string
+	}{
+		{
+			name:      "no items yields no items",
+			items:     nil,
+			partnerID: partnerA,
+			wantIDs:   nil,
+		},
+		{
+			name: "all items match are kept",
+			items: []cart.CartItem{
+				{ProductID: "p1", PartnerID: partnerA},
+				{ProductID: "p2", PartnerID: partnerA},
+			},
+			partnerID: partnerA,
+			wantIDs:   []string{"p1", "p2"},
+		},
+		{
+			name: "no items match yields empty",
+			items: []cart.CartItem{
+				{ProductID: "p1", PartnerID: ""},
+				{ProductID: "p2", PartnerID: partnerB},
+			},
+			partnerID: partnerA,
+			wantIDs:   []string{},
+		},
+		{
+			name: "mixed order keeps only partner items",
+			items: []cart.CartItem{
+				{ProductID: "p1", PartnerID: partnerA},
+				{ProductID: "p2", PartnerID: ""}, // company's own
+				{ProductID: "p3", PartnerID: partnerB},
+				{ProductID: "p4", PartnerID: partnerA},
+			},
+			partnerID: partnerA,
+			wantIDs:   []string{"p1", "p4"},
+		},
+		{
+			name: "empty partner id matches company-only items",
+			items: []cart.CartItem{
+				{ProductID: "p1", PartnerID: ""},
+				{ProductID: "p2", PartnerID: partnerA},
+			},
+			partnerID: "",
+			wantIDs:   []string{"p1"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &Order{Items: tc.items}
+			o.KeepOnlyItemsForPartner(tc.partnerID)
+			if len(o.Items) != len(tc.wantIDs) {
+				t.Fatalf("len(Items) = %d, want %d", len(o.Items), len(tc.wantIDs))
+			}
+			for i, want := range tc.wantIDs {
+				if o.Items[i].ProductID != want {
+					t.Errorf("Items[%d].ProductID = %q, want %q", i, o.Items[i].ProductID, want)
+				}
+			}
+		})
+	}
+}
+
+func TestOrder_KeepOnlyItemsForPartner_PreservesMoneyFields(t *testing.T) {
+	// Regression guard: filter is items-only; GrandTotal/Subtotal/TaxAmount stay
+	// as whole-order values. UI is responsible for showing N/A to partner.
+	o := &Order{
+		GrandTotal:   199.99,
+		Subtotal:     180.00,
+		TaxAmount:    12.99,
+		ShippingCost: 7.00,
+		Items: []cart.CartItem{
+			{ProductID: "p1", PartnerID: "partner_a", Price: 50},
+			{ProductID: "p2", PartnerID: "", Price: 130},
+		},
+	}
+	o.KeepOnlyItemsForPartner("partner_a")
+	if o.GrandTotal != 199.99 || o.Subtotal != 180.00 || o.TaxAmount != 12.99 || o.ShippingCost != 7.00 {
+		t.Errorf("money fields mutated: grandTotal=%v subtotal=%v tax=%v shipping=%v",
+			o.GrandTotal, o.Subtotal, o.TaxAmount, o.ShippingCost)
+	}
+	if len(o.Items) != 1 || o.Items[0].ProductID != "p1" {
+		t.Errorf("Items filter wrong: %+v", o.Items)
 	}
 }
 

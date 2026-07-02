@@ -545,6 +545,8 @@ class BackendFlowTest:
             entity["price"] = product.get("price", 0)
             if product.get("images"):
                 entity["image"] = product["images"][0]
+            if product.get("partnerId"):
+                entity["partnerId"] = product["partnerId"]
         resp = self.api.post("/checkout/cart", {"entity": entity})
         assert_status(resp, 200, f"Add to cart ({role_key})")
         return resp.json()
@@ -2651,6 +2653,173 @@ class BackendFlowTest:
             ok("Partner forbidden from updating company-owned product (403)")
         self.run_test("11-4. Partner cannot update company-owned product", test_partner_cannot_update_companys_product)
 
+    # ── Phase 12: Partner Orders (read-only visibility, MVP scope) ──
+
+    def phase12_partner_orders(self):
+        phase("PHASE 12: Partner Orders")
+
+        c1_id = self.ids["company1"]
+        partner1_id = self.ids["partner1"]
+        partner2_id = self.ids["partner2"]
+
+        # Partner product was created at 11-1 (owned by partner1, sellerID=company1)
+        partner_product_id = self._partner_product_id
+        # Grab a company-owned product (no partnerId) for the mixed-cart test
+        self.use_token("company1")
+        resp = self.api.get("/products")
+        assert_status(resp, 200, "company1 lists products")
+        company_pid = next((p["_id"] for p in resp.json() if not p.get("partnerId")), None)
+        assert company_pid, "company1 has at least one own product"
+
+        # ── 12-1. Partner GET /checkout/orders returns empty (no partner orders yet)
+        def test_partner_orders_empty():
+            self.use_token("partner1")
+            resp = self.api.get("/checkout/orders")
+            assert_status(resp, 200, "partner1 GET /checkout/orders")
+            orders = resp.json() or []
+            # Filter to just orders that could have partner1 items; anything left over
+            # here is either a stale record from a prior run or a test bug.
+            partner_hits = [o for o in orders if any(it.get("partnerId") == partner1_id for it in (o.get("items") or []))]
+            assert len(partner_hits) == 0, f"Expected 0 partner orders, got {len(partner_hits)}"
+            ok(f"partner1 sees 0 orders pre-flow ({len(orders)} total orphans, all non-partner)")
+        self.run_test("12-1. Partner sees no orders before any partner order is placed", test_partner_orders_empty)
+
+        # ── 12-2. Customer adds partner product to cart; cart item carries partnerId
+        def test_cart_item_carries_partnerid():
+            self._clear_cart("customer", c1_id)
+            cart = self._add_to_cart("customer", c1_id, partner_product_id, 2)
+            items = cart.get("items") or []
+            assert len(items) == 1, f"Expected 1 cart item, got {len(items)}"
+            assert items[0].get("partnerId") == partner1_id, \
+                f"cart.items[0].partnerId should be partner1 ({partner1_id}), got {items[0].get('partnerId')}"
+            ok(f"Cart item carries partnerId={items[0]['partnerId'][:8]}...")
+        self.run_test("12-2. Cart item carries partnerId after add-to-cart", test_cart_item_carries_partnerid)
+
+        # ── 12-3. Quote from partner-product cart carries partnerId in quote.items
+        def test_quote_items_carry_partnerid():
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 500, "minOrderAmountLimit": 5, "maxOrderAmountLimit": 1000,
+            })
+            assert_status(resp, 200, "Quote created from partner-product cart")
+            quote = resp.json()
+            items = quote.get("items") or []
+            assert len(items) == 1, f"Expected 1 quote item, got {len(items)}"
+            assert items[0].get("partnerId") == partner1_id, \
+                f"quote.items[0].partnerId should be partner1, got {items[0].get('partnerId')}"
+            self._partner_quote_id = quote.get("id")
+            ok(f"Quote item carries partnerId={items[0]['partnerId'][:8]}...")
+        self.run_test("12-3. Quote items carry partnerId (cart -> quote denorm)", test_quote_items_carry_partnerid)
+
+        # ── 12-4. Order from that quote carries partnerId in order.items
+        def test_order_items_carry_partnerid():
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": self._partner_quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            assert_status(resp, 200, "Order placed from partner-product quote")
+            order = resp.json()
+            order_id = order.get("id") or order.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
+            self._partner_order_id = order_id
+            items = order.get("items") or []
+            assert len(items) == 1, f"Expected 1 order item, got {len(items)}"
+            assert items[0].get("partnerId") == partner1_id, \
+                f"order.items[0].partnerId should be partner1, got {items[0].get('partnerId')}"
+            ok(f"Order item carries partnerId={items[0]['partnerId'][:8]}...")
+        self.run_test("12-4. Order items carry partnerId (quote -> order denorm)", test_order_items_carry_partnerid)
+
+        # ── 12-5. partner1 GET /checkout/orders returns the order
+        def test_partner_sees_own_order():
+            self.use_token("partner1")
+            resp = self.api.get("/checkout/orders")
+            assert_status(resp, 200, "partner1 GET /checkout/orders")
+            orders = resp.json() or []
+            match = next((o for o in orders if (o.get("id") or o.get("_id")) == self._partner_order_id), None)
+            assert match, f"partner1 should see order {self._partner_order_id}, got {[o.get('id') or o.get('_id') for o in orders]}"
+            ok(f"partner1 sees own order {self._partner_order_id[:8]}...")
+        self.run_test("12-5. Partner GET /checkout/orders returns order containing their items", test_partner_sees_own_order)
+
+        # ── 12-6. partner2 (different partner, same company) does NOT see partner1's order
+        def test_partner2_doesnt_see_partner1_order():
+            # Ensure partner2 has a fresh JWT with associate_company_ids claim
+            resp = self.api.post("/accounts/login", {
+                "email": self._partner2_email,
+                "password": PASSWORD,
+            })
+            assert_status(resp, 200, "partner2 re-login")
+            self.jwts["partner2"] = resp.json().get("accessToken")
+            self.use_token("partner2")
+            resp = self.api.get("/checkout/orders")
+            assert_status(resp, 200, "partner2 GET /checkout/orders")
+            orders = resp.json() or []
+            match = next((o for o in orders if (o.get("id") or o.get("_id")) == self._partner_order_id), None)
+            assert not match, f"partner2 should NOT see partner1's order, but did: {match}"
+            ok("partner2 correctly does NOT see partner1's order")
+        self.run_test("12-6. Different partner does NOT see another partner's order", test_partner2_doesnt_see_partner1_order)
+
+        # ── 12-7. Mixed order (partner + company items) → partner sees ONLY their items
+        def test_mixed_order_partner_sees_only_own():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, partner_product_id, 1)  # partner item
+            self._add_to_cart("customer", c1_id, company_pid, 1)          # company item
+            q_resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 500, "minOrderAmountLimit": 5, "maxOrderAmountLimit": 1000,
+            })
+            assert_status(q_resp, 200, "Mixed quote")
+            quote_id = q_resp.json().get("id")
+            self.use_token("customer")
+            o_resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            assert_status(o_resp, 200, "Mixed order placed")
+            mixed_order_id = o_resp.json().get("id") or o_resp.json().get("_id")
+            self.tracker.track_order(mixed_order_id)
+
+            # Company sees BOTH items on the mixed order
+            self.use_token("company1")
+            resp = self.api.get("/checkout/orders")
+            company_view = next((o for o in resp.json() or [] if (o.get("id") or o.get("_id")) == mixed_order_id), None)
+            assert company_view, "company1 sees mixed order"
+            assert len(company_view.get("items") or []) == 2, \
+                f"company sees BOTH items on mixed order, got {len(company_view.get('items') or [])}"
+
+            # Partner sees ONLY their item on the same mixed order
+            self.use_token("partner1")
+            resp = self.api.get("/checkout/orders")
+            partner_view = next((o for o in resp.json() or [] if (o.get("id") or o.get("_id")) == mixed_order_id), None)
+            assert partner_view, "partner1 sees mixed order"
+            partner_items = partner_view.get("items") or []
+            assert len(partner_items) == 1, \
+                f"partner should see ONLY 1 item on mixed order, got {len(partner_items)}"
+            assert partner_items[0].get("partnerId") == partner1_id, \
+                f"partner's only visible item should be theirs, got partnerId={partner_items[0].get('partnerId')}"
+            ok(f"Mixed order: company sees 2 items, partner sees 1 item (only their own)")
+        self.run_test("12-7. Mixed order: partner sees only their line items (company sees all)", test_mixed_order_partner_sees_only_own)
+
+        # ── 12-8. Money fields (grandTotal) stay whole-order value even for partner
+        def test_money_fields_untouched_for_partner():
+            self.use_token("company1")
+            resp = self.api.get("/checkout/orders")
+            company_order = next((o for o in resp.json() or [] if (o.get("id") or o.get("_id")) == self._partner_order_id), None)
+            assert company_order, "company1 sees partner order"
+            company_total = company_order.get("grandTotal")
+
+            self.use_token("partner1")
+            resp = self.api.get("/checkout/orders")
+            partner_order = next((o for o in resp.json() or [] if (o.get("id") or o.get("_id")) == self._partner_order_id), None)
+            assert partner_order, "partner1 sees partner order"
+            partner_total = partner_order.get("grandTotal")
+
+            assert company_total == partner_total, \
+                f"grandTotal should be identical for company and partner (whole-order value); company={company_total}, partner={partner_total}"
+            ok(f"grandTotal unchanged for partner (${partner_total}); UI shows N/A")
+        self.run_test("12-8. Money fields preserved on partner view (UI shows N/A)", test_money_fields_untouched_for_partner)
+
     # ── Phase 9: Cleanup ─────────────────────────────────────────
 
     def cleanup(self):
@@ -2979,6 +3148,7 @@ class BackendFlowTest:
             self.phase8f_blog_posts()
             self.phase10_partner_identity()
             self.phase11_partner_catalog()
+            self.phase12_partner_orders()
         finally:
             self.cleanup()
 

@@ -298,13 +298,7 @@ func (s *Service) GetOrders(userId string, role string, companyId string) ([]*Or
 	// money fields remain the whole-order value; UI shows N/A for partner.
 	if role == "partner" {
 		for _, o := range orders {
-			kept := o.Items[:0]
-			for _, it := range o.Items {
-				if it.PartnerID == userId {
-					kept = append(kept, it)
-				}
-			}
-			o.Items = kept
+			o.KeepOnlyItemsForPartner(userId)
 		}
 	}
 	return orders, nil
