@@ -86,6 +86,16 @@ const sections: Section[] = [
         question: 'How does quote negotiation work?',
         answer: 'A customer submits items for a quote. You can review, adjust prices, add comments, and counter-offer. The customer can accept, reject, or counter back. When both sides agree, the quote converts to an order. The full negotiation history is preserved.',
       },
+      {
+        id: 'suppliers-vendors',
+        question: 'Can outside suppliers or vendors sell through my BusinessCart store?',
+        answer: 'Yes. Register them as Partners with a partner code. They get their own login, add products to your catalog, and see the orders that contain their items. It is a drop-ship or consignment model: you own the brand, the storefront, and the customer relationship. They handle inventory. This is built-in, no plugin or third-party app needed. Split payouts, per-partner shipping tracking, and per-vendor returns are on the roadmap.',
+      },
+      {
+        id: 'full-marketplace',
+        question: 'Do you support a full multi-vendor marketplace with vendor storefronts and automated payouts?',
+        answer: 'Not yet. What we support today is catalog-level: partners add products to your storefront, and they see the orders for their items. Vendor-branded storefronts, automated commission splits, per-vendor shipping tracking, and returns per vendor are on the roadmap. If you need those specific features today, tell us and we will scope them into the timeline.',
+      },
     ],
   },
   {
