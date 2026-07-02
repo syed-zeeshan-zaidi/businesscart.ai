@@ -125,6 +125,7 @@ const OrderHistory: React.FC = () => {
             productId: item.productId,
             quantity: item.quantity,
             sellerId: order.sellerId,
+            partnerId: item.partnerId,
             name: item.name,
             price: item.price,
             discountedPrice: item.discountedPrice,

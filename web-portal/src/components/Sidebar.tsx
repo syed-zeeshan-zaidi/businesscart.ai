@@ -76,6 +76,7 @@ const Sidebar = () => {
           items: [
             { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
             { name: 'Products', path: '/products', icon: ShoppingBagIcon },
+            { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
           ],
         },
       ]

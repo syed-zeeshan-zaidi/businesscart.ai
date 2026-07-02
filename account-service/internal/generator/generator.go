@@ -111,6 +111,7 @@ type PriceTier struct {
 
 type ProductData struct {
 	ID              string      `json:"_id,omitempty"`
+	PartnerID       string      `json:"partnerId,omitempty"`
 	Name            string      `json:"name"`
 	Description     string      `json:"description"`
 	Price           float64     `json:"price"`

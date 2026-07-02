@@ -182,7 +182,7 @@
 
                 [[if gt .Stock 0]]
                 <button class="cta-btn"
-                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]], stock:[[.Stock]]})">
+                    onclick="event.preventDefault(); window.D2C_CART.addItem({_id:'[[.ID]]', partnerId:'[[.PartnerID]]', name:'[[.Name]]', price:[[.Price]], discountedPrice:[[if .DealPrice]][[.DiscountedPrice]][[else]][[.Price]][[end]], image:'[[.Image]]', dealPrice:[[.DealPrice]], priceTiers:[[jsArray .PriceTiers]], stock:[[.Stock]]})">
                     Add to Cart
                 </button>
                 [[else]]

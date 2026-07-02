@@ -111,6 +111,7 @@ export interface Product {
   dealEndDate?: string;
   discountedPrice?: number;
   sellerID: string;
+  partnerId?: string;
   images?: string[];
   category?: string;
   googleProductCategory?: string;
@@ -186,6 +187,7 @@ export interface NewCartItem {
   productId: string;
   quantity: number;
   sellerId: string;
+  partnerId?: string;
   name: string;
   price: number;
   discountedPrice?: number;
@@ -198,6 +200,7 @@ export interface CartItem {
   productId: string;
   quantity: number;
   sellerId: string;
+  partnerId?: string;
   name: string;
   price: number;
   discountedPrice?: number;

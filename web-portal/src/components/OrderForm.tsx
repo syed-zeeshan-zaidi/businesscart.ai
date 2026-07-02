@@ -123,6 +123,7 @@ const OrderForm = () => {
   const currentRole   = currentUser?.role ?? '';
   const companyId     = currentRole === 'company' ? currentUser?.id : undefined;
   const canEdit       = currentRole === 'admin' || currentRole === 'company';
+  const isPartner     = currentRole === 'partner';
 
   const filteredOrders = useMemo(
     () =>
@@ -401,9 +402,10 @@ const OrderForm = () => {
             <button
               type="button"
               onClick={() => setExportOpen(true)}
-              className="shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1.5 px-3"
+              disabled={isPartner}
+              className={`shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 flex items-center justify-center gap-1.5 px-3 ${isPartner ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
               aria-label="Export orders"
-              title="Export orders"
+              title={isPartner ? 'Export is not available for partner accounts' : 'Export orders'}
             >
               <ArrowDownTrayIcon className="h-5 w-5" />
               <span className="hidden sm:inline text-sm font-medium">Export</span>
@@ -473,29 +475,33 @@ const OrderForm = () => {
                         )}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
-                        ${order.grandTotal.toFixed(2)}
+                        {isPartner ? 'N/A' : `$${order.grandTotal.toFixed(2)}`}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {canEdit && (
-                          <button
-                            onClick={() => openEditModal(order)}
-                            className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1"
-                            aria-label={`Edit order ${order.id}`}
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => openEditModal(order)}
+                          disabled={!canEdit}
+                          className={`rounded p-2 mr-1 ${canEdit ? 'text-yellow-600 hover:bg-yellow-50' : 'text-yellow-600 opacity-50 cursor-not-allowed'}`}
+                          aria-label={`Edit order ${order.id}`}
+                          title={canEdit ? 'Edit order' : 'Editing orders is not available for partner accounts'}
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
                         <button
                           onClick={() => console.log('Print order', order.id)}
-                          className="text-teal-700 hover:bg-teal-50 rounded p-2 mr-1"
+                          disabled={isPartner}
+                          className={`rounded p-2 mr-1 ${isPartner ? 'text-teal-700 opacity-50 cursor-not-allowed' : 'text-teal-700 hover:bg-teal-50'}`}
                           aria-label={`Print order ${order.id}`}
+                          title={isPartner ? 'Printing orders is not available for partner accounts' : 'Print order'}
                         >
                           <PrinterIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => openDeleteConfirm(order.id)}
-                          className="text-red-600 hover:bg-red-50 rounded p-2"
+                          disabled={!canEdit}
+                          className={`rounded p-2 ${canEdit ? 'text-red-600 hover:bg-red-50' : 'text-red-600 opacity-50 cursor-not-allowed'}`}
                           aria-label={`Delete order ${order.id}`}
+                          title={canEdit ? 'Delete order' : 'Deleting orders is not available for partner accounts'}
                         >
                           <TrashIcon className="h-5 w-5" />
                         </button>

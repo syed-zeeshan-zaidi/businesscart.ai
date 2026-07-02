@@ -8,6 +8,7 @@ type CartItem struct {
 	ProductID       string             `bson:"productId" json:"productId"`
 	Quantity        int                `bson:"quantity" json:"quantity"`
 	SellerID        string             `bson:"sellerId" json:"sellerId"`
+	PartnerID       string             `bson:"partnerId,omitempty" json:"partnerId,omitempty"`
 	Name            string             `bson:"name" json:"name"`
 	Price           float64            `bson:"price" json:"price"`
 	ProposedPrice   float64            `bson:"proposedPrice,omitempty" json:"proposedPrice,omitempty"`

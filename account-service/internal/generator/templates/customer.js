@@ -396,6 +396,7 @@
                         productId: item._id,
                         quantity: item.quantity || 1,
                         sellerId: sellerId,
+                        partnerId: item.partnerId || '',
                         name: item.name || 'Product',
                         price: item.price || 0,
                         discountedPrice: item.discountedPrice,
