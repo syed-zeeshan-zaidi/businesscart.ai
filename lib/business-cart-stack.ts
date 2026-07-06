@@ -124,11 +124,22 @@ export class BusinessCartStack extends cdk.Stack {
       },
     };
 
+    // Dedicated per-domain encryption key for ad-conversion credentials, mirroring
+    // GATEWAY_ENCRYPTION_KEY. Scoped to account-service only (the dispatcher lives
+    // here). Independently rotatable from JWT_SECRET.
+    const conversionEncryptionKey = ssm.StringParameter.valueForStringParameter(
+      this,
+      `/BusinessCart/${props.stage}/CONVERSION_ENCRYPTION_KEY`
+    );
+
     const accountService = new GoFunction(this, 'AccountHandler', {
       ...sharedGoFunctionProps,
       functionName: `AccountHandler-${props.stage}`,
       entry: join(__dirname, '..', 'account-service', 'cmd', 'server'),
-      environment: sharedGoFunctionProps.environment,
+      environment: {
+        ...sharedGoFunctionProps.environment,
+        CONVERSION_ENCRYPTION_KEY: conversionEncryptionKey,
+      },
     });
 
     // --- Product Images Infrastructure ---

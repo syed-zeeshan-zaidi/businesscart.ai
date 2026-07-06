@@ -74,6 +74,7 @@
             document.body.appendChild(overlay);
 
             let orderGrandTotal = 0;
+            let orderItems = [];
             if (orderId && this.token) {
                 try {
                     const orders = await this.getOrders();
@@ -81,6 +82,7 @@
                     const details = document.getElementById('order-confirm-details');
                     if (order && details) {
                         orderGrandTotal = order.grandTotal || 0;
+                        orderItems = (order.items || []).map(function (it) { return { id: it.productId, quantity: it.quantity, price: it.discountedPrice || it.price }; });
                         const shortId = (order._id || order.id || '').slice(-6).toUpperCase();
                         details.innerHTML = `
                             <div style="background:#f8fafc;border-radius:12px;padding:1.25rem;margin-bottom:0.5rem;">
@@ -119,13 +121,17 @@
                 if (details) details.innerHTML = '';
             }
             // Fire conversion event exactly once per orderId, with real grandTotal when available.
-            if (orderId && window.D2C_TRACKER) {
-                this._trackedOrderIds = this._trackedOrderIds || new Set();
-                if (!this._trackedOrderIds.has(orderId)) {
-                    this._trackedOrderIds.add(orderId);
-                    window.D2C_TRACKER.trackOrder(orderId, orderGrandTotal);
+            // Tracking must never break the order-confirmation UI: guard the method and
+            // swallow any error (the order is already placed at this point).
+            try {
+                if (orderId && window.D2C_TRACKER && window.D2C_TRACKER.trackOrder) {
+                    this._trackedOrderIds = this._trackedOrderIds || new Set();
+                    if (!this._trackedOrderIds.has(orderId)) {
+                        this._trackedOrderIds.add(orderId);
+                        window.D2C_TRACKER.trackOrder(orderId, orderGrandTotal, orderItems);
+                    }
                 }
-            }
+            } catch (e) {}
         },
 
         async fetchProfile() {
@@ -396,6 +402,7 @@
                         productId: item._id,
                         quantity: item.quantity || 1,
                         sellerId: sellerId,
+                        partnerId: item.partnerId || '',
                         name: item.name || 'Product',
                         price: item.price || 0,
                         discountedPrice: item.discountedPrice,
@@ -412,6 +419,7 @@
                     id: a._id || a.id,
                     addressLabel: a.addressLabel || 'Address',
                     recipientName: a.recipientName || '',
+                    phoneNumber: a.phoneNumber || '',
                     address: a.address || {},
                     isDefaultShipping: !!a.isDefaultShipping
                 }));
@@ -420,6 +428,20 @@
 
                 // Step 4: Show checkout modal with quote data
                 this._showCheckoutOverlay(quote);
+
+                // Fire InitiateCheckout for server-side ad conversions (Meta CAPI).
+                // Same item shape as trackOrder so content_ids match the feed.
+                // Tracking must NEVER break checkout: isolate in its own try/catch
+                // and guard the method itself (a stale tracker.js could lack it),
+                // so nothing here can reach the checkout catch below.
+                try {
+                    if (window.D2C_TRACKER && window.D2C_TRACKER.trackInitiateCheckout) {
+                        const icItems = (cartItems || []).map(function (it) {
+                            return { id: it._id, quantity: it.quantity || 1, price: it.discountedPrice || it.price };
+                        });
+                        window.D2C_TRACKER.trackInitiateCheckout(quote.grandTotal || 0, icItems);
+                    }
+                } catch (e) {}
             } catch (err) {
                 console.error('Checkout failed:', err);
                 document.getElementById('d2c-checkout-overlay')?.remove();
@@ -933,9 +955,15 @@
                             id: a._id || a.id,
                             addressLabel: a.addressLabel || 'Address',
                             recipientName: a.recipientName || '',
+                            phoneNumber: a.phoneNumber || '',
                             address: a.address || {},
                             isDefaultShipping: !!a.isDefaultShipping
                         }));
+                        // Quote is source of truth; refresh it with the updated list so the new
+                        // address is in quote.customerAddresses when the order is placed and the
+                        // backend can snapshot it. Mirrors the promo-code recreate flow above.
+                        const refreshed = await this.createQuote(quote.sellerId, addrList, quote.promoCode || '');
+                        if (refreshed) Object.assign(quote, refreshed);
                         // Identify the newly created address: prefer label+street+zip match,
                         // fall back to the last list entry (insertion order).
                         const newAddr = addrList.find(a =>
@@ -1596,6 +1624,18 @@
                                 ${order.trackingUrl ? `<a href="${escAttr(order.trackingUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin-top:6px; color:var(--primary); font-weight:700; text-decoration:none; font-size:13px">Track package →</a>` : ''}
                             </div>` : ''}
                         </section>
+
+                        ${order.deliveryAddress ? `
+                        <section class="od-section">
+                            <h3>Ship to</h3>
+                            <div style="font-size:13px; color:#0f172a; line-height:1.5">
+                                ${order.deliveryAddress.recipientName ? `<div>${escText(order.deliveryAddress.recipientName)}</div>` : ''}
+                                ${order.deliveryAddress.street ? `<div>${escText(order.deliveryAddress.street)}</div>` : ''}
+                                ${(order.deliveryAddress.city || order.deliveryAddress.state || order.deliveryAddress.zip) ? `<div>${escText([order.deliveryAddress.city, [order.deliveryAddress.state, order.deliveryAddress.zip].filter(Boolean).join(' ')].filter(Boolean).join(', '))}</div>` : ''}
+                                ${order.deliveryAddress.phoneNumber ? `<div style="font-size:12px; color:#64748b; margin-top:4px">${escText(order.deliveryAddress.phoneNumber)}</div>` : ''}
+                            </div>
+                        </section>
+                        ` : ''}
 
                         <section class="od-section">
                             <h3>Payment</h3>

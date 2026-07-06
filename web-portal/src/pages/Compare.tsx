@@ -196,11 +196,18 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Partner Program</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Multi-Supplier / Drop-Ship Partners</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in (drop-ship + consignment, catalog-level)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">App required, up to $79/mo</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin required, up to $999/yr</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Marketplace owns customers and brand</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Full Multi-Vendor Marketplace (vendor storefronts + payouts)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Roadmap</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus + enterprise app ($2,300+/mo baseline)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Premium plugin, up to $999/yr</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Yes (but you rent shelf space, not build a brand)</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Maintenance</td>

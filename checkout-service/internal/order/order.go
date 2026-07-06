@@ -7,6 +7,19 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// DeliveryAddress is a snapshot of the shipping address at order-create time.
+// Stamped from the request body so order detail views can render the full
+// address without joining back to account-service's customer_addresses
+// collection (which may be edited or deleted by the customer post-order).
+type DeliveryAddress struct {
+	RecipientName string `bson:"recipientName,omitempty" json:"recipientName,omitempty"`
+	Street        string `bson:"street,omitempty" json:"street,omitempty"`
+	City          string `bson:"city,omitempty" json:"city,omitempty"`
+	State         string `bson:"state,omitempty" json:"state,omitempty"`
+	Zip           string `bson:"zip,omitempty" json:"zip,omitempty"`
+	PhoneNumber   string `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+}
+
 type Order struct {
 	ID                primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	QuoteID           primitive.ObjectID `bson:"quoteId" json:"quoteId"`
@@ -22,6 +35,7 @@ type Order struct {
 	TransactionID     string             `bson:"transactionId" json:"transactionId"`
 	PickupLocationID  string             `bson:"pickupLocationId,omitempty" json:"pickupLocationId,omitempty"`
 	DeliveryAddressID string             `bson:"deliveryAddressId,omitempty" json:"deliveryAddressId,omitempty"`
+	DeliveryAddress   *DeliveryAddress   `bson:"deliveryAddress,omitempty" json:"deliveryAddress,omitempty"`
 	CreatedAt         time.Time          `bson:"createdAt" json:"createdAt"`
 	Status            string             `bson:"status" json:"status"`
 	CustomerEmail     string             `bson:"customerEmail,omitempty" json:"customerEmail,omitempty"`
@@ -100,4 +114,18 @@ func (o *Order) RefundStatus() string {
 		return "full"
 	}
 	return "partial"
+}
+
+// KeepOnlyItemsForPartner strips items whose PartnerID does not match partnerID.
+// Used when returning orders to a partner-role viewer on mixed-supplier orders.
+// Money fields (GrandTotal, Subtotal, TaxAmount) are the whole-order values and
+// stay untouched; UI shows N/A for those to partners.
+func (o *Order) KeepOnlyItemsForPartner(partnerID string) {
+	kept := o.Items[:0]
+	for _, it := range o.Items {
+		if it.PartnerID == partnerID {
+			kept = append(kept, it)
+		}
+	}
+	o.Items = kept
 }

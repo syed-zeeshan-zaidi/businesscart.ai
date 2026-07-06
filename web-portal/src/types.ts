@@ -32,6 +32,13 @@ export interface Account {
   partner?: PartnerData;
   address?: Address;
   password?: string;
+  // Ad-platform conversion credentials. Write-only: provider -> { field -> value }
+  // (e.g. { meta: { pixel_id, access_token } }); the raw token is never returned.
+  adConversions?: Record<string, Record<string, string>>;
+  // Per-provider on/off switch (write). A provider only dispatches when true.
+  adConversionsEnabled?: Record<string, boolean>;
+  // Read-only masked status for the UI: provider -> { configured, enabled, pixelId, tokenLast4 }.
+  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; tokenLast4?: string }>;
 }
 
 export interface Attribute {
@@ -111,6 +118,7 @@ export interface Product {
   dealEndDate?: string;
   discountedPrice?: number;
   sellerID: string;
+  partnerId?: string;
   images?: string[];
   category?: string;
   googleProductCategory?: string;
@@ -163,6 +171,14 @@ export interface Order {
   deliveryMethod?: string;
   pickupLocationId?: string;
   deliveryAddressId?: string;
+  deliveryAddress?: {
+    recipientName?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    phoneNumber?: string;
+  };
   customerEmail?: string;
   trackingNumber?: string;
   trackingCarrier?: string;
@@ -178,6 +194,7 @@ export interface NewCartItem {
   productId: string;
   quantity: number;
   sellerId: string;
+  partnerId?: string;
   name: string;
   price: number;
   discountedPrice?: number;
@@ -190,6 +207,7 @@ export interface CartItem {
   productId: string;
   quantity: number;
   sellerId: string;
+  partnerId?: string;
   name: string;
   price: number;
   discountedPrice?: number;

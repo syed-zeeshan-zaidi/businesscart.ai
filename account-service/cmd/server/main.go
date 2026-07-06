@@ -30,6 +30,7 @@ func main() {
 
 	d2cBucketName := os.Getenv("D2C_BUCKET_NAME")
 	d2cDistributionId := os.Getenv("D2C_DISTRIBUTION_ID")
+	conversionEncryptionKey := os.Getenv("CONVERSION_ENCRYPTION_KEY")
 
 	// Email sender — uses SMTP (stdlib net/smtp). Falls back to no-op if any config missing.
 	emailSender := mailer.NewSender(context.Background(), mailer.Config{
@@ -40,6 +41,6 @@ func main() {
 		Password: os.Getenv("EMAIL_SMTP_PASSWORD"),
 	})
 
-	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId, emailSender)
+	h := handler.NewLambdaHandler(db, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId, conversionEncryptionKey, emailSender)
 	lambda.Start(h.HandleRequest)
 }

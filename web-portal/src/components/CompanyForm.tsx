@@ -296,6 +296,118 @@ interface EditCompanyModalProps {
   userRole: string | null;
 }
 
+/* ---------- ad-platform conversion credentials (mirrors GatewayConfigPanel) ---------- */
+const AdConversionsPanel: React.FC<{
+  sellerId: string;
+  initialInfo?: { configured: boolean; enabled: boolean; pixelId?: string; tokenLast4?: string };
+}> = ({ sellerId, initialInfo }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [pixelId, setPixelId] = useState('');
+  const [token, setToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(initialInfo?.enabled ?? true);
+  const [info, setInfo] = useState(initialInfo);
+  const configured = !!info?.configured;
+
+  const handleSave = async () => {
+    const creds: Record<string, string> = {};
+    if (pixelId.trim()) creds.pixel_id = pixelId.trim();
+    if (token.trim()) creds.access_token = token.trim();
+    const willBeConfigured = configured || Object.keys(creds).length > 0;
+    if (enabled && !willBeConfigured) {
+      toast.error('Enter a Pixel/Dataset ID and Access Token before enabling');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: { adConversionsEnabled: Record<string, boolean>; adConversions?: Record<string, Record<string, string>> } = {
+        adConversionsEnabled: { meta: enabled },
+      };
+      if (Object.keys(creds).length > 0) payload.adConversions = { meta: creds };
+      await updateAccount(sellerId, payload);
+      toast.success('Meta conversions saved');
+      setInfo({
+        configured: willBeConfigured,
+        enabled,
+        pixelId: creds.pixel_id || info?.pixelId,
+        tokenLast4: creds.access_token ? creds.access_token.slice(-4) : info?.tokenLast4,
+      });
+      setToken('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to save Meta conversions');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition"
+      >
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-semibold text-gray-800">Meta (Facebook / Instagram)</span>
+          {!configured
+            ? <span className="text-xs text-gray-400">Not configured</span>
+            : info?.enabled
+              ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-800">Live</span>
+              : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-200 text-gray-600">Paused</span>}
+        </div>
+        <svg className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="p-4 space-y-4">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={e => setEnabled(e.target.checked)}
+              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+            />
+            <span className="text-sm font-medium text-gray-700">Enabled (send events to Meta)</span>
+          </label>
+          <p className="text-sm text-gray-500">Server-side Conversions API. Find these in Meta Events Manager &rarr; your dataset &rarr; Settings &rarr; Conversions API. The access token is encrypted and never shown again.</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Pixel / Dataset ID</label>
+              <input
+                type="text"
+                value={pixelId}
+                onChange={e => setPixelId(e.target.value)}
+                placeholder={info?.pixelId || ''}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Conversions API Access Token</label>
+              <input
+                type="password"
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder={info?.tokenLast4 ? `••••${info.tokenLast4} (enter new value to replace)` : ''}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-3 pt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 disabled:opacity-50 transition"
+            >
+              {saving ? 'Saving...' : configured ? 'Update' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   account,
   onClose,
@@ -1031,6 +1143,14 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               </div>
             </Section>
           )}
+
+          {/* Server-side ad-platform conversion tracking (Meta CAPI; Google later) */}
+          <Section title="Ad Conversion Tracking" icon={<PaymentIcon />}>
+            <p className="text-sm text-gray-500 mb-4">Send server-side purchase &amp; funnel events to ad platforms for accurate attribution and optimization. Credentials are encrypted; tokens are never shown again.</p>
+            <div className="space-y-3">
+              <AdConversionsPanel sellerId={account._id} initialInfo={account.adConversionsInfo?.meta} />
+            </div>
+          </Section>
         </div>
 
         <div className="mt-4 p-5 border-t flex justify-end space-x-4 bg-white rounded-b-xl">
@@ -1142,6 +1262,17 @@ const CompanyForm = () => {
     } else if (userRole === 'company') setSelfAccount(updatedAccount);
   };
 
+  // Admin edit: fetch the full account (getAccountByID populates the masked
+  // adConversionsInfo, which the list endpoint does not) so credential status
+  // renders correctly. Falls back to the list object on error.
+  const handleEditAccount = async (acc: Account) => {
+    try {
+      setEditingAccount(await getAccount(acc._id));
+    } catch {
+      setEditingAccount(acc);
+    }
+  };
+
   if (isLoading)
     return (
       <div className="flex justify-center items-center h-screen">
@@ -1167,7 +1298,7 @@ const CompanyForm = () => {
           </button>
         </div>
 
-        {userRole === 'admin' && <AdminView accounts={accounts} onEdit={setEditingAccount} />}
+        {userRole === 'admin' && <AdminView accounts={accounts} onEdit={handleEditAccount} />}
         {userRole === 'company' && selfAccount && (
           <EditCompanyModal account={selfAccount} onSave={handleSave} onClose={() => { }} alwaysOpen userRole={userRole} />
         )}

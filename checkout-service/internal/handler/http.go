@@ -665,6 +665,32 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		PromoDiscount: q.PromoDiscount,
 	}
 
+	// Snapshot the chosen delivery address from quote.customerAddresses so the
+	// order detail view can render the full address after the quote is deleted.
+	// Quote is source of truth: customerAddresses was denormalized at quote-create
+	// time. If deliveryAddressID does not match (legacy carts, edge cases), the
+	// snapshot is left nil — order create flow continues unchanged.
+	if deliveryAddressID != "" {
+		for i := range q.CustomerAddresses {
+			if q.CustomerAddresses[i].ID.Hex() == deliveryAddressID {
+				addr := &q.CustomerAddresses[i]
+				phone := ""
+				if addr.PhoneNumber != nil {
+					phone = *addr.PhoneNumber
+				}
+				newOrder.DeliveryAddress = &order.DeliveryAddress{
+					RecipientName: addr.RecipientName,
+					Street:        addr.Address.Street,
+					City:          addr.Address.City,
+					State:         addr.Address.State,
+					Zip:           addr.Address.Zip,
+					PhoneNumber:   phone,
+				}
+				break
+			}
+		}
+	}
+
 	createdOrder, err := h.orderService.CreateOrder(newOrder)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create order"), nil
@@ -697,17 +723,29 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 			})
 		}
 		brandName, brandEmail := mailer.CompanyBrand(createdOrder.SellerID)
+		var addrView *mailer.DeliveryAddressView
+		if createdOrder.DeliveryAddress != nil {
+			addrView = &mailer.DeliveryAddressView{
+				RecipientName: createdOrder.DeliveryAddress.RecipientName,
+				Street:        createdOrder.DeliveryAddress.Street,
+				City:          createdOrder.DeliveryAddress.City,
+				State:         createdOrder.DeliveryAddress.State,
+				Zip:           createdOrder.DeliveryAddress.Zip,
+				PhoneNumber:   createdOrder.DeliveryAddress.PhoneNumber,
+			}
+		}
 		msg := mailer.OrderConfirmationMessage(customerEmail, mailer.OrderConfirmationData{
-			OrderID:       createdOrder.ID.Hex(),
-			Subtotal:      createdOrder.Subtotal,
-			ShippingCost:  createdOrder.ShippingCost,
-			TaxAmount:     createdOrder.TaxAmount,
-			PromoCode:     createdOrder.PromoCode,
-			PromoDiscount: createdOrder.PromoDiscount,
-			GrandTotal:    createdOrder.GrandTotal,
-			Items:         items,
-			BrandName:     brandName,
-			BrandEmail:    brandEmail,
+			OrderID:         createdOrder.ID.Hex(),
+			Subtotal:        createdOrder.Subtotal,
+			ShippingCost:    createdOrder.ShippingCost,
+			TaxAmount:       createdOrder.TaxAmount,
+			PromoCode:       createdOrder.PromoCode,
+			PromoDiscount:   createdOrder.PromoDiscount,
+			GrandTotal:      createdOrder.GrandTotal,
+			Items:           items,
+			BrandName:       brandName,
+			BrandEmail:      brandEmail,
+			DeliveryAddress: addrView,
 		})
 		sender, _ := mailer.SenderForCompany(context.Background(), createdOrder.SellerID, h.emailSender)
 		if err := sender.Send(context.Background(), msg); err != nil {
@@ -717,15 +755,16 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 		// Notify the company owner about the new order — platform sender (BC SES).
 		if ownerEmail := mailer.CompanyOwnerEmail(createdOrder.SellerID); ownerEmail != "" {
 			ownerMsg := mailer.NewOrderToCompanyMessage(ownerEmail, mailer.NewOrderToCompanyData{
-				OrderID:       createdOrder.ID.Hex(),
-				CustomerEmail: customerEmail,
-				Subtotal:      createdOrder.Subtotal,
-				ShippingCost:  createdOrder.ShippingCost,
-				TaxAmount:     createdOrder.TaxAmount,
-				PromoCode:     createdOrder.PromoCode,
-				PromoDiscount: createdOrder.PromoDiscount,
-				GrandTotal:    createdOrder.GrandTotal,
-				Items:         items,
+				OrderID:         createdOrder.ID.Hex(),
+				CustomerEmail:   customerEmail,
+				Subtotal:        createdOrder.Subtotal,
+				ShippingCost:    createdOrder.ShippingCost,
+				TaxAmount:       createdOrder.TaxAmount,
+				PromoCode:       createdOrder.PromoCode,
+				PromoDiscount:   createdOrder.PromoDiscount,
+				GrandTotal:      createdOrder.GrandTotal,
+				Items:           items,
+				DeliveryAddress: addrView,
 			})
 			if err := h.emailSender.Send(context.Background(), ownerMsg); err != nil {
 				log.Printf("WARN: new-order notification to owner %s failed: %v", ownerEmail, err)

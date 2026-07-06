@@ -391,7 +391,7 @@ export const deleteStatement = async (id: string): Promise<void> => {
   await api.delete(`${API_URL}/checkout/statements/${encodeURIComponent(id)}`);
 };
 
-export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }, accountId?: string): Promise<Cart> => {
+export const addItemToCart = async (data: { entity: { productId: string; quantity: number; sellerId: string; partnerId?: string; name: string; price: number, discountedPrice?: number, image?: string, dealPrice?: number } }, accountId?: string): Promise<Cart> => {
   let url = `${API_URL}/checkout/cart`;
   if (accountId) {
     url += `?accountId=${accountId}`;

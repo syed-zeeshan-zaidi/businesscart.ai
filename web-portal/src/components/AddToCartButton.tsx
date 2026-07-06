@@ -37,6 +37,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity, va
           productId: product._id,
           quantity,
           sellerId: product.sellerID,
+          partnerId: product.partnerId,
           name: product.name,
           price: product.price,
           discountedPrice: product.discountedPrice,

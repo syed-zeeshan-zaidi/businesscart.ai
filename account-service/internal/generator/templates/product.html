@@ -325,6 +325,11 @@
             shippingOutOptions: [[jsArray .Company.ShippingOutOptions]],
             couponsEnabled: [[.Company.CouponsEnabled]]
         };
+        // Product-level signal for ViewContent (read by tracker.js on load).
+        window.D2C_PRODUCT = {
+            id: "[[.Product.ID]]",
+            price: [[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]]
+        };
     </script>
     <script src="../tracker.js" defer></script>
     <script src="../cart.js" defer></script>
@@ -465,7 +470,7 @@
                     <button type="button" id="qty-plus" onclick="var q=document.getElementById('qty');q.value=Math.min([[.Product.Stock]],Number(q.value)+1);window.D2C_QTY_SYNC&&window.D2C_QTY_SYNC()" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">+</button>
                 </div>
                 <button class="cta-btn" style="flex:1"
-                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]], stock:[[.Product.Stock]]}, Number(document.getElementById('qty').value)||1)">
+                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', partnerId:'[[.Product.PartnerID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]], stock:[[.Product.Stock]]}, Number(document.getElementById('qty').value)||1)">
                     Add to Cart
                 </button>
             </div>

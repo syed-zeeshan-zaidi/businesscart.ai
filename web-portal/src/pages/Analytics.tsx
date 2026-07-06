@@ -24,6 +24,7 @@ interface Stats {
   totalRegistered: number;
   totalOrdered: number;
   totalCartAdds: number;
+  totalCheckoutStarts: number;
   totalContactedUs: number;
   todayVisitors: number;
   weekVisitors: number;
@@ -34,6 +35,9 @@ interface Stats {
   browsers: { _id: string; count: number }[];
   totalRevenue: number;
   totalOrders: number;
+  conversionsSent: number;
+  conversionsFailed: number;
+  conversionsAvgMatch: number;
 }
 
 interface Visitor {
@@ -295,7 +299,8 @@ const Analytics: React.FC = () => {
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                 <StatCard icon={UsersIcon} label="Total Visitors" value={stats.totalVisitors} sub={`${stats.todayVisitors} today · ${stats.totalBots} bots (${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%)`} />
-                <StatCard icon={ShoppingCartIcon} label="Cart Adds" value={stats.totalCartAdds} sub={stats.totalCartAdds > 0 ? `${((stats.totalOrdered / stats.totalCartAdds) * 100).toFixed(1)}% to order` : '—'} />
+                <StatCard icon={ShoppingCartIcon} label="Cart Adds" value={stats.totalCartAdds} sub={stats.totalCartAdds > 0 ? `${(((stats.totalCheckoutStarts ?? 0) / stats.totalCartAdds) * 100).toFixed(1)}% to checkout` : '—'} />
+                <StatCard icon={ShoppingCartIcon} label="Checkout Started" value={stats.totalCheckoutStarts ?? 0} sub={(stats.totalCheckoutStarts ?? 0) > 0 ? `${((stats.totalOrdered / (stats.totalCheckoutStarts ?? 1)) * 100).toFixed(1)}% to order` : '—'} />
                 <StatCard icon={GlobeAltIcon} label="Registered" value={stats.totalRegistered} sub={`${stats.totalVisitors > 0 ? ((stats.totalRegistered / stats.totalVisitors) * 100).toFixed(1) : 0}% conversion`} />
                 <StatCard icon={UsersIcon} label="Ordered" value={stats.totalOrdered} sub={`${stats.totalRegistered > 0 ? ((stats.totalOrdered / stats.totalRegistered) * 100).toFixed(1) : 0}% of registered`} />
                 <StatCard icon={CurrencyDollarIcon} label="Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} sub={`${stats.totalOrders} orders`} />
@@ -304,6 +309,12 @@ const Analytics: React.FC = () => {
                 ) : (
                   <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
                 )}
+                <StatCard
+                  icon={GlobeAltIcon}
+                  label="Ad Conversions Sent"
+                  value={stats.conversionsSent ?? 0}
+                  sub={`${stats.conversionsFailed ?? 0} failed · ${stats.conversionsAvgMatch > 0 ? `${stats.conversionsAvgMatch.toFixed(0)} match fields` : '—'}`}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

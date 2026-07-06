@@ -254,6 +254,27 @@ type Account struct {
 	Address          *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
 	ResetToken       string             `bson:"resetToken,omitempty" json:"-"`
 	ResetTokenExpiry *time.Time         `bson:"resetTokenExpiry,omitempty" json:"-"`
+	// AdConversions holds per-provider ad-platform conversion credentials for a
+	// company account: provider ("meta") -> {field ("pixel_id"/"access_token")
+	// -> AES-GCM-encrypted value}. json:"-" so the secret token is never
+	// serialized in any API response. Read by the conversion dispatcher via
+	// GetAccountByID(sellerID); set via PATCH /accounts/{id}.
+	AdConversions map[string]map[string]string `bson:"adConversions,omitempty" json:"-"`
+	// AdConversionsEnabled is the per-provider on/off switch. A provider only
+	// dispatches when enabled is true (absent = off), so a company can configure
+	// credentials but keep sending paused.
+	AdConversionsEnabled map[string]bool `bson:"adConversionsEnabled,omitempty" json:"-"`
+	// AdConversionsInfo is a computed, secret-free view for the admin UI
+	// (configured + enabled + pixelId + token last-4). Never persisted (bson:"-").
+	AdConversionsInfo map[string]AdConversionInfo `bson:"-" json:"adConversionsInfo,omitempty"`
+}
+
+// AdConversionInfo is the masked, display-safe status of a provider's creds.
+type AdConversionInfo struct {
+	Configured bool   `json:"configured"`
+	Enabled    bool   `json:"enabled"`
+	PixelID    string `json:"pixelId,omitempty"`
+	TokenLast4 string `json:"tokenLast4,omitempty"`
 }
 
 // ---------- visitor analytics ----------

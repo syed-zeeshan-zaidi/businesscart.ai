@@ -74,7 +74,7 @@ const faqs = [
   },
   {
     q: 'How does this handle drop-shipping?',
-    a: 'Today: orders go to you, you forward to manufacturer. Native drop-ship coordination (orders routed directly from your portal to manufacturer fulfillment) ships Q3 2026. The REST API is available today if you want to build custom routing now.',
+    a: 'Partial coverage today: partners get their own portal login and see the orders containing their SKUs in a read-only view (drop-ship or consignment model). Your company still owns the customer relationship and the storefront. Full automated routing (per-partner fulfilment tracking, split shipping, and payouts) is on the roadmap. The REST API is available today if you want to build custom routing now.',
   },
   {
     q: 'How is this different from selling on Amazon Business?',

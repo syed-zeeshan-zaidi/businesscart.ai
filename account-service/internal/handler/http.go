@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"business-cart/account-service/internal/auth"
+	"business-cart/account-service/internal/conversion"
 	mailer "business-cart/account-service/internal/email"
 	"business-cart/account-service/internal/generator"
 	"business-cart/account-service/internal/storage"
@@ -41,9 +42,29 @@ type LambdaHandler struct {
 	d2cDistributionId string
 	emailSender       mailer.Sender
 	requestOrigin     string // set per-request from Origin header
+	conversions       *conversion.Service
+	convCache         *conversion.ConfigCache
+	convKey           []byte // dedicated AES key from CONVERSION_ENCRYPTION_KEY; nil = disabled
 }
 
-func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId string, emailSender mailer.Sender) *LambdaHandler {
+func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName, d2cDistributionId, conversionEncryptionKey string, emailSender mailer.Sender) *LambdaHandler {
+	// Server-side ad-conversion dispatcher, gated on a dedicated encryption key
+	// (mirrors the payment gateway: GATEWAY_ENCRYPTION_KEY). If the key is unset
+	// or malformed, conversion tracking is disabled — no JWT-derived fallback.
+	var convKey []byte
+	var conversions *conversion.Service
+	if conversionEncryptionKey == "" {
+		log.Println("WARNING: CONVERSION_ENCRYPTION_KEY not set. Ad-conversion tracking disabled.")
+	} else if k, err := conversion.ParseKey(conversionEncryptionKey); err != nil {
+		log.Printf("WARNING: CONVERSION_ENCRYPTION_KEY invalid, ad-conversion tracking disabled: %v", err)
+	} else {
+		convKey = k
+		convRegistry := conversion.NewRegistry()
+		convRegistry.Register(conversion.NewMetaDispatcher())
+		conversions = conversion.NewService(convRegistry, convKey)
+		log.Println("Ad-conversion tracking initialized.")
+	}
+
 	return &LambdaHandler{
 		db:                db,
 		jwtSecret:         jwtSecret,
@@ -51,6 +72,11 @@ func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName
 		d2cBucketName:     d2cBucketName,
 		d2cDistributionId: d2cDistributionId,
 		emailSender:       emailSender,
+		conversions:       conversions,
+		convKey:           convKey,
+		// Warm-container cache of per-seller enabled creds; collapses the
+		// per-event account read to ~one DB hit per seller per TTL.
+		convCache: conversion.NewConfigCache(5 * time.Minute),
 	}
 }
 
@@ -770,12 +796,66 @@ func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (event
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
-			"Content-Type":        "text/csv",
-			"Content-Disposition": "attachment; filename=customers.csv",
+			"Content-Type":                "text/csv",
+			"Content-Disposition":         "attachment; filename=customers.csv",
 			"Access-Control-Allow-Origin": h.requestOrigin,
 		},
 		Body: b.String(),
 	}, nil
+}
+
+// buildAdConversionSetFields encrypts each supplied ad-conversion credential and
+// returns the Mongo $set entries keyed by a dotted per-field path
+// (adConversions.<provider>.<field>). Using per-field paths means a partial
+// update (e.g. rotating the access_token while leaving the pixel_id field blank)
+// merges into the existing sub-document instead of replacing it and dropping the
+// field the client did not resend — a whole-map $set on adConversions.<provider>
+// would wipe it. Blank values are trimmed and skipped.
+func (h *LambdaHandler) buildAdConversionSetFields(payload map[string]map[string]string) (map[string]interface{}, error) {
+	out := make(map[string]interface{})
+	for provider, creds := range payload {
+		if !conversion.IsSupportedProvider(provider) {
+			continue // ignore unknown providers rather than persisting junk keys
+		}
+		for field, val := range creds {
+			val = strings.TrimSpace(val)
+			if val == "" {
+				continue
+			}
+			ct, err := conversion.Encrypt(h.convKey, val)
+			if err != nil {
+				return nil, err
+			}
+			out["adConversions."+provider+"."+field] = ct
+		}
+	}
+	return out, nil
+}
+
+// buildAdConversionsInfo decrypts an account's stored ad-conversion creds in
+// memory and populates the display-safe AdConversionsInfo (pixel_id shown
+// fully — it is not secret; access_token masked to last-4). The raw token is
+// never exposed. Mirrors the payment gateway's last-4 hint.
+func (h *LambdaHandler) buildAdConversionsInfo(acc *storage.Account) {
+	if acc == nil || len(acc.AdConversions) == 0 || len(h.convKey) == 0 {
+		return
+	}
+	info := make(map[string]storage.AdConversionInfo, len(acc.AdConversions))
+	for provider, creds := range acc.AdConversions {
+		ci := storage.AdConversionInfo{Configured: true, Enabled: acc.AdConversionsEnabled[provider]}
+		if enc, ok := creds["pixel_id"]; ok {
+			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil {
+				ci.PixelID = v
+			}
+		}
+		if enc, ok := creds["access_token"]; ok {
+			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil && len(v) >= 4 {
+				ci.TokenLast4 = v[len(v)-4:]
+			}
+		}
+		info[provider] = ci
+	}
+	acc.AdConversionsInfo = info
 }
 
 func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id string) (events.APIGatewayProxyResponse, error) {
@@ -793,6 +873,9 @@ func (h *LambdaHandler) getAccountByID(userClaim map[string]interface{}, id stri
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Account not found"), nil
 	}
+
+	// Attach the masked, secret-free conversion-credential status for the admin UI.
+	h.buildAdConversionsInfo(acc)
 
 	// If the account is a customer, attach the full company data they are associated with.
 	if acc.Role == storage.RoleCustomer || acc.Role == storage.RoleB2C {
@@ -907,7 +990,9 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	var payload struct {
-		Company map[string]interface{} `json:"company"`
+		Company              map[string]interface{}       `json:"company"`
+		AdConversions        map[string]map[string]string `json:"adConversions"`
+		AdConversionsEnabled map[string]bool              `json:"adConversionsEnabled"`
 	}
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
@@ -1014,6 +1099,31 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		setFields["company."+k] = v
 	}
 
+	// Ad-platform conversion credentials (Meta pixel_id + access_token; Google
+	// later). Encrypt each value server-side before storing so the raw token
+	// never lands in the DB. Rides this existing endpoint (no new route) and is
+	// never returned (Account.AdConversions is json:"-"). Mirrors the payment
+	// gateway credential-handling contract.
+	if len(payload.AdConversions) > 0 {
+		if len(h.convKey) == 0 {
+			return h.errorResponse(http.StatusServiceUnavailable, "Ad-conversion tracking is not configured on this environment"), nil
+		}
+		encFields, encErr := h.buildAdConversionSetFields(payload.AdConversions)
+		if encErr != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Failed to secure credentials"), nil
+		}
+		for k, v := range encFields {
+			setFields[k] = v
+		}
+	}
+	// Per-provider enable/disable switch (not a secret; stored plainly).
+	for provider, enabled := range payload.AdConversionsEnabled {
+		if !conversion.IsSupportedProvider(provider) {
+			continue
+		}
+		setFields["adConversionsEnabled."+provider] = enabled
+	}
+
 	if len(setFields) == 0 && len(unsetFields) == 0 {
 		return h.errorResponse(http.StatusBadRequest, "Nothing to update"), nil
 	}
@@ -1022,9 +1132,22 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		return h.errorResponse(http.StatusInternalServerError, "Update failed"), nil
 	}
 
-	// Trigger D2C generation if enabled (this will also generate PreviewDomain if missing)
-	if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
+	// A conversion-config change invalidates this seller's cached creds so the
+	// change takes effect on this container immediately (others refresh by TTL).
+	if h.convCache != nil && (len(payload.AdConversions) > 0 || len(payload.AdConversionsEnabled) > 0) {
+		h.convCache.Invalidate(targetID.Hex())
+	}
+
+	// Trigger D2C generation if enabled (this will also generate PreviewDomain if
+	// missing). A conversion-only change (no company/storefront fields) doesn't
+	// affect the generated storefront, so skip the expensive regen + S3 upload and
+	// its misleading 500. Any company/D2C edit still regenerates as before.
+	conversionOnly := len(payload.Company) == 0 &&
+		(len(payload.AdConversions) > 0 || len(payload.AdConversionsEnabled) > 0)
+	if !conversionOnly {
+		if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
+		}
 	}
 
 	// Return the updated account to the frontend so it sees the generated PreviewDomain
@@ -1032,6 +1155,7 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	if err != nil {
 		return h.successResponse(nil, http.StatusOK), nil
 	}
+	h.buildAdConversionsInfo(updatedAcc)
 
 	return h.successResponse(updatedAcc, http.StatusOK), nil
 }
@@ -1604,25 +1728,64 @@ func (h *LambdaHandler) successResponse(data interface{}, statusCode int) events
 
 // ---------- visitor analytics ----------
 
+// metaFloat coerces a JSON-decoded number to float64; returns 0 for anything
+// else. JSON numbers always decode as float64 into map[string]interface{}, so
+// that is the only case to handle.
+func metaFloat(v interface{}) float64 {
+	if n, ok := v.(float64); ok {
+		return n
+	}
+	return 0
+}
+
+// parseConversionContents maps a piped items array ([{id|productId, quantity,
+// price}]) into conversion line items. Tolerant of missing/oddly-typed fields.
+func parseConversionContents(v interface{}) []conversion.Content {
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]conversion.Content, 0, len(arr))
+	for _, it := range arr {
+		m, ok := it.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := m["id"].(string)
+		if id == "" {
+			id, _ = m["productId"].(string)
+		}
+		if id == "" {
+			continue
+		}
+		qty := int(metaFloat(m["quantity"]))
+		if qty <= 0 {
+			qty = 1
+		}
+		out = append(out, conversion.Content{ProductID: id, Quantity: qty, ItemPrice: metaFloat(m["price"])})
+	}
+	return out
+}
+
 func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var req struct {
-		VisitorID  string `json:"visitorId"`
-		Event      string `json:"event"`
-		Page       string `json:"page"`
-		Referrer   string `json:"referrer"`
-		UTMSource  string `json:"utm_source"`
-		UTMMedium  string `json:"utm_medium"`
-		UTMCampaign string `json:"utm_campaign"`
-		UTMContent string `json:"utm_content"`
-		UTMTerm    string `json:"utm_term"`
-		ClickIDs   map[string]string `json:"clickIds"`
-		Timezone     string `json:"timezone"`
-		ScreenWidth  int    `json:"screenWidth"`
-		ScreenHeight int    `json:"screenHeight"`
-		Language     string `json:"language"`
-		CustomerID   string `json:"customerId"`
-		SellerID   string `json:"sellerId"`
-		Metadata   map[string]interface{} `json:"metadata"`
+		VisitorID    string                 `json:"visitorId"`
+		Event        string                 `json:"event"`
+		Page         string                 `json:"page"`
+		Referrer     string                 `json:"referrer"`
+		UTMSource    string                 `json:"utm_source"`
+		UTMMedium    string                 `json:"utm_medium"`
+		UTMCampaign  string                 `json:"utm_campaign"`
+		UTMContent   string                 `json:"utm_content"`
+		UTMTerm      string                 `json:"utm_term"`
+		ClickIDs     map[string]string      `json:"clickIds"`
+		Timezone     string                 `json:"timezone"`
+		ScreenWidth  int                    `json:"screenWidth"`
+		ScreenHeight int                    `json:"screenHeight"`
+		Language     string                 `json:"language"`
+		CustomerID   string                 `json:"customerId"`
+		SellerID     string                 `json:"sellerId"`
+		Metadata     map[string]interface{} `json:"metadata"`
 	}
 
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
@@ -1633,13 +1796,16 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		return h.errorResponse(http.StatusBadRequest, "visitorId and event are required"), nil
 	}
 
-	// Skip internal users (admin, company, partner)
+	// Skip internal users (admin, company, partner). Capture the shopper's email
+	// for conversion match quality while we already have the account loaded.
+	var customerEmail string
 	if req.CustomerID != "" {
 		if oid, err := primitive.ObjectIDFromHex(req.CustomerID); err == nil {
 			if acc, err := h.db.GetAccountByID(oid); err == nil {
 				if acc.Role == storage.RoleAdmin || acc.Role == storage.RoleCompany || acc.Role == storage.RolePartner {
 					return h.successResponse(map[string]string{"status": "skipped"}, http.StatusOK), nil
 				}
+				customerEmail = acc.Email
 			}
 		}
 	}
@@ -1720,11 +1886,11 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 			IP:       ip,
 			ASN:      asn,
 		},
-		Device:     device,
-		OS:         os,
-		Browser:    browser,
-		IsBot:      isBot,
-		BotName:    botName,
+		Device:       device,
+		OS:           os,
+		Browser:      browser,
+		IsBot:        isBot,
+		BotName:      botName,
 		ScreenWidth:  req.ScreenWidth,
 		ScreenHeight: req.ScreenHeight,
 		Language:     req.Language,
@@ -1751,6 +1917,101 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		}
 	}
 
+	// Server-side ad-platform conversions (Meta CAPI; Google later). Best-effort:
+	// bounded, panic-safe, and never blocks the ingestion response. Credentials
+	// live encrypted on the seller's company account (accounts.adConversions).
+	// Results are attached to the milestone metadata below for the Analytics view.
+	if h.conversions != nil {
+		var evName string
+		switch req.Event {
+		case "order":
+			evName = "Purchase"
+		case "initiate_checkout":
+			evName = "InitiateCheckout"
+		case "add_to_cart":
+			evName = "AddToCart"
+		case "view_content":
+			evName = "ViewContent"
+		}
+		if evName != "" && req.SellerID != "" {
+			// Enabled+configured creds, served from the warm-container cache;
+			// the DB is hit only on a miss/expiry (see convCache TTL).
+			enabledCreds := h.convCache.Get(req.SellerID, func() map[string]map[string]string {
+				out := map[string]map[string]string{}
+				sellerOID, err := primitive.ObjectIDFromHex(req.SellerID)
+				if err != nil {
+					return out
+				}
+				sellerAcc, aerr := h.db.GetAccountByID(sellerOID)
+				if aerr != nil {
+					return out
+				}
+				for provider, creds := range sellerAcc.AdConversions {
+					if sellerAcc.AdConversionsEnabled[provider] {
+						out[provider] = creds
+					}
+				}
+				return out
+			})
+			if len(enabledCreds) > 0 {
+				ev := conversion.Event{
+					EventName:  evName,
+					SellerID:   req.SellerID,
+					EventTime:  now,
+					Currency:   "USD",
+					Country:    "us",
+					Email:      customerEmail,
+					ExternalID: req.VisitorID,
+					ClientIP:   ip,
+					ClientUA:   userAgent,
+					Fbclid:     req.ClickIDs["fbclid"],
+					Gclid:      req.ClickIDs["gclid"],
+				}
+				switch req.Event {
+				case "order":
+					if v, ok := req.Metadata["orderId"].(string); ok {
+						ev.EventID = v
+					}
+					ev.Value = metaFloat(req.Metadata["amount"])
+					ev.Contents = parseConversionContents(req.Metadata["items"])
+				case "initiate_checkout":
+					ev.Value = metaFloat(req.Metadata["amount"])
+					ev.Contents = parseConversionContents(req.Metadata["items"])
+					// No order exists yet, so key dedup on the visitor + hour bucket:
+					// accidental re-fires within the hour collapse at Meta; a genuine
+					// checkout in a later hour is counted.
+					ev.EventID = fmt.Sprintf("%s:ic:%d", req.VisitorID, now.Unix()/3600)
+				case "add_to_cart", "view_content":
+					pid, _ := req.Metadata["productId"].(string)
+					price := metaFloat(req.Metadata["price"])
+					if pid != "" {
+						ev.Contents = []conversion.Content{{ProductID: pid, Quantity: 1, ItemPrice: price}}
+						ev.Value = price
+						tag := "atc"
+						if req.Event == "view_content" {
+							tag = "vc"
+						}
+						// Coarse hour bucket: accidental double-fires within the
+						// hour dedup at Meta; genuine repeat views/adds across hours
+						// are counted (not collapsed).
+						ev.EventID = fmt.Sprintf("%s:%s:%s:%d", req.VisitorID, tag, pid, now.Unix()/3600)
+					}
+				}
+				// Require a dedup key: an order with no orderId, or an add_to_cart
+				// with no productId, carries no usable content and cannot be deduped
+				// at Meta (retries would double-count). Skip rather than send junk.
+				if ev.EventID != "" {
+					if results := h.conversions.Send(ev, enabledCreds); len(results) > 0 {
+						if req.Metadata == nil {
+							req.Metadata = map[string]interface{}{}
+						}
+						req.Metadata["capi"] = results
+					}
+				}
+			}
+		}
+	}
+
 	switch req.Event {
 	case "register":
 		milestone := storage.VisitorMilestone{Event: "register", Date: now, Metadata: req.Metadata}
@@ -1769,6 +2030,9 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 		}
 	case "add_to_cart":
 		milestone := storage.VisitorMilestone{Event: "add_to_cart", Page: req.Page, Date: now, Metadata: req.Metadata}
+		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+	case "initiate_checkout":
+		milestone := storage.VisitorMilestone{Event: "initiate_checkout", Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
 	case "order":
 		milestone := storage.VisitorMilestone{Event: "order", Date: now, Metadata: req.Metadata}

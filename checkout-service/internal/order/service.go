@@ -276,6 +276,8 @@ func (s *Service) GetOrders(userId string, role string, companyId string) ([]*Or
 		filter = bson.M{"sellerId": companyId}
 	case "customer", "b2c":
 		filter = bson.M{"accountId": userId}
+	case "partner":
+		filter = bson.M{"items.partnerId": userId}
 	default:
 		// For any other role, or if role is not set, return no orders
 		return []*Order{}, nil
@@ -290,6 +292,14 @@ func (s *Service) GetOrders(userId string, role string, companyId string) ([]*Or
 	var orders []*Order
 	if err = cursor.All(context.Background(), &orders); err != nil {
 		return nil, err
+	}
+	// Partner sees only their own line items on mixed-supplier orders; other
+	// items (company's own, other partners') are hidden. grandTotal and other
+	// money fields remain the whole-order value; UI shows N/A for partner.
+	if role == "partner" {
+		for _, o := range orders {
+			o.KeepOnlyItemsForPartner(userId)
+		}
 	}
 	return orders, nil
 }

@@ -75,6 +75,7 @@ const QuoteCreateForm: React.FC = () => {
           productId: product._id,
           quantity: 1,
           sellerId: product.sellerID,
+          partnerId: product.partnerId,
           name: product.name,
           price: product.price,
           discountedPrice: product.discountedPrice,
