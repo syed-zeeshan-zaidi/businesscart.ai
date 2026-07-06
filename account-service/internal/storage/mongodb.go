@@ -510,6 +510,7 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 	registered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"registered": true}))
 	ordered, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"ordered": true}))
 	cartAdds, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"milestones.event": "add_to_cart"}))
+	checkoutStarts, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"milestones.event": "initiate_checkout"}))
 	contactedUs, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{
 		"pages":                     "/contact-us",
 		"attribution.landingPage":   bson.M{"$ne": "/contact-us"},
@@ -580,13 +581,47 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		}
 	}
 
+	// Ad-conversion (CAPI) dispatch metrics from milestone metadata: unwind the
+	// per-event capi results and group by status.
+	capiResult := aggregate(mongo.Pipeline{
+		{{Key: "$unwind", Value: "$milestones"}},
+		{{Key: "$unwind", Value: "$milestones.metadata.capi"}},
+		{{Key: "$group", Value: bson.M{
+			"_id":      "$milestones.metadata.capi.status",
+			"count":    bson.M{"$sum": 1},
+			"avgMatch": bson.M{"$avg": "$milestones.metadata.capi.matchFields"},
+		}}},
+	})
+	conversionsSent, conversionsFailed := 0, 0
+	conversionsAvgMatch := 0.0
+	for _, r := range capiResult {
+		status, _ := r["_id"].(string)
+		cnt := 0
+		switch v := r["count"].(type) {
+		case int32:
+			cnt = int(v)
+		case int64:
+			cnt = int(v)
+		}
+		switch status {
+		case "sent":
+			conversionsSent = cnt
+			if v, ok := r["avgMatch"].(float64); ok {
+				conversionsAvgMatch = v
+			}
+		case "failed":
+			conversionsFailed = cnt
+		}
+	}
+
 	return map[string]interface{}{
 		"totalVisitors":    total,
 		"totalBots":        bots,
 		"totalRegistered":  registered,
 		"totalOrdered":     ordered,
-		"totalCartAdds":    cartAdds,
-		"totalContactedUs": contactedUs,
+		"totalCartAdds":       cartAdds,
+		"totalCheckoutStarts": checkoutStarts,
+		"totalContactedUs":    contactedUs,
 		"todayVisitors":    todayCount,
 		"weekVisitors":     weekCount,
 		"monthVisitors":    monthCount,
@@ -594,8 +629,11 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		"topCountries":     topCountries,
 		"devices":          devices,
 		"browsers":         browsers,
-		"totalRevenue":     totalRevenue,
-		"totalOrders":      totalOrders,
+		"totalRevenue":        totalRevenue,
+		"totalOrders":         totalOrders,
+		"conversionsSent":     conversionsSent,
+		"conversionsFailed":   conversionsFailed,
+		"conversionsAvgMatch": conversionsAvgMatch,
 	}, nil
 }
 

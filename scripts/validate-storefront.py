@@ -351,6 +351,57 @@ def step_schema():
         ok(f"google_reviews feed: schema v2.4 valid, {feed_count} reviews, matches catalog count, required fields present")
 
 
+# ─── Step 3.5: Tracking wiring (ad-conversion funnel signals) ────────────────
+def step_tracking():
+    step("Step 3.5/4: Tracking wiring (ViewContent / InitiateCheckout funnel signals)")
+
+    # Shared trackers live at the storefront root; PDPs load ../tracker.js.
+    tracker_path = f"{STOREFRONT_DIR}/tracker.js"
+    customer_path = f"{STOREFRONT_DIR}/customer.js"
+    for label, p in (("tracker.js", tracker_path), ("customer.js", customer_path)):
+        if not os.path.exists(p):
+            fail(f"tracking: {label} missing from regenerated storefront (stale binary or copy failure?)")
+            return
+
+    with open(tracker_path, encoding="utf-8") as fp:
+        tracker = fp.read()
+    with open(customer_path, encoding="utf-8") as fp:
+        customer = fp.read()
+
+    wiring_ok = True
+    for needle, desc in (
+        ("trackViewContent", "tracker.js exposes trackViewContent"),
+        ("trackInitiateCheckout", "tracker.js exposes trackInitiateCheckout"),
+        ("'view_content'", "tracker.js fires view_content"),
+        ("'initiate_checkout'", "tracker.js fires initiate_checkout"),
+    ):
+        if needle not in tracker:
+            fail(f"tracking: {desc} — '{needle}' not found in tracker.js")
+            wiring_ok = False
+    if "trackInitiateCheckout" not in customer:
+        fail("tracking: customer.js does not call trackInitiateCheckout")
+        wiring_ok = False
+
+    # Every PDP must expose the product context ViewContent reads on load.
+    pdps = sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html"))
+    if not pdps:
+        fail("tracking: no PDPs found to check window.D2C_PRODUCT")
+        return
+    missing_ctx = []
+    for p in pdps:
+        with open(p, encoding="utf-8") as fp:
+            if "window.D2C_PRODUCT" not in fp.read():
+                missing_ctx.append(os.path.basename(p))
+    if missing_ctx:
+        fail(f"tracking: {len(missing_ctx)} PDP(s) missing window.D2C_PRODUCT "
+             f"(ViewContent has no product id): {missing_ctx[:3]}")
+        wiring_ok = False
+
+    if wiring_ok:
+        ok(f"tracking wiring present: ViewContent+InitiateCheckout senders, events fired, "
+           f"{len(pdps)} PDPs expose D2C_PRODUCT")
+
+
 # ─── Step 4: Lighthouse against served storefront ───────────────────────────
 def _start_local_server():
     """Serve storefront dir on HTTP_PORT in a background thread."""
@@ -501,6 +552,7 @@ if __name__ == "__main__":
     step_regenerate()
     if failed == 0:
         step_schema()
+        step_tracking()
         step_lighthouse()
     elapsed = time.time() - start
 

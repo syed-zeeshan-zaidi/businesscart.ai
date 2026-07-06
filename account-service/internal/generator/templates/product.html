@@ -325,6 +325,11 @@
             shippingOutOptions: [[jsArray .Company.ShippingOutOptions]],
             couponsEnabled: [[.Company.CouponsEnabled]]
         };
+        // Product-level signal for ViewContent (read by tracker.js on load).
+        window.D2C_PRODUCT = {
+            id: "[[.Product.ID]]",
+            price: [[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]]
+        };
     </script>
     <script src="../tracker.js" defer></script>
     <script src="../cart.js" defer></script>

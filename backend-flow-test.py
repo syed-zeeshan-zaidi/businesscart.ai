@@ -397,6 +397,52 @@ class BackendFlowTest:
         assert_status(resp, 200, "Set customer config override")
         ok("Customer override set: creditLimit=300")
 
+        # Ad-platform conversion credentials (Meta CAPI). Verify the whole
+        # contract: creds accepted, masked info returned, the secret token is
+        # NEVER serialized back, and enable/disable toggles independently.
+        self.use_token("company1")
+        secret_token = "EAAflowtest_secret_token_9911"
+        step("Ad conversions: save Meta creds (encrypted)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "adConversions": {"meta": {"pixel_id": "111222333444", "access_token": secret_token}},
+            "adConversionsEnabled": {"meta": True},
+        })
+        assert_status(resp, 200, "Save Meta conversion creds")
+        ok("Meta creds saved")
+
+        step("Ad conversions: masked read + no token leak")
+        resp = self.api.get(f"/accounts/{c1_id}")
+        assert_status(resp, 200, "Get account after conversion save")
+        acc = resp.json()
+        info = (acc.get("adConversionsInfo") or {}).get("meta") or {}
+        assert info.get("configured") is True, f"meta not configured: {info}"
+        assert info.get("enabled") is True, f"meta not enabled: {info}"
+        assert info.get("pixelId") == "111222333444", f"pixelId: {info.get('pixelId')}"
+        assert info.get("tokenLast4") == "9911", f"tokenLast4: {info.get('tokenLast4')}"
+        assert secret_token not in resp.text, "SECURITY: full access token leaked in GET account"
+        assert "adConversions" not in acc, "raw adConversions must not be serialized (json:\"-\")"
+        ok("Masked info returned; full token never leaked; raw creds hidden")
+
+        step("Ad conversions: pause (disable) without re-entering the token")
+        resp = self.api.patch(f"/accounts/{c1_id}", {"adConversionsEnabled": {"meta": False}})
+        assert_status(resp, 200, "Disable Meta conversions")
+        info = ((self.api.get(f"/accounts/{c1_id}").json().get("adConversionsInfo") or {}).get("meta")) or {}
+        assert info.get("enabled") is False, f"meta should be disabled: {info}"
+        assert info.get("configured") is True, "creds must persist after disable"
+        assert info.get("tokenLast4") == "9911", "token must persist after disable"
+        ok("Disable flips enabled=false while creds persist")
+
+        step("Ad conversions: rotate token only, pixel_id must survive (partial-update #1)")
+        new_token = "EAAflowtest_rotated_token_7788"
+        resp = self.api.patch(f"/accounts/{c1_id}", {"adConversions": {"meta": {"access_token": new_token}}})
+        assert_status(resp, 200, "Update only access_token")
+        info = ((self.api.get(f"/accounts/{c1_id}").json().get("adConversionsInfo") or {}).get("meta")) or {}
+        assert info.get("pixelId") == "111222333444", f"pixel_id wiped by token-only update: {info.get('pixelId')}"
+        assert info.get("tokenLast4") == "7788", f"token not rotated: {info.get('tokenLast4')}"
+        assert info.get("configured") is True, "still configured after partial update"
+        assert new_token not in resp.text, "SECURITY: rotated token leaked in PATCH response"
+        ok("Token-only update rotated token, preserved pixel_id (no data loss)")
+
     # ── Phase 3: Catalog ─────────────────────────────────────────
 
     def phase3_catalog(self):

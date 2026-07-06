@@ -133,8 +133,14 @@
         trackAddToCart: function (productId, productName, price) {
             try { send('add_to_cart', window.location.pathname, { productId: productId, productName: productName, price: price }); } catch (e) {}
         },
-        trackOrder: function (orderId, amount) {
-            try { send('order', window.location.pathname, { orderId: orderId, amount: amount }); } catch (e) {}
+        trackViewContent: function (productId, price) {
+            try { send('view_content', window.location.pathname, { productId: productId, price: price }); } catch (e) {}
+        },
+        trackInitiateCheckout: function (amount, items) {
+            try { send('initiate_checkout', window.location.pathname, { amount: amount, items: items || [] }); } catch (e) {}
+        },
+        trackOrder: function (orderId, amount, items) {
+            try { send('order', window.location.pathname, { orderId: orderId, amount: amount, items: items || [] }); } catch (e) {}
         },
         trackRegister: function (customerId) {
             try { send('register', window.location.pathname, { customerId: customerId }); } catch (e) {}
@@ -149,4 +155,12 @@
         ssSet(SESSION_KEY, '1');
         send('page_view', window.location.pathname);
     }
+
+    // ViewContent on product pages (product.html sets D2C_PRODUCT). Async
+    // fire-and-forget like page_view — no render-blocking, no Lighthouse impact.
+    // Deduped server-side per visitor+product+hour.
+    try {
+        var vp = window.D2C_PRODUCT;
+        if (vp && vp.id) { window.D2C_TRACKER.trackViewContent(vp.id, vp.price); }
+    } catch (e) {}
 })();

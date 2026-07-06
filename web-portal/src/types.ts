@@ -32,6 +32,13 @@ export interface Account {
   partner?: PartnerData;
   address?: Address;
   password?: string;
+  // Ad-platform conversion credentials. Write-only: provider -> { field -> value }
+  // (e.g. { meta: { pixel_id, access_token } }); the raw token is never returned.
+  adConversions?: Record<string, Record<string, string>>;
+  // Per-provider on/off switch (write). A provider only dispatches when true.
+  adConversionsEnabled?: Record<string, boolean>;
+  // Read-only masked status for the UI: provider -> { configured, enabled, pixelId, tokenLast4 }.
+  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; tokenLast4?: string }>;
 }
 
 export interface Attribute {
