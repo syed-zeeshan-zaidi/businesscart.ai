@@ -16,6 +16,7 @@ import {
   XMarkIcon,
   ShoppingCartIcon,
   EnvelopeIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 interface Stats {
@@ -35,6 +36,7 @@ interface Stats {
   browsers: { _id: string; count: number }[];
   totalRevenue: number;
   totalOrders: number;
+  productViewsSent: number;
   conversionsSent: number;
   conversionsFailed: number;
   conversionsAvgMatch: number;
@@ -314,6 +316,12 @@ const Analytics: React.FC = () => {
                   label="Ad Conversions Sent"
                   value={stats.conversionsSent ?? 0}
                   sub={`${stats.conversionsFailed ?? 0} failed · ${stats.conversionsAvgMatch > 0 ? `${stats.conversionsAvgMatch.toFixed(0)} match fields` : '—'}`}
+                />
+                <StatCard
+                  icon={EyeIcon}
+                  label="Product Views Sent"
+                  value={stats.productViewsSent ?? 0}
+                  sub="ViewContent → Meta"
                 />
               </div>
 

@@ -2034,6 +2034,21 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	case "initiate_checkout":
 		milestone := storage.VisitorMilestone{Event: "initiate_checkout", Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+	case "view_content":
+		// ViewContent is not persisted as a milestone (avoids per-view bloat under
+		// high storefront view volume). Tally successful CAPI sends on a counter
+		// for the "Product Views Sent" analytics tile.
+		if capi, ok := req.Metadata["capi"].([]conversion.Result); ok {
+			sent := 0
+			for _, r := range capi {
+				if r.Status == "sent" {
+					sent++
+				}
+			}
+			if sent > 0 {
+				logErr("incViewContentSent", h.db.IncVisitorViewContentSent(req.VisitorID, sent))
+			}
+		}
 	case "order":
 		milestone := storage.VisitorMilestone{Event: "order", Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))

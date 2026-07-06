@@ -417,6 +417,19 @@ func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) 
 	return err
 }
 
+// IncVisitorViewContentSent tallies successful ViewContent CAPI sends without
+// persisting a per-view milestone (avoids unbounded milestones[] growth under
+// high storefront view volume). Summed in GetVisitorStats for the analytics tile.
+func (db *DB) IncVisitorViewContentSent(visitorID string, n int) error {
+	if n <= 0 {
+		return nil
+	}
+	_, err := db.visitors.UpdateOne(context.Background(),
+		bson.M{"visitorId": visitorID},
+		bson.M{"$inc": bson.M{"viewContentSent": n}, "$set": bson.M{"updatedAt": time.Now()}})
+	return err
+}
+
 func (db *DB) DeleteVisitor(visitorID string) error {
 	_, err := db.visitors.DeleteOne(context.Background(), bson.M{"visitorId": visitorID})
 	return err
@@ -592,6 +605,22 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 			"avgMatch": bson.M{"$avg": "$milestones.metadata.capi.matchFields"},
 		}}},
 	})
+	// Product Views Sent: successful ViewContent CAPI sends, tallied on a
+	// per-visitor counter (not milestones) so views are not double-counted as
+	// "conversions" above and don't bloat milestones[].
+	pvResult := aggregate(mongo.Pipeline{
+		{{Key: "$group", Value: bson.M{"_id": nil, "n": bson.M{"$sum": "$viewContentSent"}}}},
+	})
+	productViewsSent := 0
+	if len(pvResult) > 0 {
+		switch v := pvResult[0]["n"].(type) {
+		case int32:
+			productViewsSent = int(v)
+		case int64:
+			productViewsSent = int(v)
+		}
+	}
+
 	conversionsSent, conversionsFailed := 0, 0
 	conversionsAvgMatch := 0.0
 	for _, r := range capiResult {
@@ -631,6 +660,7 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		"browsers":         browsers,
 		"totalRevenue":        totalRevenue,
 		"totalOrders":         totalOrders,
+		"productViewsSent":    productViewsSent,
 		"conversionsSent":     conversionsSent,
 		"conversionsFailed":   conversionsFailed,
 		"conversionsAvgMatch": conversionsAvgMatch,
