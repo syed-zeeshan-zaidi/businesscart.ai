@@ -1937,7 +1937,13 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	// bounded, panic-safe, and never blocks the ingestion response. Credentials
 	// live encrypted on the seller's company account (accounts.adConversions).
 	// Results are attached to the milestone metadata below for the Analytics view.
-	if h.conversions != nil {
+	//
+	// Skip bots: a crawler's ViewContent/etc. must not be sent to ad platforms
+	// (pollutes optimization + inflates "conversions sent"). detectBot only flags
+	// UAs carrying a bot token or datacenter-ASN traffic without "mozilla", so a
+	// real browser (always "Mozilla/...") is never gated — no real conversion is
+	// dropped. Bots are still recorded in analytics above; only the send is skipped.
+	if h.conversions != nil && !isBot {
 		var evName string
 		switch req.Event {
 		case "order":

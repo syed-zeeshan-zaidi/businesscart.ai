@@ -160,6 +160,39 @@ func TestBuildAdConversionSetFieldsRejectsUnknownProvider(t *testing.T) {
 	}
 }
 
+// TestDetectBotGatesCorrectly is the safety guard for gating CAPI dispatch on
+// !isBot: real browsers must NEVER be flagged (else a real conversion is dropped),
+// while crawlers/datacenter noise must be. Real browser UAs always contain
+// "Mozilla", which is the escape hatch for the datacenter-ASN rule.
+func TestDetectBotGatesCorrectly(t *testing.T) {
+	realChrome := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+	realSafariIOS := "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+
+	cases := []struct {
+		name    string
+		ua      string
+		asn     string
+		wantBot bool
+	}{
+		// Real humans — MUST NOT be gated (these carry the ad clicks + purchases).
+		{"real chrome, home ISP", realChrome, "7922", false},
+		{"real safari iOS", realSafariIOS, "20057", false},
+		// A real browser even on a datacenter/VPN ASN is saved by the "mozilla" check.
+		{"real chrome on datacenter ASN (VPN)", realChrome, "16509", false},
+		// Known crawlers — MUST be gated.
+		{"googlebot", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "15169", true},
+		{"bingbot", "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)", "8075", true},
+		{"gptbot", "Mozilla/5.0 (compatible; GPTBot/1.1; +https://openai.com/gptbot)", "8075", true},
+		// Non-browser client from a datacenter ASN (no "mozilla") — gated.
+		{"curl from datacenter", "curl/8.4.0", "16509", true},
+	}
+	for _, c := range cases {
+		if got, _ := detectBot(c.ua, c.asn); got != c.wantBot {
+			t.Errorf("%s: detectBot=%v, want %v", c.name, got, c.wantBot)
+		}
+	}
+}
+
 func TestBuildAdConversionsInfoEmpty(t *testing.T) {
 	h := &LambdaHandler{convKey: conversion.DeriveKey("x")}
 	acc := &storage.Account{}
