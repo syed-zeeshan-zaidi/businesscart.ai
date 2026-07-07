@@ -7,7 +7,6 @@ import { Account } from '../types';
 import {
   UsersIcon,
   GlobeAltIcon,
-  DevicePhoneMobileIcon,
   CurrencyDollarIcon,
   ArrowPathIcon,
   ChevronLeftIcon,
@@ -40,6 +39,12 @@ interface Stats {
   conversionsSent: number;
   conversionsFailed: number;
   conversionsAvgMatch: number;
+  conversionsByProvider?: { _id: string; count: number }[];
+  cartAddsBySource?: { _id: string; count: number }[];
+  checkoutBySource?: { _id: string; count: number }[];
+  orderedBySource?: { _id: string; count: number }[];
+  registeredBySource?: { _id: string; count: number }[];
+  revenueBySource?: { _id: string; count: number }[];
 }
 
 interface Visitor {
@@ -73,20 +78,99 @@ interface Visitor {
   errorLog: string[];
 }
 
-const StatCard = ({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string | number; sub?: string }) => (
-  <div className="bg-white p-5 rounded-lg shadow flex items-center gap-4">
-    <Icon className="h-10 w-10 text-teal-700 shrink-0" />
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
+// Consistent channel palette: the same colour means the same channel on every
+// tile (Google stays blue from Visitors to Revenue). Unknown sources → "other".
+const CHANNEL_COLORS: Record<string, string> = {
+  google: '#4285F4',
+  meta: '#7c3aed', facebook: '#7c3aed', fb: '#7c3aed', instagram: '#7c3aed', ig: '#7c3aed',
+  direct: '#64748b',
+  bing: '#0ea5a4',
+  organic: '#10b981',
+};
+const OTHER_COLOR = '#c3cbd6';
+const channelColor = (name: string) => CHANNEL_COLORS[(name || '').toLowerCase()] || OTHER_COLOR;
+
+// ChannelBar: a slim segmented bar (top 3 + "other") plus labelled counts, so a
+// tile shows its total AND where that total came from in one glance. Collapses
+// to nothing below a volume threshold rather than rendering a bar of zeros.
+const ChannelBar = ({ data, topN = 3, format = (n: number) => n.toLocaleString() }: { data?: { _id: string; count: number }[]; topN?: number; format?: (n: number) => string }) => {
+  const rows = (data ?? []).filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
+  const total = rows.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return null;
+  const top = rows.slice(0, topN);
+  const otherCount = rows.slice(topN).reduce((s, d) => s + d.count, 0);
+  const segments = otherCount > 0 ? [...top, { _id: 'other', count: otherCount }] : top;
+  return (
+    <div className="mt-3">
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        {segments.map((d) => (
+          <div key={d._id || 'other'} style={{ width: `${(d.count / total) * 100}%`, backgroundColor: channelColor(d._id) }} />
+        ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+        {top.map((d) => (
+          <span key={d._id || 'other'} className="flex items-center gap-1 text-[11px] text-gray-500">
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: channelColor(d._id) }} />
+            <span className="capitalize">{d._id || 'other'}</span>
+            <span className="font-semibold text-gray-700 tabular-nums">{format(d.count)}</span>
+          </span>
+        ))}
+      </div>
     </div>
+  );
+};
+
+// Money formatter for revenue-by-source chips ($3,940).
+const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+// StatCard: small icon + label header (icon identifies the metric without
+// competing with the number), big value, optional sub + channel breakdown.
+const StatCard = ({ icon: Icon, label, value, sub, breakdown, format, className = '' }: { icon: React.ElementType; label: string; value: string | number; sub?: string; breakdown?: { _id: string; count: number }[]; format?: (n: number) => string; className?: string }) => (
+  <div className={`bg-white rounded-lg shadow p-4 flex flex-col ${className}`}>
+    <div className="flex items-center gap-1.5 text-gray-500">
+      <Icon className="h-4 w-4 text-teal-700 shrink-0" />
+      <span className="text-[11px] font-semibold uppercase tracking-wide truncate">{label}</span>
+    </div>
+    <p className="mt-2 text-2xl font-bold text-gray-800 tabular-nums leading-none">{value}</p>
+    {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+    {breakdown && <ChannelBar data={breakdown} format={format} />}
   </div>
 );
 
+// FunnelArrow connects two funnel stages, carrying the step-conversion rate.
+// Desktop only; on mobile the tiles stack and the arrows are hidden.
+const FunnelArrow = ({ pct }: { pct?: string }) => (
+  <div className="hidden lg:flex w-6 flex-none flex-col items-center justify-center text-gray-300" aria-hidden="true">
+    <span className="text-lg leading-none">&rarr;</span>
+    {pct && <span className="mt-0.5 text-[10px] text-gray-400 tabular-nums">{pct}</span>}
+  </div>
+);
+
+const CHANNEL_LEGEND: [string, string][] = [['Google', 'google'], ['Meta / FB', 'meta'], ['Direct', 'direct'], ['Organic', 'organic'], ['Other', 'other']];
+const ChannelLegend = () => (
+  <ul className="flex flex-wrap gap-x-4 gap-y-1 mb-4 p-0 list-none">
+    {CHANNEL_LEGEND.map(([name, key]) => (
+      <li key={key} className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-gray-500">
+        <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: key === 'other' ? OTHER_COLOR : channelColor(key) }} />
+        {name}
+      </li>
+    ))}
+  </ul>
+);
+
+const BandLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 mb-3">
+    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{children}</span>
+    <span className="h-px flex-1 bg-gray-200" />
+  </div>
+);
+
+// step-conversion rate a/b as a display string, or undefined when b is 0.
+const rate = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : undefined);
 
 
-const BreakdownTable = ({ title, data }: { title: string; data: { _id: string; count: number }[] }) => {
+
+const BreakdownTable = ({ title, data, colorBy }: { title: string; data: { _id: string; count: number }[]; colorBy?: (id: string) => string }) => {
   const [expanded, setExpanded] = useState(false);
   const limit = 5;
   const visible = expanded ? data : data?.slice(0, limit);
@@ -109,7 +193,7 @@ const BreakdownTable = ({ title, data }: { title: string; data: { _id: string; c
                   <span className="text-gray-500">{item.count}</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-teal-700 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="h-2 rounded-full" style={{ width: `${pct}%`, backgroundColor: colorBy ? colorBy(item._id) : '#0f766e' }} />
                 </div>
               </div>
             );
@@ -299,34 +383,40 @@ const Analytics: React.FC = () => {
 
           {stats && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <StatCard icon={UsersIcon} label="Total Visitors" value={stats.totalVisitors} sub={`${stats.todayVisitors} today · ${stats.totalBots} bots (${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%)`} />
-                <StatCard icon={ShoppingCartIcon} label="Cart Adds" value={stats.totalCartAdds} sub={stats.totalCartAdds > 0 ? `${(((stats.totalCheckoutStarts ?? 0) / stats.totalCartAdds) * 100).toFixed(1)}% to checkout` : '—'} />
-                <StatCard icon={ShoppingCartIcon} label="Checkout Started" value={stats.totalCheckoutStarts ?? 0} sub={(stats.totalCheckoutStarts ?? 0) > 0 ? `${((stats.totalOrdered / (stats.totalCheckoutStarts ?? 1)) * 100).toFixed(1)}% to order` : '—'} />
-                <StatCard icon={GlobeAltIcon} label="Registered" value={stats.totalRegistered} sub={`${stats.totalVisitors > 0 ? ((stats.totalRegistered / stats.totalVisitors) * 100).toFixed(1) : 0}% conversion`} />
-                <StatCard icon={UsersIcon} label="Ordered" value={stats.totalOrdered} sub={`${stats.totalRegistered > 0 ? ((stats.totalOrdered / stats.totalRegistered) * 100).toFixed(1) : 0}% of registered`} />
-                <StatCard icon={CurrencyDollarIcon} label="Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} sub={`${stats.totalOrders} orders`} />
-                {isAdmin && (scope === '' || scope === 'portal') ? (
-                  <StatCard icon={EnvelopeIcon} label="Contacted Us" value={stats.totalContactedUs} sub={stats.totalVisitors > 0 ? `${((stats.totalContactedUs / stats.totalVisitors) * 100).toFixed(1)}% of visitors` : '—'} />
-                ) : (
-                  <StatCard icon={DevicePhoneMobileIcon} label="Bots" value={stats.totalBots} sub={`${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%`} />
+              <ChannelLegend />
+
+              <BandLabel>Acquisition funnel</BandLabel>
+              <div className="flex flex-wrap lg:flex-nowrap items-stretch gap-3 mb-8">
+                <StatCard className="flex-[1_1_45%] lg:flex-1 min-w-0" icon={UsersIcon} label="Visitors" value={stats.totalVisitors}
+                  sub={`${stats.todayVisitors} today · ${stats.totalBots} bots (${stats.totalVisitors > 0 ? ((stats.totalBots / stats.totalVisitors) * 100).toFixed(1) : 0}%)`}
+                  breakdown={stats.topSources} />
+                <FunnelArrow pct={rate(stats.totalCartAdds, stats.totalVisitors)} />
+                <StatCard className="flex-[1_1_45%] lg:flex-1 min-w-0" icon={ShoppingCartIcon} label="Cart Adds" value={stats.totalCartAdds} breakdown={stats.cartAddsBySource} />
+                <FunnelArrow pct={rate(stats.totalCheckoutStarts ?? 0, stats.totalCartAdds)} />
+                <StatCard className="flex-[1_1_45%] lg:flex-1 min-w-0" icon={ShoppingCartIcon} label="Checkout Started" value={stats.totalCheckoutStarts ?? 0} breakdown={stats.checkoutBySource} />
+                <FunnelArrow pct={rate(stats.totalOrdered, stats.totalCheckoutStarts ?? 0)} />
+                <StatCard className="flex-[1_1_45%] lg:flex-1 min-w-0" icon={UsersIcon} label="Ordered" value={stats.totalOrdered} breakdown={stats.orderedBySource} />
+                <FunnelArrow />
+                <StatCard className="flex-[1_1_45%] lg:flex-1 min-w-0" icon={CurrencyDollarIcon} label="Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} sub={`${stats.totalOrders} orders`} breakdown={stats.revenueBySource} format={money} />
+              </div>
+
+              <BandLabel>Diagnostics &amp; ad delivery</BandLabel>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <StatCard icon={GlobeAltIcon} label="Registered" value={stats.totalRegistered}
+                  sub={`${stats.totalVisitors > 0 ? ((stats.totalRegistered / stats.totalVisitors) * 100).toFixed(1) : 0}% conversion`}
+                  breakdown={stats.registeredBySource} />
+                {isAdmin && (scope === '' || scope === 'portal') && (
+                  <StatCard icon={EnvelopeIcon} label="Contacted Us" value={stats.totalContactedUs}
+                    sub={stats.totalVisitors > 0 ? `${((stats.totalContactedUs / stats.totalVisitors) * 100).toFixed(1)}% of visitors` : '—'} />
                 )}
-                <StatCard
-                  icon={GlobeAltIcon}
-                  label="Ad Conversions Sent"
-                  value={stats.conversionsSent ?? 0}
+                <StatCard icon={GlobeAltIcon} label="Ad Conversions Sent" value={stats.conversionsSent ?? 0}
                   sub={`${stats.conversionsFailed ?? 0} failed · ${stats.conversionsAvgMatch > 0 ? `${stats.conversionsAvgMatch.toFixed(0)} match fields` : '—'}`}
-                />
-                <StatCard
-                  icon={EyeIcon}
-                  label="Product Views Sent"
-                  value={stats.productViewsSent ?? 0}
-                  sub="ViewContent → Meta"
-                />
+                  breakdown={stats.conversionsByProvider} />
+                <StatCard icon={EyeIcon} label="Product Views Sent" value={stats.productViewsSent ?? 0} sub="ViewContent → Meta / Google" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <BreakdownTable title="Top Sources" data={stats.topSources} />
+                <BreakdownTable title="Top Sources" data={stats.topSources} colorBy={channelColor} />
                 <BreakdownTable title="Top Countries" data={stats.topCountries} />
                 <BreakdownTable title="Devices" data={stats.devices} />
                 <BreakdownTable title="Browsers" data={stats.browsers} />
@@ -425,8 +515,8 @@ const Analytics: React.FC = () => {
                     <th className="px-4 py-3 font-medium">Device</th>
                     <th className="px-4 py-3 font-medium">Pages</th>
                     <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Orders</th>
-                    <th className="px-4 py-3 font-medium">Revenue</th>
+                    <th className="px-4 py-3 font-medium text-right">Orders</th>
+                    <th className="px-4 py-3 font-medium text-right">Revenue</th>
                     <th className="px-4 py-3 font-medium">First Visit</th>
                     <th className="px-4 py-3 font-medium">Last Visit</th>
                   </tr>
@@ -462,7 +552,8 @@ const Analytics: React.FC = () => {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <ChevronRightIcon className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                <span className="font-medium text-gray-800">{source}</span>
+                                <span className="h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: channelColor(source) }} />
+                                <span className="font-medium text-gray-800 capitalize">{source}</span>
                                 <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{group.length}</span>
                               </div>
                             </td>
@@ -479,13 +570,13 @@ const Analytics: React.FC = () => {
                                 {registered > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{registered}</span>}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-center text-gray-800">{totalOrders}</td>
-                            <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{totalRevenue ? `$${totalRevenue.toFixed(2)}` : '-'}</td>
+                            <td className="px-4 py-3 text-right tabular-nums text-gray-800">{totalOrders}</td>
+                            <td className="px-4 py-3 text-right tabular-nums text-gray-800 whitespace-nowrap">{totalRevenue ? `$${totalRevenue.toFixed(2)}` : '-'}</td>
                             <td className="px-4 py-3" />
                             <td className="px-4 py-3" />
                           </tr>
                           {isExpanded && group.map((v) => (
-                            <tr key={v.visitorId} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelected(v)}>
+                            <tr key={v.visitorId} className={`hover:bg-gray-50 cursor-pointer ${v.isBot ? 'opacity-60' : ''}`} onClick={() => setSelected(v)}>
                               <td className="px-4 py-3 pl-10">
                                 <div className="text-gray-800">{v.attribution?.source || '-'}</div>
                                 <div className="text-xs text-gray-400">{v.attribution?.medium || ''}{v.attribution?.campaign ? ` / ${v.attribution.campaign}` : ''}</div>
@@ -516,8 +607,8 @@ const Analytics: React.FC = () => {
                                   <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">Visitor</span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-center text-gray-800">{v.totalOrders || 0}</td>
-                              <td className="px-4 py-3 text-gray-800 whitespace-nowrap">{v.totalRevenue ? `$${v.totalRevenue.toFixed(2)}` : '-'}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-gray-800">{v.totalOrders || 0}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-gray-800 whitespace-nowrap">{v.totalRevenue ? `$${v.totalRevenue.toFixed(2)}` : '-'}</td>
                               <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.firstVisit)}</td>
                               <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(v.lastVisit)}</td>
                             </tr>

@@ -594,13 +594,57 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		}
 	}
 
-	// Ad-conversion (CAPI) dispatch metrics from milestone metadata: unwind the
-	// per-event capi results and group by status.
+	// Per-source funnel breakdown in ONE pass: group all in-scope visitors by
+	// attribution.source and, with conditional sums, get cart-adds / checkouts /
+	// ordered / registered / revenue per source at once — five channel breakdowns
+	// from a single scan instead of five separate aggregations.
+	milestoneEvents := bson.M{"$ifNull": bson.A{"$milestones.event", bson.A{}}}
+	funnelBySource := aggregate(mongo.Pipeline{
+		{{Key: "$group", Value: bson.M{
+			"_id":        "$attribution.source",
+			"cartAdds":   bson.M{"$sum": bson.M{"$cond": bson.A{bson.M{"$in": bson.A{"add_to_cart", milestoneEvents}}, 1, 0}}},
+			"checkouts":  bson.M{"$sum": bson.M{"$cond": bson.A{bson.M{"$in": bson.A{"initiate_checkout", milestoneEvents}}, 1, 0}}},
+			"ordered":    bson.M{"$sum": bson.M{"$cond": bson.A{"$ordered", 1, 0}}},
+			"registered": bson.M{"$sum": bson.M{"$cond": bson.A{"$registered", 1, 0}}},
+			"revenue":    bson.M{"$sum": "$totalRevenue"},
+		}}},
+	})
+	numOf := func(v interface{}) float64 {
+		switch x := v.(type) {
+		case int32:
+			return float64(x)
+		case int64:
+			return float64(x)
+		case float64:
+			return x
+		}
+		return 0
+	}
+	// bySource reshapes the single funnel result into the {_id, count}[] the UI's
+	// ChannelBar expects for one metric; zero rows dropped, frontend sorts.
+	bySource := func(field string) []map[string]interface{} {
+		out := make([]map[string]interface{}, 0, len(funnelBySource))
+		for _, r := range funnelBySource {
+			if n := numOf(r[field]); n > 0 {
+				out = append(out, map[string]interface{}{"_id": r["_id"], "count": n})
+			}
+		}
+		return out
+	}
+
+	// Ad-conversion (CAPI) metrics from milestone metadata in ONE pass: unwind the
+	// per-event capi results and group by (status, provider). A single unwind/scan
+	// yields the sent/failed totals, the average match fields, AND the per-provider
+	// sent breakdown for the Ad Conversions tile — no second aggregation over the
+	// collection.
 	capiResult := aggregate(mongo.Pipeline{
 		{{Key: "$unwind", Value: "$milestones"}},
 		{{Key: "$unwind", Value: "$milestones.metadata.capi"}},
 		{{Key: "$group", Value: bson.M{
-			"_id":      "$milestones.metadata.capi.status",
+			"_id": bson.M{
+				"status":   "$milestones.metadata.capi.status",
+				"provider": "$milestones.metadata.capi.provider",
+			},
 			"count":    bson.M{"$sum": 1},
 			"avgMatch": bson.M{"$avg": "$milestones.metadata.capi.matchFields"},
 		}}},
@@ -623,8 +667,12 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 
 	conversionsSent, conversionsFailed := 0, 0
 	conversionsAvgMatch := 0.0
+	matchWeighted := 0.0 // Σ(avgMatch·count) over sent groups → overall sent avg
+	providerSent := map[string]int{}
 	for _, r := range capiResult {
-		status, _ := r["_id"].(string)
+		id, _ := r["_id"].(primitive.M)
+		status, _ := id["status"].(string)
+		provider, _ := id["provider"].(string)
 		cnt := 0
 		switch v := r["count"].(type) {
 		case int32:
@@ -634,13 +682,25 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		}
 		switch status {
 		case "sent":
-			conversionsSent = cnt
+			conversionsSent += cnt
 			if v, ok := r["avgMatch"].(float64); ok {
-				conversionsAvgMatch = v
+				matchWeighted += v * float64(cnt)
+			}
+			if provider != "" {
+				providerSent[provider] += cnt
 			}
 		case "failed":
-			conversionsFailed = cnt
+			conversionsFailed += cnt
 		}
+	}
+	if conversionsSent > 0 {
+		conversionsAvgMatch = matchWeighted / float64(conversionsSent)
+	}
+	// Per-provider sent breakdown (meta/google) for the Ad Conversions tile.
+	// Only ever a handful of providers; the frontend sorts for display.
+	conversionsByProvider := make([]map[string]interface{}, 0, len(providerSent))
+	for p, c := range providerSent {
+		conversionsByProvider = append(conversionsByProvider, map[string]interface{}{"_id": p, "count": c})
 	}
 
 	return map[string]interface{}{
@@ -663,7 +723,13 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 		"productViewsSent":    productViewsSent,
 		"conversionsSent":     conversionsSent,
 		"conversionsFailed":   conversionsFailed,
-		"conversionsAvgMatch": conversionsAvgMatch,
+		"conversionsAvgMatch":   conversionsAvgMatch,
+		"conversionsByProvider": conversionsByProvider,
+		"cartAddsBySource":      bySource("cartAdds"),
+		"checkoutBySource":      bySource("checkouts"),
+		"orderedBySource":       bySource("ordered"),
+		"registeredBySource":    bySource("registered"),
+		"revenueBySource":       bySource("revenue"),
 	}, nil
 }
 
