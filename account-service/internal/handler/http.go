@@ -61,6 +61,7 @@ func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName
 		convKey = k
 		convRegistry := conversion.NewRegistry()
 		convRegistry.Register(conversion.NewMetaDispatcher())
+		convRegistry.Register(conversion.NewGoogleDispatcher())
 		conversions = conversion.NewService(convRegistry, convKey)
 		log.Println("Ad-conversion tracking initialized.")
 	}
@@ -843,15 +844,30 @@ func (h *LambdaHandler) buildAdConversionsInfo(acc *storage.Account) {
 	info := make(map[string]storage.AdConversionInfo, len(acc.AdConversions))
 	for provider, creds := range acc.AdConversions {
 		ci := storage.AdConversionInfo{Configured: true, Enabled: acc.AdConversionsEnabled[provider]}
-		if enc, ok := creds["pixel_id"]; ok {
-			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil {
-				ci.PixelID = v
+		// dec decrypts a stored field in memory; "" on absence/failure.
+		dec := func(field string) string {
+			if enc, ok := creds[field]; ok {
+				if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil {
+					return v
+				}
 			}
+			return ""
 		}
-		if enc, ok := creds["access_token"]; ok {
-			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil && len(v) >= 4 {
-				ci.TokenLast4 = v[len(v)-4:]
+		last4 := func(s string) string {
+			if len(s) >= 4 {
+				return s[len(s)-4:]
 			}
+			return ""
+		}
+		switch provider {
+		case conversion.ProviderMeta:
+			ci.PixelID = dec("pixel_id")
+			ci.TokenLast4 = last4(dec("access_token"))
+		case conversion.ProviderGoogle:
+			// Non-secret account/config IDs shown in full; refresh_token hinted.
+			ci.CustomerID = dec("customer_id")
+			ci.ConversionActionID = dec("conversion_action_id")
+			ci.TokenLast4 = last4(dec("refresh_token"))
 		}
 		info[provider] = ci
 	}

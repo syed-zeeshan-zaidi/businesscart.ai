@@ -37,8 +37,8 @@ export interface Account {
   adConversions?: Record<string, Record<string, string>>;
   // Per-provider on/off switch (write). A provider only dispatches when true.
   adConversionsEnabled?: Record<string, boolean>;
-  // Read-only masked status for the UI: provider -> { configured, enabled, pixelId, tokenLast4 }.
-  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; tokenLast4?: string }>;
+  // Read-only masked status for the UI: provider -> masked, secret-free status.
+  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; customerId?: string; conversionActionId?: string; tokenLast4?: string }>;
 }
 
 export interface Attribute {

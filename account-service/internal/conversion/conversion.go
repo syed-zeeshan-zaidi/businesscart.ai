@@ -16,14 +16,15 @@ import (
 
 // Provider names.
 const (
-	ProviderMeta = "meta"
+	ProviderMeta   = "meta"
+	ProviderGoogle = "google"
 )
 
 // supportedProviders is the allowlist of providers that have a real dispatcher.
 // The dispatch path already ignores unknown providers, but inbound config is
 // also validated against this so arbitrary provider keys never get persisted on
-// the account document. Extend when a new dispatcher is added (e.g. Google).
-var supportedProviders = map[string]bool{ProviderMeta: true}
+// the account document.
+var supportedProviders = map[string]bool{ProviderMeta: true, ProviderGoogle: true}
 
 // IsSupportedProvider reports whether name is a known ad-conversion provider.
 func IsSupportedProvider(name string) bool { return supportedProviders[name] }
@@ -68,7 +69,8 @@ type Event struct {
 // SendResult is a dispatcher's success detail.
 type SendResult struct {
 	ProviderRef string
-	MatchFields int // number of user_data match keys sent (EMQ proxy for analytics)
+	MatchFields int  // number of user_data match keys sent (EMQ proxy for analytics)
+	Skipped     bool // deliberate no-op (event not applicable, e.g. no gclid); not a failure
 }
 
 // Result is the neutral outcome of one provider dispatch, surfaced to analytics.

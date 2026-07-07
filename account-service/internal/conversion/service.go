@@ -65,6 +65,9 @@ func (s *Service) Send(ev Event, encCredsByProvider map[string]map[string]string
 			results = append(results, Result{Provider: provider, Status: "failed", Error: err.Error()})
 			continue
 		}
+		if res.Skipped {
+			continue // deliberate no-op (e.g. no gclid on organic traffic): not a conversion, not a failure
+		}
 		log.Printf("[conversion] %s %s sent id=%s ref=%s match=%d", provider, ev.EventName, ev.EventID, res.ProviderRef, res.MatchFields)
 		results = append(results, Result{
 			Provider:    provider,
