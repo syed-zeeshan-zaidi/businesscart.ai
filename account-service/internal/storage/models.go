@@ -270,10 +270,17 @@ type Account struct {
 }
 
 // AdConversionInfo is the masked, display-safe status of a provider's creds.
+// Non-secret identifiers (pixelId, customerId, conversionActionId) are shown in
+// full; the sensitive token/secret is only ever hinted at as its last 4 chars.
 type AdConversionInfo struct {
 	Configured bool   `json:"configured"`
 	Enabled    bool   `json:"enabled"`
-	PixelID    string `json:"pixelId,omitempty"`
+	// Meta
+	PixelID string `json:"pixelId,omitempty"`
+	// Google
+	CustomerID         string `json:"customerId,omitempty"`
+	ConversionActionID string `json:"conversionActionId,omitempty"`
+	// Sensitive-token last-4 hint (Meta access_token / Google refresh_token).
 	TokenLast4 string `json:"tokenLast4,omitempty"`
 }
 
@@ -333,6 +340,9 @@ type Visitor struct {
 	FirstOrderAt   *time.Time         `bson:"firstOrderAt,omitempty" json:"firstOrderAt,omitempty"`
 	TotalOrders    int                `bson:"totalOrders" json:"totalOrders"`
 	TotalRevenue   float64            `bson:"totalRevenue" json:"totalRevenue"`
+	// ViewContentSent tallies successful ViewContent CAPI sends for this visitor.
+	// Counter (not a per-view milestone) to avoid unbounded milestones[] growth.
+	ViewContentSent int `bson:"viewContentSent,omitempty" json:"viewContentSent,omitempty"`
 	DaysToRegister *int               `bson:"daysToRegister,omitempty" json:"daysToRegister,omitempty"`
 	DaysToOrder    *int               `bson:"daysToOrder,omitempty" json:"daysToOrder,omitempty"`
 	ErrorLog       []string           `bson:"errorLog,omitempty" json:"errorLog,omitempty"`

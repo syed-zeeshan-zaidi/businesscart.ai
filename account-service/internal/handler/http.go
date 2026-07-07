@@ -61,6 +61,7 @@ func NewLambdaHandler(db *storage.DB, jwtSecret, jwtRefreshSecret, d2cBucketName
 		convKey = k
 		convRegistry := conversion.NewRegistry()
 		convRegistry.Register(conversion.NewMetaDispatcher())
+		convRegistry.Register(conversion.NewGoogleDispatcher())
 		conversions = conversion.NewService(convRegistry, convKey)
 		log.Println("Ad-conversion tracking initialized.")
 	}
@@ -843,15 +844,30 @@ func (h *LambdaHandler) buildAdConversionsInfo(acc *storage.Account) {
 	info := make(map[string]storage.AdConversionInfo, len(acc.AdConversions))
 	for provider, creds := range acc.AdConversions {
 		ci := storage.AdConversionInfo{Configured: true, Enabled: acc.AdConversionsEnabled[provider]}
-		if enc, ok := creds["pixel_id"]; ok {
-			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil {
-				ci.PixelID = v
+		// dec decrypts a stored field in memory; "" on absence/failure.
+		dec := func(field string) string {
+			if enc, ok := creds[field]; ok {
+				if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil {
+					return v
+				}
 			}
+			return ""
 		}
-		if enc, ok := creds["access_token"]; ok {
-			if v, derr := conversion.Decrypt(h.convKey, enc); derr == nil && len(v) >= 4 {
-				ci.TokenLast4 = v[len(v)-4:]
+		last4 := func(s string) string {
+			if len(s) >= 4 {
+				return s[len(s)-4:]
 			}
+			return ""
+		}
+		switch provider {
+		case conversion.ProviderMeta:
+			ci.PixelID = dec("pixel_id")
+			ci.TokenLast4 = last4(dec("access_token"))
+		case conversion.ProviderGoogle:
+			// Non-secret account/config IDs shown in full; refresh_token hinted.
+			ci.CustomerID = dec("customer_id")
+			ci.ConversionActionID = dec("conversion_action_id")
+			ci.TokenLast4 = last4(dec("refresh_token"))
 		}
 		info[provider] = ci
 	}
@@ -2034,6 +2050,21 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	case "initiate_checkout":
 		milestone := storage.VisitorMilestone{Event: "initiate_checkout", Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+	case "view_content":
+		// ViewContent is not persisted as a milestone (avoids per-view bloat under
+		// high storefront view volume). Tally successful CAPI sends on a counter
+		// for the "Product Views Sent" analytics tile.
+		if capi, ok := req.Metadata["capi"].([]conversion.Result); ok {
+			sent := 0
+			for _, r := range capi {
+				if r.Status == "sent" {
+					sent++
+				}
+			}
+			if sent > 0 {
+				logErr("incViewContentSent", h.db.IncVisitorViewContentSent(req.VisitorID, sent))
+			}
+		}
 	case "order":
 		milestone := storage.VisitorMilestone{Event: "order", Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))

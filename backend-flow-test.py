@@ -443,6 +443,55 @@ class BackendFlowTest:
         assert new_token not in resp.text, "SECURITY: rotated token leaked in PATCH response"
         ok("Token-only update rotated token, preserved pixel_id (no data loss)")
 
+        # Google Ads conversions (Data Manager API). Same contract as Meta, but
+        # the display-safe info surfaces the non-secret account/config IDs in
+        # full (customerId, conversionActionId) while only the refresh_token is
+        # hinted as last-4. Providers are independent: saving Google must not
+        # disturb the Meta creds saved above.
+        google_refresh = "1//flowtest_google_refresh_4455"
+        step("Ad conversions: save Google creds (encrypted)")
+        resp = self.api.patch(f"/accounts/{c1_id}", {
+            "adConversions": {"google": {
+                "client_id": "flowtest-client.apps.googleusercontent.com",
+                "client_secret": "flowtest_client_secret",
+                "refresh_token": google_refresh,
+                "customer_id": "123-456-7890",
+                "conversion_action_id": "555666777",
+            }},
+            "adConversionsEnabled": {"google": True},
+        })
+        assert_status(resp, 200, "Save Google conversion creds")
+        ok("Google creds saved")
+
+        step("Ad conversions: Google masked read + no secret leak")
+        resp = self.api.get(f"/accounts/{c1_id}")
+        assert_status(resp, 200, "Get account after Google conversion save")
+        acc = resp.json()
+        info = (acc.get("adConversionsInfo") or {}).get("google") or {}
+        assert info.get("configured") is True, f"google not configured: {info}"
+        assert info.get("enabled") is True, f"google not enabled: {info}"
+        assert info.get("customerId") == "123-456-7890", f"customerId: {info.get('customerId')}"
+        assert info.get("conversionActionId") == "555666777", f"conversionActionId: {info.get('conversionActionId')}"
+        assert info.get("tokenLast4") == "4455", f"tokenLast4: {info.get('tokenLast4')}"
+        assert google_refresh not in resp.text, "SECURITY: full refresh_token leaked in GET account"
+        assert "flowtest_client_secret" not in resp.text, "SECURITY: client_secret leaked in GET account"
+        # Meta must still be intact alongside Google (independent providers).
+        meta_info = (acc.get("adConversionsInfo") or {}).get("meta") or {}
+        assert meta_info.get("pixelId") == "111222333444", f"meta clobbered by google save: {meta_info}"
+        ok("Google masked info returned; secrets never leaked; Meta untouched")
+
+        step("Ad conversions: rotate Google refresh_token only, customer_id must survive (partial-update)")
+        new_refresh = "1//flowtest_google_refresh_8899"
+        resp = self.api.patch(f"/accounts/{c1_id}", {"adConversions": {"google": {"refresh_token": new_refresh}}})
+        assert_status(resp, 200, "Update only Google refresh_token")
+        info = ((self.api.get(f"/accounts/{c1_id}").json().get("adConversionsInfo") or {}).get("google")) or {}
+        assert info.get("customerId") == "123-456-7890", f"customer_id wiped by token-only update: {info.get('customerId')}"
+        assert info.get("conversionActionId") == "555666777", f"conversion_action_id wiped: {info.get('conversionActionId')}"
+        assert info.get("tokenLast4") == "8899", f"refresh_token not rotated: {info.get('tokenLast4')}"
+        assert info.get("configured") is True, "still configured after partial update"
+        assert new_refresh not in resp.text, "SECURITY: rotated refresh_token leaked in PATCH response"
+        ok("Token-only update rotated refresh_token, preserved customer/action IDs (no data loss)")
+
     # ── Phase 3: Catalog ─────────────────────────────────────────
 
     def phase3_catalog(self):

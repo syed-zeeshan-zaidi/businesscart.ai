@@ -87,6 +87,19 @@ func TestServiceSendDispatcherError(t *testing.T) {
 	}
 }
 
+func TestServiceSendSkippedYieldsNoResult(t *testing.T) {
+	key := DeriveKey("secret")
+	fd := &fakeDispatcher{provider: "google", ret: SendResult{Skipped: true}}
+	reg := NewRegistry()
+	reg.Register(fd)
+	svc := NewService(reg, key)
+	encTok, _ := Encrypt(key, "TOK")
+	results := svc.Send(Event{EventName: "Purchase"}, map[string]map[string]string{"google": {"refresh_token": encTok}})
+	if results != nil {
+		t.Errorf("skipped dispatch must yield no result (not a failure), got %+v", results)
+	}
+}
+
 func TestServiceSendEmptyIsNil(t *testing.T) {
 	svc := NewService(NewRegistry(), DeriveKey("secret"))
 	if r := svc.Send(Event{EventName: "Purchase"}, nil); r != nil {

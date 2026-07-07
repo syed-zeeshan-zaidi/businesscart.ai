@@ -374,6 +374,11 @@ def step_tracking():
         ("trackInitiateCheckout", "tracker.js exposes trackInitiateCheckout"),
         ("'view_content'", "tracker.js fires view_content"),
         ("'initiate_checkout'", "tracker.js fires initiate_checkout"),
+        # gclid is Google Ads' mandatory match key: no gclid on the event → the
+        # server-side Google dispatcher skips ('google: no gclid'). A regen that
+        # drops this capture silently breaks Google conversions, so assert it.
+        ("'gclid'", "tracker.js captures gclid (required for Google Ads conversions)"),
+        ("clickIds", "tracker.js forwards clickIds on the event payload"),
     ):
         if needle not in tracker:
             fail(f"tracking: {desc} — '{needle}' not found in tracker.js")
@@ -399,7 +404,7 @@ def step_tracking():
 
     if wiring_ok:
         ok(f"tracking wiring present: ViewContent+InitiateCheckout senders, events fired, "
-           f"{len(pdps)} PDPs expose D2C_PRODUCT")
+           f"gclid+clickIds captured (Google Ads), {len(pdps)} PDPs expose D2C_PRODUCT")
 
 
 # ─── Step 4: Lighthouse against served storefront ───────────────────────────

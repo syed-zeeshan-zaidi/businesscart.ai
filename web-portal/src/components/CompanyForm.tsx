@@ -408,6 +408,124 @@ const AdConversionsPanel: React.FC<{
   );
 };
 
+/* ---------- Google Ads conversions (Data Manager API; mirrors AdConversionsPanel) ---------- */
+const GoogleConversionsPanel: React.FC<{
+  sellerId: string;
+  initialInfo?: { configured: boolean; enabled: boolean; customerId?: string; conversionActionId?: string; tokenLast4?: string };
+}> = ({ sellerId, initialInfo }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [conversionActionId, setConversionActionId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(initialInfo?.enabled ?? true);
+  const [info, setInfo] = useState(initialInfo);
+  const configured = !!info?.configured;
+
+  const handleSave = async () => {
+    const creds: Record<string, string> = {};
+    if (clientId.trim()) creds.client_id = clientId.trim();
+    if (clientSecret.trim()) creds.client_secret = clientSecret.trim();
+    if (refreshToken.trim()) creds.refresh_token = refreshToken.trim();
+    if (customerId.trim()) creds.customer_id = customerId.trim();
+    if (conversionActionId.trim()) creds.conversion_action_id = conversionActionId.trim();
+    const willBeConfigured = configured || Object.keys(creds).length > 0;
+    if (enabled && !willBeConfigured) {
+      toast.error('Enter your Google Ads credentials before enabling');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: { adConversionsEnabled: Record<string, boolean>; adConversions?: Record<string, Record<string, string>> } = {
+        adConversionsEnabled: { google: enabled },
+      };
+      if (Object.keys(creds).length > 0) payload.adConversions = { google: creds };
+      await updateAccount(sellerId, payload);
+      toast.success('Google conversions saved');
+      setInfo({
+        configured: willBeConfigured,
+        enabled,
+        customerId: creds.customer_id || info?.customerId,
+        conversionActionId: creds.conversion_action_id || info?.conversionActionId,
+        tokenLast4: creds.refresh_token ? creds.refresh_token.slice(-4) : info?.tokenLast4,
+      });
+      setClientSecret('');
+      setRefreshToken('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to save Google conversions');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const field = (label: string, value: string, setter: (v: string) => void, placeholder: string, type: 'text' | 'password' = 'text') => (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => setter(e.target.value)}
+        placeholder={placeholder}
+        className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:ring-teal-500 focus:border-teal-500"
+      />
+    </div>
+  );
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition"
+      >
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-semibold text-gray-800">Google Ads</span>
+          {!configured
+            ? <span className="text-xs text-gray-400">Not configured</span>
+            : info?.enabled
+              ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-800">Live</span>
+              : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-200 text-gray-600">Paused</span>}
+        </div>
+        <svg className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="p-4 space-y-4">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={e => setEnabled(e.target.checked)}
+              className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+            />
+            <span className="text-sm font-medium text-gray-700">Enabled (send conversions to Google Ads)</span>
+          </label>
+          <p className="text-sm text-gray-500">Server-side Data Manager API. Create an OAuth client in Google Cloud, generate a refresh token with the <code className="text-xs bg-gray-100 px-1 rounded">https://www.googleapis.com/auth/datamanager</code> scope, and find your Customer ID + Conversion Action ID (a WEBPAGE conversion) in Google Ads. Secrets are encrypted and never shown again.</p>
+          <div className="space-y-3">
+            {field('OAuth Client ID', clientId, setClientId, info?.configured ? '(saved — enter to replace)' : '')}
+            {field('OAuth Client Secret', clientSecret, setClientSecret, info?.configured ? '•••• (enter new value to replace)' : '', 'password')}
+            {field('OAuth Refresh Token', refreshToken, setRefreshToken, info?.tokenLast4 ? `••••${info.tokenLast4} (enter new value to replace)` : '', 'password')}
+            {field('Customer ID', customerId, setCustomerId, info?.customerId || '')}
+            {field('Conversion Action ID', conversionActionId, setConversionActionId, info?.conversionActionId || '')}
+          </div>
+          <div className="flex items-center space-x-3 pt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 bg-teal-700 text-white text-sm font-medium rounded-md hover:bg-teal-800 disabled:opacity-50 transition"
+            >
+              {saving ? 'Saving...' : configured ? 'Update' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   account,
   onClose,
@@ -1149,6 +1267,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
             <p className="text-sm text-gray-500 mb-4">Send server-side purchase &amp; funnel events to ad platforms for accurate attribution and optimization. Credentials are encrypted; tokens are never shown again.</p>
             <div className="space-y-3">
               <AdConversionsPanel sellerId={account._id} initialInfo={account.adConversionsInfo?.meta} />
+              <GoogleConversionsPanel sellerId={account._id} initialInfo={account.adConversionsInfo?.google} />
             </div>
           </Section>
         </div>
