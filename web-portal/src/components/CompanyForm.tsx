@@ -503,7 +503,7 @@ const GoogleConversionsPanel: React.FC<{
             />
             <span className="text-sm font-medium text-gray-700">Enabled (send conversions to Google Ads)</span>
           </label>
-          <p className="text-sm text-gray-500">Server-side Data Manager API. Create an OAuth client in Google Cloud, generate a refresh token (adwords scope), and find your Customer ID + Conversion Action ID in Google Ads. Secrets are encrypted and never shown again.</p>
+          <p className="text-sm text-gray-500">Server-side Data Manager API. Create an OAuth client in Google Cloud, generate a refresh token with the <code className="text-xs bg-gray-100 px-1 rounded">https://www.googleapis.com/auth/datamanager</code> scope, and find your Customer ID + Conversion Action ID (a WEBPAGE conversion) in Google Ads. Secrets are encrypted and never shown again.</p>
           <div className="space-y-3">
             {field('OAuth Client ID', clientId, setClientId, info?.configured ? '(saved — enter to replace)' : '')}
             {field('OAuth Client Secret', clientSecret, setClientSecret, info?.configured ? '•••• (enter new value to replace)' : '', 'password')}

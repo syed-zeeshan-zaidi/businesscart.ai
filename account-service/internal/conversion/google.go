@@ -122,6 +122,14 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 		return SendResult{}, err
 	}
 
+	// Payload shape verified 2026-07-06 against the official Data Manager API
+	// spec: developers.google.com/data-manager/api/devguides/events/send-events
+	// and .../reference/rest/v1/events/ingest. Confirmed: top-level `encoding`
+	// (HEX|BASE64); operating/loginAccount accountType "GOOGLE_ADS"; eventSource
+	// enum WEB|APP|IN_STORE|PHONE|OTHER, and for online events it MUST be "WEB";
+	// eventTimestamp is RFC3339; userIdentifiers use hashed emailAddress/phoneNumber;
+	// productDestinationId is a conversion action of type WEBPAGE. Field names and
+	// nesting below match the documented example exactly.
 	event := map[string]interface{}{
 		"eventTimestamp": ev.EventTime.Format(time.RFC3339),
 		"eventSource":    "WEB",
