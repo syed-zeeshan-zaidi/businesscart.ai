@@ -419,6 +419,9 @@ const GoogleConversionsPanel: React.FC<{
   const [refreshToken, setRefreshToken] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [conversionActionId, setConversionActionId] = useState('');
+  const [caViewContent, setCaViewContent] = useState('');
+  const [caAddToCart, setCaAddToCart] = useState('');
+  const [caCheckout, setCaCheckout] = useState('');
   const [saving, setSaving] = useState(false);
   const [enabled, setEnabled] = useState(initialInfo?.enabled ?? true);
   const [info, setInfo] = useState(initialInfo);
@@ -431,6 +434,9 @@ const GoogleConversionsPanel: React.FC<{
     if (refreshToken.trim()) creds.refresh_token = refreshToken.trim();
     if (customerId.trim()) creds.customer_id = customerId.trim();
     if (conversionActionId.trim()) creds.conversion_action_id = conversionActionId.trim();
+    if (caViewContent.trim()) creds.conversion_action_id_viewcontent = caViewContent.trim();
+    if (caAddToCart.trim()) creds.conversion_action_id_addtocart = caAddToCart.trim();
+    if (caCheckout.trim()) creds.conversion_action_id_initiatecheckout = caCheckout.trim();
     const willBeConfigured = configured || Object.keys(creds).length > 0;
     if (enabled && !willBeConfigured) {
       toast.error('Enter your Google Ads credentials before enabling');
@@ -509,8 +515,17 @@ const GoogleConversionsPanel: React.FC<{
             {field('OAuth Client Secret', clientSecret, setClientSecret, info?.configured ? '•••• (enter new value to replace)' : '', 'password')}
             {field('OAuth Refresh Token', refreshToken, setRefreshToken, info?.tokenLast4 ? `••••${info.tokenLast4} (enter new value to replace)` : '', 'password')}
             {field('Customer ID', customerId, setCustomerId, info?.customerId || '')}
-            {field('Conversion Action ID', conversionActionId, setConversionActionId, info?.conversionActionId || '')}
+            {field('Purchase Conversion Action ID (primary)', conversionActionId, setConversionActionId, info?.conversionActionId || '')}
           </div>
+          <details className="mt-1">
+            <summary className="text-xs font-medium text-gray-500 cursor-pointer select-none">Secondary events (optional)</summary>
+            <p className="text-xs text-gray-400 mt-1 mb-2"><b>Purchase</b> always sends to the primary action above. ViewContent / Add to Cart / Checkout send <b>only</b> if you map each to its own Google conversion action here (set those as Secondary/observation in Google Ads). Unmapped events are not sent.</p>
+            <div className="space-y-3">
+              {field('ViewContent action ID', caViewContent, setCaViewContent, 'optional')}
+              {field('Add to Cart action ID', caAddToCart, setCaAddToCart, 'optional')}
+              {field('Checkout action ID', caCheckout, setCaCheckout, 'optional')}
+            </div>
+          </details>
           <div className="flex items-center space-x-3 pt-2">
             <button
               onClick={handleSave}

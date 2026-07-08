@@ -127,3 +127,59 @@ func TestGoogleDigits(t *testing.T) {
 		t.Errorf("googleDigits = %q", got)
 	}
 }
+
+// TestGoogleActionIDRouting: the default (conversion_action_id) is the PURCHASE
+// action — only Purchase falls back to it. Micro-events send only when explicitly
+// mapped; otherwise "" (caller skips).
+func TestGoogleActionIDRouting(t *testing.T) {
+	full := map[string]string{
+		"conversion_action_id":             "default", // = the purchase/primary action
+		"conversion_action_id_viewcontent": "vc",
+	}
+	cases := []struct {
+		name  string
+		creds map[string]string
+		event string
+		want  string
+	}{
+		{"purchase uses the primary/default action", full, "Purchase", "default"},
+		{"mapped viewcontent uses its action", full, "ViewContent", "vc"},
+		{"unmapped micro does NOT use default", map[string]string{"conversion_action_id": "default"}, "ViewContent", ""},
+		{"unmapped micro is empty", map[string]string{"conversion_action_id": "default"}, "AddToCart", ""},
+	}
+	for _, c := range cases {
+		if got := googleActionID(c.creds, c.event); got != c.want {
+			t.Errorf("%s: googleActionID=%q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// TestGoogleDefaultOnlySendsPurchaseOnly: a seller with only the default action
+// sends Purchases and skips every micro-event (so the primary action isn't polluted).
+func TestGoogleDefaultOnlySendsPurchaseOnly(t *testing.T) {
+	creds := map[string]string{"conversion_action_id": "default"}
+	if got := googleActionID(creds, "Purchase"); got != "default" {
+		t.Errorf("Purchase must route to the default action, got %q", got)
+	}
+	for _, ev := range []string{"ViewContent", "AddToCart", "InitiateCheckout"} {
+		if got := googleActionID(creds, ev); got != "" {
+			t.Errorf("%s must skip when only the default is set, got %q", ev, got)
+		}
+	}
+}
+
+// TestGoogleSendSkipsWhenNoActionMapped: an event with no mapped conversion action
+// (seller only mapped Purchase) is a skip, not a failure.
+func TestGoogleSendSkipsWhenNoActionMapped(t *testing.T) {
+	d := NewGoogleDispatcher()
+	res, err := d.Send(context.Background(), Event{EventName: "ViewContent", Gclid: "g"}, map[string]string{
+		"client_id": "c", "client_secret": "s", "refresh_token": "r", "customer_id": "1",
+		"conversion_action_id": "primary", // only the primary/purchase action; ViewContent not mapped
+	})
+	if err != nil {
+		t.Errorf("unmapped event must not error, got %v", err)
+	}
+	if !res.Skipped {
+		t.Error("unmapped event must return Skipped=true")
+	}
+}

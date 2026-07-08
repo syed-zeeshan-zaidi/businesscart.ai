@@ -105,12 +105,18 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 	clientSecret := creds["client_secret"]
 	refreshTok := creds["refresh_token"]
 	customerID := googleDigits(creds["customer_id"])
-	actionID := creds["conversion_action_id"]
-	if clientID == "" || clientSecret == "" || refreshTok == "" || customerID == "" || actionID == "" {
-		return SendResult{}, fmt.Errorf("google: missing client_id/client_secret/refresh_token/customer_id/conversion_action_id")
+	if clientID == "" || clientSecret == "" || refreshTok == "" || customerID == "" {
+		return SendResult{}, fmt.Errorf("google: missing client_id/client_secret/refresh_token/customer_id")
 	}
 	if ev.Gclid == "" {
 		return SendResult{Skipped: true}, nil // not a Google-attributable click: skip, not a failure
+	}
+	// Route to the per-event conversion action (so the seller can set Purchase as a
+	// PRIMARY/bidding action and ViewContent/AddToCart as SECONDARY/observation, per
+	// Google's guidance) or the generic one. No action mapped for this event → skip.
+	actionID := googleActionID(creds, ev.EventName)
+	if actionID == "" {
+		return SendResult{Skipped: true}, nil
 	}
 	loginID := googleDigits(creds["login_customer_id"])
 	if loginID == "" {
@@ -186,6 +192,28 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 		return SendResult{}, fmt.Errorf("google data manager %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	return SendResult{ProviderRef: ev.Gclid, MatchFields: 1 + len(ids)}, nil
+}
+
+// googleActionID resolves the Data Manager conversion action (productDestinationId)
+// for an event. The generic `conversion_action_id` is the PURCHASE/PRIMARY action:
+// only Purchase falls back to it. Micro-events (ViewContent/AddToCart/Checkout) are
+// SECONDARY/observation and send ONLY when the seller explicitly maps them to their
+// own action — otherwise they return "" and the caller skips. This keeps a
+// default-only seller sending purchases alone (a clean bidding signal) instead of
+// dumping every event into one action. Google routes by conversion action, not
+// event name, so this mapping must happen here.
+func googleActionID(creds map[string]string, eventName string) string {
+	switch eventName {
+	case "Purchase":
+		return creds["conversion_action_id"] // the primary/purchase action
+	case "ViewContent":
+		return creds["conversion_action_id_viewcontent"]
+	case "AddToCart":
+		return creds["conversion_action_id_addtocart"]
+	case "InitiateCheckout":
+		return creds["conversion_action_id_initiatecheckout"]
+	}
+	return ""
 }
 
 // googleDigits strips non-digits from a customer id ("123-456-7890" -> "1234567890").
