@@ -321,6 +321,16 @@ func (h *LambdaHandler) handleCustomers(userClaim map[string]interface{}, reques
 
 // --- Public Handlers ---
 
+// randomPassword returns an unguessable password for guest (passwordless) b2c
+// accounts. Never shown or returned; the account is claimed later via reset.
+func randomPassword() string {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return primitive.NewObjectID().Hex() + primitive.NewObjectID().Hex()
+	}
+	return fmt.Sprintf("%x", b)
+}
+
 func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var req storage.RegisterRequest
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
@@ -336,12 +346,21 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		return h.errorResponse(http.StatusConflict, "An account with this email already exists"), nil
 	}
 
-	// Validate password strength
-	if err := validatePassword(req.Password); err != nil {
-		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+	// Guest checkout: a b2c account with no password submitted. Skip strength
+	// validation and seal it with a crypto-random password (never returned) so it
+	// can only be claimed later via the existing password-reset flow. All other
+	// registrations are unchanged.
+	isGuest := req.Role == storage.RoleB2C && strings.TrimSpace(req.Password) == ""
+	if !isGuest {
+		if err := validatePassword(req.Password); err != nil {
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
 	}
-
-	hashedPassword, err := auth.HashPassword(req.Password)
+	pw := req.Password
+	if isGuest {
+		pw = randomPassword()
+	}
+	hashedPassword, err := auth.HashPassword(pw)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to hash password"), nil
 	}
@@ -437,7 +456,11 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	// Customer-facing email uses the company's own SMTP (so the customer sees their
 	// storefront brand, not BusinessCart). Falls back to platform sender for company /
 	// partner registrations and when the company hasn't configured per-company SMTP.
-	if h.emailSender != nil {
+	//
+	// Guests get no welcome or "new customer" email here: they didn't sign up, they
+	// bought. The order flow sends their order confirmation (customer) and new-order
+	// email (company). These fire only for a real registration.
+	if h.emailSender != nil && !isGuest {
 		sellerID := ""
 		if acc.CustomerData != nil && len(acc.CustomerData.CustomerConfigs) > 0 {
 			sellerID = acc.CustomerData.CustomerConfigs[0].CodeID
@@ -462,6 +485,20 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 		}
 	}
 
+	// Guest register mints a token in the same call so the storefront needs no
+	// separate login round-trip (one-step guest checkout).
+	if isGuest {
+		accessToken, refreshToken, terr := h.issueCustomerToken(acc)
+		if terr != nil {
+			return h.errorResponse(http.StatusInternalServerError, "Token generation failed"), nil
+		}
+		return h.successResponse(map[string]interface{}{
+			"account":      acc,
+			"accessToken":  accessToken,
+			"refreshToken": refreshToken,
+		}, http.StatusCreated), nil
+	}
+
 	return h.successResponse(acc, http.StatusCreated), nil
 }
 
@@ -477,6 +514,24 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 		return h.errorResponse(http.StatusUnauthorized, "Invalid credentials"), nil
 	}
 
+	accessToken, refreshToken, err := h.issueCustomerToken(user)
+	if err != nil {
+		return h.errorResponse(http.StatusInternalServerError, "Token generation failed"), nil
+	}
+
+	response := map[string]string{
+		"accessToken":  accessToken,
+		"refreshToken": refreshToken,
+	}
+
+	return h.successResponse(response, http.StatusOK), nil
+}
+
+// issueCustomerToken builds the access + refresh JWTs for a user, embedding the
+// customer/b2c config claims (company defaults + overrides + groups) and the
+// partner assoc. Extracted verbatim from login so guest register can mint an
+// identical token in one call; behavior-preserving for login.
+func (h *LambdaHandler) issueCustomerToken(user *storage.Account) (string, string, error) {
 	var assocIDs []string
 	var configs []auth.CustomerConfiguration
 	if (user.Role == storage.RoleCustomer || user.Role == storage.RoleB2C) && user.CustomerData != nil {
@@ -570,19 +625,10 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 
 	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, assocIDs, configs)
 	if err != nil {
-		return h.errorResponse(http.StatusInternalServerError, "Token generation failed"), nil
+		return "", "", err
 	}
-	// Simplified refresh token logic for Lambda context
 	refreshToken, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, assocIDs)
-
-	// In a real app, you would store and manage the refresh token statefully
-
-	response := map[string]string{
-		"accessToken":  accessToken,
-		"refreshToken": refreshToken,
-	}
-
-	return h.successResponse(response, http.StatusOK), nil
+	return accessToken, refreshToken, nil
 }
 
 func (h *LambdaHandler) refreshToken(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

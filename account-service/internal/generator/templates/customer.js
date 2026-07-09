@@ -383,19 +383,47 @@
         // --- Headless Checkout UI ---
 
         async startCheckout(cartItems) {
+            if (!cartItems || cartItems.length === 0) return;
+
+            // Fire InitiateCheckout for EVERYONE who reaches checkout — including
+            // guests, BEFORE the auth branch — so guest intent is captured. (Guests
+            // used to hit the login wall here and never fire it, which is why
+            // initiate_checkout read 0.) Isolated so tracking can never break checkout.
+            this._fireInitiateCheckout(cartItems);
+
+            // Guest checkout: no login wall. Capture email, create a passwordless
+            // b2c account, then run the exact same checkout as a logged-in customer.
             if (!this.token || !this.user) {
-                this.showLoginModal();
+                this.showGuestCheckout(cartItems);
                 return;
             }
+            await this._continueCheckout(cartItems);
+        },
 
+        _fireInitiateCheckout(cartItems) {
+            try {
+                if (window.D2C_TRACKER && window.D2C_TRACKER.trackInitiateCheckout) {
+                    let total = 0;
+                    const icItems = (cartItems || []).map(function (it) {
+                        const price = it.discountedPrice || it.price || 0;
+                        total += price * (it.quantity || 1);
+                        return { id: it._id, quantity: it.quantity || 1, price: price };
+                    });
+                    window.D2C_TRACKER.trackInitiateCheckout(total, icItems);
+                }
+            } catch (e) {}
+        },
+
+        // Runs checkout once a token+user exist (logged-in OR just-registered guest):
+        // sync cart → quote → checkout overlay (which handles the shipping address +
+        // payment method, including its own add-address form for new customers).
+        async _continueCheckout(cartItems) {
             const sellerId = window.D2C_CONFIG?.sellerId;
             if (!sellerId || !cartItems || cartItems.length === 0) return;
 
-            // Show loading overlay
             this._showCheckoutLoading();
 
             try {
-                // Step 1: Sync local cart to server
                 await this.clearCart(sellerId);
                 for (const item of cartItems) {
                     const result = await this.addToCart({
@@ -411,10 +439,7 @@
                     if (!result) throw new Error('Failed to add item to server cart');
                 }
 
-                // Step 2: Get customer addresses
                 const addresses = await this.getAddresses();
-
-                // Step 3: Create quote
                 const customerAddresses = (addresses || []).map(a => ({
                     id: a._id || a.id,
                     addressLabel: a.addressLabel || 'Address',
@@ -426,27 +451,72 @@
                 const quote = await this.createQuote(sellerId, customerAddresses);
                 if (!quote) throw new Error('Failed to create quote');
 
-                // Step 4: Show checkout modal with quote data
                 this._showCheckoutOverlay(quote);
-
-                // Fire InitiateCheckout for server-side ad conversions (Meta CAPI).
-                // Same item shape as trackOrder so content_ids match the feed.
-                // Tracking must NEVER break checkout: isolate in its own try/catch
-                // and guard the method itself (a stale tracker.js could lack it),
-                // so nothing here can reach the checkout catch below.
-                try {
-                    if (window.D2C_TRACKER && window.D2C_TRACKER.trackInitiateCheckout) {
-                        const icItems = (cartItems || []).map(function (it) {
-                            return { id: it._id, quantity: it.quantity || 1, price: it.discountedPrice || it.price };
-                        });
-                        window.D2C_TRACKER.trackInitiateCheckout(quote.grandTotal || 0, icItems);
-                    }
-                } catch (e) {}
             } catch (err) {
                 console.error('Checkout failed:', err);
                 document.getElementById('d2c-checkout-overlay')?.remove();
                 if (window.D2C_CART) window.D2C_CART.showToast(err.message || 'Checkout failed. Please try again.');
             }
+        },
+
+        // Guest checkout: one lean modal for name + email (no password). On submit,
+        // create a passwordless b2c account (server seals it; claimable later via the
+        // password-reset flow) and continue straight into checkout. A returning email
+        // (409) routes to sign-in. Inline styles + no external requests (Lighthouse).
+        showGuestCheckout(cartItems) {
+            const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const primaryColor = window.D2C_CONFIG?.primaryColor || '#0d9488';
+            document.getElementById('d2c-guest-modal')?.remove();
+            const modal = document.createElement('div');
+            modal.id = 'd2c-guest-modal';
+            modal.style = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);padding:1rem';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:16px;padding:2rem;max-width:26rem;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25)">
+                    <h2 style="margin:0 0 0.25rem;font-size:1.35rem;font-weight:800;color:#111827">Checkout</h2>
+                    <p style="margin:0 0 1.25rem;font-size:0.875rem;color:#6b7280">Enter your details to continue. No account or password needed.</p>
+                    <form id="d2c-guest-form">
+                        <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.35rem">Full name</label>
+                        <input name="name" required autocomplete="name" style="width:100%;padding:0.7rem 0.85rem;border:1px solid #d1d5db;border-radius:10px;font-size:0.95rem;margin-bottom:1rem;box-sizing:border-box">
+                        <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.35rem">Email</label>
+                        <input name="email" type="email" required autocomplete="email" style="width:100%;padding:0.7rem 0.85rem;border:1px solid #d1d5db;border-radius:10px;font-size:0.95rem;margin-bottom:1.25rem;box-sizing:border-box">
+                        <button type="submit" style="width:100%;padding:0.8rem;background:${esc(primaryColor)};color:#fff;border:0;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer">Continue to shipping &amp; payment</button>
+                    </form>
+                    <p style="margin:1rem 0 0;text-align:center;font-size:0.8rem;color:#6b7280">Already have an account? <a href="#" id="d2c-guest-signin" style="color:${esc(primaryColor)};font-weight:700;text-decoration:none">Sign in</a></p>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            modal.querySelector('#d2c-guest-signin').addEventListener('click', e => {
+                e.preventDefault(); modal.remove(); this.showLoginModal();
+            });
+            modal.querySelector('#d2c-guest-form').addEventListener('submit', async e => {
+                e.preventDefault();
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true; btn.textContent = 'Please wait...';
+                const fd = new FormData(e.target);
+                try {
+                    const resp = await fetch(`${API_BASE}/accounts/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: fd.get('name'), email: String(fd.get('email')).trim(), role: 'b2c', code: window.D2C_CONFIG.companyCode })
+                    });
+                    if (resp.status === 409) {
+                        modal.remove();
+                        if (window.D2C_CART) window.D2C_CART.showToast('You already have an account — please sign in.');
+                        this.showLoginModal();
+                        return;
+                    }
+                    const data = resp.ok ? await resp.json() : null;
+                    if (!data || !data.accessToken) throw new Error('Could not start checkout. Please try again.');
+                    this.token = data.accessToken;
+                    localStorage.setItem(AUTH_KEY, this.token);
+                    this.user = data.account;
+                    modal.remove();
+                    await this._continueCheckout(cartItems);
+                } catch (err) {
+                    btn.disabled = false; btn.textContent = 'Continue to shipping & payment';
+                    if (window.D2C_CART) window.D2C_CART.showToast(err.message || 'Something went wrong.');
+                }
+            });
         },
 
         _showCheckoutLoading() {

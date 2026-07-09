@@ -492,6 +492,32 @@ class BackendFlowTest:
         assert new_refresh not in resp.text, "SECURITY: rotated refresh_token leaked in PATCH response"
         ok("Token-only update rotated refresh_token, preserved customer/action IDs (no data loss)")
 
+        # Guest checkout: a b2c register with NO password creates the account AND
+        # returns a token in one call (one-step guest checkout). The account is
+        # passwordless — it cannot be logged into until claimed via reset.
+        self.use_token("admin")
+        guest_email = f"{PREFIX}guest@test.com"
+        step("Guest checkout: passwordless b2c register returns a token in one call")
+        resp = self.api.post("/accounts/register", {
+            "name": "Guest Shopper",
+            "email": guest_email,
+            "role": "b2c",
+            "code": CODES["set1"]["companyCode"],
+            # no password → guest
+        })
+        assert_status(resp, 201, "Guest b2c register (no password)")
+        gbody = resp.json()
+        assert gbody.get("accessToken"), f"guest register must return an accessToken in the same call: {gbody}"
+        assert gbody.get("account"), f"guest register must return the account: {gbody}"
+        guest_id = self._get_id_from_jwt(gbody["accessToken"])
+        self.tracker.track_account("guest", guest_id)
+        ok("Guest register returned a token in one call (no separate login round-trip)")
+
+        step("Guest account is passwordless: cannot be logged into with a guess")
+        bad = self.api.post("/accounts/login", {"email": guest_email, "password": PASSWORD})
+        assert bad.status_code == 401, f"passwordless guest must reject login, got {bad.status_code}"
+        ok("Passwordless guest rejects login until claimed via password reset")
+
     # ── Phase 3: Catalog ─────────────────────────────────────────
 
     def phase3_catalog(self):
