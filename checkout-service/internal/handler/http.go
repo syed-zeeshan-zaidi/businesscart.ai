@@ -1172,6 +1172,13 @@ func effectiveLineSubtotal(it cart.CartItem) float64 {
 	return unit * float64(it.Quantity)
 }
 
+// roundCents rounds a monetary amount to whole cents. Percentage-based tax and
+// discount math leaves sub-cent fractions (e.g. 12.50 * 8.25% = 1.03125) that
+// otherwise flow into the persisted quote/order total.
+func roundCents(v float64) float64 {
+	return math.Round(v*100) / 100
+}
+
 func trackingURLFor(carrier, number string) string {
 	if number == "" {
 		return ""
@@ -1544,12 +1551,12 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 
 	// Calculate totals — taxRate is a percentage (e.g., 8.25 means 8.25%)
-	taxAmount := cart.TotalPrice * (effectiveTaxRate / 100)
+	taxAmount := roundCents(cart.TotalPrice * (effectiveTaxRate / 100))
 	if !effectiveTaxable || effectiveTaxRate <= 0 {
 		taxAmount = 0
 	}
 	shippingCost := effectiveShippingRate
-	grandTotal := cart.TotalPrice + shippingCost + taxAmount
+	grandTotal := roundCents(cart.TotalPrice + shippingCost + taxAmount)
 
 	// Hardcoded coupon: applies only when company has CouponsEnabled and a code was sent.
 	// Effective rule mirrors taxableGoods/quotesAllowed: company default from request body,
@@ -1564,8 +1571,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 	var promoDiscount float64
 	if effectiveCouponsEnabled && req.PromoCode != "" {
-		promoDiscount = h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode)
-		grandTotal -= promoDiscount
+		promoDiscount = roundCents(h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode))
+		grandTotal = roundCents(grandTotal - promoDiscount)
 		if grandTotal < 0 {
 			grandTotal = 0
 		}
