@@ -3,6 +3,7 @@ package quote
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,6 +14,13 @@ import (
 
 type Service struct {
 	collection *mongo.Collection
+}
+
+// roundCents rounds a monetary amount to whole cents. Percentage-based tax and
+// discount math (e.g. 12.50 * 8.25%) otherwise leaves sub-cent fractions that
+// flow into GrandTotal and get stored/charged inconsistently.
+func roundCents(v float64) float64 {
+	return math.Round(v*100) / 100
 }
 
 func NewService(db *mongo.Database) *Service {
@@ -211,9 +219,9 @@ func (s *Service) UpdateQuoteStatus(quoteID primitive.ObjectID, status string) (
 		}
 		quote.Subtotal = subtotal
 		if quote.TaxRate > 0 {
-			quote.TaxAmount = quote.Subtotal * (quote.TaxRate / 100)
+			quote.TaxAmount = roundCents(quote.Subtotal * (quote.TaxRate / 100))
 		}
-		quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
+		quote.GrandTotal = roundCents(quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount)
 	}
 
 	filter := bson.M{"_id": quoteID}
@@ -265,12 +273,12 @@ func (s *Service) ApplyQuoteDiscount(quoteID primitive.ObjectID, discountPercent
 	}
 
 	// Calculate discount amount
-	discountAmount := quote.Subtotal * (discountPercentage / 100)
+	discountAmount := roundCents(quote.Subtotal * (discountPercentage / 100))
 
 	// Apply discount and recalculate totals
 	quote.DiscountPercentage = discountPercentage
 	quote.DiscountAmount = discountAmount
-	quote.GrandTotal = quote.Subtotal - discountAmount + quote.ShippingCost + quote.TaxAmount
+	quote.GrandTotal = roundCents(quote.Subtotal - discountAmount + quote.ShippingCost + quote.TaxAmount)
 
 	// Add to history
 	quote.History = append(quote.History, QuoteHistory{
@@ -296,8 +304,8 @@ type SellerUpdate struct {
 }
 
 type ItemUpdate struct {
-	ItemID   string  `json:"itemId"`
-	Quantity *int    `json:"quantity,omitempty"`
+	ItemID   string   `json:"itemId"`
+	Quantity *int     `json:"quantity,omitempty"`
 	Price    *float64 `json:"price,omitempty"`
 }
 
@@ -346,11 +354,11 @@ func (s *Service) UpdateQuoteBySeller(quoteID primitive.ObjectID, updates Seller
 	}
 	quote.Subtotal = subtotal
 	// Apply discount if any
-	quote.DiscountAmount = quote.Subtotal * (quote.DiscountPercentage / 100)
+	quote.DiscountAmount = roundCents(quote.Subtotal * (quote.DiscountPercentage / 100))
 	if quote.TaxRate > 0 {
-		quote.TaxAmount = quote.Subtotal * (quote.TaxRate / 100)
+		quote.TaxAmount = roundCents(quote.Subtotal * (quote.TaxRate / 100))
 	}
-	quote.GrandTotal = quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount
+	quote.GrandTotal = roundCents(quote.Subtotal - quote.DiscountAmount + quote.ShippingCost + quote.TaxAmount)
 
 	// Add to history
 	quote.History = append(quote.History, QuoteHistory{
