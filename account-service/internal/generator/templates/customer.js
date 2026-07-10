@@ -51,6 +51,9 @@
 
         async _showOrderConfirmation(orderId) {
             const primaryColor = window.D2C_CONFIG?.primaryColor || '#121212';
+            // Escape any server/catalog-sourced string before it hits innerHTML
+            // (product names can carry HTML, e.g. a partner-set name in multi-vendor).
+            const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const overlay = document.createElement('div');
             overlay.id = 'order-confirm-overlay';
             overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -93,7 +96,7 @@
                                 ${order.items.map(item => `
                                     <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-top:1px solid #e2e8f0;">
                                         <div>
-                                            <div style="font-weight:600;font-size:0.9rem;color:#0f172a;">${item.name}</div>
+                                            <div style="font-weight:600;font-size:0.9rem;color:#0f172a;">${esc(item.name)}</div>
                                             <div style="font-size:0.8rem;color:#94a3b8;">Qty: ${item.quantity}</div>
                                         </div>
                                         <span style="font-weight:700;color:#0f172a;">$${((item.discountedPrice || item.price) * item.quantity).toFixed(2)}</span>
@@ -102,7 +105,7 @@
                                 <div style="border-top:2px solid #e2e8f0;margin-top:0.75rem;padding-top:0.75rem;">
                                     ${order.shippingCost ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.25rem;"><span>Shipping</span><span>$${order.shippingCost.toFixed(2)}</span></div>` : ''}
                                     ${order.taxAmount ? `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;"><span>Tax</span><span>$${order.taxAmount.toFixed(2)}</span></div>` : ''}
-                                    ${order.promoDiscount && order.promoDiscount > 0 ? (() => { const escCode = String(order.promoCode || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); return `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#059669;margin-bottom:0.5rem;"><span>Discount${escCode ? ' (' + escCode + ')' : ''}</span><span>-$${order.promoDiscount.toFixed(2)}</span></div>`; })() : ''}
+                                    ${order.promoDiscount && order.promoDiscount > 0 ? (() => { const escCode = esc(order.promoCode || ''); return `<div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#059669;margin-bottom:0.5rem;"><span>Discount${escCode ? ' (' + escCode + ')' : ''}</span><span>-$${order.promoDiscount.toFixed(2)}</span></div>`; })() : ''}
                                     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:1.1rem;color:#0f172a;">
                                         <span>Total</span>
                                         <span>$${(order.grandTotal || 0).toFixed(2)}</span>
