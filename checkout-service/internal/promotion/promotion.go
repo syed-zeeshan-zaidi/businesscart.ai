@@ -14,6 +14,7 @@ func NewService() *Service {
 // and coupon code. Hardcoded codes only:
 //   - SAVE5  -> 5% off subtotal
 //   - SAVE10 -> 10% off subtotal
+//
 // Returns 0 for any other code (including empty). Case-insensitive.
 // Caller is responsible for gating on the company's CouponsEnabled flag.
 func (s *Service) ApplyPromotion(subtotal float64, promoCode string) float64 {

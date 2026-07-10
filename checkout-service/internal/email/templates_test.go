@@ -44,11 +44,11 @@ func TestOrderConfirmationTextBreakdown(t *testing.T) {
 
 	t.Run("zero promo discount: discount line omitted entirely", func(t *testing.T) {
 		body := orderConfirmationText(OrderConfirmationData{
-			OrderID:       "xyz",
-			Subtotal:      50,
-			ShippingCost:  10,
-			TaxAmount:     5,
-			GrandTotal:    65,
+			OrderID:      "xyz",
+			Subtotal:     50,
+			ShippingCost: 10,
+			TaxAmount:    5,
+			GrandTotal:   65,
 		})
 		mustContain(t, body, "Subtotal: $50.00")
 		mustContain(t, body, "Total:    $65.00")

@@ -9,11 +9,12 @@
 //     but never fails the user-facing request
 //
 // Required env vars (when real sender wanted):
-//   EMAIL_FROM_ADDRESS    e.g., "noreply@businesscart.ai"
-//   EMAIL_SMTP_HOST       e.g., "email-smtp.us-east-1.amazonaws.com"
-//   EMAIL_SMTP_PORT       e.g., "587"
-//   EMAIL_SMTP_USERNAME   SES SMTP username (NOT IAM access key)
-//   EMAIL_SMTP_PASSWORD   SES SMTP password
+//
+//	EMAIL_FROM_ADDRESS    e.g., "noreply@businesscart.ai"
+//	EMAIL_SMTP_HOST       e.g., "email-smtp.us-east-1.amazonaws.com"
+//	EMAIL_SMTP_PORT       e.g., "587"
+//	EMAIL_SMTP_USERNAME   SES SMTP username (NOT IAM access key)
+//	EMAIL_SMTP_PASSWORD   SES SMTP password
 package email
 
 import (

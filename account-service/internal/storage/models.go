@@ -83,9 +83,9 @@ type D2CConfig struct {
 	TermsText      string `bson:"termsText" json:"termsText"`
 	ShippingText   string `bson:"shippingText" json:"shippingText"`
 	ShippingBadge  string `bson:"shippingBadge,omitempty" json:"shippingBadge,omitempty"` // Product page trust signal (default: "Shipping Available")
-	ReturnsBadge   string `bson:"returnsBadge,omitempty" json:"returnsBadge,omitempty"` // Product page trust signal (default: "Returns & Refunds")
-	FeedGender     string `bson:"feedGender,omitempty" json:"feedGender,omitempty"`     // Default gender for feeds (e.g. "Unisex", "Male", "Female")
-	FeedAgeGroup   string `bson:"feedAgeGroup,omitempty" json:"feedAgeGroup,omitempty"` // Default age group for feeds (e.g. "Adult", "Kids")
+	ReturnsBadge   string `bson:"returnsBadge,omitempty" json:"returnsBadge,omitempty"`   // Product page trust signal (default: "Returns & Refunds")
+	FeedGender     string `bson:"feedGender,omitempty" json:"feedGender,omitempty"`       // Default gender for feeds (e.g. "Unisex", "Male", "Female")
+	FeedAgeGroup   string `bson:"feedAgeGroup,omitempty" json:"feedAgeGroup,omitempty"`   // Default age group for feeds (e.g. "Adult", "Kids")
 	WhatsappNumber string `bson:"whatsappNumber" json:"whatsappNumber"`
 	FacebookURL    string `bson:"facebookUrl" json:"facebookUrl"`
 	InstagramURL   string `bson:"instagramUrl" json:"instagramUrl"`
@@ -239,18 +239,18 @@ type PartnerData struct {
 
 // Full Account Document structure
 type Account struct {
-	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Name          string             `bson:"name" json:"name"`
-	Email         string             `bson:"email" json:"email"`
-	PhoneNumber   string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
-	Password      string             `bson:"password" json:"-"` // Do not expose password
-	Role          string             `bson:"role" json:"role"`
-	AccountStatus AccountStatus      `bson:"accountStatus" json:"accountStatus"`
-	CreatedAt     time.Time          `bson:"createdAt" json:"createdAt"`
-	UpdatedAt     time.Time          `bson:"updatedAt" json:"updatedAt"`
-	CompanyData   *CompanyData       `bson:"company,omitempty" json:"company,omitempty"`
-	CustomerData  *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
-	PartnerData   *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
+	ID               primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Name             string             `bson:"name" json:"name"`
+	Email            string             `bson:"email" json:"email"`
+	PhoneNumber      string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	Password         string             `bson:"password" json:"-"` // Do not expose password
+	Role             string             `bson:"role" json:"role"`
+	AccountStatus    AccountStatus      `bson:"accountStatus" json:"accountStatus"`
+	CreatedAt        time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt        time.Time          `bson:"updatedAt" json:"updatedAt"`
+	CompanyData      *CompanyData       `bson:"company,omitempty" json:"company,omitempty"`
+	CustomerData     *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
+	PartnerData      *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
 	Address          *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
 	ResetToken       string             `bson:"resetToken,omitempty" json:"-"`
 	ResetTokenExpiry *time.Time         `bson:"resetTokenExpiry,omitempty" json:"-"`
@@ -273,8 +273,8 @@ type Account struct {
 // Non-secret identifiers (pixelId, customerId, conversionActionId) are shown in
 // full; the sensitive token/secret is only ever hinted at as its last 4 chars.
 type AdConversionInfo struct {
-	Configured bool   `json:"configured"`
-	Enabled    bool   `json:"enabled"`
+	Configured bool `json:"configured"`
+	Enabled    bool `json:"enabled"`
 	// Meta
 	PixelID string `json:"pixelId,omitempty"`
 	// Google
@@ -342,12 +342,12 @@ type Visitor struct {
 	TotalRevenue   float64            `bson:"totalRevenue" json:"totalRevenue"`
 	// ViewContentSent tallies successful ViewContent CAPI sends for this visitor.
 	// Counter (not a per-view milestone) to avoid unbounded milestones[] growth.
-	ViewContentSent int `bson:"viewContentSent,omitempty" json:"viewContentSent,omitempty"`
-	DaysToRegister *int               `bson:"daysToRegister,omitempty" json:"daysToRegister,omitempty"`
-	DaysToOrder    *int               `bson:"daysToOrder,omitempty" json:"daysToOrder,omitempty"`
-	ErrorLog       []string           `bson:"errorLog,omitempty" json:"errorLog,omitempty"`
-	CreatedAt      time.Time          `bson:"createdAt" json:"createdAt"`
-	UpdatedAt      time.Time          `bson:"updatedAt" json:"updatedAt"`
+	ViewContentSent int       `bson:"viewContentSent,omitempty" json:"viewContentSent,omitempty"`
+	DaysToRegister  *int      `bson:"daysToRegister,omitempty" json:"daysToRegister,omitempty"`
+	DaysToOrder     *int      `bson:"daysToOrder,omitempty" json:"daysToOrder,omitempty"`
+	ErrorLog        []string  `bson:"errorLog,omitempty" json:"errorLog,omitempty"`
+	CreatedAt       time.Time `bson:"createdAt" json:"createdAt"`
+	UpdatedAt       time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
 // ---------- code & auth ----------

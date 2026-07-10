@@ -51,8 +51,8 @@ type Order struct {
 	// Denormalized from Quote at order-create time. Required so admin order
 	// detail, CSV exports, and the order confirmation email can show the
 	// breakdown without joining back to the quote (which may be gone).
-	PromoCode         string             `bson:"promoCode,omitempty" json:"promoCode,omitempty"`
-	PromoDiscount     float64            `bson:"promoDiscount,omitempty" json:"promoDiscount,omitempty"`
+	PromoCode     string  `bson:"promoCode,omitempty" json:"promoCode,omitempty"`
+	PromoDiscount float64 `bson:"promoDiscount,omitempty" json:"promoDiscount,omitempty"`
 
 	// Refunds: append-only sub-collection. Items[] and money fields above stay
 	// immutable as the order-of-record. Refunds track money returned (matches

@@ -34,11 +34,11 @@ type StorefrontData struct {
 	Company          *storage.CompanyData
 	Config           *storage.D2CConfig
 	Products         []ProductData
-	Categories       []string         // Unique list of product categories
-	TopCategories    []string         // Top 6 categories by product count (for footer)
-	CategoryCounts   map[string]int   // Product count per category
-	FeaturedProducts []ProductData // Subset of products for the homepage
-	DealProducts     []ProductData // Products with active deals (DealPrice > 0)
+	Categories       []string       // Unique list of product categories
+	TopCategories    []string       // Top 6 categories by product count (for footer)
+	CategoryCounts   map[string]int // Product count per category
+	FeaturedProducts []ProductData  // Subset of products for the homepage
+	DealProducts     []ProductData  // Products with active deals (DealPrice > 0)
 	BlogPosts        []BlogPostData // Editorial articles (LLM-targeted)
 	BlogCategories   []string       // Unique list of blog categories
 	HasBlog          bool           // true if any active blog posts (drives footer link)
@@ -70,9 +70,9 @@ type BlogPostData struct {
 	PublishedAt         time.Time `json:"publishedAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
 	// Pre-computed by generator (NOT in DB / JSON)
-	Filename     string `json:"-"` // {slug}-{last6charsOfID}
-	ReadMinutes  int    `json:"-"` // word count / 200
-	WordCount    int    `json:"-"`
+	Filename    string `json:"-"` // {slug}-{last6charsOfID}
+	ReadMinutes int    `json:"-"` // word count / 200
+	WordCount   int    `json:"-"`
 }
 
 type Attribute struct {
@@ -81,12 +81,12 @@ type Attribute struct {
 }
 
 type Review struct {
-	Name      string    `json:"name"`
-	Rating    int       `json:"rating"`
-	Title     string    `json:"title,omitempty"`
-	Body      string    `json:"body"`
-	Verified  bool      `json:"verified,omitempty"`
-	Date      time.Time `json:"date"`
+	Name     string    `json:"name"`
+	Rating   int       `json:"rating"`
+	Title    string    `json:"title,omitempty"`
+	Body     string    `json:"body"`
+	Verified bool      `json:"verified,omitempty"`
+	Date     time.Time `json:"date"`
 }
 
 type RatingDistribution struct {
@@ -110,29 +110,29 @@ type PriceTier struct {
 }
 
 type ProductData struct {
-	ID              string      `json:"_id,omitempty"`
-	PartnerID       string      `json:"partnerId,omitempty"`
-	Name            string      `json:"name"`
-	Description     string      `json:"description"`
-	Price           float64     `json:"price"`
-	DealPrice       float64     `json:"dealPrice,omitempty"`
-	DealStartDate   *time.Time  `json:"dealStartDate,omitempty"`
-	DealEndDate     *time.Time  `json:"dealEndDate,omitempty"`
-	DiscountedPrice float64     `json:"discountedPrice,omitempty"`
-	PriceTiers      []PriceTier `json:"priceTiers,omitempty"`
-	Images          []string    `json:"images,omitempty"`
-	Image           string      `json:"image"`
-	Category        string      `json:"category"`
-	GoogleProductCategory string `json:"googleProductCategory,omitempty"`
-	Slug            string      `json:"slug"`
-	SKU             string      `json:"sku,omitempty"`
-	Barcode         string      `json:"barcode,omitempty"`
-	Stock           int         `json:"stock"`
-	Active          *bool       `json:"active,omitempty"`
-	Featured        bool        `json:"featured,omitempty"`
-	Attributes      []Attribute `json:"attributes"`
-	Rating          *Rating     `json:"rating,omitempty"`
-	Filename        string      `json:"-"` // Pre-computed: slug-suffix (no extension)
+	ID                    string      `json:"_id,omitempty"`
+	PartnerID             string      `json:"partnerId,omitempty"`
+	Name                  string      `json:"name"`
+	Description           string      `json:"description"`
+	Price                 float64     `json:"price"`
+	DealPrice             float64     `json:"dealPrice,omitempty"`
+	DealStartDate         *time.Time  `json:"dealStartDate,omitempty"`
+	DealEndDate           *time.Time  `json:"dealEndDate,omitempty"`
+	DiscountedPrice       float64     `json:"discountedPrice,omitempty"`
+	PriceTiers            []PriceTier `json:"priceTiers,omitempty"`
+	Images                []string    `json:"images,omitempty"`
+	Image                 string      `json:"image"`
+	Category              string      `json:"category"`
+	GoogleProductCategory string      `json:"googleProductCategory,omitempty"`
+	Slug                  string      `json:"slug"`
+	SKU                   string      `json:"sku,omitempty"`
+	Barcode               string      `json:"barcode,omitempty"`
+	Stock                 int         `json:"stock"`
+	Active                *bool       `json:"active,omitempty"`
+	Featured              bool        `json:"featured,omitempty"`
+	Attributes            []Attribute `json:"attributes"`
+	Rating                *Rating     `json:"rating,omitempty"`
+	Filename              string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
 type Generator struct {

@@ -54,7 +54,8 @@ jobs:
             go mod tidy
             git diff --exit-code go.mod go.sum || (echo "FAIL: go.mod/go.sum not tidy in $service" && exit 1)
             go build -o bootstrap ./cmd/server/...
-            test -z "$(gofmt -l ./...)" || (echo "FAIL: unformatted files in $service" && gofmt -l ./... && exit 1)
+            unformatted=$(gofmt -l . | grep -v '^vendor/' || true)
+            test -z "$unformatted" || (echo "FAIL: unformatted files in $service:" && echo "$unformatted" && exit 1)
             go vet ./...
             cd ..
           done

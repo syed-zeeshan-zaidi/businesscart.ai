@@ -8,9 +8,10 @@ import (
 
 // Compute derives the billing tier and fees from a period's orders.
 // Brackets:
-//   Starter    ≤100 orders/mo  → $0/mo + 6% per order, capped at $5
-//   Growth     101–1000        → $499/mo + 1% per order, no cap
-//   Enterprise 1001+           → $1,999/mo + 0.25% per order, no cap
+//
+//	Starter    ≤100 orders/mo  → $0/mo + 6% per order, capped at $5
+//	Growth     101–1000        → $499/mo + 1% per order, no cap
+//	Enterprise 1001+           → $1,999/mo + 0.25% per order, no cap
 //
 // Pure function — no DB calls. Mirrors web-portal/src/tier.ts; keep them
 // synchronized so admin and company always see the same numbers.

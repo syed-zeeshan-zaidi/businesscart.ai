@@ -164,9 +164,9 @@ func TestGoogleReviewsFeed_SkipsBadReviews(t *testing.T) {
 				Filename: "test",
 				Rating: &Rating{
 					Reviews: []Review{
-						{Name: "A", Rating: 5, Body: "", Date: time.Now()},   // empty body — skip
-						{Name: "B", Rating: 0, Body: "ok", Date: time.Now()}, // bad rating — skip
-						{Name: "C", Rating: 6, Body: "ok", Date: time.Now()}, // bad rating — skip
+						{Name: "A", Rating: 5, Body: "", Date: time.Now()},     // empty body — skip
+						{Name: "B", Rating: 0, Body: "ok", Date: time.Now()},   // bad rating — skip
+						{Name: "C", Rating: 6, Body: "ok", Date: time.Now()},   // bad rating — skip
 						{Name: "D", Rating: 5, Body: "good", Date: time.Now()}, // keep
 					},
 				},
