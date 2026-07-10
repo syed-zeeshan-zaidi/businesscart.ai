@@ -67,7 +67,7 @@
                         <div style="text-align:center;padding:1rem;color:#94a3b8;font-size:0.9rem;">Loading order details...</div>
                     </div>
                     <div style="padding:1.5rem 2rem 2rem;display:flex;flex-direction:column;gap:0.75rem;">
-                        <button onclick="D2C_CUSTOMER.showDashboard();document.getElementById('order-confirm-overlay')?.remove();" style="width:100%;padding:0.875rem;border:1px solid ${primaryColor};background:transparent;color:${primaryColor};border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">View My Orders</button>
+                        <button onclick="D2C_CUSTOMER.showDashboard('orders');document.getElementById('order-confirm-overlay')?.remove();" style="width:100%;padding:0.875rem;border:1px solid ${primaryColor};background:transparent;color:${primaryColor};border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">View My Orders</button>
                         <button onclick="document.getElementById('order-confirm-overlay')?.remove();" style="width:100%;padding:0.875rem;border:none;background:${primaryColor};color:#fff;border-radius:12px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">Continue Shopping</button>
                     </div>
                 </div>`;
@@ -466,14 +466,20 @@
         showGuestCheckout(cartItems) {
             const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const primaryColor = window.D2C_CONFIG?.primaryColor || '#0d9488';
+            const count = (cartItems || []).reduce((n, it) => n + (it.quantity || 1), 0);
+            const total = (cartItems || []).reduce((s, it) => s + (it.discountedPrice || it.price || 0) * (it.quantity || 1), 0);
             document.getElementById('d2c-guest-modal')?.remove();
             const modal = document.createElement('div');
             modal.id = 'd2c-guest-modal';
             modal.style = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);padding:1rem';
             modal.innerHTML = `
-                <div style="background:#fff;border-radius:16px;padding:2rem;max-width:26rem;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25)">
+                <div style="background:#fff;border-radius:16px;padding:1.75rem;max-width:26rem;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.25)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">
+                        <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#9ca3af">Step 1 of 2 · Your details</span>
+                        <span style="font-size:0.85rem;font-weight:700;color:#111827">${count} item${count === 1 ? '' : 's'} · $${total.toFixed(2)}</span>
+                    </div>
                     <h2 style="margin:0 0 0.25rem;font-size:1.35rem;font-weight:800;color:#111827">Checkout</h2>
-                    <p style="margin:0 0 1.25rem;font-size:0.875rem;color:#6b7280">Enter your details to continue. No account or password needed.</p>
+                    <p style="margin:0 0 1.25rem;font-size:0.875rem;color:#6b7280">No account or password needed — next you'll add shipping &amp; pay.</p>
                     <form id="d2c-guest-form">
                         <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.35rem">Full name</label>
                         <input name="name" required autocomplete="name" style="width:100%;padding:0.7rem 0.85rem;border:1px solid #d1d5db;border-radius:10px;font-size:0.95rem;margin-bottom:1rem;box-sizing:border-box">
@@ -481,7 +487,11 @@
                         <input name="email" type="email" required autocomplete="email" style="width:100%;padding:0.7rem 0.85rem;border:1px solid #d1d5db;border-radius:10px;font-size:0.95rem;margin-bottom:1.25rem;box-sizing:border-box">
                         <button type="submit" style="width:100%;padding:0.8rem;background:${esc(primaryColor)};color:#fff;border:0;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer">Continue to shipping &amp; payment</button>
                     </form>
-                    <p style="margin:1rem 0 0;text-align:center;font-size:0.8rem;color:#6b7280">Already have an account? <a href="#" id="d2c-guest-signin" style="color:${esc(primaryColor)};font-weight:700;text-decoration:none">Sign in</a></p>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:0.9rem;font-size:0.72rem;color:#9ca3af">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Secure checkout · we'll only email your order
+                    </div>
+                    <p style="margin:0.9rem 0 0;text-align:center;font-size:0.8rem;color:#6b7280">Already have an account? <a href="#" id="d2c-guest-signin" style="color:${esc(primaryColor)};font-weight:700;text-decoration:none">Sign in</a></p>
                 </div>`;
             document.body.appendChild(modal);
             modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
@@ -493,16 +503,23 @@
                 const btn = e.target.querySelector('button[type="submit"]');
                 btn.disabled = true; btn.textContent = 'Please wait...';
                 const fd = new FormData(e.target);
+                const email = String(fd.get('email')).trim();
                 try {
                     const resp = await fetch(`${API_BASE}/accounts/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: fd.get('name'), email: String(fd.get('email')).trim(), role: 'b2c', code: window.D2C_CONFIG.companyCode })
+                        body: JSON.stringify({ name: fd.get('name'), email: email, role: 'b2c', code: window.D2C_CONFIG.companyCode })
                     });
                     if (resp.status === 409) {
+                        // Returning guest: the email already has a (likely passwordless)
+                        // account, so "sign in" is a dead end. Route to reset → set a
+                        // password → continue, with the email pre-filled.
                         modal.remove();
-                        if (window.D2C_CART) window.D2C_CART.showToast('You already have an account — please sign in.');
+                        if (window.D2C_CART) window.D2C_CART.showToast('Welcome back! Set a password to finish checking out.');
                         this.showLoginModal();
+                        this.toggleAuthMode('forgot');
+                        const emailInput = document.querySelector('#auth-form-container input[name="email"]');
+                        if (emailInput) emailInput.value = email;
                         return;
                     }
                     const data = resp.ok ? await resp.json() : null;
@@ -608,15 +625,15 @@
             let addrList = customerAddresses.slice();
             let addrPreselectId = (addrList.find(a => a.isDefaultShipping) || addrList[0])?.id;
             const user = this.user || {};
-            const defaultRecipient = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+            const defaultRecipient = (`${user.firstName || ''} ${user.lastName || ''}`.trim()) || (user.name || '');
 
             const buildAddressListHtml = () => {
                 if (addrList.length === 0) {
-                    // Zero-state path is unchanged — closes modal + opens dashboard address tab.
-                    return `<div id="checkout-new-address-section">
-                        <p style="font-size:13px;color:#9ca3af;padding:4px 0 8px">No saved addresses.</p>
-                        <button type="button" onclick="document.getElementById('d2c-checkout-overlay')?.remove(); D2C_CUSTOMER._showAddressForm=true; D2C_CUSTOMER._dashboardTab='addresses'; D2C_CUSTOMER.showDashboard();" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Delivery Address</button>
-                    </div>`;
+                    // No saved address — every guest, and first-time customers. Show the
+                    // shipping form INLINE so checkout completes in one flow. (Previously
+                    // this bounced the shopper out to the dashboard, which broke guest
+                    // checkout entirely.)
+                    return buildAddressFormHtml({ inline: true });
                 }
                 return `
                     <select id="checkout-address" class="checkout-select">
@@ -626,12 +643,18 @@
                 `;
             };
 
-            const buildAddressFormHtml = () => `
+            // inline mode (first address / guest): drop the Label field, the
+            // "set as default" checkbox, and Cancel — a one-time buyer doesn't need
+            // to label or manage addresses. The full form (Label + default + Cancel)
+            // is still used for "+ Add new address" when saved addresses exist.
+            const buildAddressFormHtml = (opts) => {
+                const inline = !!(opts && opts.inline);
+                return `
                 <form id="checkout-add-address-form" class="checkout-form">
-                    <div>
+                    ${inline ? '' : `<div>
                         <label class="checkout-form-label" for="addr-label">Label</label>
                         <input class="checkout-input" id="addr-label" name="addressLabel" placeholder="Home, Work" required>
-                    </div>
+                    </div>`}
                     <div>
                         <label class="checkout-form-label" for="addr-recipient">Recipient name</label>
                         <input class="checkout-input" id="addr-recipient" name="recipientName" value="${escAttr(defaultRecipient)}" required>
@@ -658,15 +681,16 @@
                         <label class="checkout-form-label" for="addr-zip">ZIP</label>
                         <input class="checkout-input" id="addr-zip" name="zip" autocomplete="postal-code" required>
                     </div>
-                    <label class="checkout-checkbox-row">
+                    ${inline ? '' : `<label class="checkout-checkbox-row">
                         <input type="checkbox" name="isDefaultShipping"> Set as default shipping address
-                    </label>
+                    </label>`}
                     <div class="checkout-form-actions">
-                        <button type="button" class="checkout-btn-secondary" data-action="cancel-add-form">Cancel</button>
+                        ${inline ? '' : '<button type="button" class="checkout-btn-secondary" data-action="cancel-add-form">Cancel</button>'}
                         <button type="submit" class="checkout-btn-primary-sm">Save Address</button>
                     </div>
                 </form>
-            `;
+                `;
+            };
 
             const overlay = document.createElement('div');
             overlay.id = 'd2c-checkout-overlay';
@@ -998,10 +1022,12 @@
                     const cancelBtn = form.querySelector('button[data-action="cancel-add-form"]');
                     const fd = new FormData(form);
                     const payload = {
-                        addressLabel: fd.get('addressLabel'),
+                        // inline form omits the Label field → default to "Shipping".
+                        addressLabel: fd.get('addressLabel') || 'Shipping',
                         recipientName: fd.get('recipientName'),
                         phoneNumber: fd.get('phoneNumber') || '',
-                        isDefaultShipping: !!fd.get('isDefaultShipping'),
+                        // First address (inline form has no checkbox) becomes the default.
+                        isDefaultShipping: !!fd.get('isDefaultShipping') || addrList.length === 0,
                         address: { street: fd.get('street'), city: fd.get('city'), state: fd.get('state'), zip: fd.get('zip') }
                     };
                     submitBtn.disabled = true; if (cancelBtn) cancelBtn.disabled = true;
@@ -1250,11 +1276,16 @@
 
         _dashboardTab: 'profile',
 
-        async showDashboard() {
+        async showDashboard(tab) {
             const content = document.getElementById('dashboard-content');
             if (!this.user) {
                 this.showLoginModal();
                 return;
+            }
+            // Optional starting tab (e.g. 'orders' from the post-purchase
+            // confirmation). Omitted → keep whatever tab was last active.
+            if (tab) {
+                this._dashboardTab = tab;
             }
 
             // Inject dashboard styles once
