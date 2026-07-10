@@ -1,9 +1,9 @@
 // src/components/OrderForm.tsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getOrders, deleteOrder, updateOrder, exportOrders } from '../api';
+import { getOrders, deleteOrder, updateOrder, exportOrders, requestOrderReview } from '../api';
 import { Order } from '../types';
 import Navbar from './Navbar';
-import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon, ArrowDownTrayIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 
 /* ------------------------------------------------------------------ */
@@ -351,6 +351,20 @@ const OrderForm = () => {
     }
   }, [editingOrder, editStatus, editCarrier, editTrackingNumber, fetchOrders, invalidateCache, closeEditModal]);
 
+  // Ask the customer for a review. Enabled only once the order is shipped or
+  // delivered (see button gating below). Customer replies by email; the review
+  // is transcribed into the product via the catalog admin (manual moderation).
+  const handleRequestReview = useCallback(async (orderId: string) => {
+    try {
+      const updated = await requestOrderReview(orderId);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, reviewRequestedAt: updated.reviewRequestedAt } : o)));
+      setEditingOrder((prev) => (prev && prev.id === orderId ? { ...prev, reviewRequestedAt: updated.reviewRequestedAt } : prev));
+      toast.success('Review request sent');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send review request');
+    }
+  }, []);
+
   /* ------------------------ Render ------------------------ */
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -487,6 +501,31 @@ const OrderForm = () => {
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
+                        {(() => {
+                          const reviewEligible = order.status === 'shipped' || order.status === 'delivered';
+                          const requested = !!order.reviewRequestedAt;
+                          const enabled = canEdit && reviewEligible && !!order.customerEmail;
+                          const title = !canEdit
+                            ? 'Requesting reviews is not available for partner accounts'
+                            : !order.customerEmail
+                              ? 'No customer email on this order'
+                              : !reviewEligible
+                                ? 'Available once the order is shipped or delivered'
+                                : requested
+                                  ? `Review requested ${new Date(order.reviewRequestedAt!).toLocaleDateString()} — click to resend`
+                                  : 'Request a review from the customer';
+                          return (
+                            <button
+                              onClick={() => handleRequestReview(order.id)}
+                              disabled={!enabled}
+                              className={`rounded p-2 mr-1 ${enabled ? (requested ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50') : 'text-amber-600 opacity-50 cursor-not-allowed'}`}
+                              aria-label={`Request review for order ${order.id}`}
+                              title={title}
+                            >
+                              <StarIcon className="h-5 w-5" />
+                            </button>
+                          );
+                        })()}
                         <button
                           onClick={() => console.log('Print order', order.id)}
                           disabled={isPartner}
@@ -841,6 +880,30 @@ const OrderForm = () => {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-2 flex-shrink-0">
+              {(() => {
+                const reviewEligible = editingOrder.status === 'shipped' || editingOrder.status === 'delivered';
+                const requested = !!editingOrder.reviewRequestedAt;
+                const enabled = canEdit && reviewEligible && !!editingOrder.customerEmail;
+                const title = !canEdit
+                  ? 'Requesting reviews is not available for partner accounts'
+                  : !editingOrder.customerEmail
+                    ? 'No customer email on this order'
+                    : !reviewEligible
+                      ? 'Available once the order is shipped or delivered'
+                      : requested
+                        ? `Review requested ${new Date(editingOrder.reviewRequestedAt!).toLocaleDateString()} — click to resend`
+                        : 'Request a review from the customer';
+                return (
+                  <button
+                    onClick={() => handleRequestReview(editingOrder.id)}
+                    disabled={!enabled}
+                    title={title}
+                    className={`mr-auto inline-flex items-center gap-1.5 px-4 py-2 border rounded-md text-sm font-medium ${enabled ? (requested ? 'border-green-300 text-green-700 bg-white hover:bg-green-50' : 'border-amber-300 text-amber-700 bg-white hover:bg-amber-50') : 'border-gray-300 text-gray-400 bg-white opacity-60 cursor-not-allowed'}`}
+                  >
+                    <StarIcon className="h-4 w-4" /> {requested ? 'Resend review request' : 'Request review'}
+                  </button>
+                );
+              })()}
               <button
                 onClick={closeEditModal}
                 className="px-4 py-2 border border-gray-300 bg-white rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
