@@ -371,6 +371,21 @@ def _fill_stripe_checkout(page, guest_email):
     btn.click()
 
 
+def _snapshot_all_order_ids():
+    """Every order _id currently in the DB (admin view) — the pre-run baseline the
+    safety net checks against. Read-only."""
+    saved = api.token
+    try:
+        r = api.post("/accounts/login", {"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
+        api.token = r.json().get("token") or r.json().get("accessToken")
+        rows = api.get("/checkout/orders").json() or []
+        return {(o.get("id") or o.get("_id")) for o in rows if (o.get("id") or o.get("_id"))}
+    except Exception:
+        return set()
+    finally:
+        api.token = saved
+
+
 def _assert_paid_order(guest_email):
     """Verify the paid order persisted correctly server-side (via admin).
 
@@ -621,6 +636,11 @@ def main():
 
     start = time.time()
     httpd = None
+    # SAFETY NET: snapshot every order that exists BEFORE this run. The test must
+    # only ever delete orders it created; if any pre-existing order goes missing,
+    # something did a broad/unscoped delete and we fail loudly (this is the exact
+    # class of bug that once wiped production orders). Belt to the tracked-id braces.
+    baseline_orders = _snapshot_all_order_ids()
     try:
         step("Setup: isolated __TEST__ D2C company + products + storefront")
         setup()
@@ -631,6 +651,13 @@ def main():
         fail(f"setup error: {type(e).__name__}: {str(e)[:300]}")
     finally:
         cleanup(httpd)
+
+    missing = baseline_orders - _snapshot_all_order_ids()
+    if missing:
+        fail(f"CRITICAL SAFETY VIOLATION: {len(missing)} pre-existing order(s) were deleted by this "
+             f"run — a broad/unscoped delete slipped in. IDs: {sorted(missing)[:5]} … DB needs recovery.")
+    else:
+        ok(f"safety net: all {len(baseline_orders)} pre-existing orders untouched")
 
     elapsed = time.time() - start
     print()
