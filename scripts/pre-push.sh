@@ -38,6 +38,17 @@ if [ "$code" = "000" ]; then
     exit 0
 fi
 
+# --- 0. Safety: full DB backup BEFORE any test writes/deletes. The heavy suite
+#        creates and deletes data on the (prod-shared) DB; a fresh restorable
+#        snapshot first means any mistake is a mongorestore away. ---
+echo -e "${YELLOW}▶ backup-db.py (pre-test snapshot)${NC}"
+if python3 scripts/backup-db.py; then
+    echo -e "${GREEN}✓ backup taken${NC}"
+else
+    echo -e "${RED}✗ backup failed — refusing to run destructive tests without a snapshot${NC}"
+    exit 1
+fi
+
 # --- 1. backend-flow: needs only the stack (uses its own __TEST__ admin). ---
 echo -e "${YELLOW}▶ backend-flow-test.py${NC}"
 if python3 backend-flow-test.py --base-url "$GATEWAY"; then
