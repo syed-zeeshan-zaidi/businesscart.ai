@@ -223,6 +223,30 @@
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
+        /* Mobile-only sticky Add-to-Cart bar. No JS: reuses the main add-to-cart onclick. */
+        .sticky-atc { display: none; }
+        @media (max-width: 768px) {
+            body { padding-bottom: 5rem; }
+            .sticky-atc {
+                display: flex;
+                align-items: center;
+                gap: 0.85rem;
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                z-index: 900;
+                padding: 0.65rem 5%;
+                background: rgba(255, 255, 255, 0.9);
+                -webkit-backdrop-filter: blur(16px);
+                backdrop-filter: blur(16px);
+                border-top: 1px solid rgba(0, 0, 0, 0.06);
+                box-shadow: 0 -6px 20px -8px rgba(0, 0, 0, 0.14);
+            }
+            .sticky-atc .sa-price { flex: 1; min-width: 0; }
+            .sticky-atc .sa-now { font-size: 1.15rem; font-weight: 900; line-height: 1.1; color: var(--text); }
+            .sticky-atc .sa-name { font-size: 0.72rem; color: #64748b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .sticky-atc .cta-btn { flex: 0 0 auto; width: auto; padding: 0.8rem 1.5rem; font-size: 1rem; box-shadow: none; }
+        }
+
         [[template "global_css" .]]
     </style>
     <script type="application/ld+json">
@@ -470,7 +494,7 @@
                     <button type="button" id="qty-plus" onclick="var q=document.getElementById('qty');q.value=Math.min([[.Product.Stock]],Number(q.value)+1);window.D2C_QTY_SYNC&&window.D2C_QTY_SYNC()" style="width:44px;height:44px;border:none;background:#f8fafc;cursor:pointer;font-size:1.2rem;font-weight:700;color:var(--text)">+</button>
                 </div>
                 <button class="cta-btn" style="flex:1"
-                    onclick="window.D2C_CART.addItem({_id:'[[.Product.ID]]', partnerId:'[[.Product.PartnerID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]], stock:[[.Product.Stock]]}, Number(document.getElementById('qty').value)||1)">
+                    onclick="[[template "atcOnclick" .]]">
                     Add to Cart
                 </button>
             </div>
@@ -478,6 +502,14 @@
             <button class="cta-btn" disabled style="opacity:0.5;cursor:not-allowed;box-shadow:none">
                 Out of Stock
             </button>
+            [[end]]
+
+            [[if ge .Company.LeadTime 1.0]]
+            <!-- Delivery estimate (server-rendered from the company's configured lead time) -->
+            <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.95rem;font-weight:700;color:var(--text)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
+                <span>Ships in [[printf "%.0f" .Company.LeadTime]] business day[[if gt .Company.LeadTime 1.0]]s[[end]]</span>
+            </div>
             [[end]]
 
             <!-- Trust Signals -->
@@ -605,7 +637,22 @@
     </section>
     [[end]]
 
+    [[if gt .Product.Stock 0]]
+    <!-- Mobile sticky Add-to-Cart (CSS-only; hidden on desktop, reuses the main add-to-cart call) -->
+    <div class="sticky-atc">
+        <div class="sa-price">
+            <div class="sa-now">$[[if .Product.DealPrice]][[printf "%.2f" .Product.DiscountedPrice]][[else]][[printf "%.2f" .Product.Price]][[end]]</div>
+            <div class="sa-name">[[.Product.Name]]</div>
+        </div>
+        <button class="cta-btn"
+            onclick="[[template "atcOnclick" .]]">
+            Add to Cart
+        </button>
+    </div>
+    [[end]]
+
     [[template "footer" .]]
 </body>
 
 </html>
+[[define "atcOnclick"]]window.D2C_CART.addItem({_id:'[[.Product.ID]]', partnerId:'[[.Product.PartnerID]]', name:'[[.Product.Name]]', price:[[.Product.Price]], discountedPrice:[[if .Product.DealPrice]][[.Product.DiscountedPrice]][[else]][[.Product.Price]][[end]], image:'[[.Product.Image]]', dealPrice:[[.Product.DealPrice]], priceTiers:[[jsArray .Product.PriceTiers]], stock:[[.Product.Stock]]}, Number(document.getElementById('qty').value)||1)[[end]]
