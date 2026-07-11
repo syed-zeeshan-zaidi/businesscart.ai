@@ -6,14 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getProducts, getOrders, getAccounts } from '../api';
 import { Account, Order } from '../types';
 import { computeTier, TierInfo } from '../tier';
-import {
-  ShoppingCartIcon,
-  CurrencyDollarIcon,
-  UsersIcon,
-  CubeIcon,
-  BuildingOffice2Icon,
-  UserPlusIcon,
-} from '@heroicons/react/24/outline';
+import { Band, Tile, Pill, STATUS_TONE } from './ui';
 
 interface User {
   id: string;
@@ -38,6 +31,20 @@ function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
     localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
     return data;
   });
+}
+
+// Pin position on the tier rail. Three equal visual segments (Starter / Growth /
+// Enterprise) with the real thresholds labeled — a linear 0–1000 scale would
+// squash Starter into 10% of the bar.
+const TIER_STOPS: { name: TierInfo['tier']; at: number }[] = [
+  { name: 'Starter', at: 0 },
+  { name: 'Growth', at: 100 },
+  { name: 'Enterprise', at: 1000 },
+];
+function tierPinPct(count: number): number {
+  if (count <= 100) return (count / 100) * (100 / 3);
+  if (count <= 1000) return 100 / 3 + ((count - 100) / 900) * (100 / 3);
+  return 200 / 3 + Math.min(1, (count - 1000) / 1000) * (100 / 3);
 }
 
 const Dashboard: React.FC = () => {
@@ -181,19 +188,14 @@ const Dashboard: React.FC = () => {
     load();
   }, [user]);
 
-  const StatCard = ({ icon: Icon, label, value, prefix }: { icon: React.ElementType; label: string; value: number; prefix?: string }) => (
-    <div className="bg-white p-6 rounded-lg shadow flex items-center gap-4">
-      <Icon className="h-10 w-10 text-teal-700 shrink-0" />
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        {loading ? (
-          <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full mt-1" />
-        ) : (
-          <p className="text-2xl font-bold text-gray-800">{prefix}{prefix === '$' ? Math.round(value).toLocaleString('en-US') : value.toLocaleString('en-US')}</p>
-        )}
-      </div>
-    </div>
-  );
+  // Month-over-month revenue momentum, from the last two months in the trend.
+  const revMoM = (() => {
+    if (monthlyRevenue.length < 2) return null;
+    const cur = monthlyRevenue[monthlyRevenue.length - 1].revenue;
+    const prev = monthlyRevenue[monthlyRevenue.length - 2].revenue;
+    if (prev <= 0) return null;
+    return Math.round(((cur - prev) / prev) * 100);
+  })();
 
   if (user?.role === 'partner') {
     return (
@@ -218,211 +220,231 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const maxRev = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Toaster position="top-right" />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">
-              {user ? `Welcome, ${user.name || user.role.charAt(0).toUpperCase() + user.role.slice(1)}` : 'Welcome to your Dashboard'}
-            </h1>
-            <p className="text-gray-500 mt-1">Here's what's happening with your business.</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {user?.role === 'company' && (
-                <>
-                  <button onClick={() => navigate('/products')} className="px-4 py-2 text-sm font-medium rounded-lg bg-teal-700 text-white hover:bg-teal-800">Add Product</button>
-                  <button onClick={() => navigate('/orders')} className="px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">View Orders</button>
-                  <button onClick={() => navigate('/companies')} className="px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">Storefront Settings</button>
-                </>
-              )}
-              {user?.role === 'admin' && (
-                <>
-                  <button onClick={() => navigate('/codes')} className="px-4 py-2 text-sm font-medium rounded-lg bg-teal-700 text-white hover:bg-teal-800">Manage Codes</button>
-                  <button onClick={() => navigate('/orders')} className="px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">View Orders</button>
-                  <button onClick={() => navigate('/analytics')} className="px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">Analytics</button>
-                </>
-              )}
-            </div>
-          </div>
+          <div className="max-w-6xl mx-auto">
 
-          {/* Pricing Tier — company role only. Auto-derived from this month's order count. */}
-          {user?.role === 'company' && tier && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-3">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Pricing Tier</h2>
-                <span className="text-xs text-gray-500">
-                  {tier.monthOrderCount} order{tier.monthOrderCount !== 1 ? 's' : ''} this month
-                </span>
+            {/* Header */}
+            <header className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-gray-800">
+                  {user ? `Welcome, ${user.name || user.role.charAt(0).toUpperCase() + user.role.slice(1)}` : 'Welcome'}
+                </h1>
+                <p className="text-gray-500 text-sm mt-1">Here's what's moving this month.</p>
               </div>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 mb-4">
-                <p className="text-3xl font-extrabold text-teal-700">{tier.tier}</p>
-                <p className="text-sm text-gray-600">
-                  {tier.perOrderCap !== null
-                    ? `$${tier.monthlyFee}/mo + ${(tier.perOrderRate * 100).toFixed(2)}% per order, capped at $${tier.perOrderCap}`
-                    : `$${tier.monthlyFee.toLocaleString('en-US')}/mo + ${(tier.perOrderRate * 100).toFixed(2)}% per order`}
-                </p>
-              </div>
-              {tier.nextTierThreshold !== null ? (
-                <>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div
-                      className="bg-teal-700 h-2.5 rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (tier.monthOrderCount / tier.nextTierThreshold) * 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    {tier.ordersToNextTier} more order{tier.ordersToNextTier !== 1 ? 's' : ''} this month → graduate to {tier.nextTierName}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-gray-500">Top tier — no further graduation.</p>
-              )}
-              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-sm text-gray-600">Estimated bill this month</span>
-                <span className="text-2xl font-bold text-gray-800">${tier.estimatedBill.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-          )}
-
-          <div className={`grid grid-cols-2 ${user?.role === 'admin' ? 'lg:grid-cols-6' : 'lg:grid-cols-4'} gap-4 mb-6`}>
-            <StatCard icon={CurrencyDollarIcon} label="Total Revenue" value={stats.revenue} prefix="$" />
-            <StatCard icon={ShoppingCartIcon} label="Total Orders" value={stats.orders} />
-            <StatCard icon={CubeIcon} label="Products" value={stats.products} />
-            <StatCard icon={UsersIcon} label="Customers" value={stats.customers} />
-            {user?.role === 'admin' && (
-              <>
-                <StatCard icon={BuildingOffice2Icon} label="Companies" value={adminStats.companies} />
-                <StatCard icon={UserPlusIcon} label="New This Month" value={adminStats.newSignups} />
-              </>
-            )}
-          </div>
-
-          {/* Revenue Chart + Low Stock */}
-          {!loading && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-              {/* Revenue Chart */}
-              <div className="lg:col-span-2 bg-white rounded-lg shadow p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenue (Last 6 Months)</h3>
-                {monthlyRevenue.length > 0 && (() => {
-                  const maxRev = Math.max(...monthlyRevenue.map(m => m.revenue), 1);
-                  return (
-                    <div className="flex items-end gap-3 h-48">
-                      {monthlyRevenue.map((m) => (
-                        <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                          <span className="text-xs text-gray-500 font-medium">${m.revenue >= 1000 ? `${(m.revenue / 1000).toFixed(1)}k` : m.revenue.toFixed(0)}</span>
-                          <div className="w-full rounded-t-lg bg-teal-700 transition-all" style={{ height: `${Math.max((m.revenue / maxRev) * 100, 2)}%`, minHeight: '4px' }} />
-                          <span className="text-xs text-gray-400">{m.month}</span>
-                          <span className="text-[10px] text-gray-400">{m.orders} order{m.orders !== 1 ? 's' : ''}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Low Stock Alerts */}
-              <div className="bg-white rounded-lg shadow p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Low Stock Alerts</h3>
-                {lowStock.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mb-2 text-green-400"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <p className="text-sm font-medium text-green-600">All stocked up</p>
-                    <p className="text-xs">No products below 5 units</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-48 overflow-y-auto">
-                    {lowStock.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700 truncate mr-2">{p.name}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${p.stock <= 2 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.stock} left</span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex flex-wrap gap-2">
+                {user?.role === 'company' && (
+                  <>
+                    <button onClick={() => navigate('/products')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">Add product</button>
+                    <button onClick={() => navigate('/orders')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">View orders</button>
+                    <button onClick={() => navigate('/companies')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">Storefront settings</button>
+                  </>
+                )}
+                {user?.role === 'admin' && (
+                  <>
+                    <button onClick={() => navigate('/codes')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">Manage codes</button>
+                    <button onClick={() => navigate('/orders')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">View orders</button>
+                    <button onClick={() => navigate('/analytics')} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">Analytics</button>
+                  </>
                 )}
               </div>
-            </div>
-          )}
+            </header>
 
-          {/* Recent Orders */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Orders</h2>
+            {/* Hero: billing meter — company only. Its own signature element (no band
+                label). Auto-derived from this month's non-cancelled orders. */}
+            {user?.role === 'company' && tier && (() => {
+              const pin = tierPinPct(tier.monthOrderCount);
+              return (
+                <section className="relative overflow-hidden bg-white rounded-xl border border-gray-200 shadow-md p-5 sm:p-6 mt-6" aria-label="Pricing tier this month">
+                  <span className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-teal-600 to-emerald-500" aria-hidden="true" />
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                    <div>
+                      <div className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-gray-400">Your plan scales with volume</div>
+                      <div className="flex items-baseline gap-2.5 mt-1">
+                        <span className="text-3xl font-extrabold tracking-tight text-teal-700">{tier.tier}</span>
+                        <span className="text-sm text-gray-500 tabular-nums">
+                          {tier.monthlyFee > 0 ? `$${tier.monthlyFee.toLocaleString('en-US')}/mo + ` : ''}
+                          {(tier.perOrderRate * 100).toFixed(tier.perOrderRate < 0.01 ? 2 : 0)}% per order
+                          {tier.perOrderCap !== null ? `, capped at $${tier.perOrderCap}/order` : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Estimated bill</div>
+                      <div className="text-2xl font-extrabold tracking-tight text-gray-800 tabular-nums">${tier.estimatedBill.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="relative h-2.5 rounded-md bg-gray-100">
+                      <span className="absolute top-0 bottom-0 w-px bg-white" style={{ left: `${100 / 3}%` }} aria-hidden="true" />
+                      <span className="absolute top-0 bottom-0 w-px bg-white" style={{ left: `${200 / 3}%` }} aria-hidden="true" />
+                      <span className="absolute left-0 top-0 bottom-0 rounded-md bg-gradient-to-r from-teal-600 to-emerald-500" style={{ width: `${pin}%` }} aria-hidden="true" />
+                      <span className="absolute top-1/2 w-4 h-4 rounded-full bg-white border-[3px] border-emerald-500 shadow -translate-x-1/2 -translate-y-1/2" style={{ left: `${pin}%` }} aria-hidden="true" />
+                    </div>
+                    <div className="flex justify-between mt-2.5">
+                      {TIER_STOPS.map(s => (
+                        <span key={s.name} className={`text-[10px] font-extrabold uppercase tracking-wide ${s.name === tier.tier ? 'text-teal-700' : 'text-gray-400'}`}>
+                          {s.name} <span className="tabular-nums font-semibold">{s.at}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-3.5 text-[13px] text-gray-600 tabular-nums">
+                      <b className="text-teal-700 font-bold">{tier.monthOrderCount} order{tier.monthOrderCount !== 1 ? 's' : ''}</b> this month
+                      {tier.nextTierThreshold !== null
+                        ? <> · <b className="text-teal-700 font-bold">{tier.ordersToNextTier} more</b> → graduate to {tier.nextTierName}</>
+                        : <> · top tier</>}
+                    </p>
+                  </div>
+                </section>
+              );
+            })()}
+
+            {/* Overview tiles */}
+            <Band>Overview</Band>
+            <div className={`grid grid-cols-2 ${user?.role === 'admin' ? 'lg:grid-cols-6' : 'lg:grid-cols-4'} gap-4`}>
+              <Tile loading={loading} label="Total revenue" value={`$${Math.round(stats.revenue).toLocaleString('en-US')}`}
+                sub={revMoM !== null ? <span className={revMoM >= 0 ? 'text-emerald-600' : 'text-red-600'}>{revMoM >= 0 ? '▲' : '▼'} {Math.abs(revMoM)}% vs last month</span> : null} />
+              <Tile loading={loading} label="Total orders" value={stats.orders.toLocaleString('en-US')}
+                sub={user?.role === 'company' && tier ? <span className="text-gray-500">{tier.monthOrderCount} this month</span> : null} />
+              <Tile loading={loading} label="Products" value={stats.products.toLocaleString('en-US')}
+                sub={lowStock.length > 0 ? <span className="text-amber-700">{lowStock.length} low on stock</span> : null} />
+              <Tile loading={loading} label="Customers" value={stats.customers.toLocaleString('en-US')}
+                sub={user?.role === 'admin' && adminStats.newSignups > 0 ? <span className="text-emerald-600">▲ {adminStats.newSignups} new this month</span> : null} />
+              {user?.role === 'admin' && (
+                <>
+                  <Tile loading={loading} label="Companies" value={adminStats.companies.toLocaleString('en-US')} />
+                  <Tile loading={loading} label="New signups" value={adminStats.newSignups.toLocaleString('en-US')} sub={<span className="text-gray-500">this month</span>} />
+                </>
+              )}
             </div>
-            {loading ? (
-              <div className="p-8 flex justify-center">
-                <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full" />
-              </div>
-            ) : recentOrders.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">No orders yet</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-gray-600">
-                      <th className="px-4 py-3 font-medium">Order</th>
-                      <th className="px-4 py-3 font-medium">Items</th>
-                      <th className="px-4 py-3 font-medium">Total</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                      <th className="px-4 py-3 font-medium">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {recentOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.id.slice(0, 8)}...</td>
-                        <td className="px-4 py-3 text-gray-800">{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}</td>
-                        <td className="px-4 py-3 font-semibold text-gray-800">${order.grandTotal?.toFixed(2)}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>{order.status || 'pending'}</span>
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+            {/* Revenue trend + low stock */}
+            {!loading && (
+              <>
+                <Band>Revenue trend</Band>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                    <h3 className="text-[13px] font-bold text-gray-600 mb-4">Last 6 months</h3>
+                    {monthlyRevenue.length > 0 && (
+                      <div className="flex items-end gap-3 h-44">
+                        {monthlyRevenue.map((m, i) => {
+                          const isCur = i === monthlyRevenue.length - 1;
+                          return (
+                            <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                              <span className="text-[11px] font-bold text-gray-600 tabular-nums">${m.revenue >= 1000 ? `${(m.revenue / 1000).toFixed(1)}k` : m.revenue.toFixed(0)}</span>
+                              <div className={`w-full rounded-t-md transition-all ${isCur ? 'bg-gradient-to-t from-teal-600 to-emerald-500' : 'bg-gradient-to-t from-teal-700 to-teal-600'}`} style={{ height: `${Math.max((m.revenue / maxRev) * 100, 2)}%`, minHeight: '4px' }} />
+                              <span className={`text-[11px] font-semibold ${isCur ? 'text-teal-700' : 'text-gray-400'}`}>{m.month}</span>
+                              <span className="text-[10px] text-gray-400 tabular-nums">{m.orders} order{m.orders !== 1 ? 's' : ''}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                    <h3 className="text-[13px] font-bold text-gray-600 mb-3">Low on stock</h3>
+                    {lowStock.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-1.5 text-center">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <p className="text-sm font-semibold text-emerald-600">All stocked up</p>
+                        <p className="text-xs">Nothing below 5 units</p>
+                      </div>
+                    ) : (
+                      <div className="max-h-44 overflow-y-auto">
+                        {lowStock.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between gap-2 py-2 border-t border-gray-100 first:border-t-0">
+                            <span className="text-[13px] text-gray-700 truncate">{p.name}</span>
+                            <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full shrink-0 tabular-nums ${p.stock <= 2 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{p.stock} left</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
 
-          {/* Admin: Company Performance */}
-          {user?.role === 'admin' && !loading && companyStats.length > 0 && (
-            <div className="bg-white rounded-lg shadow mt-6">
-              <div className="p-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-800">Company Performance</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-gray-600">
-                      <th className="px-4 py-3 font-medium">Company</th>
-                      <th className="px-4 py-3 font-medium text-center">Products</th>
-                      <th className="px-4 py-3 font-medium text-center">Customers</th>
-                      <th className="px-4 py-3 font-medium text-center">Orders</th>
-                      <th className="px-4 py-3 font-medium text-right">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {companyStats.map((c) => (
-                      <tr key={c.name} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-800">{c.name}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{c.products}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{c.customers}</td>
-                        <td className="px-4 py-3 text-center text-gray-600">{c.orders}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-800">${Math.round(c.revenue).toLocaleString('en-US')}</td>
+            {/* Recent orders */}
+            <Band>Recent orders</Band>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              {loading ? (
+                <div className="p-8 flex justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full" />
+                </div>
+              ) : recentOrders.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">No orders yet. Your first sale will show up here.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Order</th>
+                        <th className="text-left text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200 hidden sm:table-cell">Items</th>
+                        <th className="text-left text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Status</th>
+                        <th className="text-left text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200 hidden md:table-cell">Date</th>
+                        <th className="text-right text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {recentOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-teal-50/40">
+                          <td className="px-4 py-3 border-b border-gray-100 font-mono text-xs font-semibold text-gray-800">#{order.id.slice(-6).toUpperCase()}</td>
+                          <td className="px-4 py-3 border-b border-gray-100 text-gray-600 hidden sm:table-cell tabular-nums">{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}</td>
+                          <td className="px-4 py-3 border-b border-gray-100">
+                            <Pill tone={STATUS_TONE[order.status || 'pending'] || 'gray'}>{order.status || 'pending'}</Pill>
+                          </td>
+                          <td className="px-4 py-3 border-b border-gray-100 text-gray-500 whitespace-nowrap hidden md:table-cell tabular-nums">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+                          <td className="px-4 py-3 border-b border-gray-100 text-right font-bold text-gray-800 tabular-nums">${order.grandTotal?.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
 
+            {/* Admin: company performance */}
+            {user?.role === 'admin' && !loading && companyStats.length > 0 && (
+              <>
+                <Band>Company performance</Band>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Company</th>
+                          <th className="text-center text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200 hidden sm:table-cell">Products</th>
+                          <th className="text-center text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200 hidden sm:table-cell">Customers</th>
+                          <th className="text-center text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Orders</th>
+                          <th className="text-right text-[11px] font-extrabold uppercase tracking-wide text-gray-400 px-4 pt-4 pb-3 border-b border-gray-200">Revenue</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {companyStats.map((c) => (
+                          <tr key={c.name} className="hover:bg-teal-50/40">
+                            <td className="px-4 py-3 border-b border-gray-100 font-semibold text-gray-800">{c.name}</td>
+                            <td className="px-4 py-3 border-b border-gray-100 text-center text-gray-600 hidden sm:table-cell tabular-nums">{c.products}</td>
+                            <td className="px-4 py-3 border-b border-gray-100 text-center text-gray-600 hidden sm:table-cell tabular-nums">{c.customers}</td>
+                            <td className="px-4 py-3 border-b border-gray-100 text-center text-gray-600 tabular-nums">{c.orders}</td>
+                            <td className="px-4 py-3 border-b border-gray-100 text-right font-bold text-gray-800 tabular-nums">${Math.round(c.revenue).toLocaleString('en-US')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+          </div>
         </main>
       </div>
     </div>
