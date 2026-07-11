@@ -5,21 +5,13 @@ import { Order } from '../types';
 import Navbar from './Navbar';
 import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon, ArrowDownTrayIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
+import { PageHeader, CARD, TH, ROW_HOVER, Pill, STATUS_TONE, Spinner } from './ui';
 
 /* ------------------------------------------------------------------ */
 /*  Status badge styling                                              */
 /* ------------------------------------------------------------------ */
 const STATUS_OPTIONS = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'] as const;
 const CARRIER_OPTIONS = ['ups', 'fedex', 'usps', 'dhl', 'other'] as const;
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  processing: 'bg-blue-100 text-blue-700',
-  shipped: 'bg-indigo-100 text-indigo-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  returned: 'bg-amber-100 text-amber-700',
-  refunded: 'bg-purple-100 text-purple-700',
-};
 const PAYMENT_LABELS: Record<string, string> = {
   amazon_pay: 'Amazon Pay',
   stripe_pay: 'Credit / Debit Card',
@@ -371,13 +363,11 @@ const OrderForm = () => {
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <header className="mb-6">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Orders</h1>
-        </header>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <PageHeader title="Orders" subtitle="Every order across your storefront and portal." />
 
         {/* Search + status filter */}
-        <section className="mb-6 flex flex-col sm:flex-row gap-3">
+        <section className="mt-6 mb-4 flex flex-col sm:flex-row gap-3">
           <label className="relative flex-1 block">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -387,15 +377,15 @@ const OrderForm = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search orders by ID..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Search orders by ID…"
+              className="w-full py-2 pl-10 pr-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             />
           </label>
           <div className="flex gap-3">
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:w-48 sm:flex-none"
+              className="flex-1 py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:w-48 sm:flex-none"
               aria-label="Filter by status"
             >
               <option value="">All statuses</option>
@@ -428,70 +418,52 @@ const OrderForm = () => {
         </section>
 
         {/* Table */}
-        <section className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <section className={`${CARD} overflow-hidden`}>
           {isLoading ? (
-            <div className="p-6 flex justify-center">
-              <span className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-            </div>
+            <div className="p-8 flex justify-center"><Spinner /></div>
           ) : paginatedOrders.length === 0 ? (
-            <p className="p-6 text-center text-gray-500">No orders found.</p>
+            <p className="p-8 text-center text-gray-400 text-sm">No orders found.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="w-full text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order #
-                    </th>
-                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Items
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className={`${TH} text-left`}>Order #</th>
+                    <th className={`${TH} text-left hidden md:table-cell`}>Date</th>
+                    <th className={`${TH} text-left hidden md:table-cell`}>Customer</th>
+                    <th className={`${TH} text-left hidden lg:table-cell`}>Items</th>
+                    <th className={`${TH} text-left`}>Status</th>
+                    <th className={`${TH} text-right`}>Total</th>
+                    <th className={`${TH} text-right`}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {paginatedOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    <tr key={order.id} className={ROW_HOVER}>
+                      <td className="px-4 sm:px-6 py-3 whitespace-nowrap font-mono text-xs font-semibold text-gray-800">
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden md:table-cell px-6 py-3 whitespace-nowrap text-gray-500 tabular-nums">
                         {new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-700 max-w-[200px] truncate" title={order.customerEmail || order.accountId}>
+                      <td className="hidden md:table-cell px-6 py-3 whitespace-nowrap text-gray-700 max-w-[200px] truncate" title={order.customerEmail || order.accountId}>
                         {order.customerEmail || `#${order.accountId.slice(-6).toUpperCase()}`}
                       </td>
-                      <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden lg:table-cell px-6 py-3 whitespace-nowrap text-gray-500 tabular-nums">
                         {order.items?.length || 0}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[order.status] || STATUS_COLORS.pending}`}>
-                          {order.status || 'pending'}
-                        </span>
+                      <td className="px-4 sm:px-6 py-3 whitespace-nowrap">
+                        <Pill tone={STATUS_TONE[order.status] || 'gray'}>{order.status || 'pending'}</Pill>
                         {order.trackingNumber && (
                           <div className="mt-1 text-xs text-gray-500 truncate max-w-[160px]" title={[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}>
                             {[order.trackingCarrier?.toUpperCase(), order.trackingNumber].filter(Boolean).join(' ')}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
+                      <td className="px-4 sm:px-6 py-3 whitespace-nowrap font-bold text-gray-800 text-right tabular-nums">
                         {isPartner ? 'N/A' : `$${order.grandTotal.toFixed(2)}`}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-4 sm:px-6 py-3 whitespace-nowrap text-right">
                         <button
                           onClick={() => openEditModal(order)}
                           disabled={!canEdit}
@@ -610,9 +582,7 @@ const OrderForm = () => {
                   </p>
                 )}
               </div>
-              <span className={`self-start inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[editStatus] || STATUS_COLORS.pending}`}>
-                {editStatus || 'pending'}
-              </span>
+              <span className="self-start"><Pill tone={STATUS_TONE[editStatus] || 'gray'}>{editStatus || 'pending'}</Pill></span>
             </div>
 
             <div className="px-6 py-4 space-y-6 overflow-y-auto flex-1">
