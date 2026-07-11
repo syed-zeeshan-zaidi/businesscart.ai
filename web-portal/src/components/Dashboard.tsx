@@ -85,12 +85,12 @@ const Dashboard: React.FC = () => {
           cached('dash_accounts', getAccounts),
         ]);
 
-        const revenue = (orders as Order[]).reduce((sum: number, o: Order) => sum + (o.grandTotal || 0), 0);
+        const revenue = ((orders as Order[]) || []).reduce((sum: number, o: Order) => sum + (o.grandTotal || 0), 0);
         const customerCount = user.role === 'admin'
-          ? (accounts as Account[]).filter((a: Account) => ['customer', 'b2c'].includes(a.role)).length
-          : (accounts as Account[]).filter((a: Account) => a.role === 'customer').length;
+          ? ((accounts as Account[]) || []).filter((a: Account) => ['customer', 'b2c'].includes(a.role)).length
+          : ((accounts as Account[]) || []).filter((a: Account) => a.role === 'customer').length;
 
-        const orderList = (orders as Order[]).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const orderList = ((orders as Order[]) || []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setRecentOrders(orderList.slice(0, 5));
 
         // Compute current pricing tier from this month's non-cancelled orders.
@@ -122,7 +122,7 @@ const Dashboard: React.FC = () => {
         }));
 
         // Low stock products (stock <= 5, non-zero)
-        const productList = products as { name: string; stock: number; _id: string }[];
+        const productList = (products as { name: string; stock: number; _id: string }[]) || [];
         setLowStock(productList.filter(p => p.stock > 0 && p.stock <= 5).map(p => ({ name: p.name, stock: p.stock, id: p._id })));
 
         setStats({

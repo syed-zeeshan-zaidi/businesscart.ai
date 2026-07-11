@@ -784,6 +784,11 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to get orders"), nil
 	}
+	// Never serialize a nil slice as JSON `null` — an empty result must be `[]`
+	// so the frontend never does `.reduce`/`.map` on null.
+	if orders == nil {
+		orders = []*order.Order{}
+	}
 
 	respBody, _ := json.Marshal(orders)
 	return events.APIGatewayProxyResponse{
