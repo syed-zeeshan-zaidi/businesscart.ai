@@ -3,6 +3,7 @@ import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewa
 import { Account, CompanyData, CustomerGroup, MAX_CUSTOMER_GROUPS } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
+import { CARD, TH, ROW_HOVER, Pill } from './ui';
 import { useAuth } from '../hooks/useAuth';
 
 const CACHE_KEY = 'accounts_cache';
@@ -1160,7 +1161,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
                   onClick={handleRegenerateStorefront}
                   disabled={isGenerating}
                   className={`px-4 py-2 mt-4 rounded-md text-sm font-medium transition flex items-center justify-center space-x-2
-                    ${isGenerating ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                    ${isGenerating ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-teal-700 text-white hover:bg-teal-800'}`}
                 >
                   {isGenerating ? (
                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1457,38 +1458,38 @@ const AdminView: React.FC<AdminViewProps> = ({ accounts, onEdit }) => {
 
   if (companyAccounts.length === 0)
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-        <h2 className="text-2xl font-semibold text-gray-800">No Company Accounts</h2>
-        <p className="text-gray-600 mt-2">There are currently no accounts with the “company” role.</p>
+      <div className={`${CARD} p-10 text-center`}>
+        <p className="text-sm font-semibold text-gray-700">No company accounts</p>
+        <p className="text-sm text-gray-500 mt-1">There are no accounts with the “company” role yet.</p>
       </div>
     );
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
-      <table className="min-w-[500px] w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className={`${CARD} overflow-x-auto`}>
+      <table className="min-w-[500px] w-full text-sm">
+        <thead>
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Code</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Status</th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th className={`${TH} text-left`}>Company name</th>
+            <th className={`${TH} text-left`}>Company code</th>
+            <th className={`${TH} text-left`}>Status</th>
+            <th className={`${TH} text-right`}>Actions</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {companyAccounts.map((acc) => (
-            <tr key={acc._id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{acc.company?.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{acc.company?.companyCode || '—'}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                  {acc.company?.status || acc.accountStatus}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button onClick={() => onEdit(acc)} className="text-teal-700 hover:text-teal-900">Edit</button>
-              </td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-gray-100">
+          {companyAccounts.map((acc) => {
+            const st = acc.company?.status || acc.accountStatus || '';
+            const tone = st === 'active' ? 'green' : st === 'suspended' ? 'red' : st === 'pending' ? 'amber' : 'gray';
+            return (
+              <tr key={acc._id} className={ROW_HOVER}>
+                <td className="px-6 py-3 whitespace-nowrap font-semibold text-gray-800">{acc.company?.name}</td>
+                <td className="px-6 py-3 whitespace-nowrap font-mono text-xs text-gray-500">{acc.company?.companyCode || '—'}</td>
+                <td className="px-6 py-3 whitespace-nowrap"><Pill tone={tone}>{st}</Pill></td>
+                <td className="px-6 py-3 whitespace-nowrap text-right">
+                  <button onClick={() => onEdit(acc)} className="text-teal-700 hover:text-teal-900 font-semibold">Edit</button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
