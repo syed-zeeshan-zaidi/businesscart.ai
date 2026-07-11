@@ -8,6 +8,10 @@ import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, Cog6ToothIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { PageHeader, CARD, TH, TD, ROW_HOVER, Pill, PillTone, Spinner, BTN_PRIMARY, BTN_SECONDARY } from './ui';
+
+const ROLE_TONE: Record<string, PillTone> = { admin: 'purple', company: 'teal', customer: 'blue', partner: 'indigo', b2c: 'gray' };
+const ACCT_STATUS_TONE: Record<string, PillTone> = { active: 'green', pending: 'amber', suspended: 'red', inactive: 'gray' };
 
 const CACHE_KEY = 'accounts_cache';
 const CACHE_DURATION = 30 * 60 * 1000;
@@ -267,65 +271,62 @@ const UserForm = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Accounts</h2>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={handleRefresh} disabled={isLoading} className="bg-gray-500 text-white px-3 py-1.5 text-sm rounded-md hover:bg-blue-700 disabled:opacity-50">Refresh</button>
-            {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
-              <>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
-                  }}
-                  className="shrink-0 p-2 min-w-[44px] min-h-[44px] border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1.5 px-3"
-                  aria-label="Export accounts"
-                  title="Export accounts"
-                >
-                  <ArrowDownTrayIcon className="h-5 w-5" />
-                  <span className="hidden sm:inline text-sm font-medium">Export</span>
-                </button>
-                <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800">
-                  <PlusIcon className="h-4 w-4 inline mr-1" /> Add Account
-                </button>
-              </>
-            )}
-          </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <PageHeader title="Accounts" subtitle="Customers, companies, and partners on the platform.">
+          <button onClick={handleRefresh} disabled={isLoading} className={`${BTN_SECONDARY} disabled:opacity-50`}>Refresh</button>
+          {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
+            <>
+              <button
+                type="button"
+                onClick={async () => {
+                  try { await exportCustomers(); toast.success('CSV downloaded'); } catch { toast.error('Export failed'); }
+                }}
+                className={`${BTN_SECONDARY} flex items-center gap-1.5`}
+                aria-label="Export accounts"
+                title="Export accounts"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+              <button onClick={() => { setEditingId(null); setFormData({ name: '', email: '', password: '', role: 'customer', code: '', customerCodes: [] }); setIsModalOpen(true); }} className={`${BTN_PRIMARY} flex items-center gap-1`}>
+                <PlusIcon className="h-4 w-4" /> Add account
+              </button>
+            </>
+          )}
+        </PageHeader>
+
+        <div className="mt-6 mb-4">
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search accounts…" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500" />
         </div>
 
-        <div className="mb-6">
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search accounts..." className="w-full p-2 pl-10 border rounded-md" />
-        </div>
-
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className={`${CARD} overflow-x-auto`}>
           {isLoading && accounts.length === 0 ? (
-            <div className="p-8 text-center">Loading...</div>
+            <div className="p-8 flex justify-center"><Spinner /></div>
           ) : (
-            <table className="min-w-[600px] w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-[600px] w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium">Status</th>
-                  {(currentUser?.role === 'admin' || currentUser?.role === 'company') && <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>}
+                  <th className={`${TH} text-left`}>Name</th>
+                  <th className={`${TH} text-left`}>Email</th>
+                  <th className={`${TH} text-left`}>Role</th>
+                  <th className={`${TH} text-left`}>Status</th>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'company') && <th className={`${TH} text-right`}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {currentAccounts.map((account) => (
-                  <tr key={account._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">{account.name}</td>
-                    <td className="px-6 py-4">{account.email}</td>
-                    <td className="px-6 py-4">{account.role}</td>
-                    <td className="px-6 py-4">{account.accountStatus}</td>
+                  <tr key={account._id} className={ROW_HOVER}>
+                    <td className={`${TD} font-semibold text-gray-800`}>{account.name}</td>
+                    <td className={`${TD} text-gray-600`}>{account.email}</td>
+                    <td className={TD}><Pill tone={ROLE_TONE[account.role] || 'gray'}>{account.role}</Pill></td>
+                    <td className={TD}><Pill tone={ACCT_STATUS_TONE[account.accountStatus] || 'gray'}>{account.accountStatus}</Pill></td>
                     {(currentUser?.role === 'admin' || currentUser?.role === 'company') && (
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => handleEdit(account)} className="text-yellow-600 p-2 hover:bg-yellow-50 rounded"><PencilIcon className="h-4 w-4" /></button>
+                      <td className={`${TD} text-right space-x-1 whitespace-nowrap`}>
+                        <button onClick={() => handleEdit(account)} className="text-yellow-600 p-2 hover:bg-yellow-50 rounded" title="Edit"><PencilIcon className="h-4 w-4" /></button>
                         {currentUser?.role === 'company' && account.role === 'customer' && (
-                          <button onClick={() => handleOpenConfigModal(account)} className="text-blue-600 p-2 hover:bg-blue-50 rounded"><Cog6ToothIcon className="h-4 w-4" /></button>
+                          <button onClick={() => handleOpenConfigModal(account)} className="text-teal-700 p-2 hover:bg-teal-50 rounded" title="Customer settings"><Cog6ToothIcon className="h-4 w-4" /></button>
                         )}
-                        <button onClick={() => { setAccountToDelete(account._id); setIsDeleteConfirmOpen(true); }} className="text-red-600 p-2 hover:bg-red-50 rounded"><TrashIcon className="h-4 w-4" /></button>
+                        <button onClick={() => { setAccountToDelete(account._id); setIsDeleteConfirmOpen(true); }} className="text-red-600 p-2 hover:bg-red-50 rounded" title="Delete"><TrashIcon className="h-4 w-4" /></button>
                       </td>
                     )}
                   </tr>
@@ -336,14 +337,14 @@ const UserForm = () => {
         </div>
 
         {filteredAccounts.length > 0 && (
-          <div className="mt-4 text-sm text-gray-500">
-            Showing {indexOfFirst + 1}-{Math.min(indexOfLast, filteredAccounts.length)} of {filteredAccounts.length} users
+          <div className="mt-4 text-sm text-gray-500 tabular-nums">
+            Showing {indexOfFirst + 1}-{Math.min(indexOfLast, filteredAccounts.length)} of {filteredAccounts.length} accounts
           </div>
         )}
         {totalPages > 1 && (
-          <div className="mt-2 flex justify-center space-x-2">
+          <div className="mt-2 flex justify-center flex-wrap gap-2">
             {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded ${currentPage === i + 1 ? 'bg-teal-700 text-white' : ''}`}>{i + 1}</button>
+              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded-md text-sm font-medium tabular-nums ${currentPage === i + 1 ? 'bg-teal-700 text-white border-teal-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{i + 1}</button>
             ))}
           </div>
         )}
