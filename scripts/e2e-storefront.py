@@ -56,7 +56,10 @@ UID = f"ui-teste2e-{TS}"                         # storefront folder + subdomain
 COMPANY_CODE = f"{PREFIX}-E2E-{TS}"
 CUSTOMER_CODE = f"{PREFIX}-E2ECUST-{TS}"
 COMPANY_EMAIL = f"{PREFIX}e2ecompany{TS}@test.com"
-GUEST_EMAIL = f"{PREFIX}e2eguest{TS}@test.com"
+def guest_email_for(label):
+    # Each viewport pass registers its own guest (same email would 409), so key
+    # the address on the pass label (e.g. desktop / mobile).
+    return f"{PREFIX}e2eguest{TS}-{label}@test.com"
 
 STOREFRONT_DIR = os.path.abspath(f"./storefronts/{UID}")
 COPY_SCRIPT = os.path.abspath("./copy_d2c_files.sh")
@@ -71,7 +74,7 @@ errors = []
 
 # Artifacts created so far, tracked incrementally so cleanup runs even if setup
 # raises partway through (a returned tuple would be lost on exception).
-CREATED = {"company_id": None, "product_ids": [], "guest_id": None}
+CREATED = {"company_id": None, "product_ids": [], "guest_ids": []}
 
 
 def ok(msg):
@@ -281,7 +284,7 @@ def _wait_quiet(page, selector, timeout_ms):
         return False
 
 
-def _assert_order_email(short_id):
+def _assert_order_email(short_id, guest_email):
     """Poll Mailpit for the guest's order-confirmation email (local SMTP sink)."""
     base = "http://localhost:8025/api/v1"
     subject = f"Order confirmation #{short_id}"
@@ -292,7 +295,7 @@ def _assert_order_email(short_id):
                 for m in (r.json().get("messages", []) or []):
                     if m.get("Subject") == subject:
                         to = [t.get("Address", "").lower() for t in (m.get("To") or [])]
-                        if GUEST_EMAIL.lower() in to:
+                        if guest_email.lower() in to:
                             ok(f"guest received order-confirmation email '{subject}'")
                             return
                         fail(f"order email found but not addressed to guest ({to})")
@@ -303,7 +306,7 @@ def _assert_order_email(short_id):
     fail(f"order-confirmation email '{subject}' not found in Mailpit (is it running on :8025?)")
 
 
-def _fill_stripe_checkout(page):
+def _fill_stripe_checkout(page, guest_email):
     """Fill Stripe's sandbox hosted Checkout page and submit the test card.
 
     Stripe's hosted Checkout (checkout.stripe.com) renders its own fields on its
@@ -345,7 +348,7 @@ def _fill_stripe_checkout(page):
     page.wait_for_selector("#cardNumber", timeout=40000)
     email = page.query_selector("#email")
     if email and not (email.input_value() or "").strip():
-        email.fill(GUEST_EMAIL)
+        email.fill(guest_email)
     page.fill("#cardNumber", STRIPE_TEST_CARD)
     page.fill("#cardExpiry", STRIPE_TEST_EXP)
     page.fill("#cardCvc", STRIPE_TEST_CVC)
@@ -368,12 +371,13 @@ def _fill_stripe_checkout(page):
     btn.click()
 
 
-def _assert_paid_order():
+def _assert_paid_order(guest_email):
     """Verify the paid order persisted correctly server-side (via admin).
 
-    Returns the order dict, or None if not found. Checks: stripe_pay method, the
-    guest email carried all the way through Stripe to the order (the 'email carries,
-    don't ask again' requirement), delivery method, and a completed status.
+    Returns the order dict, or None if not found. Filters by this pass's guest
+    email so it finds the right order when several passes have run. Checks:
+    stripe_pay method, the guest email carried all the way through Stripe to the
+    order (the 'email carries, don't ask again' requirement), delivery method, status.
     """
     company_id = CREATED["company_id"]
     saved = api.token
@@ -381,18 +385,16 @@ def _assert_paid_order():
         r = api.post("/accounts/login", {"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
         api.token = r.json().get("token") or r.json().get("accessToken")
         orders = api.get(f"/checkout/orders?sellerId={company_id}").json() or []
-        paid = [o for o in orders if o.get("paymentMethod") == "stripe_pay"]
+        paid = [o for o in orders if o.get("paymentMethod") == "stripe_pay"
+                and (o.get("customerEmail") or "").lower() == guest_email.lower()]
         if not paid:
-            fail(f"no stripe_pay order persisted for seller (found {len(orders)} order(s))")
+            fail(f"no stripe_pay order persisted for {guest_email} (found {len(orders)} order(s))")
             return None
         o = paid[0]
         ok(f"server confirms stripe_pay order persisted (total ${o.get('grandTotal')})")
-        # Email carried end-to-end (guest email → Stripe → order).
-        if (o.get("customerEmail") or "").lower() != GUEST_EMAIL.lower():
-            fail(f"order customerEmail {o.get('customerEmail')!r} != guest {GUEST_EMAIL!r} "
-                 "(email did not carry through Stripe)")
-        else:
-            ok("order carries the guest email (checkout never re-asked for it)")
+        # Email carried end-to-end (guest email → Stripe → order) — guaranteed by
+        # the filter above, so this is the positive confirmation line.
+        ok("order carries the guest email (checkout never re-asked for it)")
         if o.get("deliveryMethod") != "shipping_out":
             fail(f"order deliveryMethod {o.get('deliveryMethod')!r} != shipping_out")
         else:
@@ -403,137 +405,140 @@ def _assert_paid_order():
 
 
 # ─── Playwright guest-checkout drive ────────────────────────────────────────
-def run_browser():
-    """Drives the full guest checkout. Returns guest_id (for cleanup) or None."""
-    from playwright.sync_api import sync_playwright
+# A phone viewport for the mobile pass. Explicit keys (not **pw.devices[...]) so
+# we don't pass default_browser_type into new_context. The UA carries "Mozilla"
+# so detectBot never flags it.
+MOBILE_CONTEXT = dict(
+    viewport={"width": 390, "height": 844},
+    device_scale_factor=3,
+    is_mobile=True,
+    has_touch=True,
+    user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 "
+                "Mobile/15E148 Safari/604.1"),
+)
 
-    pdps = sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html"))
-    if not pdps:
-        fail("no PDPs generated — cannot run browser flow")
-        return None
-    pdp_name = os.path.basename(pdps[0])
+
+def _run_checkout(page, guest_email, label):
+    """Drive one full guest checkout at whatever viewport `page` is in."""
+    pdp_name = os.path.basename(sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html"))[0])
     url = f"http://localhost:{HTTP_PORT}/products/{pdp_name}"
 
-    # Set HEADED=1 to watch the browser drive the checkout (slowed down so it's
-    # followable). Default is headless for pre-commit / CI.
+    page.goto(url, wait_until="load")
+    page.wait_for_function("window.D2C_CART && window.D2C_PRODUCT && window.D2C_CUSTOMER")
+    ok(f"[{label}] storefront PDP loaded ({pdp_name})")
+
+    count = page.evaluate(
+        "async () => { await window.D2C_CART.addItem(window.D2C_PRODUCT, 1);"
+        " return (window.D2C_CART.items || []).length; }"
+    )
+    if not count:
+        fail(f"[{label}] add-to-cart did not populate the cart")
+        return
+    ok(f"[{label}] product added to cart")
+
+    page.evaluate("() => window.D2C_CUSTOMER.startCheckout(window.D2C_CART.items)")
+    page.wait_for_selector("#d2c-guest-form", state="visible")
+    ok(f"[{label}] guest checkout modal opened (no login required)")
+
+    page.fill('#d2c-guest-form input[name="name"]', "E2E Guest")
+    page.fill('#d2c-guest-form input[name="email"]', guest_email)
+    page.click('#d2c-guest-form button[type="submit"]')
+
+    page.wait_for_selector("#d2c-checkout-overlay", state="visible")
+    page.wait_for_selector("#checkout-add-address-form", state="visible")
+    # Capture guest id now (account already exists) so cleanup deletes it even if
+    # a later step fails.
+    guest_id = page.evaluate(
+        "() => (window.D2C_CUSTOMER && window.D2C_CUSTOMER.user)"
+        " ? (window.D2C_CUSTOMER.user._id || window.D2C_CUSTOMER.user.id) : null"
+    )
+    if guest_id:
+        CREATED["guest_ids"].append(guest_id)
+    ok(f"[{label}] passwordless guest created; checkout overlay + inline address form shown")
+
+    page.fill("#addr-recipient", "E2E Guest")
+    page.fill("#addr-phone", "555-0100")
+    page.fill("#addr-street", "1 Test St")
+    page.fill("#addr-city", "Austin")
+    page.fill("#addr-state", "TX")
+    page.fill("#addr-zip", "78701")
+    page.click('#checkout-add-address-form button[type="submit"]')
+
+    page.wait_for_selector("#checkout-place-order-btn:not([disabled])")
+    ok(f"[{label}] shipping address saved; Place Order enabled")
+
+    page.click("#checkout-place-order-btn")
+    page.wait_for_url("**checkout.stripe.com/**", timeout=40000)
+    ok(f"[{label}] redirected to Stripe sandbox hosted checkout")
+
+    _fill_stripe_checkout(page, guest_email)
+    ok(f"[{label}] entered Stripe test card {STRIPE_TEST_CARD[:4]}…{STRIPE_TEST_CARD[-4:]} and paid")
+
+    page.wait_for_url("**localhost:%d/**" % HTTP_PORT, timeout=60000)
+    page.wait_for_selector("#order-confirm-overlay", state="visible", timeout=30000)
+    ok(f"[{label}] returned from Stripe → order finalized → confirmation shown")
+
+    # (1) Confirmation overlay actually rendered the order details.
+    page.wait_for_function(
+        "() => { const d = document.querySelector('#order-confirm-details');"
+        " return d && d.textContent.includes('$'); }",
+        timeout=15000,
+    )
+    ok(f"[{label}] confirmation overlay rendered order details (guest read own order back)")
+
+    # (2) Server-side: order persisted with stripe_pay + this guest's email.
+    order = _assert_paid_order(guest_email)
+    short_id = ((order.get("id") or order.get("_id")) if order else "")[-6:]
+
+    # (3) 'View My Orders' lands on the Orders tab and lists this order.
+    page.click("#order-confirm-overlay button:has-text('View My Orders')")
+    page.wait_for_selector("#dashboard-content", state="visible", timeout=15000)
+    if short_id:
+        page.wait_for_selector(f".dash-card:has-text('Order #{short_id}')", timeout=15000)
+        ok(f"[{label}] 'View My Orders' lands on Orders tab and lists the order (Order #{short_id})")
+
+    # (4) Guest received the order-confirmation email (Mailpit).
+    if short_id:
+        _assert_order_email(short_id, guest_email)
+
+
+def run_browser():
+    """Run the full guest checkout at desktop AND mobile viewports."""
+    from playwright.sync_api import sync_playwright
+
+    if not sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html")):
+        fail("no PDPs generated — cannot run browser flow")
+        return
+
     headed = os.getenv("HEADED", "").lower() in ("1", "true", "yes")
-    guest_id = None
+    # Desktop = default context; mobile = iPhone-size emulation.
+    passes = [("desktop", {}), ("mobile", MOBILE_CONTEXT)]
     with sync_playwright() as pw:
-        # --disable-web-security: storefront (localhost:8770) fetches the API
-        # (localhost:3000) cross-origin; bypass CORS for this local test only.
+        # --disable-web-security: storefront (:8770) fetches the API (:3000)
+        # cross-origin; bypass CORS for this local test only.
         browser = pw.chromium.launch(headless=not headed, slow_mo=650 if headed else 0, args=[
             "--disable-web-security",
             "--disable-features=IsolateOrigins,site-per-process",
             "--no-sandbox",
         ])
-        ctx = browser.new_context()
-        page = ctx.new_page()
-        page.set_default_timeout(25000)
-        try:
-            page.goto(url, wait_until="load")
-            page.wait_for_function("window.D2C_CART && window.D2C_PRODUCT && window.D2C_CUSTOMER")
-            ok(f"storefront PDP loaded ({pdp_name})")
-
-            # Add to cart
-            count = page.evaluate(
-                "async () => { await window.D2C_CART.addItem(window.D2C_PRODUCT, 1);"
-                " return (window.D2C_CART.items || []).length; }"
-            )
-            if not count:
-                fail("add-to-cart did not populate the cart")
-                return None
-            ok("product added to cart")
-
-            # Start checkout → guest modal
-            page.evaluate("() => window.D2C_CUSTOMER.startCheckout(window.D2C_CART.items)")
-            page.wait_for_selector("#d2c-guest-form", state="visible")
-            ok("guest checkout modal opened (no login required)")
-
-            # Fill guest details, submit → passwordless account, one call
-            page.fill('#d2c-guest-form input[name="name"]', "E2E Guest")
-            page.fill('#d2c-guest-form input[name="email"]', GUEST_EMAIL)
-            page.click('#d2c-guest-form button[type="submit"]')
-
-            # Inline shipping-address form (zero-state) inside the checkout overlay
-            page.wait_for_selector("#d2c-checkout-overlay", state="visible")
-            page.wait_for_selector("#checkout-add-address-form", state="visible")
-            # Capture guest id now (account already exists) so cleanup deletes it
-            # even if a later step fails.
-            guest_id = page.evaluate(
-                "() => (window.D2C_CUSTOMER && window.D2C_CUSTOMER.user)"
-                " ? (window.D2C_CUSTOMER.user._id || window.D2C_CUSTOMER.user.id) : null"
-            )
-            CREATED["guest_id"] = guest_id
-            ok("passwordless guest created; checkout overlay + inline address form shown")
-
-            page.fill("#addr-recipient", "E2E Guest")
-            page.fill("#addr-phone", "555-0100")
-            page.fill("#addr-street", "1 Test St")
-            page.fill("#addr-city", "Austin")
-            page.fill("#addr-state", "TX")
-            page.fill("#addr-zip", "78701")
-            page.click('#checkout-add-address-form button[type="submit"]')
-
-            # Address saved → Place Order enables
-            page.wait_for_selector("#checkout-place-order-btn:not([disabled])")
-            ok("shipping address saved; Place Order enabled")
-
-            # Place Order → backend creates a Stripe Checkout session and
-            # customer.js redirects the browser to Stripe's hosted page.
-            page.click("#checkout-place-order-btn")
-            page.wait_for_url("**checkout.stripe.com/**", timeout=40000)
-            ok("redirected to Stripe sandbox hosted checkout")
-
-            # Fill Stripe's hosted checkout with the test card. The hosted page is
-            # same-origin (not iframed Elements), so fields are directly fillable.
-            _fill_stripe_checkout(page)
-            ok(f"entered Stripe test card {STRIPE_TEST_CARD[:4]}…{STRIPE_TEST_CARD[-4:]} and paid")
-
-            # Stripe redirects to /checkout/payment-return which finalizes the order
-            # and 302s back to the storefront with ?status=success&orderId=…,
-            # where customer.js shows the confirmation overlay.
-            page.wait_for_url("**localhost:%d/**" % HTTP_PORT, timeout=60000)
-            page.wait_for_selector("#order-confirm-overlay", state="visible", timeout=30000)
-            ok("returned from Stripe → order finalized → confirmation shown")
-
-            # (1) Confirmation overlay must actually render the order details (the
-            #     total is fetched with the guest's own token) — proves the
-            #     passwordless guest can read their own order back.
-            page.wait_for_function(
-                "() => { const d = document.querySelector('#order-confirm-details');"
-                " return d && d.textContent.includes('$'); }",
-                timeout=15000,
-            )
-            ok("confirmation overlay rendered order details (guest read own order back)")
-
-            # (2) Server-side: order persisted with stripe_pay + guest email carried.
-            order = _assert_paid_order()
-            short_id = ((order.get("id") or order.get("_id")) if order else "")[-6:]
-
-            # (3) 'View My Orders' must land directly on the Orders tab (it passes
-            #     'orders' to showDashboard) and list this order — no manual tab
-            #     switch, so this also guards that landing-tab behaviour.
-            page.click("#order-confirm-overlay button:has-text('View My Orders')")
-            page.wait_for_selector("#dashboard-content", state="visible", timeout=15000)
-            if short_id:
-                page.wait_for_selector(f".dash-card:has-text('Order #{short_id}')", timeout=15000)
-                ok(f"'View My Orders' lands on Orders tab and lists the order (Order #{short_id})")
-
-            # (4) Guest received the order-confirmation email (Mailpit).
-            if short_id:
-                _assert_order_email(short_id)
-        except Exception as e:
-            # Snapshot for debugging then re-raise as a fail.
+        for label, ctx_opts in passes:
+            step(f"Browser [{label}]: full guest checkout through customer.js")
+            ctx = browser.new_context(**ctx_opts)
+            page = ctx.new_page()
+            page.set_default_timeout(25000)
             try:
-                print(f"    [debug] URL at failure: {page.url}")
-                page.screenshot(path="/tmp/e2e-storefront-fail.png")
-            except Exception:
-                pass
-            fail(f"browser flow error: {type(e).__name__}: {str(e)[:200]}")
-        finally:
-            ctx.close()
-            browser.close()
-    return guest_id
+                _run_checkout(page, guest_email_for(label), label)
+            except Exception as e:
+                try:
+                    print(f"    [debug] URL at failure: {page.url}")
+                    page.screenshot(path=f"/tmp/e2e-storefront-fail-{label}.png")
+                except Exception:
+                    pass
+                fail(f"[{label}] browser flow error: {type(e).__name__}: {str(e)[:200]}")
+            finally:
+                ctx.close()
+        browser.close()
 
 
 # ─── Cleanup (best-effort; never fails the run) ─────────────────────────────
@@ -541,7 +546,7 @@ def cleanup(httpd):
     step("Cleanup: remove every artifact this test created")
     company_id = CREATED["company_id"]
     product_ids = CREATED["product_ids"]
-    guest_id = CREATED["guest_id"]
+    guest_ids = CREATED["guest_ids"]
     if httpd:
         try:
             httpd.shutdown()
@@ -590,8 +595,8 @@ def cleanup(httpd):
             _try(f"deleted {len(orders)} order(s)", lambda: None)
         except Exception as e:
             print(f"  {YELLOW}⚠ order cleanup: {e}{NC}")
-    if guest_id:
-        _try(f"deleted guest account {guest_id}", lambda: api.delete(f"/accounts/{guest_id}"))
+    for guest_id in guest_ids:
+        _try(f"deleted guest account {guest_id}", lambda gid=guest_id: api.delete(f"/accounts/{gid}"))
     if company_id:
         _try(f"deleted company {company_id}", lambda: api.delete(f"/accounts/{company_id}"))
     _try(f"deleted code {COMPANY_CODE}", lambda: api.delete(f"/codes/{COMPANY_CODE}"))
@@ -621,9 +626,8 @@ def main():
         step("Setup: isolated __TEST__ D2C company + products + storefront")
         setup()
 
-        step("Browser: full guest checkout through customer.js")
         httpd = start_server()
-        run_browser()
+        run_browser()  # runs desktop + mobile passes, each with its own step()
     except Exception as e:
         fail(f"setup error: {type(e).__name__}: {str(e)[:300]}")
     finally:
