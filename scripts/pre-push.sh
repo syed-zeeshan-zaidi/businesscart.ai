@@ -41,9 +41,9 @@ fi
 # --- 0. Safety: full DB backup BEFORE any test writes/deletes. The heavy suite
 #        creates and deletes data on the (prod-shared) DB; a fresh restorable
 #        snapshot first means any mistake is a mongorestore away. ---
-echo -e "${YELLOW}▶ backup-db.py (pre-test snapshot)${NC}"
+echo -e "${YELLOW}▶ backup-db.py (pre-test snapshot; skips if one <24h old exists)${NC}"
 if python3 scripts/backup-db.py; then
-    echo -e "${GREEN}✓ backup taken${NC}"
+    echo -e "${GREEN}✓ backup ok${NC}"
 else
     echo -e "${RED}✗ backup failed — refusing to run destructive tests without a snapshot${NC}"
     exit 1

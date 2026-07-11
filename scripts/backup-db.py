@@ -18,7 +18,24 @@ import shutil
 import subprocess
 import sys
 
-KEEP = 14  # how many timestamped backups to retain
+KEEP = 14           # how many timestamped backups to retain
+MIN_INTERVAL_H = 24  # don't take another backup if one exists within this many hours
+
+def newest_backup_age_hours(root):
+    """Age (hours) of the most recent backup dir, or None if there are none."""
+    if not os.path.isdir(root):
+        return None
+    newest = None
+    for d in os.listdir(root):
+        try:
+            t = datetime.datetime.strptime(d, "%Y-%m-%dT%H-%M-%SZ").replace(tzinfo=datetime.timezone.utc)
+        except ValueError:
+            continue
+        if newest is None or t > newest:
+            newest = t
+    if newest is None:
+        return None
+    return (datetime.datetime.now(datetime.timezone.utc) - newest).total_seconds() / 3600
 
 def mongo_uri():
     uri = None
@@ -33,9 +50,18 @@ def mongo_uri():
     return re.sub(r'(mongodb(?:\+srv)?://[^/]+)/[^?]*', r'\1/', uri)
 
 def main():
+    force = "--force" in sys.argv
     uri = mongo_uri()
     root = os.path.abspath("backups")
     os.makedirs(root, exist_ok=True)
+
+    # Throttle: at most one backup per MIN_INTERVAL_H, unless --force.
+    age = newest_backup_age_hours(root)
+    if age is not None and age < MIN_INTERVAL_H and not force:
+        print(f"↷ skipping backup — most recent is {age:.1f}h old "
+              f"(< {MIN_INTERVAL_H}h; use --force to override).")
+        return
+
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     dest = os.path.join(root, ts)
 
