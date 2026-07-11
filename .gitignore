@@ -40,3 +40,4 @@ vendor/
 scripts/.precommit.env
 __pycache__/
 *.pyc
+scripts/recover-orders.py

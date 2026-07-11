@@ -74,7 +74,7 @@ errors = []
 
 # Artifacts created so far, tracked incrementally so cleanup runs even if setup
 # raises partway through (a returned tuple would be lost on exception).
-CREATED = {"company_id": None, "product_ids": [], "guest_ids": []}
+CREATED = {"company_id": None, "product_ids": [], "guest_ids": [], "order_ids": []}
 
 
 def ok(msg):
@@ -489,7 +489,10 @@ def _run_checkout(page, guest_email, label):
 
     # (2) Server-side: order persisted with stripe_pay + this guest's email.
     order = _assert_paid_order(guest_email)
-    short_id = ((order.get("id") or order.get("_id")) if order else "")[-6:]
+    order_id = (order.get("id") or order.get("_id")) if order else ""
+    if order_id:
+        CREATED["order_ids"].append(order_id)   # track for scoped cleanup — NEVER a broad delete
+    short_id = order_id[-6:]
 
     # (3) 'View My Orders' lands on the Orders tab and lists this order.
     page.click("#order-confirm-overlay button:has-text('View My Orders')")
@@ -585,16 +588,12 @@ def cleanup(httpd):
 
     # Everything else as admin.
     _try("admin re-login for cleanup", _admin_login)
-    if company_id:
-        try:
-            orders = api.get(f"/checkout/orders?sellerId={company_id}").json() or []
-            for o in orders:
-                oid = o.get("id") or o.get("_id")
-                if oid:
-                    api.delete(f"/checkout/orders/{oid}")
-            _try(f"deleted {len(orders)} order(s)", lambda: None)
-        except Exception as e:
-            print(f"  {YELLOW}⚠ order cleanup: {e}{NC}")
+    # Delete ONLY the order IDs this test created. NEVER fetch-and-delete by
+    # seller/filter: GET /checkout/orders ignores ?sellerId= for the admin role
+    # and returns EVERY order, so a broad delete wipes the whole (shared prod)
+    # collection. Scoped, tracked-id deletion only.
+    for oid in CREATED["order_ids"]:
+        _try(f"deleted order {oid}", lambda o=oid: api.delete(f"/checkout/orders/{o}"))
     for guest_id in guest_ids:
         _try(f"deleted guest account {guest_id}", lambda gid=guest_id: api.delete(f"/accounts/{gid}"))
     if company_id:
