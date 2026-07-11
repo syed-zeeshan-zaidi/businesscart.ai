@@ -23,10 +23,10 @@ func TestCalculateTotals(t *testing.T) {
 	s := &Service{} // calculateTotals never touches s.collection
 
 	cases := []struct {
-		name        string
-		items       []CartItem
-		wantLines   []float64
-		wantTotal   float64
+		name      string
+		items     []CartItem
+		wantLines []float64
+		wantTotal float64
 	}{
 		{
 			name:      "empty cart",

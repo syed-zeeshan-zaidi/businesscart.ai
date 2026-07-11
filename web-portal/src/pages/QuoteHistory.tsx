@@ -7,6 +7,12 @@ import { useAuth } from '../hooks/useAuth';
 import { Quote as QuoteType, Account as AccountType, CompanyData } from '../types';
 import { getMyQuotes, getAccount } from '../api';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { PageHeader, CARD, Pill, PillTone, Spinner, BTN_PRIMARY, BTN_SECONDARY } from '../components/ui';
+
+const QUOTE_TONE: Record<string, PillTone> = {
+  approved: 'green', ordered: 'teal', proposed: 'blue',
+  open: 'amber', draft: 'gray', rejected: 'red',
+};
 
 const QuoteHistory: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -124,21 +130,14 @@ const QuoteHistory: React.FC = () => {
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Quote History</h1>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleRefresh}
-              className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition"
-            >
-              Refresh
-            </button>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <PageHeader title="Quote history" subtitle="Negotiated quotes across the companies you buy from.">
+            <button onClick={handleRefresh} className={BTN_SECONDARY}>Refresh</button>
             {availableCompanies.length > 0 && (
-              <div className="relative inline-block text-left w-full md:w-auto">
+              <div className="relative inline-block text-left">
                 <button
                   onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                  className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                  className="inline-flex items-center justify-between rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                 >
                   <div className="flex items-center">
                     {selectedCompany?.logoUrl && (
@@ -172,86 +171,65 @@ const QuoteHistory: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
-        </div>
+        </PageHeader>
 
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
-          </div>
+          <div className="flex justify-center py-12 mt-6"><Spinner className="h-8 w-8 border-4" /></div>
         ) : quotesToRender.length > 0 ? (
-          <div className="shadow-lg rounded-lg overflow-hidden">
-            <div className="divide-y divide-gray-200">
-              {quotesToRender.map((quote) => (
-                <div key={quote.id} className="bg-white shadow rounded-lg p-6 mb-4">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                    <div>
-                      <p className="text-lg font-semibold text-gray-800">Quote ID: {quote.id}</p>
-                      <p className="text-sm text-gray-500">Date: {new Date(quote.createdAt).toLocaleDateString()}</p>
-                      <p className="text-sm text-gray-500">Company: {getCompanyName(quote.sellerId)}</p>
-                    </div>
-                    <div className="mt-2 sm:mt-0 text-left sm:text-right">
-                      Status:
-                      <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${quote.status === 'approved' ? 'bg-green-100 text-green-800' : quote.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {quote.status}
-                      </span>
-                      <p className="text-xl font-bold text-gray-800 mt-1">${quote.grandTotal.toFixed(2)}</p>
-                    </div>
+          <div className="mt-6 space-y-4">
+            {quotesToRender.map((quote) => (
+              <div key={quote.id} className={`${CARD} p-5 sm:p-6`}>
+                <div className="flex flex-wrap justify-between items-start gap-3">
+                  <div>
+                    <p className="font-mono text-xs font-semibold text-gray-800">#{quote.id.slice(-6).toUpperCase()}</p>
+                    <p className="text-sm text-gray-500 mt-1 tabular-nums">{new Date(quote.createdAt).toLocaleDateString()} · {getCompanyName(quote.sellerId)}</p>
                   </div>
+                  <div className="text-right">
+                    <Pill tone={QUOTE_TONE[quote.status] || 'amber'}>{quote.status}</Pill>
+                    <p className="text-2xl font-extrabold tracking-tight text-gray-800 mt-1.5 tabular-nums">${quote.grandTotal.toFixed(2)}</p>
+                  </div>
+                </div>
 
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h4 className="font-semibold text-gray-700 mb-2">Items:</h4>
-                    <div className="space-y-3">
-                      {(quote.items || []).map((item) => (
-                        <div key={item.productId} className="flex items-center justify-between text-sm text-gray-600">
-                          <div className="flex items-center space-x-2">
-                            <span> - {item.name} (x{item.quantity})</span>
-                          </div>
-                          <span className="font-medium text-gray-800">${item.price.toFixed(2)}</span>
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-gray-400 mb-2">Items</h4>
+                  <div className="space-y-2">
+                    {(quote.items || []).map((item) => (
+                      <div key={item.productId} className="flex items-center justify-between text-sm text-gray-600 gap-2">
+                        <span className="truncate">{item.name} <span className="text-gray-400 tabular-nums">×{item.quantity}</span></span>
+                        <span className="font-semibold text-gray-800 tabular-nums shrink-0">${item.price.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {(quote.history?.length || 0) > 0 && (
+                  <div className="border-t border-gray-100 pt-4 mt-4">
+                    <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-gray-400 mb-2">History</h4>
+                    <div className="space-y-1.5">
+                      {(quote.history || []).map((entry, index) => (
+                        <div key={index} className="text-sm text-gray-500 tabular-nums">
+                          {entry.status} · {new Date(entry.changedAt).toLocaleDateString()}
                         </div>
                       ))}
                     </div>
                   </div>
+                )}
 
-                  {(quote.history?.length || 0) > 0 && (
-                    <div className="border-t border-gray-200 pt-4 mt-4">
-                      <h4 className="font-semibold text-gray-700 mb-2">History:</h4>
-                      <div className="space-y-3">
-                        {(quote.history || []).map((entry, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm text-gray-600">
-                            <span> - Status: {entry.status} at {new Date(entry.changedAt).toLocaleDateString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={() => handleViewQuote(quote.id)}
-                      className="px-4 py-2 bg-teal-700 text-white rounded-md hover:bg-teal-800 transition"
-                    >
-                      View Details
-                    </button>
-                  </div>
+                <div className="flex justify-end mt-4">
+                  <button onClick={() => handleViewQuote(quote.id)} className={BTN_PRIMARY}>View details</button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              {selectedCompanyId ? `No quotes found for ${selectedCompany?.name}` : 'You have no quotes.'}
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {selectedCompanyId ? 'There are no past quotes for this company.' : 'Request a quote now to see your quote history here!'}
+          <div className={`${CARD} p-10 text-center mt-6`}>
+            <p className="text-sm font-semibold text-gray-700">
+              {selectedCompanyId ? `No quotes for ${selectedCompany?.name}` : 'No quotes yet'}
             </p>
-            <button
-              onClick={() => navigate('/cart')}
-              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
-            >
-              Go to Cart
-            </button>
+            <p className="text-sm text-gray-500 mt-1 mb-4">
+              {selectedCompanyId ? 'Past quotes for this company will appear here.' : 'Request a quote to see your history here.'}
+            </p>
+            <button onClick={() => navigate('/cart')} className={BTN_PRIMARY}>Go to cart</button>
           </div>
         )}
       </main>

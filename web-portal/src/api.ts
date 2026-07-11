@@ -105,7 +105,7 @@ export const resetPassword = async (token: string, password: string): Promise<vo
 
 export const getAccounts = async (): Promise<Account[]> => {
   const response = await api.get(`${API_URL}/accounts`);
-  return response.data;
+  return response.data || [];
 };
 
 export const exportCustomers = async (): Promise<void> => {
@@ -197,7 +197,7 @@ export const createProduct = async (data: Omit<Product, '_id'>): Promise<Product
 export const getProducts = async (): Promise<Product[]> => {
   const response = await api.get(`${API_URL}/products`);
   console.log('Products fetched:', response.data);
-  return response.data;
+  return response.data || [];
 };
 
 export const updateProduct = async (id: string, data: Partial<Product>): Promise<Product> => {
@@ -292,7 +292,9 @@ export const getOrders = async (sellerId?: string): Promise<Order[]> => {
   const url = sellerId ? `${API_URL}/checkout/orders?sellerId=${sellerId}` : `${API_URL}/checkout/orders`;
   console.log('Fetching orders from:', url);
   const response = await api.get(url);
-  return response.data;
+  // Guard against a null/absent body so callers never .reduce/.map on null
+  // (a null orders response previously crashed the dashboard).
+  return response.data || [];
 };
 
 export const updateOrder = async (

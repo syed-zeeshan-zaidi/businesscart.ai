@@ -784,6 +784,11 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to get orders"), nil
 	}
+	// Never serialize a nil slice as JSON `null` — an empty result must be `[]`
+	// so the frontend never does `.reduce`/`.map` on null.
+	if orders == nil {
+		orders = []*order.Order{}
+	}
 
 	respBody, _ := json.Marshal(orders)
 	return events.APIGatewayProxyResponse{
@@ -800,7 +805,9 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 //   - bing:    Microsoft Advertising bulk offline conversions (msclkid).
 //
 // GET /checkout/orders/export?from=<RFC3339>&to=<RFC3339>&format=generic|google|bing
-//   [&sellerId=<id>] [&conversionName=<name>]
+//
+//	[&sellerId=<id>] [&conversionName=<name>]
+//
 // Auth: admin sees all (or filter via sellerId); company sees only their own.
 // Mirrors the customer export pattern at /accounts/export.
 func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
@@ -922,7 +929,8 @@ func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxy
 //
 // POST /checkout/orders/statement/send
 // Body: { sellerId, from (RFC3339), to (RFC3339), recipientEmail, companyName,
-//         periodLabel, paymentInstructions, dryRun }
+//
+//	periodLabel, paymentInstructions, dryRun }
 func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
@@ -1049,8 +1057,9 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 
 // handleStatementsRequest serves persisted statement history (GET) and admin
 // retraction (DELETE for a statement sent in error). All other methods rejected.
-//   GET    /checkout/statements?sellerId=<id>   admin or own-seller
-//   DELETE /checkout/statements/{id}            admin only
+//
+//	GET    /checkout/statements?sellerId=<id>   admin or own-seller
+//	DELETE /checkout/statements/{id}            admin only
 func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(strings.Trim(request.Path, "/"), "/")
 	// parts: ["checkout", "statements"] or ["checkout", "statements", "{id}"]
@@ -1168,6 +1177,13 @@ func effectiveLineSubtotal(it cart.CartItem) float64 {
 	return unit * float64(it.Quantity)
 }
 
+// roundCents rounds a monetary amount to whole cents. Percentage-based tax and
+// discount math leaves sub-cent fractions (e.g. 12.50 * 8.25% = 1.03125) that
+// otherwise flow into the persisted quote/order total.
+func roundCents(v float64) float64 {
+	return math.Round(v*100) / 100
+}
+
 func trackingURLFor(carrier, number string) string {
 	if number == "" {
 		return ""
@@ -1201,9 +1217,9 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 		// status auto-transitions to "refunded" if it makes the sum equal GrandTotal.
 		// Status cannot be set to "refunded" directly via this endpoint (data
 		// integrity: refunded status implies a refund record exists).
-		StripeRefundID  string                          `json:"stripeRefundID"`
-		RefundAmount    float64                         `json:"refundAmount"`
-		RefundReason    string                          `json:"refundReason"`
+		StripeRefundID        string                       `json:"stripeRefundID"`
+		RefundAmount          float64                      `json:"refundAmount"`
+		RefundReason          string                       `json:"refundReason"`
 		RefundItemAdjustments []order.RefundItemAdjustment `json:"refundItemAdjustments"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
@@ -1375,6 +1391,12 @@ func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, role s
 	if role == "company" && existing.SellerID != accountID {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
 	}
+	// A review request only makes sense once the customer has the goods, so gate
+	// on shipped/delivered. Mirrors the portal button gating; enforced here so the
+	// endpoint can't be driven for a pending/cancelled order.
+	if existing.Status != "shipped" && existing.Status != "delivered" {
+		return h.errorResponse(http.StatusConflict, "Review can only be requested once the order is shipped or delivered"), nil
+	}
 	if existing.CustomerEmail == "" {
 		return h.errorResponse(http.StatusBadRequest, "Order has no customer email"), nil
 	}
@@ -1465,7 +1487,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	if req.TaxableGoods != nil {
 		effectiveTaxable = *req.TaxableGoods
 	}
-	effectiveTaxRate := req.TaxRate       // company default (from JWT), 0 if not set
+	effectiveTaxRate := req.TaxRate           // company default (from JWT), 0 if not set
 	effectiveShippingRate := req.ShippingRate // company default, 0 if not set
 	effectiveLeadTime := req.LeadTime
 
@@ -1534,12 +1556,12 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 
 	// Calculate totals — taxRate is a percentage (e.g., 8.25 means 8.25%)
-	taxAmount := cart.TotalPrice * (effectiveTaxRate / 100)
+	taxAmount := roundCents(cart.TotalPrice * (effectiveTaxRate / 100))
 	if !effectiveTaxable || effectiveTaxRate <= 0 {
 		taxAmount = 0
 	}
 	shippingCost := effectiveShippingRate
-	grandTotal := cart.TotalPrice + shippingCost + taxAmount
+	grandTotal := roundCents(cart.TotalPrice + shippingCost + taxAmount)
 
 	// Hardcoded coupon: applies only when company has CouponsEnabled and a code was sent.
 	// Effective rule mirrors taxableGoods/quotesAllowed: company default from request body,
@@ -1554,8 +1576,8 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 	var promoDiscount float64
 	if effectiveCouponsEnabled && req.PromoCode != "" {
-		promoDiscount = h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode)
-		grandTotal -= promoDiscount
+		promoDiscount = roundCents(h.promotionService.ApplyPromotion(cart.TotalPrice, req.PromoCode))
+		grandTotal = roundCents(grandTotal - promoDiscount)
 		if grandTotal < 0 {
 			grandTotal = 0
 		}

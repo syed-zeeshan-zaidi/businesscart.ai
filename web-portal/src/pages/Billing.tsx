@@ -13,6 +13,7 @@ import {
   SendStatementResponse,
 } from '../api';
 import { Account } from '../types';
+import { PageHeader, Band, CARD, TH, TD, ROW_HOVER, Pill, Spinner } from '../components/ui';
 
 interface Row {
   account: Account;
@@ -100,84 +101,73 @@ const AdminView: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Billing</h1>
-            <p className="text-gray-500 mt-1">
-              Period: <strong>{period.label}</strong> &middot; Auto-derived from each company&rsquo;s order count this month.
-            </p>
-          </div>
+          <div className="max-w-6xl mx-auto">
+            <PageHeader
+              title="Billing"
+              subtitle={<>Period <strong className="text-gray-600">{period.label}</strong> · auto-derived from each company&rsquo;s order count this month.</>}
+            />
 
-          <div className="bg-white p-5 rounded-lg shadow mb-6">
-            <p className="text-sm text-gray-500">Projected total this month (all companies)</p>
-            <p className="text-3xl font-bold text-teal-700 mt-1">
-              ${totalProjected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">{rows.length} compan{rows.length === 1 ? 'y' : 'ies'}</p>
-          </div>
+            {/* Hero: projected platform total */}
+            <section className={`relative overflow-hidden ${CARD} shadow-md p-5 sm:p-6 mt-6`}>
+              <span className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-teal-600 to-emerald-500" aria-hidden="true" />
+              <div className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-gray-400">Projected this month · all companies</div>
+              <div className="text-4xl font-extrabold tracking-tight text-teal-700 tabular-nums mt-1.5">
+                ${totalProjected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="text-xs text-gray-500 mt-1.5 tabular-nums">{rows.length} compan{rows.length === 1 ? 'y' : 'ies'} billing this period</div>
+            </section>
 
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">Companies</h2>
+            <Band>Companies</Band>
+            <div className={`${CARD} overflow-hidden`}>
+              {loading ? (
+                <div className="p-8 flex justify-center"><Spinner /></div>
+              ) : rows.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">No companies found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className={`${TH} text-left`}>Company</th>
+                        <th className={`${TH} text-center`}>Orders</th>
+                        <th className={`${TH} text-left`}>Tier</th>
+                        <th className={`${TH} text-right`}>Monthly fee</th>
+                        <th className={`${TH} text-right`}>Txn fees</th>
+                        <th className={`${TH} text-right`}>Total due</th>
+                        <th className={`${TH} text-right`}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => {
+                        const name = r.account.company?.name || r.account.name || r.account.email;
+                        const s = r.statement;
+                        return (
+                          <tr key={r.account._id} className={ROW_HOVER}>
+                            <td className={`${TD} font-semibold text-gray-800`}>{name}</td>
+                            {r.loading ? (
+                              <td colSpan={6} className={`${TD} text-center text-gray-400`}>Loading…</td>
+                            ) : r.error ? (
+                              <td colSpan={6} className={`${TD} text-center text-red-500`}>{r.error}</td>
+                            ) : s ? (
+                              <>
+                                <td className={`${TD} text-center text-gray-700 tabular-nums`}>{s.orderCount}</td>
+                                <td className={TD}><Pill tone="teal">{s.tier}</Pill></td>
+                                <td className={`${TD} text-right text-gray-700 tabular-nums`}>${s.monthlyFee.toFixed(2)}</td>
+                                <td className={`${TD} text-right text-gray-700 tabular-nums`}>${s.transactionFees.toFixed(2)}</td>
+                                <td className={`${TD} text-right font-bold text-gray-900 tabular-nums`}>${s.totalDue.toFixed(2)}</td>
+                                <td className={`${TD} text-right`}>
+                                  <button onClick={() => setSelected(r)} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800">Generate statement</button>
+                                </td>
+                              </>
+                            ) : null}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-            {loading ? (
-              <div className="p-8 flex justify-center">
-                <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full" />
-              </div>
-            ) : rows.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">No companies found</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-gray-600">
-                      <th className="px-4 py-3 font-medium">Company</th>
-                      <th className="px-4 py-3 font-medium text-center">Orders</th>
-                      <th className="px-4 py-3 font-medium">Tier</th>
-                      <th className="px-4 py-3 font-medium text-right">Monthly fee</th>
-                      <th className="px-4 py-3 font-medium text-right">Txn fees</th>
-                      <th className="px-4 py-3 font-medium text-right">Total due</th>
-                      <th className="px-4 py-3 font-medium text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {rows.map((r) => {
-                      const name = r.account.company?.name || r.account.name || r.account.email;
-                      const s = r.statement;
-                      return (
-                        <tr key={r.account._id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-800">{name}</td>
-                          {r.loading ? (
-                            <td colSpan={6} className="px-4 py-3 text-center text-gray-400">Loading…</td>
-                          ) : r.error ? (
-                            <td colSpan={6} className="px-4 py-3 text-center text-red-500">{r.error}</td>
-                          ) : s ? (
-                            <>
-                              <td className="px-4 py-3 text-center text-gray-700">{s.orderCount}</td>
-                              <td className="px-4 py-3">
-                                <span className="inline-block px-2 py-0.5 rounded bg-teal-700/10 text-teal-700 text-xs font-bold uppercase tracking-wider">
-                                  {s.tier}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-700">${s.monthlyFee.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">${s.transactionFees.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right font-bold text-gray-900">${s.totalDue.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right">
-                                <button
-                                  onClick={() => setSelected(r)}
-                                  className="px-3 py-1.5 text-xs font-medium rounded bg-teal-700 text-white hover:bg-teal-800"
-                                >
-                                  Generate Statement
-                                </button>
-                              </td>
-                            </>
-                          ) : null}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         </main>
       </div>
@@ -231,80 +221,73 @@ const CompanyView: React.FC<{ accountId: string }> = ({ accountId }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Billing</h1>
-            <p className="text-gray-500 mt-1">
-              Your tier auto-applies based on monthly order volume. Statements are emailed by the BusinessCart team.
-            </p>
-          </div>
+          <div className="max-w-6xl mx-auto">
+            <PageHeader
+              title="Billing"
+              subtitle="Your tier auto-applies based on monthly order volume. Statements are emailed by the BusinessCart team."
+            />
 
-          {loading ? (
-            <div className="p-8 flex justify-center">
-              <div className="animate-spin h-6 w-6 border-2 border-teal-700 border-t-transparent rounded-full" />
-            </div>
-          ) : (
-            <>
-              <div className="bg-white p-5 rounded-lg shadow mb-6">
-                <p className="text-sm text-gray-500">Projected total for {period.label} (in progress)</p>
-                <p className="text-3xl font-bold text-teal-700 mt-1">
-                  ${(current?.totalDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                {current && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Tier: <strong>{current.tier}</strong> &middot; {current.orderCount} order{current.orderCount === 1 ? '' : 's'} so far &middot; Monthly fee ${current.monthlyFee.toFixed(2)} + Txn fees ${current.transactionFees.toFixed(2)}
-                  </p>
-                )}
-              </div>
-
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-4 border-b">
-                  <h2 className="text-lg font-semibold text-gray-800">Sent statements</h2>
-                </div>
-                {history.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">No statements sent yet. The first one will appear here once your billing period closes.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 text-left text-gray-600">
-                          <th className="px-4 py-3 font-medium">Period</th>
-                          <th className="px-4 py-3 font-medium">Sent</th>
-                          <th className="px-4 py-3 font-medium text-center">Orders</th>
-                          <th className="px-4 py-3 font-medium">Tier</th>
-                          <th className="px-4 py-3 font-medium text-right">Monthly fee</th>
-                          <th className="px-4 py-3 font-medium text-right">Txn fees</th>
-                          <th className="px-4 py-3 font-medium text-right">Total billed</th>
-                          <th className="px-4 py-3 font-medium">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {history.map((s) => (
-                          <tr key={s.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium text-gray-800">{s.periodLabel || new Date(s.periodStart).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-gray-600">{new Date(s.sentAt).toLocaleDateString()}</td>
-                            <td className="px-4 py-3 text-center text-gray-700">{s.orderCount}</td>
-                            <td className="px-4 py-3">
-                              <span className="inline-block px-2 py-0.5 rounded bg-teal-700/10 text-teal-700 text-xs font-bold uppercase tracking-wider">{s.tier}</span>
-                            </td>
-                            <td className="px-4 py-3 text-right text-gray-700">${s.monthlyFee.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right text-gray-700">${s.transactionFees.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right font-bold text-gray-900">${s.totalDue.toFixed(2)}</td>
-                            <td className="px-4 py-3">
-                              {s.paidAt ? (
-                                <span className="inline-block px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-bold uppercase tracking-wider">Paid</span>
-                              ) : (
-                                <span className="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-bold uppercase tracking-wider">Open</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            {loading ? (
+              <div className="p-8 flex justify-center mt-6"><Spinner /></div>
+            ) : (
+              <>
+                {/* Hero: this month's projected total */}
+                <section className={`relative overflow-hidden ${CARD} shadow-md p-5 sm:p-6 mt-6`}>
+                  <span className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-teal-600 to-emerald-500" aria-hidden="true" />
+                  <div className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-gray-400">Projected for {period.label} · in progress</div>
+                  <div className="text-4xl font-extrabold tracking-tight text-teal-700 tabular-nums mt-1.5">
+                    ${(current?.totalDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                )}
-              </div>
-            </>
-          )}
+                  {current && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2.5 text-[13px] text-gray-600 tabular-nums">
+                      <Pill tone="teal">{current.tier}</Pill>
+                      <span>{current.orderCount} order{current.orderCount === 1 ? '' : 's'} so far</span>
+                      <span className="text-gray-300">·</span>
+                      <span>${current.monthlyFee.toFixed(2)} monthly fee + ${current.transactionFees.toFixed(2)} txn fees</span>
+                    </div>
+                  )}
+                </section>
+
+                <Band>Sent statements</Band>
+                <div className={`${CARD} overflow-hidden`}>
+                  {history.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 text-sm">No statements sent yet. The first one appears here once your billing period closes.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr>
+                            <th className={`${TH} text-left`}>Period</th>
+                            <th className={`${TH} text-left hidden sm:table-cell`}>Sent</th>
+                            <th className={`${TH} text-center`}>Orders</th>
+                            <th className={`${TH} text-left`}>Tier</th>
+                            <th className={`${TH} text-right hidden md:table-cell`}>Monthly fee</th>
+                            <th className={`${TH} text-right hidden md:table-cell`}>Txn fees</th>
+                            <th className={`${TH} text-right`}>Total billed</th>
+                            <th className={`${TH} text-left`}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {history.map((s) => (
+                            <tr key={s.id} className={ROW_HOVER}>
+                              <td className={`${TD} font-semibold text-gray-800`}>{s.periodLabel || new Date(s.periodStart).toLocaleDateString()}</td>
+                              <td className={`${TD} text-gray-600 hidden sm:table-cell tabular-nums`}>{new Date(s.sentAt).toLocaleDateString()}</td>
+                              <td className={`${TD} text-center text-gray-700 tabular-nums`}>{s.orderCount}</td>
+                              <td className={TD}><Pill tone="teal">{s.tier}</Pill></td>
+                              <td className={`${TD} text-right text-gray-700 hidden md:table-cell tabular-nums`}>${s.monthlyFee.toFixed(2)}</td>
+                              <td className={`${TD} text-right text-gray-700 hidden md:table-cell tabular-nums`}>${s.transactionFees.toFixed(2)}</td>
+                              <td className={`${TD} text-right font-bold text-gray-900 tabular-nums`}>${s.totalDue.toFixed(2)}</td>
+                              <td className={TD}>{s.paidAt ? <Pill tone="green">Paid</Pill> : <Pill tone="amber">Open</Pill>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </main>
       </div>
     </div>

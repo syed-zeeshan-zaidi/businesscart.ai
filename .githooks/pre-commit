@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Thin wrapper — real logic lives in scripts/pre-commit.sh (reviewable, versioned).
+exec "$(git rev-parse --show-toplevel)/scripts/pre-commit.sh"

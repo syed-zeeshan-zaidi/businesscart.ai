@@ -95,12 +95,12 @@ func buildGoogleFeed(data StorefrontData) ([]byte, error) {
 	}
 
 	feed := googleFeed{
-		Version:    "2.0",
-		GoogleNS:   "http://base.google.com/ns/1.0",
-		Title:      data.Company.Name + " — Product Catalog",
-		Link:       "https://" + domain,
-		Desc:       "Shopping feed for " + data.Company.Name,
-		Items:      items,
+		Version:  "2.0",
+		GoogleNS: "http://base.google.com/ns/1.0",
+		Title:    data.Company.Name + " — Product Catalog",
+		Link:     "https://" + domain,
+		Desc:     "Shopping feed for " + data.Company.Name,
+		Items:    items,
 	}
 
 	output, err := xml.MarshalIndent(feed, "", "  ")
@@ -121,27 +121,27 @@ type googleFeed struct {
 }
 
 type googleItem struct {
-	ID                   string   `xml:"g:id"`
-	Title                string   `xml:"g:title"`
-	Description          string   `xml:"g:description"`
-	Link                 string   `xml:"g:link"`
-	ImageLink            string   `xml:"g:image_link,omitempty"`
-	AdditionalImageLinks []string `xml:"g:additional_image_link,omitempty"`
-	Availability         string   `xml:"g:availability"`
-	Price                string   `xml:"g:price"`
-	SalePrice            string   `xml:"g:sale_price,omitempty"`
-	Condition            string   `xml:"g:condition"`
-	Brand                string   `xml:"g:brand"`
-	GTIN                 string   `xml:"g:gtin,omitempty"`
-	MPN                  string   `xml:"g:mpn,omitempty"`
-	ProductType          string   `xml:"g:product_type,omitempty"`
-	GoogleProductCategory string  `xml:"g:google_product_category,omitempty"`
-	Color                string   `xml:"g:color,omitempty"`
-	Size                 string   `xml:"g:size,omitempty"`
-	Material             string   `xml:"g:material,omitempty"`
-	Gender               string   `xml:"g:gender,omitempty"`
-	AgeGroup             string   `xml:"g:age_group,omitempty"`
-	IdentifierExists     string   `xml:"g:identifier_exists,omitempty"`
+	ID                    string   `xml:"g:id"`
+	Title                 string   `xml:"g:title"`
+	Description           string   `xml:"g:description"`
+	Link                  string   `xml:"g:link"`
+	ImageLink             string   `xml:"g:image_link,omitempty"`
+	AdditionalImageLinks  []string `xml:"g:additional_image_link,omitempty"`
+	Availability          string   `xml:"g:availability"`
+	Price                 string   `xml:"g:price"`
+	SalePrice             string   `xml:"g:sale_price,omitempty"`
+	Condition             string   `xml:"g:condition"`
+	Brand                 string   `xml:"g:brand"`
+	GTIN                  string   `xml:"g:gtin,omitempty"`
+	MPN                   string   `xml:"g:mpn,omitempty"`
+	ProductType           string   `xml:"g:product_type,omitempty"`
+	GoogleProductCategory string   `xml:"g:google_product_category,omitempty"`
+	Color                 string   `xml:"g:color,omitempty"`
+	Size                  string   `xml:"g:size,omitempty"`
+	Material              string   `xml:"g:material,omitempty"`
+	Gender                string   `xml:"g:gender,omitempty"`
+	AgeGroup              string   `xml:"g:age_group,omitempty"`
+	IdentifierExists      string   `xml:"g:identifier_exists,omitempty"`
 }
 
 // productAttr finds a product attribute by key (case-insensitive). Returns "" if not found.

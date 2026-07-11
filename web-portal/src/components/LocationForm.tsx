@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import toast, { Toaster } from 'react-hot-toast';
 import { PlusIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PageHeader, CARD, TH, ROW_HOVER, Pill, Spinner, BTN_PRIMARY } from './ui';
 import { Dialog, Transition } from '@headlessui/react';
 import Navbar from './Navbar';
 import { Account, CompanyLocation } from '../types';
@@ -174,20 +175,15 @@ const LocationForm: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Manage Locations</h2>
-          <button
-            onClick={openModal}
-            className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-1"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span>Add Location</span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <PageHeader title="Locations" subtitle="Pickup and warehouse locations for your storefront.">
+          <button onClick={openModal} className={`${BTN_PRIMARY} flex items-center gap-1`}>
+            <PlusIcon className="h-4 w-4" /> Add location
           </button>
-        </div>
+        </PageHeader>
 
         {user?.role === 'admin' && (
-          <div className="mb-4">
+          <div className="mt-6 mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Select company</label>
             <select
               value={targetAccount}
@@ -216,46 +212,44 @@ const LocationForm: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
-          </div>
+          <div className="flex justify-center py-12"><Spinner className="h-8 w-8 border-4" /></div>
         ) : !accountID ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">Please select a company first.</div>
+          <div className={`${CARD} p-10 text-center text-gray-500 text-sm`}>Please select a company first.</div>
         ) : current.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-600">No locations found.</div>
+          <div className={`${CARD} p-10 text-center text-gray-500 text-sm`}>No locations found.</div>
         ) : (
           <>
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-              <table className="min-w-[800px] w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div className={`${CARD} overflow-x-auto`}>
+              <table className="min-w-[800px] w-full text-sm">
+                <thead>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Default</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className={`${TH} text-left`}>Location</th>
+                    <th className={`${TH} text-left`}>Contact</th>
+                    <th className={`${TH} text-left`}>Phone</th>
+                    <th className={`${TH} text-left`}>Capacity</th>
+                    <th className={`${TH} text-left`}>Type</th>
+                    <th className={`${TH} text-left`}>Default</th>
+                    <th className={`${TH} text-left`}>Address</th>
+                    <th className={`${TH} text-right`}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {current.map((loc) => (
-                    <tr key={loc.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{loc.locationName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.contactPerson}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.phoneNumber}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.capacity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.locationType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{loc.isDefault ? 'Yes' : 'No'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <tr key={loc.id} className={ROW_HOVER}>
+                      <td className="px-6 py-3 whitespace-nowrap font-semibold text-gray-800">{loc.locationName}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-600">{loc.contactPerson}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-600 tabular-nums">{loc.phoneNumber}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-600">{loc.capacity}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-600">{loc.locationType}</td>
+                      <td className="px-6 py-3 whitespace-nowrap">{loc.isDefault ? <Pill tone="teal">Default</Pill> : <span className="text-gray-400 text-xs">—</span>}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-600">
                         {loc.address.street}, {loc.address.city}, {loc.address.state} {loc.address.zip}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onClick={() => handleEdit(loc)} className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1">
+                      <td className="px-6 py-3 whitespace-nowrap text-right">
+                        <button onClick={() => handleEdit(loc)} className="text-yellow-600 hover:bg-yellow-50 rounded p-2 mr-1" title="Edit">
                           <PencilIcon className="h-5 w-5" />
                         </button>
-                        <button onClick={() => openDeleteConfirm(loc.id)} className="text-red-600 hover:bg-red-50 rounded p-2">
+                        <button onClick={() => openDeleteConfirm(loc.id)} className="text-red-600 hover:bg-red-50 rounded p-2" title="Delete">
                           <TrashIcon className="h-5 w-5" />
                         </button>
                       </td>

@@ -12,9 +12,10 @@ import (
 // A regression here = invoicing customers wrong = trust + revenue loss.
 //
 // Tier brackets (must match web-portal/src/tier.ts):
-//   Starter    [0, 100]    -> $0 + 6% per order capped at $5
-//   Growth     [101, 1000] -> $499 + 1% per order, no cap
-//   Enterprise [1001, inf) -> $1999 + 0.25% per order, no cap
+//
+//	Starter    [0, 100]    -> $0 + 6% per order capped at $5
+//	Growth     [101, 1000] -> $499 + 1% per order, no cap
+//	Enterprise [1001, inf) -> $1999 + 0.25% per order, no cap
 func TestCompute(t *testing.T) {
 	from := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -112,7 +113,7 @@ func TestCompute(t *testing.T) {
 			wantTier:         "Growth",
 			wantMonthlyFee:   499,
 			wantPerOrderRate: 0.01,
-			wantCap:          nil, // no cap on Growth
+			wantCap:          nil,        // no cap on Growth
 			wantFees:         101 * 1.00, // 1% of 100
 			wantTotalDue:     499 + 101.00,
 			wantGrandTotal:   10100.00,

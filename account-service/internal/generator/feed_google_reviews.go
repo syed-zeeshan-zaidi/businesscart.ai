@@ -149,10 +149,10 @@ func boolStr(b bool) string {
 // --- XML schema types (Google Product Reviews feed v2.4) ---
 
 type googleReviewsFeed struct {
-	XMLName   xml.Name           `xml:"feed"`
-	Version   string             `xml:"version"`
-	Publisher publisher          `xml:"publisher"`
-	Reviews   *reviewsContainer  `xml:"reviews,omitempty"`
+	XMLName   xml.Name          `xml:"feed"`
+	Version   string            `xml:"version"`
+	Publisher publisher         `xml:"publisher"`
+	Reviews   *reviewsContainer `xml:"reviews,omitempty"`
 }
 
 type publisher struct {
@@ -165,16 +165,16 @@ type reviewsContainer struct {
 }
 
 type reviewItem struct {
-	ReviewID           string         `xml:"review_id"`
-	Reviewer           reviewer       `xml:"reviewer"`
-	ReviewTimestamp    string         `xml:"review_timestamp"`
-	Title              string         `xml:"title,omitempty"`
-	Content            string         `xml:"content"`
-	IsVerifiedPurchase string         `xml:"is_verified_purchase,omitempty"`
-	CollectionMethod   string         `xml:"collection_method,omitempty"`
-	ReviewURL          reviewURL      `xml:"review_url"`
-	Ratings            ratingsBlock   `xml:"ratings"`
-	Products           productsBlock  `xml:"products"`
+	ReviewID           string        `xml:"review_id"`
+	Reviewer           reviewer      `xml:"reviewer"`
+	ReviewTimestamp    string        `xml:"review_timestamp"`
+	Title              string        `xml:"title,omitempty"`
+	Content            string        `xml:"content"`
+	IsVerifiedPurchase string        `xml:"is_verified_purchase,omitempty"`
+	CollectionMethod   string        `xml:"collection_method,omitempty"`
+	ReviewURL          reviewURL     `xml:"review_url"`
+	Ratings            ratingsBlock  `xml:"ratings"`
+	Products           productsBlock `xml:"products"`
 }
 
 type reviewer struct {

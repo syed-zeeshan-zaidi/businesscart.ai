@@ -343,12 +343,12 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 		"attribution.source":      visitor.Attribution.Source,
 		"attribution.medium":      visitor.Attribution.Medium,
 		"attribution.landingPage": visitor.Attribution.LandingPage,
-		"firstVisit":   now,
-		"createdAt":    now,
-		"registered":   false,
-		"ordered":      false,
-		"totalOrders":  0,
-		"totalRevenue": 0,
+		"firstVisit":              now,
+		"createdAt":               now,
+		"registered":              false,
+		"ordered":                 false,
+		"totalOrders":             0,
+		"totalRevenue":            0,
 	}
 	if visitor.Attribution.Campaign != "" {
 		setOnInsert["attribution.campaign"] = visitor.Attribution.Campaign
@@ -525,8 +525,8 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 	cartAdds, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"milestones.event": "add_to_cart"}))
 	checkoutStarts, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{"milestones.event": "initiate_checkout"}))
 	contactedUs, _ := db.visitors.CountDocuments(ctx, withBase(bson.M{
-		"pages":                     "/contact-us",
-		"attribution.landingPage":   bson.M{"$ne": "/contact-us"},
+		"pages":                   "/contact-us",
+		"attribution.landingPage": bson.M{"$ne": "/contact-us"},
 	}))
 
 	today := time.Now().Truncate(24 * time.Hour)
@@ -704,25 +704,25 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 	}
 
 	return map[string]interface{}{
-		"totalVisitors":    total,
-		"totalBots":        bots,
-		"totalRegistered":  registered,
-		"totalOrdered":     ordered,
-		"totalCartAdds":       cartAdds,
-		"totalCheckoutStarts": checkoutStarts,
-		"totalContactedUs":    contactedUs,
-		"todayVisitors":    todayCount,
-		"weekVisitors":     weekCount,
-		"monthVisitors":    monthCount,
-		"topSources":       topSources,
-		"topCountries":     topCountries,
-		"devices":          devices,
-		"browsers":         browsers,
-		"totalRevenue":        totalRevenue,
-		"totalOrders":         totalOrders,
-		"productViewsSent":    productViewsSent,
-		"conversionsSent":     conversionsSent,
-		"conversionsFailed":   conversionsFailed,
+		"totalVisitors":         total,
+		"totalBots":             bots,
+		"totalRegistered":       registered,
+		"totalOrdered":          ordered,
+		"totalCartAdds":         cartAdds,
+		"totalCheckoutStarts":   checkoutStarts,
+		"totalContactedUs":      contactedUs,
+		"todayVisitors":         todayCount,
+		"weekVisitors":          weekCount,
+		"monthVisitors":         monthCount,
+		"topSources":            topSources,
+		"topCountries":          topCountries,
+		"devices":               devices,
+		"browsers":              browsers,
+		"totalRevenue":          totalRevenue,
+		"totalOrders":           totalOrders,
+		"productViewsSent":      productViewsSent,
+		"conversionsSent":       conversionsSent,
+		"conversionsFailed":     conversionsFailed,
 		"conversionsAvgMatch":   conversionsAvgMatch,
 		"conversionsByProvider": conversionsByProvider,
 		"cartAddsBySource":      bySource("cartAdds"),

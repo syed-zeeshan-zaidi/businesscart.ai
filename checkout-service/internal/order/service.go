@@ -162,10 +162,10 @@ func (s *Service) GetByID(id primitive.ObjectID) (*Order, error) {
 }
 
 type OrderUpdate struct {
-	Status            string
-	TrackingNumber    string
-	TrackingCarrier   string
-	TrackingURL       string
+	Status             string
+	TrackingNumber     string
+	TrackingCarrier    string
+	TrackingURL        string
 	SetReviewRequested bool // when true, sets reviewRequestedAt = now
 	// AddRefund: when non-nil, append a refund record. The service will:
 	//   - assign a new ObjectID + timestamps

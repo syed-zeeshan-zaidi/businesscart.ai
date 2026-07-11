@@ -143,7 +143,7 @@ func TestFormatGenericCSV(t *testing.T) {
 		"shipped",
 		"buyer@example.com",
 		"32.97", "15.00", "2.72", "3.30", "SAVE10", "50.69",
-		",3,",        // Items column
+		",3,", // Items column
 		"1Z999",
 		"ups",
 		"v_abc",

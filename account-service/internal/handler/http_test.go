@@ -233,15 +233,15 @@ func TestOverride(t *testing.T) {
 // users if extraction fails on edge-case shapes).
 //
 // Rules:
-//  - Both role and id strings present and non-empty -> success
-//  - Either missing, wrong type, or empty -> error and empty returns
+//   - Both role and id strings present and non-empty -> success
+//   - Either missing, wrong type, or empty -> error and empty returns
 func TestExtractClaim(t *testing.T) {
 	cases := []struct {
-		name      string
-		claim     map[string]interface{}
-		wantRole  string
-		wantID    string
-		wantErr   bool
+		name     string
+		claim    map[string]interface{}
+		wantRole string
+		wantID   string
+		wantErr  bool
 	}{
 		{"valid admin claim", map[string]interface{}{"role": "admin", "id": "abc123"}, "admin", "abc123", false},
 		{"valid customer claim", map[string]interface{}{"role": "customer", "id": "xyz"}, "customer", "xyz", false},
@@ -288,6 +288,7 @@ func TestExtractClaim(t *testing.T) {
 // TestValidatePassword pins password strength rules. Critical because:
 //   - Loosening accepts weak passwords (security)
 //   - Tightening locks out existing valid users (lockout incident)
+//
 // py tests use a known-good password and would not detect either kind of
 // drift. Rules: min 8 chars + uppercase + lowercase + digit + special.
 func TestValidatePassword(t *testing.T) {

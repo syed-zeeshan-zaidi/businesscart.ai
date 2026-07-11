@@ -8,7 +8,9 @@ import (
 )
 
 // TestGoogleReviewsFeed_PrintSample is a debug helper. Run with:
-//   go test ./internal/generator/ -run TestGoogleReviewsFeed_PrintSample -v
+//
+//	go test ./internal/generator/ -run TestGoogleReviewsFeed_PrintSample -v
+//
 // It dumps a sample XML for manual inspection against the spec.
 func TestGoogleReviewsFeed_PrintSample(t *testing.T) {
 	verified := true
@@ -29,9 +31,9 @@ func TestGoogleReviewsFeed_PrintSample(t *testing.T) {
 					Count: 2, Average: 4.5,
 					Reviews: []Review{
 						{Name: "Mark T.", Rating: 5, Title: "Worth the extra",
-							Body: "Cuff is long enough for overhead MIG work.",
+							Body:     "Cuff is long enough for overhead MIG work.",
 							Verified: true,
-							Date: time.Date(2026, 5, 18, 10, 30, 0, 0, time.UTC)},
+							Date:     time.Date(2026, 5, 18, 10, 30, 0, 0, time.UTC)},
 						{Rating: 4, Body: "Solid for the price.",
 							Date: time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)},
 					},

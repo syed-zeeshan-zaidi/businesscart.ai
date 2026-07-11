@@ -5,8 +5,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Order as OrderType, Account as AccountType, CompanyData } from '../types';
-import { getOrders, getAccount, deleteOrder, clearCart, addItemToCart, requestOrderReview } from '../api';
-import { ChevronDownIcon, TrashIcon, ArrowPathIcon, StarIcon } from '@heroicons/react/24/outline';
+import { getOrders, getAccount, deleteOrder, clearCart, addItemToCart } from '../api';
+import { ChevronDownIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const OrderHistory: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -137,18 +137,6 @@ const OrderHistory: React.FC = () => {
       navigate('/cart');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to reorder', { id: toastId });
-    }
-  };
-
-  const handleRequestReview = async (orderId: string) => {
-    const toastId = toast.loading('Sending review request...');
-    try {
-      const updated = await requestOrderReview(orderId);
-      toast.success('Review request sent', { id: toastId });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, reviewRequestedAt: updated.reviewRequestedAt } : o));
-      localStorage.removeItem('orderHistory');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to send review request', { id: toastId });
     }
   };
 
@@ -284,18 +272,6 @@ const OrderHistory: React.FC = () => {
                         <button onClick={() => handleReorder(order)} className="inline-flex items-center gap-1 text-sm text-teal-700 hover:text-teal-900 font-medium">
                           <ArrowPathIcon className="h-4 w-4" /> Reorder
                         </button>
-                        {(userRole === 'admin' || userRole === 'company') && order.customerEmail && (
-                          order.reviewRequestedAt ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-gray-500" title={`Sent ${new Date(order.reviewRequestedAt).toLocaleDateString()}`}>
-                              <StarIcon className="h-4 w-4" /> Review requested
-                              <button onClick={() => handleRequestReview(order.id)} className="ml-2 text-teal-700 hover:text-teal-900 underline">Resend</button>
-                            </span>
-                          ) : (
-                            <button onClick={() => handleRequestReview(order.id)} className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 font-medium">
-                              <StarIcon className="h-4 w-4" /> Request Review
-                            </button>
-                          )
-                        )}
                       </div>
                     </div>
                   </div>

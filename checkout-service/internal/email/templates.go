@@ -403,12 +403,12 @@ func lastSix(s string) string {
 // ─────────────────────── Review Request (post-purchase) ───────────────────────
 
 type ReviewRequestData struct {
-	OrderID     string
+	OrderID      string
 	CustomerName string // optional; falls back to "there" in greeting
-	Items       []OrderItemView
-	BrandName   string
-	BrandEmail  string
-	StoreURL    string // homepage of the brand storefront (optional)
+	Items        []OrderItemView
+	BrandName    string
+	BrandEmail   string
+	StoreURL     string // homepage of the brand storefront (optional)
 }
 
 // ReviewRequestMessage builds the post-purchase review-request email sent to the
@@ -503,15 +503,15 @@ const reviewRequestHTMLTmpl = `<!DOCTYPE html>
 // company. The handler flattens an order.Statement into this struct so the
 // email package stays decoupled from the order domain.
 type MonthlyStatementData struct {
-	CompanyName     string
-	PeriodLabel     string  // e.g., "April 1 – April 30, 2026"
-	Tier            string  // "Starter" | "Growth" | "Enterprise"
-	OrderCount      int
-	TotalGrandTotal float64 // their gross revenue in the period
-	MonthlyFee      float64
-	PerOrderRateStr string  // pre-formatted, e.g., "6%, capped at $5/order"
-	TransactionFees float64
-	TotalDue        float64
+	CompanyName         string
+	PeriodLabel         string // e.g., "April 1 – April 30, 2026"
+	Tier                string // "Starter" | "Growth" | "Enterprise"
+	OrderCount          int
+	TotalGrandTotal     float64 // their gross revenue in the period
+	MonthlyFee          float64
+	PerOrderRateStr     string // pre-formatted, e.g., "6%, capped at $5/order"
+	TransactionFees     float64
+	TotalDue            float64
 	PaymentInstructions string // plain text — varies per customer arrangement
 }
 

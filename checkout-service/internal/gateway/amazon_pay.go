@@ -64,7 +64,7 @@ func (g *AmazonPayGateway) CreateSession(ctx context.Context, req SessionRequest
 		"storeId":              req.Credentials["storeId"],
 		"chargePermissionType": "OneTime",
 		"paymentDetails": map[string]interface{}{
-			"paymentIntent":               "AuthorizeWithCapture",
+			"paymentIntent":                 "AuthorizeWithCapture",
 			"canHandlePendingAuthorization": false,
 			"chargeAmount": map[string]string{
 				"amount":       fmt.Sprintf("%.2f", req.Amount),
@@ -95,12 +95,12 @@ func (g *AmazonPayGateway) CreateSession(ctx context.Context, req SessionRequest
 	return &SessionResponse{
 		ProviderSessionID: sessionID,
 		ButtonConfig: map[string]string{
-			"merchantId":   req.Credentials["merchantId"],
-			"publicKeyId":  req.Credentials["publicKeyId"],
-			"payloadJSON":  string(payloadJSON),
-			"signature":    base64.StdEncoding.EncodeToString(signature),
+			"merchantId":     req.Credentials["merchantId"],
+			"publicKeyId":    req.Credentials["publicKeyId"],
+			"payloadJSON":    string(payloadJSON),
+			"signature":      base64.StdEncoding.EncodeToString(signature),
 			"ledgerCurrency": req.Currency,
-			"sandbox":      fmt.Sprintf("%t", req.Sandbox),
+			"sandbox":        fmt.Sprintf("%t", req.Sandbox),
 		},
 	}, nil
 }
@@ -232,9 +232,9 @@ func buildAmazonHeaders(region, apiURL string) map[string]string {
 	return map[string]string{
 		"accept":                    "application/json",
 		"content-type":              "application/json",
-		"x-amz-pay-region":         amazonPayRegionCode(region),
-		"x-amz-pay-host":           host,
-		"x-amz-pay-date":           time.Now().UTC().Format("20060102T150405Z"),
+		"x-amz-pay-region":          amazonPayRegionCode(region),
+		"x-amz-pay-host":            host,
+		"x-amz-pay-date":            time.Now().UTC().Format("20060102T150405Z"),
 		"x-amz-pay-idempotency-key": fmt.Sprintf("%x", b),
 	}
 }

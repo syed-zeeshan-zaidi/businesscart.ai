@@ -492,6 +492,36 @@ class BackendFlowTest:
         assert new_refresh not in resp.text, "SECURITY: rotated refresh_token leaked in PATCH response"
         ok("Token-only update rotated refresh_token, preserved customer/action IDs (no data loss)")
 
+        # Guest checkout: a b2c register with NO password creates the account AND
+        # returns a token in one call (one-step guest checkout). The account is
+        # passwordless — it cannot be logged into until claimed via reset.
+        self.use_token("admin")
+        guest_email = f"{PREFIX}guest@test.com"
+        step("Guest checkout: passwordless b2c register returns a token in one call")
+        resp = self.api.post("/accounts/register", {
+            "name": "Guest Shopper",
+            "email": guest_email,
+            "role": "b2c",
+            "code": CODES["set1"]["companyCode"],
+            # no password → guest
+        })
+        assert_status(resp, 201, "Guest b2c register (no password)")
+        gbody = resp.json()
+        assert gbody.get("accessToken"), f"guest register must return an accessToken in the same call: {gbody}"
+        assert gbody.get("account"), f"guest register must return the account: {gbody}"
+        guest_id = self._get_id_from_jwt(gbody["accessToken"])
+        # Stash as a pseudo-role so phase 5 can drive the full guest checkout with it.
+        self.jwts["guest"] = gbody["accessToken"]
+        self.ids["guest"] = guest_id
+        self.guest_email = guest_email
+        self.tracker.track_account("guest", guest_id)
+        ok("Guest register returned a token in one call (no separate login round-trip)")
+
+        step("Guest account is passwordless: cannot be logged into with a guess")
+        bad = self.api.post("/accounts/login", {"email": guest_email, "password": PASSWORD})
+        assert bad.status_code == 401, f"passwordless guest must reject login, got {bad.status_code}"
+        ok("Passwordless guest rejects login until claimed via password reset")
+
     # ── Phase 3: Catalog ─────────────────────────────────────────
 
     def phase3_catalog(self):
@@ -1084,6 +1114,58 @@ class BackendFlowTest:
             self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
 
         self.run_test("5i. Refund flow: partial + full + validation guards", test_refund_flow)
+
+        # 5j. Guest checkout end-to-end — the exact API sequence customer.js runs for a
+        # passwordless guest: (register happened in phase 2) → save a shipping address →
+        # cart → quote → place order (offline 'purchase_order' completes with no gateway
+        # redirect). Proves a guest can complete a purchase and that the order is theirs.
+        def test_guest_checkout_e2e():
+            guest_id = self.ids["guest"]
+
+            # 1. Save a shipping address — the endpoint the inline address form POSTs to.
+            self.use_token("guest")
+            addr_resp = self.api.post(f"/accounts/locations/{guest_id}", {
+                "addressLabel": "Shipping",
+                "recipientName": "Guest Shopper",
+                "phoneNumber": "555-0100",
+                "isDefaultShipping": True,
+                "address": {"street": "1 Test St", "city": "Austin", "state": "TX", "zip": "78701"},
+            })
+            assert_status_in(addr_resp, (200, 201), "Guest saves shipping address")
+            ok("Guest saved a shipping address")
+
+            # 2. cart → quote → order
+            self._clear_cart("guest", c1_id)
+            self._add_to_cart("guest", c1_id, product_a, 3)
+            quote_resp = self._create_quote("guest", c1_id, "standard", extra_fields={
+                "creditLimit": 5000, "minOrderAmountLimit": 20, "maxOrderAmountLimit": 5000,
+            })
+            assert_status(quote_resp, 200, "Guest quote")
+            quote_id = quote_resp.json().get("id")
+            assert quote_id, f"guest quote id missing: {quote_resp.json()}"
+
+            self.use_token("guest")
+            order_resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_id,
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            assert_status(order_resp, 200, "Guest place order")
+            o = order_resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, f"guest order id missing: {o}"
+            self.tracker.track_order(order_id)
+            ok(f"Guest placed order {str(order_id)[:8]}…")
+
+            # 3. Order is the guest's — the guest can retrieve it from their own orders.
+            self.use_token("guest")
+            my_orders = self.api.get(f"/checkout/orders?sellerId={c1_id}")
+            assert_status(my_orders, 200, "Guest lists own orders")
+            mine = next((x for x in (my_orders.json() or []) if (x.get("id") or x.get("_id")) == order_id), None)
+            assert mine, f"guest order {order_id} not visible to the guest"
+            ok("Guest checkout end-to-end: register → address → cart → quote → order, tied to guest")
+
+        self.run_test("5j. Guest checkout end-to-end (register → address → cart → quote → order)", test_guest_checkout_e2e)
 
     # ── Phase 5b: Tiered pricing tests ─────────────────────────────
 

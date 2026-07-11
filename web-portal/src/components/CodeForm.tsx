@@ -4,6 +4,7 @@ import Navbar from './Navbar';
 import { TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { PageHeader, CARD, TH, TD, ROW_HOVER, Pill, BTN_PRIMARY } from './ui';
 
 const CodeForm: React.FC = () => {
   const [codes, setCodes] = useState<any[]>([]);
@@ -110,47 +111,39 @@ const CodeForm: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Codes</h2>
-          <button
-            onClick={handleOpenCreate}
-            className="bg-teal-700 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-teal-800"
-          >
-            Create Code
-          </button>
-        </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <PageHeader title="Codes" subtitle="Registration codes that link customers, companies, and partners to an account.">
+          <button onClick={handleOpenCreate} className={BTN_PRIMARY}>Create code</button>
+        </PageHeader>
 
         {codes.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-            <h2 className="text-2xl font-semibold text-gray-800">No Codes Found</h2>
-            <p className="text-gray-600 mt-2">There are currently no codes in the system.</p>
+          <div className={`${CARD} p-10 text-center mt-6`}>
+            <p className="text-sm font-semibold text-gray-700">No codes yet</p>
+            <p className="text-sm text-gray-500 mt-1">Create your first code to onboard a company.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
-            <table className="min-w-[500px] w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className={`${CARD} overflow-x-auto mt-6`}>
+            <table className="min-w-[500px] w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Code</th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Code</th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Partner Code</th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed</th>
-                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                  <th className={`${TH} text-left`}>Company code</th>
+                  <th className={`${TH} text-left`}>Customer code</th>
+                  <th className={`${TH} text-left hidden sm:table-cell`}>Partner code</th>
+                  <th className={`${TH} text-left`}>Status</th>
+                  <th className={`${TH} text-right`}></th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {codes.map((code) => (
-                  <tr key={code.id} className="hover:bg-gray-50">
-                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{code.companyCode}</td>
-                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500">{code.customerCode}</td>
-                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{code.partnerCode || '-'}</td>
-                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${code.isClaimed ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                        {code.isClaimed ? 'Yes' : 'No'}
-                      </span>
+                  <tr key={code.id} className={ROW_HOVER}>
+                    <td className={`${TD} whitespace-nowrap font-mono text-xs font-semibold text-gray-800`}>{code.companyCode}</td>
+                    <td className={`${TD} whitespace-nowrap font-mono text-xs text-gray-500`}>{code.customerCode}</td>
+                    <td className={`${TD} whitespace-nowrap font-mono text-xs text-gray-500 hidden sm:table-cell`}>{code.partnerCode || '—'}</td>
+                    <td className={`${TD} whitespace-nowrap`}>
+                      <Pill tone={code.isClaimed ? 'gray' : 'green'}>{code.isClaimed ? 'Claimed' : 'Open'}</Pill>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-right">
-                      <button onClick={() => handleOpenEdit(code)} className="text-gray-600 hover:bg-gray-100 rounded p-2 mr-1" title="Edit">
+                    <td className={`${TD} whitespace-nowrap text-right`}>
+                      <button onClick={() => handleOpenEdit(code)} className="text-gray-500 hover:bg-gray-100 rounded p-2 mr-1" title="Edit">
                         <PencilSquareIcon className="h-4 w-4" />
                       </button>
                       <button onClick={() => handleDeleteCode(code.companyCode)} className="text-red-600 hover:bg-red-50 rounded p-2" title="Delete">
@@ -219,7 +212,7 @@ const CodeForm: React.FC = () => {
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-teal-700 text-base font-medium text-white hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     {editingId ? 'Save' : 'Create'}
                   </button>
