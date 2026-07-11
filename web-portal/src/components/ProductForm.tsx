@@ -7,6 +7,7 @@ import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import toast, { Toaster } from 'react-hot-toast';
+import { PageHeader, CARD, TH, Spinner, BTN_PRIMARY } from './ui';
 import { useAuth } from '../hooks/useAuth';
 
 const CACHE_KEY = 'products_cache';
@@ -540,57 +541,48 @@ const ProductForm = () => {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Toaster position="top-right" />
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Products</h2>
-          <button
-            onClick={openModal}
-            className="bg-teal-700 text-white px-3 py-1.5 text-sm rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-1"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span>Add Product</span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <PageHeader title="Products" subtitle="Your catalog — what shows on the storefront and in feeds.">
+          <button onClick={openModal} className={`${BTN_PRIMARY} flex items-center gap-1`}>
+            <PlusIcon className="h-4 w-4" /> Add product
           </button>
-        </div>
+        </PageHeader>
 
         {/* Search */}
-        <div className="mb-6">
+        <div className="mt-6 mb-4">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by name..."
-              className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+              placeholder="Search products by name…"
+              className="w-full py-2 pl-10 pr-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             />
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
         </div>
 
         {/* Product Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className={`${CARD} overflow-hidden`}>
           {isLoading ? (
-            <div className="p-6 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
-            </div>
+            <div className="p-8 flex justify-center"><Spinner /></div>
           ) : filteredProducts.length === 0 ? (
-            <div className="p-6 text-center text-gray-600">No products found.</div>
+            <div className="p-8 text-center text-gray-400 text-sm">No products found.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[750px] w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-[750px] w-full text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Image</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deal Price (%)</th>
-
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className={`${TH} text-left w-16`}>Image</th>
+                    <th className={`${TH} text-left`}>Name</th>
+                    <th className={`${TH} text-left`}>Status</th>
+                    <th className={`${TH} text-left`}>Availability</th>
+                    <th className={`${TH} text-left`}>Price</th>
+                    <th className={`${TH} text-left`}>Deal Price (%)</th>
+                    <th className={`${TH} text-right`}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100">
                   {currentProducts.map((product) => (
                     <tr
                       key={product._id}
