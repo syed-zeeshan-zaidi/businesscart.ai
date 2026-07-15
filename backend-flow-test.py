@@ -2208,6 +2208,70 @@ class BackendFlowTest:
 
         self.run_test("Click IDs last-click + UTMs first-click", test_clickid_last_click_overwrite)
 
+        # Test 7: contact_request persists a lead milestone (platform demo form).
+        # A real browser UA is sent so the handler's isBot guard doesn't drop it —
+        # exactly how a genuine visitor submits.
+        real_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+        def test_contact_request_lead():
+            cvid = "v___test__contact_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": cvid,
+                "event": "contact_request",
+                "page": "/contact-us",
+                "clickIds": {"gclid": "test_lead_gclid_777"},
+                "metadata": {
+                    "name": "Jordan Rivera",
+                    "email": "jordan@riverafoods.test",
+                    "company": "Rivera Specialty Foods",
+                    "sells": "Halal grocery",
+                    "phone": "555-0100",
+                    "purpose": "demo",
+                },
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "contact_request accepted")
+
+            self.use_token("admin")
+            visitors = self.api.get(f"/visitors?visitorId={cvid}").json().get("visitors", [])
+            assert len(visitors) == 1, f"expected 1 visitor, got {len(visitors)}"
+            leads = [m for m in (visitors[0].get("milestones") or []) if m.get("event") == "contact_request"]
+            assert len(leads) == 1, f"expected 1 contact_request lead, got {len(leads)}"
+            md = leads[0].get("metadata", {})
+            assert md.get("name") == "Jordan Rivera", f"name: {md.get('name')}"
+            assert md.get("email") == "jordan@riverafoods.test", f"email: {md.get('email')}"
+            assert md.get("company") == "Rivera Specialty Foods", f"company: {md.get('company')}"
+            assert md.get("gclid") == "test_lead_gclid_777", f"gclid: {md.get('gclid')}"
+            ok("contact_request lead persisted with fields + gclid")
+
+        self.run_test("Contact request lead captured", test_contact_request_lead)
+
+        # Test 8: honeypot ("website" filled) drops the lead silently — 200 back,
+        # no contact_request milestone stored.
+        def test_contact_request_honeypot():
+            hvid = "v___test__contact_hp_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": hvid,
+                "event": "contact_request",
+                "page": "/contact-us",
+                "metadata": {
+                    "name": "Spam Bot",
+                    "email": "bot@spam.test",
+                    "company": "Spammy",
+                    "website": "http://spam.example",
+                },
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "honeypot contact_request returns 200")
+
+            self.use_token("admin")
+            visitors = self.api.get(f"/visitors?visitorId={hvid}").json().get("visitors") or []
+            if visitors:
+                # milestones serializes as JSON null (nil slice) when empty, so coerce
+                leads = [m for m in (visitors[0].get("milestones") or []) if m.get("event") == "contact_request"]
+                assert len(leads) == 0, f"honeypot lead should be dropped, found {len(leads)}"
+            ok("Honeypot contact_request dropped (no lead milestone)")
+
+        self.run_test("Contact request honeypot dropped", test_contact_request_honeypot)
+
         # Cleanup: delete test visitor
         def test_cleanup_visitor():
             # Direct DB cleanup not possible via API — visitor will be orphaned but harmless
