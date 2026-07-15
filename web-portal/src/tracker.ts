@@ -157,6 +157,44 @@ export function trackPageView(page: string) {
   }
 }
 
+// Submits a contact/demo-request lead to the existing /visitors/event endpoint
+// (event "contact_request") with the form fields + captured click IDs. The
+// backend persists it and best-effort-emails the operator inbox. Awaits the
+// response so the form can show a real success/error state. Honeypot ("website")
+// is passed through; the server drops any submission that has it filled.
+export async function trackContactRequest(fields: {
+  name: string; email: string; company: string;
+  sells?: string; phone?: string; purpose?: string; website?: string;
+}): Promise<boolean> {
+  try {
+    if (!API_URL) return false;
+    const res = await fetch(`${API_URL}/visitors/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId: getVisitorId(),
+        event: 'contact_request',
+        page: '/contact-us',
+        clickIds: clickIds(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        language: navigator.language || '',
+        metadata: {
+          name: fields.name,
+          email: fields.email,
+          company: fields.company,
+          sells: fields.sells || '',
+          phone: fields.phone || '',
+          purpose: fields.purpose || '',
+          website: fields.website || '',
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Fires a contact_conversion event when a paid-ad visitor reaches /contact-us
 // AFTER visiting at least one prior page in this session. Filters direct loads
 // (returning users, bookmarks, bots) and non-PPC traffic. The landingPage check

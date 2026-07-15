@@ -53,6 +53,22 @@ func NotifyAdmin(sender Sender, subject, body string) {
 	}
 }
 
+// SendContactLead delivers a new demo/contact-request lead alert to the operator
+// inbox. Unlike NotifyAdmin it does NOT dedup (every lead must arrive) and it
+// RETURNS the send error so the caller can log a failure. The lead is always
+// persisted before this runs, so a failure here loses nothing — it only means
+// "you weren't pinged; the lead is still in the portal/Mongo."
+func SendContactLead(sender Sender, subject, body string) error {
+	if sender == nil {
+		return nil
+	}
+	return sender.Send(context.Background(), Message{
+		To:       adminEmail,
+		Subject:  "[BusinessCart Lead] " + subject,
+		TextBody: body,
+	})
+}
+
 // resetNotifyDedupForTest clears in-memory dedup state. Test-only helper.
 func resetNotifyDedupForTest() {
 	notifyDedup.Range(func(k, _ any) bool {

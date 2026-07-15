@@ -2081,6 +2081,44 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	}
 
 	switch req.Event {
+	case "contact_request":
+		// Honeypot: bots fill the hidden "website" field; humans never do → drop
+		// silently (no lead, no alert). Also skip crawlers.
+		if hp, _ := req.Metadata["website"].(string); strings.TrimSpace(hp) != "" {
+			break
+		}
+		if isBot {
+			break
+		}
+		get := func(k string) string {
+			if v, ok := req.Metadata[k].(string); ok {
+				return strings.TrimSpace(v)
+			}
+			return ""
+		}
+		// Persist the lead FIRST (system of record) so a failed alert never loses it.
+		lead := map[string]interface{}{}
+		for _, k := range []string{"name", "email", "company", "sells", "phone", "purpose"} {
+			if v := get(k); v != "" {
+				lead[k] = v
+			}
+		}
+		if g := req.ClickIDs["gclid"]; g != "" {
+			lead["gclid"] = g
+		}
+		logErr("addContactLead", h.db.AddVisitorMilestone(req.VisitorID, storage.VisitorMilestone{
+			Event: "contact_request", Page: req.Page, Date: now, Metadata: lead,
+		}))
+		// Best-effort alert to the operator inbox. The lead is already saved, so a
+		// send failure only means "not pinged" — logErr records it to CloudWatch AND
+		// the visitor's errorLog, so un-notified leads stay findable. Zero loss.
+		subject := "New demo request"
+		if c := get("company"); c != "" {
+			subject += " — " + c
+		}
+		body := fmt.Sprintf("New contact / demo request (businesscart.ai)\n\nName:    %s\nEmail:   %s\nCompany: %s\nPhone:   %s\nSells:   %s\nPurpose: %s\ngclid:   %s\n",
+			get("name"), get("email"), get("company"), get("phone"), get("sells"), get("purpose"), get("gclid"))
+		logErr("contactLeadNotify", mailer.SendContactLead(h.emailSender, subject, body))
 	case "register":
 		milestone := storage.VisitorMilestone{Event: "register", Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
