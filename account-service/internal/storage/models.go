@@ -278,8 +278,11 @@ type AdConversionInfo struct {
 	// Meta
 	PixelID string `json:"pixelId,omitempty"`
 	// Google
-	CustomerID         string `json:"customerId,omitempty"`
-	ConversionActionID string `json:"conversionActionId,omitempty"`
+	CustomerID          string `json:"customerId,omitempty"`
+	ConversionActionID  string `json:"conversionActionId,omitempty"`
+	ViewContentActionID string `json:"viewContentActionId,omitempty"`
+	AddToCartActionID   string `json:"addToCartActionId,omitempty"`
+	CheckoutActionID    string `json:"checkoutActionId,omitempty"`
 	// Sensitive-token last-4 hint (Meta access_token / Google refresh_token).
 	TokenLast4 string `json:"tokenLast4,omitempty"`
 }

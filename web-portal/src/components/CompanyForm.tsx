@@ -412,7 +412,7 @@ const AdConversionsPanel: React.FC<{
 /* ---------- Google Ads conversions (Data Manager API; mirrors AdConversionsPanel) ---------- */
 const GoogleConversionsPanel: React.FC<{
   sellerId: string;
-  initialInfo?: { configured: boolean; enabled: boolean; customerId?: string; conversionActionId?: string; tokenLast4?: string };
+  initialInfo?: { configured: boolean; enabled: boolean; customerId?: string; conversionActionId?: string; viewContentActionId?: string; addToCartActionId?: string; checkoutActionId?: string; tokenLast4?: string };
 }> = ({ sellerId, initialInfo }) => {
   const [expanded, setExpanded] = useState(false);
   const [clientId, setClientId] = useState('');
@@ -456,6 +456,9 @@ const GoogleConversionsPanel: React.FC<{
         enabled,
         customerId: creds.customer_id || info?.customerId,
         conversionActionId: creds.conversion_action_id || info?.conversionActionId,
+        viewContentActionId: creds.conversion_action_id_viewcontent || info?.viewContentActionId,
+        addToCartActionId: creds.conversion_action_id_addtocart || info?.addToCartActionId,
+        checkoutActionId: creds.conversion_action_id_initiatecheckout || info?.checkoutActionId,
         tokenLast4: creds.refresh_token ? creds.refresh_token.slice(-4) : info?.tokenLast4,
       });
       setClientSecret('');
@@ -522,9 +525,9 @@ const GoogleConversionsPanel: React.FC<{
             <summary className="text-xs font-medium text-gray-500 cursor-pointer select-none">Secondary events (optional)</summary>
             <p className="text-xs text-gray-400 mt-1 mb-2"><b>Purchase</b> always sends to the primary action above. ViewContent / Add to Cart / Checkout send <b>only</b> if you map each to its own Google conversion action here (set those as Secondary/observation in Google Ads). Unmapped events are not sent.</p>
             <div className="space-y-3">
-              {field('ViewContent action ID', caViewContent, setCaViewContent, 'optional')}
-              {field('Add to Cart action ID', caAddToCart, setCaAddToCart, 'optional')}
-              {field('Checkout action ID', caCheckout, setCaCheckout, 'optional')}
+              {field('ViewContent action ID', caViewContent, setCaViewContent, info?.viewContentActionId || 'optional')}
+              {field('Add to Cart action ID', caAddToCart, setCaAddToCart, info?.addToCartActionId || 'optional')}
+              {field('Checkout action ID', caCheckout, setCaCheckout, info?.checkoutActionId || 'optional')}
             </div>
           </details>
           <div className="flex items-center space-x-3 pt-2">
