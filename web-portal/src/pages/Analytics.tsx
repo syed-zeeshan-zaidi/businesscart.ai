@@ -239,7 +239,7 @@ const Analytics: React.FC = () => {
   const [scope, setScope] = useState(isAdmin ? 'portal' : '');
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [timeRange, setTimeRange] = useState('');
+  const [timeRange, setTimeRange] = useState('30d'); // default to Last 30 Days (was '' = all-time, which aggregates the whole visitors collection on every page load)
   const perPage = 100;
 
   const loadStats = async (sellerId?: string, since?: string) => {
