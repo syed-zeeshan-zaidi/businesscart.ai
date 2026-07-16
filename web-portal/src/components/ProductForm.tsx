@@ -578,7 +578,6 @@ const ProductForm = () => {
                     <th className={`${TH} text-left`}>Status</th>
                     <th className={`${TH} text-left`}>Availability</th>
                     <th className={`${TH} text-left`}>Price</th>
-                    <th className={`${TH} text-left`}>Deal Price (%)</th>
                     <th className={`${TH} text-right`}>Actions</th>
                   </tr>
                 </thead>
@@ -626,18 +625,25 @@ const ProductForm = () => {
                           <span className="text-gray-700">{product.stock} in stock</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.dealPrice ? (
-                          <>
-                            {product.dealPrice}%
-                            {product.dealEndDate && (
-                              <span className={`ml-1 text-xs ${new Date(product.dealEndDate) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
-                                {new Date(product.dealEndDate) < new Date() ? '(expired)' : `(until ${new Date(product.dealEndDate).toLocaleDateString()})`}
-                              </span>
-                            )}
-                          </>
-                        ) : 'N/A'}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {product.dealPrice && product.dealPrice > 0 ? (
+                          product.dealEndDate && new Date(product.dealEndDate) < new Date() ? (
+                            <div>
+                              <span className="text-gray-700">${product.price.toFixed(2)}</span>
+                              <div className="text-xs text-red-500">{product.dealPrice}% deal expired</div>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="font-semibold text-teal-700">${(product.price * (1 - product.dealPrice / 100)).toFixed(2)}</span>
+                              <span className="ml-2 text-gray-400 line-through">${product.price.toFixed(2)}</span>
+                              <div className="text-xs font-medium text-green-600">
+                                {product.dealPrice}% off{product.dealEndDate ? ` · until ${new Date(product.dealEndDate).toLocaleDateString()}` : ''}
+                              </div>
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-700">${product.price.toFixed(2)}</span>
+                        )}
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
