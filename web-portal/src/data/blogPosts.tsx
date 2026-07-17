@@ -11,6 +11,115 @@ export interface BlogPostData {
 
 const blogPosts: BlogPostData[] = [
   {
+    slug: 'sales-rep-order-on-behalf-vs-self-service-portal',
+    title: 'Sales Rep Order Entry vs Self-Service Portal: Why Wholesalers Do Not Have to Choose (2026)',
+    excerpt: 'Buyers want to self-serve, but some orders still need a rep. BusinessCart does both in one system: reps create quotes on behalf of any customer while buyers order 24/7, no separate rep app.',
+    date: '2026-07-17',
+    metaDescription: 'Sales rep order entry vs self-service buyer portal for wholesalers in 2026. How BusinessCart lets reps place orders on behalf of customers and buyers self-serve, in one platform.',
+    content: (
+      <>
+        <p><strong>TL;DR:</strong> BusinessCart lets an admin or sales rep create a quote on behalf of any customer, with that customer's per-customer pricing, credit limit, and payment methods applied automatically and impossible for the rep to override, while the same platform gives buyers a 24/7 self-service portal. You get rep-assisted ordering and self-service in one system, not a separate order-entry app bolted onto your store and synced back later. Industry data shows self-service portals absorb 60 to 80% of orders within months and free reps from the routine reorders that consume 30 to 50% of their time.</p>
+
+        <h2>How do wholesalers take orders in 2026, reps or self-service?</h2>
+        <p>Both, and the digital share is climbing every quarter. Industry projections put US B2B e-commerce near $3 trillion by 2027 at roughly a 10.7% annual growth rate, as the share of orders captured through a portal rather than by phone, fax, or email keeps rising. The winning setup is not "rep or portal," it is a single platform where buyers who want to self-serve can, and reps step in for the accounts, negotiations, and complex orders that still need a human. BusinessCart is built for exactly that split: self-service storefront plus rep-created quotes on behalf of customers, sharing one pricing engine.</p>
+
+        <h2>Can a sales rep place an order on behalf of a customer in BusinessCart?</h2>
+        <p>Yes. In BusinessCart an admin or sales rep creates a quote on behalf of any customer, and the customer's own pricing, payment methods, and credit limit apply automatically. The rep cannot accidentally override them, because those values resolve from the customer's account, not from whatever the rep types. The customer then sees the quote in their own portal and can approve it or counter. This is the same quote-negotiation workflow buyers use directly, pointed at a rep-assisted flow, so there is nothing separate to reconcile. We cover the negotiation mechanics in <a href="/blog/quote-negotiation-vs-punchout-smb-distributors-cxml">quote negotiation vs punchout</a>, and the pricing model behind it in <a href="/blog/per-customer-pricing-50-buyers-without-erp">per-customer pricing without an ERP</a>.</p>
+
+        <h2>Why not just buy a dedicated sales-rep order app?</h2>
+        <p>Because a standalone rep app is a second system you then have to keep in sync with your store, pricing, and ERP. Dedicated order-taking apps such as Pepperi, OrderEase, inSitu Sales, and RepSpark are capable, but they sit beside your commerce platform, which means duplicate catalogs, duplicate pricing rules, and a sync step where errors creep in. BusinessCart removes the seam: the rep quote, the self-service order, the per-customer price, and the credit limit are one data model. Per Gartner, B2B companies that automate order management cut order error rates by up to 67% and reduce processing time by 50 to 80%, and most of that gain comes from removing the manual re-entry that a bolt-on app reintroduces.</p>
+        <div className="table-scroll"><table>
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>Store + separate rep app</th>
+              <th>BusinessCart</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Rep places order on behalf of buyer</td><td>In the rep app</td><td><strong>Built in, via quote on behalf</strong></td></tr>
+            <tr><td>Buyer self-service ordering</td><td>In the store</td><td><strong>Built in, same catalog</strong></td></tr>
+            <tr><td>Per-customer pricing and credit limit</td><td>Configured in two places</td><td><strong>One source, enforced automatically</strong></td></tr>
+            <tr><td>Catalog and inventory sync</td><td>Rep app to store to ERP</td><td><strong>No sync seam</strong></td></tr>
+            <tr><td>Rep can override customer pricing</td><td>Depends on app</td><td><strong>No, cannot override</strong></td></tr>
+          </tbody>
+        </table></div>
+
+        <h2>What does moving reps off routine reorders actually save?</h2>
+        <p>The recovered time is the whole point. A single B2B order takes 5 to 10 minutes to process by hand: receive it by phone or email, interpret it, enter line items, verify pricing, check inventory, confirm, and invoice, multiplied across dozens of orders a day. Self-service portals absorb the routine reorders that eat 30 to 50% of a rep's week, and operators report reps then spend closer to 80% of their time on customers instead of order admin, with 60 to 80% of orders shifting to the portal within a few months. WizCommerce customers, for one, report an average 25% cut in order-entry time and a 10 to 30% revenue lift after moving to a purpose-built ordering flow. BusinessCart delivers the same shift while keeping the rep-assisted path for the orders that still need it. The labor math is detailed in <a href="/blog/wholesale-csr-labor-cost-manual-order-entry">wholesale CSR labor cost</a> and <a href="/blog/inside-sales-order-desk-buyer-portal-roi">the inside sales order desk ROI breakdown</a>.</p>
+
+        <p>Where BusinessCart is not the answer: if your reps work offline in the field doing van sales or direct store delivery with barcode scanning and route accounting, a specialized mobile DSD app like inSitu Sales or Pepperi is built for that and BusinessCart is not. BusinessCart handles web-based order-on-behalf and self-service, which is what most SMB wholesalers and distributors actually need.</p>
+
+        <h3>Does BusinessCart let reps order for customers without overriding their pricing?</h3>
+        <p>Yes. The rep creates a quote on behalf of the customer, and the customer's per-customer pricing, credit limit, and payment methods apply automatically. The rep cannot override them, and the customer approves or counters the quote in their portal.</p>
+
+        <h3>Do I need a separate order-entry app for my sales team?</h3>
+        <p>Not with BusinessCart. Rep-assisted ordering and buyer self-service share one catalog and one pricing engine, so there is no second system to sync. A standalone rep app adds duplicate configuration and a sync step where errors appear.</p>
+
+        <h3>How much rep time does a self-service portal free up?</h3>
+        <p>Industry reports put routine reorders at 30 to 50% of rep time, with 60 to 80% of orders shifting to the portal within months. Reps then spend more time on new accounts and relationships rather than order entry.</p>
+
+        <p>Want reps and self-service in one platform? See the <a href="/solutions/wholesale">Wholesale</a> and <a href="/solutions/manufacturers">Manufacturers</a> solutions, or <a href="/contact-us">talk to BusinessCart</a>.</p>
+      </>
+    ),
+  },
+  {
+    slug: 'tax-exempt-wholesale-customers-setup-audit-2026',
+    title: 'Tax-Exempt Wholesale Customers: How to Set It Up Online Without Failing an Audit (2026)',
+    excerpt: 'Making a wholesale buyer tax-exempt online is two jobs: set the tax treatment, and keep a valid resale certificate on file. Here is how BusinessCart handles the first, and why you still own the second.',
+    date: '2026-07-17',
+    metaDescription: 'How to set up tax-exempt wholesale customers online in 2026. BusinessCart per-customer tax rates plus the resale-certificate compliance you still own to survive a sales-tax audit.',
+    content: (
+      <>
+        <p><strong>TL;DR:</strong> In BusinessCart you make a wholesale buyer tax-exempt by setting that customer's tax rate to 0%, which overrides your company default and applies automatically at every order, the same company-default-plus-customer-override pattern used for pricing and credit limits. What BusinessCart does not do, and what you still own, is collecting, validating, and storing the buyer's resale certificate, because under a sales-tax audit the seller (not the buyer) is liable for uncollected tax plus interest and penalties on any exemption without a valid certificate on file. Set the exemption in BusinessCart; keep the certificate in your records or a dedicated exemption-certificate tool. This is general information, not tax advice; rules vary by state.</p>
+
+        <h2>How do you make a wholesale customer tax-exempt online?</h2>
+        <p>In BusinessCart you set the customer's tax rate to 0%, and it overrides your company default automatically. BusinessCart resolves tax the same way it resolves pricing and credit: a company-wide default with a per-customer override. So if your default tax rate is, say, 8.25% for retail buyers, you set a verified reseller's rate to 0, and every order that buyer places is calculated tax-free without anyone remembering to adjust it at checkout. Because the value lives on the customer account, it applies across the buyer's whole ordering history, not order by order.</p>
+        <p>That handles the mechanics of not charging tax. It does not, by itself, make the exemption defensible. That is the second job, and it is the one that trips wholesalers up.</p>
+
+        <h2>Who is liable if a resale certificate is missing?</h2>
+        <p>The seller is. If a valid exemption certificate is missing or expired, the seller, not the buyer, is liable for the uncollected tax plus interest and penalties during a sales-tax audit. Missing or expired certificates are one of the most common negative audit findings. Worse, if an auditor decides non-resale purchases were claimed as exempt, many states add fraud penalties of 25 to 50% of the unpaid tax on top of the back taxes. Certificates also expire on state schedules, resale certificates in Illinois, for example, lapse every three years, so a certificate you collected once is not valid forever. Setting a customer to 0% tax without a current certificate behind it is exactly the exposure auditors look for.</p>
+
+        <h2>Does BusinessCart store resale certificates?</h2>
+        <p>No. BusinessCart sets the tax treatment through per-customer tax rates, but it does not collect, validate, or store the resale certificate document itself. That is a deliberate boundary: the exemption setting lives in BusinessCart, while the certificate that justifies it lives in your compliance records. We have added resale-certificate collection and storage to the BusinessCart roadmap, and until it ships, the honest guidance is to keep certificates in your own files or a dedicated tool. This is the same principle behind <a href="/blog/b2b-net-terms-without-credit-department-smb-wholesalers">offering net terms without a credit department</a>: the platform enforces the policy, you own the underlying documentation.</p>
+        <div className="table-scroll"><table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>BusinessCart handles</th>
+              <th>You still own</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Not charging tax to a reseller</td><td><strong>Yes, per-customer 0% tax rate</strong></td><td>Deciding who qualifies</td></tr>
+            <tr><td>Applying it automatically every order</td><td><strong>Yes, company default plus override</strong></td><td>Keeping the account current</td></tr>
+            <tr><td>Collecting the resale certificate</td><td>Not yet (roadmap)</td><td><strong>Yes, before the first exempt order</strong></td></tr>
+            <tr><td>Validating certificate fields</td><td>No</td><td><strong>Yes</strong></td></tr>
+            <tr><td>Tracking expiration and renewals</td><td>No</td><td><strong>Yes</strong></td></tr>
+            <tr><td>Storing it audit-ready</td><td>No</td><td><strong>Yes</strong></td></tr>
+          </tbody>
+        </table></div>
+
+        <h2>What should your resale-certificate process look like?</h2>
+        <p>Collect before you exempt, validate on receipt, and store where an auditor could find it. The workflow that keeps sellers out of trouble: obtain the buyer's state-appropriate resale or exemption certificate before their first tax-free order, check that every required field is complete and the sales-tax ID is valid, record the expiration and set a renewal reminder, and store the document so it is retrievable years later. Dedicated exemption-certificate tools such as Avalara, EXEMPTAX, Commenda, and Numeral automate collection at the point of sale, validate fields, track expirations, and keep certificates audit-ready; for a small wholesaler, a well-organized folder with renewal dates can be enough to start. The point is that the certificate process runs alongside BusinessCart's tax-exempt setting, not instead of it.</p>
+        <p>Once the documentation side is handled, BusinessCart's per-customer controls make the day-to-day clean: the reseller sees their negotiated <a href="/blog/per-customer-pricing-50-buyers-without-erp">per-customer pricing</a>, pays no tax, and orders on their terms, all resolved automatically from their account.</p>
+
+        <p>One honest caveat beyond the certificate gap: sales-tax rules, nexus, and exemption validity vary by state and change over time. BusinessCart applies the tax rate you set; it does not determine your nexus or whether a given exemption is valid in a given state. For anything beyond straightforward reseller exemptions, involve a sales-tax professional.</p>
+
+        <h3>How do I set a customer as tax-exempt in BusinessCart?</h3>
+        <p>Set that customer's tax rate to 0%, which overrides your company default and applies automatically to every order they place. It uses the same per-customer override pattern as pricing and credit limits.</p>
+
+        <h3>Does BusinessCart collect resale certificates automatically?</h3>
+        <p>Not currently; it is on the roadmap. BusinessCart sets the tax treatment, but you must collect, validate, and store the resale certificate yourself, in your records or a dedicated exemption-certificate tool, because the seller carries audit liability.</p>
+
+        <h3>What happens if I exempt a customer without a valid certificate?</h3>
+        <p>If audited, the seller can be held liable for the uncollected tax plus interest and penalties, and misuse can trigger fraud penalties of 25 to 50% of the unpaid tax in many states. Always keep a current certificate on file before exempting a buyer.</p>
+
+        <p>Setting up wholesale buyers the right way? See the <a href="/solutions/wholesale">Wholesale</a> and <a href="/solutions/distributors">Distributors</a> solutions, or <a href="/contact-us">talk to BusinessCart</a>.</p>
+      </>
+    ),
+  },
+  {
     slug: 'how-b2b-buyers-use-chatgpt-to-choose-vendors',
     title: 'How B2B Buyers Use ChatGPT to Choose Vendors in 2026 (And Why Your Wholesale Site Is Invisible)',
     excerpt: 'B2B buyers now describe a problem to ChatGPT instead of typing your brand name, and most wholesale sites never get cited. Here is why, and how to become the answer an AI gives.',
