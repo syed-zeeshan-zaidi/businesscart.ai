@@ -105,6 +105,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles it</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Tax-Exempt Buyers & Resale Certs</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: 0% + cert tracking + audit warning</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Native exempt; certs via Avalara/app</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin + separate cert tool</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Marketplace handles tax</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Spending & Credit Limits</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, per-customer caps</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus or custom development</td>

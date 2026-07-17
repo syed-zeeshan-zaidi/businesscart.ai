@@ -214,6 +214,20 @@ type CustomerConfiguration struct {
 	TaxRate               *float64             `bson:"taxRate,omitempty" json:"taxRate,omitempty"`
 	ShippingRate          *float64             `bson:"shippingRate,omitempty" json:"shippingRate,omitempty"`
 	LeadTime              *float64             `bson:"leadTime,omitempty" json:"leadTime,omitempty"`
+	ResaleCertificate     *ResaleCertificate   `bson:"resaleCertificate,omitempty" json:"resaleCertificate,omitempty"`
+}
+
+// ResaleCertificate records the compliance document that justifies a tax-exempt
+// (TaxRate = 0) B2B customer. Metadata only: the platform stores the reference
+// details so an admin can see a valid certificate is on file before exempting a
+// buyer; it is not resolved into the JWT or used at checkout, and the document
+// file itself is kept in the seller's own records.
+type ResaleCertificate struct {
+	State      string `bson:"state,omitempty" json:"state,omitempty"`
+	Number     string `bson:"number,omitempty" json:"number,omitempty"`
+	Type       string `bson:"type,omitempty" json:"type,omitempty"`
+	IssueDate  string `bson:"issueDate,omitempty" json:"issueDate,omitempty"`
+	ExpiryDate string `bson:"expiryDate,omitempty" json:"expiryDate,omitempty"`
 }
 
 type CustomerCodeEntry struct {

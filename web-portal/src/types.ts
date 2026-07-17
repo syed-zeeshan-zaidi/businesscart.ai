@@ -386,8 +386,17 @@ export interface CustomerConfiguration {
   taxRate?: number;
   shippingRate?: number;
   leadTime?: number;
+  resaleCertificate?: ResaleCertificate;
   groupID?: string;
   groupPriceDiscount?: number;
+}
+
+export interface ResaleCertificate {
+  state?: string;
+  number?: string;
+  type?: string;
+  issueDate?: string;
+  expiryDate?: string;
 }
 
 
