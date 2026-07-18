@@ -18,9 +18,9 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'Sales rep order entry vs self-service buyer portal for wholesalers in 2026. How BusinessCart lets reps place orders on behalf of customers and buyers self-serve, in one platform.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> BusinessCart lets an admin or sales rep create a quote on behalf of any customer, with that customer's per-customer pricing, credit limit, and payment methods applied automatically and impossible for the rep to override, while the same platform gives buyers a 24/7 self-service portal. You get rep-assisted ordering and self-service in one system, not a separate order-entry app bolted onto your store and synced back later. Industry data shows self-service portals absorb 60 to 80% of orders within months and free reps from the routine reorders that consume 30 to 50% of their time.</p>
+        <p>Your best rep spends the morning keying in the same reorders three regulars email every week, prices looked up by hand, line by line. The money is in the afternoon: the account that wants to negotiate a volume deal. Most tools make you pick one world, a self-service portal or a rep order-entry app. BusinessCart runs both from one system. A rep creates a quote on behalf of any customer, with that customer's pricing, credit limit, and payment methods applied automatically and no way to override them, while buyers who would rather self-serve order 24/7 from the same catalog. Industry data has self-service portals absorbing 60 to 80% of orders within months and clearing the routine reorders that eat 30 to 50% of a rep's week.</p>
 
-        <h2>How do wholesalers take orders in 2026, reps or self-service?</h2>
+        <h2>Reps or self-service? Both.</h2>
         <p>Both, and the digital share is climbing every quarter. Industry projections put US B2B e-commerce near $3 trillion by 2027 at roughly a 10.7% annual growth rate, as the share of orders captured through a portal rather than by phone, fax, or email keeps rising. The winning setup is not "rep or portal," it is a single platform where buyers who want to self-serve can, and reps step in for the accounts, negotiations, and complex orders that still need a human. BusinessCart is built for exactly that split: self-service storefront plus rep-created quotes on behalf of customers, sharing one pricing engine.</p>
 
         <h2>Can a sales rep place an order on behalf of a customer in BusinessCart?</h2>
@@ -45,7 +45,7 @@ const blogPosts: BlogPostData[] = [
           </tbody>
         </table></div>
 
-        <h2>What does moving reps off routine reorders actually save?</h2>
+        <h2>What you get back when reps stop keying reorders</h2>
         <p>The recovered time is the whole point. A single B2B order takes 5 to 10 minutes to process by hand: receive it by phone or email, interpret it, enter line items, verify pricing, check inventory, confirm, and invoice, multiplied across dozens of orders a day. Self-service portals absorb the routine reorders that eat 30 to 50% of a rep's week, and operators report reps then spend closer to 80% of their time on customers instead of order admin, with 60 to 80% of orders shifting to the portal within a few months. WizCommerce customers, for one, report an average 25% cut in order-entry time and a 10 to 30% revenue lift after moving to a purpose-built ordering flow. BusinessCart delivers the same shift while keeping the rep-assisted path for the orders that still need it. The labor math is detailed in <a href="/blog/wholesale-csr-labor-cost-manual-order-entry">wholesale CSR labor cost</a> and <a href="/blog/inside-sales-order-desk-buyer-portal-roi">the inside sales order desk ROI breakdown</a>.</p>
 
         <p>Where BusinessCart is not the answer: if your reps work offline in the field doing van sales or direct store delivery with barcode scanning and route accounting, a specialized mobile DSD app like inSitu Sales or Pepperi is built for that and BusinessCart is not. BusinessCart handles web-based order-on-behalf and self-service, which is what most SMB wholesalers and distributors actually need.</p>
@@ -55,9 +55,6 @@ const blogPosts: BlogPostData[] = [
 
         <h3>Do I need a separate order-entry app for my sales team?</h3>
         <p>Not with BusinessCart. Rep-assisted ordering and buyer self-service share one catalog and one pricing engine, so there is no second system to sync. A standalone rep app adds duplicate configuration and a sync step where errors appear.</p>
-
-        <h3>How much rep time does a self-service portal free up?</h3>
-        <p>Industry reports put routine reorders at 30 to 50% of rep time, with 60 to 80% of orders shifting to the portal within months. Reps then spend more time on new accounts and relationships rather than order entry.</p>
 
         <p>Want reps and self-service in one platform? See the <a href="/solutions/wholesale">Wholesale</a> and <a href="/solutions/manufacturers">Manufacturers</a> solutions, or <a href="/contact-us">talk to BusinessCart</a>.</p>
       </>
@@ -71,7 +68,7 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'How to set up tax-exempt wholesale customers online in 2026: BusinessCart per-customer tax rates, resale-certificate tracking, and the compliance you still own.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> In BusinessCart you make a wholesale buyer tax-exempt by setting that customer's tax rate to 0%, which overrides your company default and applies automatically at every order, the same company-default-plus-customer-override pattern used for pricing and credit limits. BusinessCart also records the certificate's details (state, number, type, expiry) against that customer and warns you before you exempt a buyer with no valid certificate on file. What it does not do is store the document file or collect it for you; that stays in your records, because under a sales-tax audit the seller (not the buyer) is liable for uncollected tax plus interest and penalties on any exemption without a valid certificate. This is general information, not tax advice; rules vary by state.</p>
+        <p>Set a wholesale buyer to 0% tax with no valid resale certificate on file, and in an audit the unpaid tax is yours, not theirs, plus interest and penalties, plus fraud penalties of 25 to 50% in many states if the auditor decides a purchase was never really for resale. That is the risk a tax-exempt customer carries, and it is why the setting is only half the job. In BusinessCart you make a buyer exempt by setting their tax rate to 0%, a per-customer override of your company default, applied automatically at every order. BusinessCart also records the certificate's details, state, number, type, expiry, and warns you before you exempt anyone without a valid one on file. What it will not do is store the document or collect it for you; that stays in your records. General information, not tax advice; rules vary by state.</p>
 
         <h2>How do you make a wholesale customer tax-exempt online?</h2>
         <p>In BusinessCart you set the customer's tax rate to 0%, and it overrides your company default automatically. BusinessCart resolves tax the same way it resolves pricing and credit: a company-wide default with a per-customer override. So if your default tax rate is, say, 8.25% for retail buyers, you set a verified reseller's rate to 0, and every order that buyer places is calculated tax-free without anyone remembering to adjust it at checkout. Because the value lives on the customer account, it applies across the buyer's whole ordering history, not order by order.</p>
@@ -127,18 +124,17 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'B2B buyers use ChatGPT and Perplexity to shortlist vendors in 2026. Why most wholesale sites are invisible to AI, and how BusinessCart storefronts get cited by name.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> Most B2B buyers now open ChatGPT or Perplexity before a search engine, and they describe a problem ("wholesale platform with per-customer pricing and net terms") instead of typing a brand. If an AI answer engine cannot read your catalog, you are not on the shortlist. BusinessCart storefronts are generated as static, pre-rendered HTML with schema markup, so ChatGPT, Perplexity, Claude, and Google AI can read every product and price and cite your store by name. That is the difference between being the recommendation and being invisible.</p>
+        <p>Ask ChatGPT for "a wholesale platform with per-customer pricing and net terms" and it will name a few vendors on the spot. Yours probably is not one of them, and not because your product is weaker. The model simply cannot read your store. Forrester's 2026 Buyers' Journey survey of roughly 18,000 business buyers found 94% used AI somewhere in their last purchase; G2 puts about half of B2B software buyers starting research inside a chatbot rather than a search box. They describe the problem, the AI shortlists whatever it can parse. BusinessCart generates storefronts as static, pre-rendered HTML with schema.org markup, the exact format an answer engine reads, so your catalog, prices, and brand name come out quotable.</p>
 
-        <h2>How do B2B buyers actually pick vendors in 2026?</h2>
-        <p>They ask an AI first. Forrester's 2026 Buyers' Journey survey of roughly 18,000 business buyers found that 94% used AI somewhere in their most recent purchase. G2 reported that about half of B2B software buyers now begin vendor research inside an AI chatbot rather than a search box. The pattern that matters for a wholesaler or distributor is subtle but decisive: buyers rarely type your company name. They type the job to be done, then let the model assemble a shortlist of vendors it can actually read and describe.</p>
-        <p>This flips the old SEO game. Ranking number four on a Google results page still put you on the screen. Being the fourth-best-documented vendor in a category an LLM cannot parse means you are simply left out of the answer, with no second page to appeal to.</p>
+        <h2>Buyers stopped typing your brand name</h2>
+        <p>That is the real shift. The old game was ranking: land in Google's top few and you were at least on the screen. The new one is being legible to a model that shortlists for the buyer before a single vendor site gets opened. Miss that step and there is no second page to claw back onto. You are just absent from the answer. And buyers are not searching "Acme Wholesale" anymore; they ask for the job to be done and trust the model's list.</p>
 
-        <h2>Why are most wholesale sites invisible to ChatGPT and Perplexity?</h2>
-        <p>Because their product data only exists after JavaScript runs. A typical Shopify theme or single-page storefront ships an almost empty HTML shell and paints the catalog in the browser. Most AI answer engines read the raw HTML response, not the fully rendered page, so a catalog that appears only after client-side rendering reads as a blank store. 2026 industry analyses of AI search visibility report that roughly 51% of B2B technology brands have zero citations across ChatGPT, Perplexity, and Gemini combined, a gap that tracks closely with how much of a site's content is locked behind JavaScript.</p>
-        <p>The second reason is missing structure. An LLM cites what it can extract cleanly: a product name, a price, a specification, an availability status, each in a place it can find. Sites that bury those facts in styled div soup with no schema markup give the model nothing quotable. BusinessCart takes the opposite approach: every generated storefront is static HTML with schema.org Product and Organization markup baked in at generation time, so the citable facts are present in the first byte of the response.</p>
+        <h2>Why can't ChatGPT see most wholesale sites?</h2>
+        <p>Because the product data only exists after JavaScript runs. A typical Shopify theme or single-page storefront ships a near-empty HTML shell and paints the catalog in the browser, while most answer engines read the raw HTML response, not the rendered page. So a store that looks fine to you reads as blank to the model. 2026 analyses of AI search visibility put roughly 51% of B2B tech brands at zero citations across ChatGPT, Perplexity, and Gemini, and that number tracks how much of a site sits behind JavaScript.</p>
+        <p>Structure is the other half. An LLM quotes what it can lift cleanly: a name, a price, a spec, a stock status, each somewhere findable. Bury those in unlabeled div soup and there is nothing to cite. BusinessCart does the reverse, every storefront is static HTML with schema.org Product and Organization markup written at generation time, so the citable facts are in the first byte instead of behind a render.</p>
 
-        <h2>What makes a B2B storefront readable by AI answer engines?</h2>
-        <p>Three things, in order of impact: content in the raw HTML, structured data, and a machine-readable index. A page passes the first test if you can disable JavaScript and still see the products and prices. It passes the second if each product carries schema.org markup an engine can map to a name, price, and SKU. It passes the third if the site publishes an llms.txt file and a clean sitemap that point crawlers at the catalog. BusinessCart storefronts clear all three by default rather than as a paid add-on.</p>
+        <h2>The three things an answer engine actually needs</h2>
+        <p>Content in the raw HTML, structured data, and a machine-readable index, in that order of impact. Fast way to check the first: turn JavaScript off and reload. If your products vanish, so do you, as far as the AI is concerned. The second is schema.org markup mapping each product to a name, price, and SKU. The third is an llms.txt file plus a clean sitemap pointing crawlers at the catalog. BusinessCart ships all three by default, not as a paid tier.</p>
         <div className="table-scroll"><table>
           <thead>
             <tr>
@@ -156,25 +152,20 @@ const blogPosts: BlogPostData[] = [
           </tbody>
         </table></div>
 
-        <h2>How does BusinessCart get your catalog cited by name?</h2>
-        <p>BusinessCart generates a static storefront that an AI can read end to end without executing a line of script, which is the single largest lever on citation rate. Because the catalog, product specs, and Organization data sit in the raw HTML with schema markup, an engine answering "wholesale supplier for X with net 30 and per-customer pricing" has extractable facts to quote and a brand name to attribute them to. The same generation step writes an llms.txt file, the equivalent of robots.txt for AI crawlers, so models know exactly where your catalog lives. None of this is a plugin or an enterprise upsell; it ships with the storefront.</p>
-        <p>For the deeper mechanics, see our guides on <a href="/blog/how-to-get-products-cited-by-chatgpt">how to get your products cited by ChatGPT</a> and <a href="/blog/llms-txt-complete-guide-for-ecommerce">llms.txt, the new robots.txt for AI crawlers</a>. To measure whether it is working, <a href="/blog/ai-shopping-attribution-tracking-chatgpt-perplexity">AI shopping attribution</a> covers how to track sales that originate from an AI answer.</p>
+        <h2>How does BusinessCart get cited by name?</h2>
+        <p>By generating a store an AI reads end to end without running a line of script, which is the single biggest lever on whether you get cited at all. The catalog, specs, and Organization data sit in the raw HTML with schema markup, so when an engine answers "wholesale supplier with net 30 and per-customer pricing" it has facts to quote and a brand to credit. The same build step writes the llms.txt file, robots.txt for AI crawlers, so models know where the catalog lives. No plugin, no enterprise tier. For the mechanics: <a href="/blog/how-to-get-products-cited-by-chatgpt">how to get products cited by ChatGPT</a> and the <a href="/blog/llms-txt-complete-guide-for-ecommerce">llms.txt guide</a>; to check it is working, <a href="/blog/ai-shopping-attribution-tracking-chatgpt-perplexity">AI shopping attribution</a>.</p>
 
-        <h2>What should an SMB wholesaler do this quarter?</h2>
-        <p>Start by testing your own store the way a buyer would. Ask ChatGPT and Perplexity a problem-first question in your category and see whether you appear; then load your storefront with JavaScript disabled and check whether the products survive. If either test fails, your fastest fix is a storefront that renders its catalog server-side with schema markup. BusinessCart runs that generation for you, publishes the AI-crawler files, and keeps per-customer B2B pricing intact for logged-in buyers, so the same store that ranks for humans is also the one an LLM can recommend.</p>
+        <h2>Test your own store in five minutes</h2>
+        <p>Two checks. Ask ChatGPT and Perplexity a problem-first question in your category and see whether you surface. Then load your storefront with JavaScript off and see whether the products are still there. Fail either and the fix is the same: render the catalog server-side with schema. BusinessCart does that generation, publishes the crawler files, and keeps per-customer B2B pricing intact behind login, so the store that ranks for people is the one an LLM will name.</p>
+        <p>One honest exception. If your buyers live inside a punchout procurement system that never touches the open web, AI discovery barely matters and punchout or EDI does. That is the minority. Most SMB wholesalers still get researched in the open long before anyone asks for a login.</p>
 
-        <p>Where this does not help: if your buyers are locked into a punchout procurement system that never touches the open web, AI discovery is not your channel, and a punchout or EDI integration matters more. BusinessCart is built for the far larger group of SMB wholesalers whose buyers still research suppliers openly before they ever request a login.</p>
+        <h3>Do B2B buyers really shortlist suppliers with ChatGPT?</h3>
+        <p>Yes. Forrester's 2026 survey found 94% of business buyers used AI in their last purchase, and G2 has about half starting vendor research in a chatbot. They describe a problem and let the model pick vendors it can read.</p>
 
-        <h3>Do B2B buyers really use ChatGPT to choose suppliers?</h3>
-        <p>Yes. Forrester's 2026 survey found 94% of business buyers used AI during their last purchase, and G2 data shows roughly half now start vendor research in an AI chatbot. Buyers describe a problem and let the model shortlist vendors it can read.</p>
+        <h3>My Shopify store looks fine to me. Why would AI miss it?</h3>
+        <p>You see the rendered page; the engine sees the raw HTML. If the catalog only appears after JavaScript runs, the model gets an empty shell. Server-rendered HTML with schema markup is what gets read and quoted.</p>
 
-        <h3>Why is my Shopify or WooCommerce store invisible to AI?</h3>
-        <p>Most themes render the catalog with JavaScript in the browser, while AI engines read the raw HTML response. If your products only appear after scripts run, the engine sees an empty store. Server-rendered HTML with schema markup is what gets read and cited.</p>
-
-        <h3>Does AI traffic actually convert for B2B?</h3>
-        <p>Early 2026 analyses (Exposure Ninja) put AI-referred traffic conversion well above traditional organic, often several times higher, because the buyer arrives pre-qualified by the model's answer. The exact multiple varies by source and category, so treat it as directional rather than a fixed number.</p>
-
-        <p>Ready to be the answer an AI gives? See the <a href="/solutions/ai-commerce">AI Commerce solution</a> and the <a href="/solutions/wholesale">Wholesale solution</a>, or <a href="/contact-us">talk to BusinessCart</a> about generating an AI-readable storefront for your catalog.</p>
+        <p>Want to be the answer, not the omission? See the <a href="/solutions/ai-commerce">AI Commerce solution</a> and the <a href="/solutions/wholesale">Wholesale solution</a>, or <a href="/contact-us">talk to BusinessCart</a> about an AI-readable storefront.</p>
       </>
     ),
   },
@@ -186,17 +177,16 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'Shopify B2B caps you at 3 catalogs across all markets. Learn what the fix costs (Plus at $2,300/mo or an app stack) and how BusinessCart per-customer pricing avoids the limit.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> Since 2026 Shopify offers core B2B features on its Basic, Grow, and Advanced plans, but caps you at three price catalogs across all markets combined. Sell to Bronze, Silver, and Gold tiers and you are out of catalogs before you add a single region or a distributor tier. The only native fix is Shopify Plus at about $2,300/month, or an app stack that lands near $600 to $800/month. BusinessCart handles this with per-customer pricing, where every buyer sees their own negotiated price with no catalog cap, built into every tier starting at $0/month.</p>
+        <p>Give your Bronze, Silver, and Gold buyers their own pricing on Shopify B2B and you have just spent all three catalogs. Now a UK account wants prices in pounds, or a national distributor wants to buy below Bronze, and there is nowhere to put them. That is the 3-catalog wall. Since Shopify moved B2B onto its standard plans in 2026, it is the first ceiling most growing wholesalers hit. The only native way past it is Shopify Plus at about $2,300/month; the workaround app stack runs $600 to $800. BusinessCart skips the model entirely with per-customer pricing, every buyer carries their own price and there is no catalog to run out of, from $0/month.</p>
 
-        <h2>What is the Shopify B2B 3-catalog limit?</h2>
-        <p>It is a hard cap on how many distinct price lists you can run without upgrading to Plus. According to 2026 breakdowns of Shopify's B2B plans (Wholesale Helper), Shopify moved company profiles, up to three catalogs, volume pricing, quantity rules, and net payment terms onto the Basic, Grow, and Advanced plans at no extra charge. The catch is in the word three, and in the phrase "across all markets combined." A catalog is a full set of products and prices assigned to one or more companies. Three of them is enough to demonstrate B2B; it is rarely enough to run one.</p>
+        <h2>What Shopify's 3-catalog limit really is</h2>
+        <p>A hard cap on how many distinct price lists you can run before you have to jump to Plus. Per 2026 breakdowns of Shopify's B2B plans (Wholesale Helper), company profiles, up to three catalogs, volume pricing, quantity rules, and net terms now sit on the Basic, Grow, and Advanced plans at no extra charge. The trap is two words: "three," and "across all markets combined." A catalog is a full set of products and prices assigned to companies. Three is enough to demo B2B. It is rarely enough to run it.</p>
 
-        <h2>When do wholesalers actually hit the wall?</h2>
-        <p>Sooner than most expect, because catalogs get consumed by tiers and regions at the same time. Assign one catalog each to your Bronze, Silver, and Gold pricing and every slot is gone. Now add a distributor tier that buys below Bronze, or a UK market that prices in pounds, and there is no catalog left to give them. The cap applies to all B2B markets together, not per market, so international expansion and buyer segmentation compete for the same three slots. For a wholesaler with even a dozen accounts on individually negotiated pricing, three catalogs is a straitjacket.</p>
-        <p>This is exactly the scenario BusinessCart's per-customer pricing was built for. Instead of grouping buyers into a handful of catalogs, BusinessCart lets each customer carry their own price on each product, so fifty accounts can have fifty different prices without a single shared catalog to run out of. We walk through the mechanics in <a href="/blog/per-customer-pricing-50-buyers-without-erp">running 50 buyers and 50 price lists without an ERP</a>.</p>
+        <h2>When does a wholesaler run out of catalogs?</h2>
+        <p>Faster than expected, because tiers and regions eat the same three slots. Bronze, Silver, Gold, done. Add a distributor tier below Bronze or a euro-priced UK market and there is nothing left, since the cap counts all B2B markets together, not per market. A dozen accounts on individually negotiated rates, and three catalogs is already a straitjacket. This is the exact case per-customer pricing was built for: instead of forcing buyers into a few catalogs, BusinessCart attaches a price to each customer, so fifty accounts can hold fifty prices with no shared list to exhaust. Mechanics in <a href="/blog/per-customer-pricing-50-buyers-without-erp">running 50 buyers and 50 price lists without an ERP</a>.</p>
 
-        <h2>What does it cost to get past the Shopify B2B catalog limit?</h2>
-        <p>Two paths, both expensive relative to where you started. The native path is Shopify Plus, which unlocks unlimited catalogs, direct catalog-to-company assignment, and store credit, at roughly $2,300/month on a standard term. The workaround path is Shopify Advanced (about $399/month) plus a third-party B2B app such as SparkLayer or BSS Commerce ($150 to $300/month) plus a customer-portal app ($50 to $100/month), which 2026 pricing analyses put around $600 to $800/month all in. Both paths add cost and, in the app-stack case, more moving parts to maintain.</p>
+        <h2>What does the fix cost?</h2>
+        <p>Two paths, both a step up from where you were. Native: Shopify Plus unlocks unlimited catalogs, direct catalog-to-company assignment, and store credit, at roughly $2,300/month on a standard term. Workaround: Shopify Advanced (~$399/mo) plus a B2B app like SparkLayer or BSS ($150 to $300) plus a customer-portal app ($50 to $100), which 2026 pricing analyses put near $600 to $800/month, and now you maintain three vendors instead of one.</p>
         <div className="table-scroll"><table>
           <thead>
             <tr>
@@ -211,23 +201,20 @@ const blogPosts: BlogPostData[] = [
             <tr><td>BusinessCart per-customer pricing</td><td><strong>$0/mo Starter, $499 Growth, $1,999 Enterprise</strong></td><td>Smaller third-party app ecosystem</td></tr>
           </tbody>
         </table></div>
-        <p>BusinessCart's tiers are volume-based, not feature-gated: per-customer pricing, credit limits, net terms, and quote negotiation are in every tier, including the $0/month Starter (up to 100 orders/month, capped at $5 per order). Your tier moves with order volume, not with which B2B features you need to unlock.</p>
+        <p>BusinessCart's tiers are volume-based, not feature-gated. Per-customer pricing, credit limits, net terms, and quote negotiation are in every tier, including the $0/month Starter (up to 100 orders/month, $5 max per order). Your tier tracks order volume, not which B2B feature you are trying to unlock.</p>
 
-        <h2>Why does per-customer pricing beat catalogs for SMB wholesale?</h2>
-        <p>Because catalogs model pricing as a small number of buckets, and real wholesale pricing is per relationship. A three-catalog system forces every account into one of three boxes; the moment a buyer negotiates a rate that does not fit a box, you either create a new catalog (and burn a slot) or override manually. Per-customer pricing models the relationship directly: the price is attached to the customer, so there is no bucket to run out of and no upgrade triggered by adding your eleventh differently-priced account. BusinessCart pairs that with credit limits enforced at quote time and net payment terms, the same controls a distributor expects, without a catalog ceiling.</p>
+        <h2>Why per-customer pricing has no ceiling</h2>
+        <p>Catalogs model pricing as a handful of buckets; real wholesale pricing is per relationship. Three buckets forces every account into one of three boxes, and the first buyer who negotiates a rate that fits none of them either burns a fresh catalog or gets a manual override. Attach the price to the customer instead and there is no bucket to run out of, and no upgrade triggered by your eleventh differently-priced account. BusinessCart layers credit limits enforced at quote time and net terms on top, the controls a distributor expects, minus the catalog cap.</p>
 
-        <p>To be fair to Shopify: if your entire B2B operation genuinely fits three price lists and you value its large app ecosystem, the standard-plan B2B features may be all you need, and BusinessCart's smaller third-party app catalog is a real trade-off. The wall only matters once your account count or regions exceed what three catalogs can express, which is precisely when the upgrade bill arrives.</p>
+        <p>Fair to Shopify: if your whole B2B operation genuinely fits three price lists and you lean on its app ecosystem, the standard-plan features may be all you need, and BusinessCart's smaller app catalog is a real trade-off. The wall only bites once your accounts or regions outgrow three catalogs, which is also exactly when the Plus bill lands.</p>
 
         <h3>How many catalogs does Shopify B2B allow?</h3>
-        <p>Up to three on the Basic, Grow, and Advanced plans, counted across all B2B markets combined. Unlimited catalogs require Shopify Plus at roughly $2,300/month.</p>
+        <p>Three on the Basic, Grow, and Advanced plans, counted across all B2B markets combined. Unlimited catalogs need Shopify Plus at roughly $2,300/month.</p>
 
-        <h3>Is there a cheaper way than Shopify Plus?</h3>
-        <p>An app stack (Advanced plus a B2B app plus a portal app) runs about $600 to $800/month per 2026 estimates, but adds three vendors and update-conflict risk. A purpose-built platform with per-customer pricing, like BusinessCart, avoids the catalog model entirely.</p>
+        <h3>Does BusinessCart cap the number of price lists?</h3>
+        <p>No. It uses per-customer pricing, so each buyer can have their own price on each product with no catalog cap, in every tier including the free Starter.</p>
 
-        <h3>Does BusinessCart limit the number of price lists?</h3>
-        <p>No. BusinessCart uses per-customer pricing, so each buyer can have their own price on each product with no catalog cap, in every plan tier including the free Starter tier.</p>
-
-        <p>Outgrowing three catalogs? Compare the full picture on the <a href="/solutions/wholesale">Wholesale solution</a> page, read <a href="/blog/shopify-b2b-vs-netsuite-vs-businesscart-smb-wholesale">Shopify B2B vs NetSuite vs BusinessCart</a>, or <a href="/contact-us">talk to BusinessCart</a>.</p>
+        <p>Outgrowing three catalogs? See the <a href="/solutions/wholesale">Wholesale solution</a>, read <a href="/blog/shopify-b2b-vs-netsuite-vs-businesscart-smb-wholesale">Shopify B2B vs NetSuite vs BusinessCart</a>, or <a href="/contact-us">talk to BusinessCart</a>.</p>
       </>
     ),
   },
@@ -239,7 +226,7 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'OroCommerce vs BusinessCart in 2026: implementation cost, time to launch, and who each fits. Open-source enterprise B2B versus built-in per-customer pricing for SMB wholesalers.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> OroCommerce is a powerful open-source B2B platform built for large, complex, multi-organization operations, and it typically demands a dedicated development team, a six-figure implementation, and six to twelve months before launch. BusinessCart is a built-in, hosted B2B platform for SMB wholesalers and distributors that launches in days with per-customer pricing, credit limits, and quote negotiation included, priced from $0/month Starter to $1,999/month Enterprise. If you have a dev team and enterprise-grade complexity, look at Oro. If you want B2B ordering live this month without hiring, look at BusinessCart.</p>
+        <p>OroCommerce can handle almost anything a large distributor's B2B operation throws at it. It also tends to arrive with a $50,000 to $200,000 implementation, a $2,000+/month hosting bill, six to twelve months before launch, and a stack a junior developer can spend a year learning (per common 2026 reviews). With the team and complexity to match, that is money well spent. As an SMB that just needs per-customer pricing, credit limits, and online ordering, it is a lot of platform to feed. BusinessCart is the opposite end of the trade: the same core B2B controls, built in, live in days, from $0/month.</p>
 
         <h2>What is OroCommerce built for?</h2>
         <p>OroCommerce is an open-source, B2B-native commerce platform designed around request-for-quote workflows, deep account hierarchies, and multi-organization structures. It is genuinely strong at enterprise complexity: corporate account trees, workflow engines, and heavy customization through its own technology stack. That power is the point, and it is also the cost. Industry reviews of OroCommerce consistently describe a long learning curve and a stack specialized enough that a junior developer can take a year to become productive in it.</p>
@@ -268,8 +255,8 @@ const blogPosts: BlogPostData[] = [
         <p>BusinessCart targets the SMB wholesaler, distributor, or manufacturer who wants the core B2B controls without the enterprise project. Per-customer pricing lets every buyer carry a negotiated rate; credit limits are enforced at quote time; quote negotiation, net payment terms, and multi-location ordering are all included rather than configured by a development team. Because BusinessCart generates a static, fast, AI-readable storefront, the same setup that serves buyers also gets your catalog found. There is no server to run, no framework to patch, and no implementation invoice.</p>
         <p>For a sense of how BusinessCart lines up against other B2B platforms in this bracket, see <a href="/blog/businesscart-vs-sana-commerce-vs-logicblock-smb-b2b-2026">BusinessCart vs Sana Commerce vs Logicblock</a> and, for the mid-market end, <a href="/blog/adobe-commerce-vs-sap-vs-businesscart-mid-market-manufacturers">Adobe Commerce vs SAP vs BusinessCart</a>.</p>
 
-        <h2>Which one should you choose?</h2>
-        <p>Choose OroCommerce if you are a large manufacturer or distributor with deep multi-org hierarchies, a real budget, and developers to own the platform for years. Choose BusinessCart if you are an SMB that needs per-customer pricing, credit limits, and online ordering live in days, on a published price that does not start with a six-figure implementation. The honest dividing line is complexity and team: Oro rewards organizations that can feed it engineering; BusinessCart rewards organizations that would rather not have to.</p>
+        <h2>So which one?</h2>
+        <p>Oro if you are a large manufacturer or distributor with deep multi-org hierarchies, a real budget, and developers to own the platform for years. BusinessCart if you are an SMB that needs per-customer pricing, credit limits, and ordering live in days on a published price, not a six-figure statement of work. The dividing line is simple: complexity and team. Oro rewards the org that can feed it engineering; BusinessCart rewards the one that would rather not.</p>
 
         <p>BusinessCart will not replace a bespoke enterprise commerce build with dozens of custom workflows and legacy ERP entanglement. That is Oro's home turf. For the SMB majority, the built-in path gets you selling faster and cheaper.</p>
 
@@ -278,9 +265,6 @@ const blogPosts: BlogPostData[] = [
 
         <h3>How long does OroCommerce take to launch?</h3>
         <p>Industry estimates put typical implementations at six to twelve months, driven by customization and the platform's learning curve. BusinessCart setups launch in days because the B2B features are built in.</p>
-
-        <h3>Does BusinessCart support quotes and account-specific pricing like Oro?</h3>
-        <p>Yes. BusinessCart includes quote negotiation, per-customer pricing, credit limits, and net payment terms in every tier, without a custom build.</p>
 
         <p>See the <a href="/solutions/wholesale">Wholesale</a>, <a href="/solutions/distributors">Distributors</a>, and <a href="/solutions/manufacturers">Manufacturers</a> solutions, or <a href="/contact-us">talk to BusinessCart</a> about launching B2B ordering without an implementation project.</p>
       </>
@@ -294,12 +278,12 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'WooCommerce wholesale usually means stacking plugins for pricing, roles, tax exemption, and order forms. Learn the hidden maintenance cost and how BusinessCart builds B2B in.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> A WooCommerce wholesale setup is rarely one plugin. It is usually a stack: role-based pricing, a wholesale registration form, tax-exemption handling, and a bulk order form, each from a different vendor. The hidden cost is not the license fees; it is the maintenance, because WooCommerce ships major updates several times a year and every update is a chance for those separate codebases to conflict. BusinessCart builds B2B into one platform, per-customer pricing, net terms, credit limits, and quote negotiation share a single data model, so there is no plugin stack to break, from $0/month.</p>
+        <p>A WooCommerce update lands on a Tuesday. By Wednesday your wholesale prices are showing retail, because the role-pricing plugin and the new core version stopped agreeing, and the tax-exemption plugin from a different vendor never saw it coming. That is the real cost of running wholesale on WooCommerce, and it is not the license fees. B2B on Woo is rarely one plugin; it is a stack, role pricing, a registration form, tax exemption, a bulk order form, each from a different vendor, each a fresh chance to break on the next update. BusinessCart keeps per-customer pricing, net terms, credit limits, and quote negotiation in one data model, so there is no stack to break, from $0/month.</p>
 
         <h2>Why does WooCommerce wholesale become a plugin stack?</h2>
         <p>Because WooCommerce core is retail out of the box, so every B2B behavior is bolted on. To run wholesale you typically add a role-and-pricing plugin, a separate registration or approval plugin, a tax-exemption plugin, and a bulk or repeat-order form plugin. Industry guides that compare WooCommerce wholesale plugins describe exactly this pattern: store owners piece together a general role-management plugin, a role-based pricing plugin, and a custom registration form, from vendors who never designed them to work together. Each one is another surface where a WooCommerce update can cause a conflict.</p>
 
-        <h2>What does the plugin stack actually cost to maintain?</h2>
+        <h2>The real bill is debugging, not licenses</h2>
         <p>The recurring cost is debugging, not licensing. Per WooCommerce's own release cadence, the platform pushes major updates multiple times a year, and each update can change how plugins interact with core. When your wholesale roles, pricing, tax rules, and order forms live in four separate codebases, a break in any one can take the whole B2B flow down, and diagnosing it means understanding each plugin independently and contacting up to four support channels. The buyer-facing experience also suffers: stitched-together plugins rarely produce as clean a checkout as a purpose-built flow.</p>
         <div className="table-scroll"><table>
           <thead>
@@ -328,9 +312,6 @@ const blogPosts: BlogPostData[] = [
 
         <p>BusinessCart also will not give you WordPress's enormous general-purpose plugin ecosystem; that breadth is a real WooCommerce strength if you need it. The trade is fewer add-ons for far less to maintain.</p>
 
-        <h3>How many plugins does a WooCommerce wholesale store need?</h3>
-        <p>Commonly three to five: role-based pricing, registration and approval, tax exemption, and a bulk order form, often from different vendors. Each adds a codebase that must stay compatible through WooCommerce's frequent updates.</p>
-
         <h3>Why is a plugin stack risky?</h3>
         <p>WooCommerce releases major updates several times a year, and every update can change how plugins interact with core. Multiple independent plugins covering one workflow multiply the chance of a conflict and the effort to debug it.</p>
 
@@ -349,7 +330,7 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'BigCommerce B2B Edition requires an Enterprise plan (roughly $1,000 to $2,000+/mo), with price lists enterprise-only. See the real cost and how BusinessCart compares for SMB wholesalers.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> BigCommerce B2B Edition includes a capable buyer portal, company accounts, and quote management, but reaching those features means being on a BigCommerce Enterprise plan, which 2026 pricing analyses put at roughly $1,000 to $2,000+/month depending on your sales volume, with custom price lists reserved for the enterprise tier. Growth also forces plan upgrades when your sales cross a threshold. BusinessCart offers per-customer pricing and a buyer experience on published, volume-based tiers from $0/month, with no enterprise gate and no GMV-triggered surprise upgrade.</p>
+        <p>BigCommerce B2B Edition lists at around $500/month. The catch: you only reach that on a BigCommerce Enterprise plan, which 2026 pricing analyses put at roughly $1,000 to $2,000+/month by sales volume, and custom price lists (the whole point of B2B pricing) are enterprise-tier only. One documented buyer signed a year-long B2B contract and still had to bolt on NetSuite, another $1,000 to $2,000/month, to run the processes they thought they had bought. BusinessCart gives you per-customer pricing and a buyer portal on published, volume-based tiers from $0/month. No enterprise gate, no GMV-triggered surprise upgrade.</p>
 
         <h2>What is BigCommerce B2B Edition?</h2>
         <p>It is BigCommerce's dedicated wholesale layer: a buyer portal, company account management, customer-specific pricing, and quote management, delivered on top of a BigCommerce store. On capability it is a legitimate option for lower mid-market wholesalers who want B2B features without building them. The question for a small wholesaler is not whether it works; it is what plan you must be on to use it, and what that plan costs as you grow.</p>
@@ -373,7 +354,7 @@ const blogPosts: BlogPostData[] = [
           </tbody>
         </table></div>
 
-        <h2>Why do forced upgrades matter for a growing wholesaler?</h2>
+        <h2>Why the bill jumps when you grow</h2>
         <p>Because your bill can jump for reasons unrelated to the features you use. On GMV-tiered enterprise pricing, crossing a sales threshold pushes you to the next plan even if you needed nothing it adds. Growth, the thing you want, becomes the thing that raises your platform cost. BusinessCart's tiers are also volume-based, but with a crucial difference: every B2B feature (per-customer pricing, credit limits, quote negotiation, net terms) is present in every tier, so moving from Starter to Growth to Enterprise changes your capacity and price, never your access to the features you already depend on. The numbers are published, so there is no custom-quote guessing.</p>
 
         <h2>How does BusinessCart compare on B2B capability?</h2>
@@ -387,9 +368,6 @@ const blogPosts: BlogPostData[] = [
         <h3>Why did my BigCommerce bill go up without adding features?</h3>
         <p>Enterprise plans are tiered by gross merchandise volume, so crossing a sales threshold can force an upgrade even if you did not need the extra capabilities. Published, volume-based pricing like BusinessCart's avoids surprise custom-quote increases.</p>
 
-        <h3>Does BusinessCart require an enterprise plan for per-customer pricing?</h3>
-        <p>No. Per-customer pricing is included in every BusinessCart tier, including the $0/month Starter tier for up to 100 orders per month.</p>
-
         <p>Want customer-specific pricing without an enterprise contract? See the <a href="/solutions/wholesale">Wholesale</a> and <a href="/solutions/distributors">Distributors</a> solutions, or <a href="/contact-us">talk to BusinessCart</a>.</p>
       </>
     ),
@@ -402,12 +380,12 @@ const blogPosts: BlogPostData[] = [
     metaDescription: 'B2B Wave handles wholesale basics well but strains on contract pricing, cross-line volume breaks, and history-based tiers. See when to move and how BusinessCart handles it.',
     content: (
       <>
-        <p><strong>TL;DR:</strong> B2B Wave is a solid on-ramp for small wholesalers who want an online ordering portal fast, with customer-specific pricing, PDF catalogs, quotes, and QuickBooks sync. The ceiling appears when pricing turns contractual: volume breaks that span multiple product lines, and buyer tiers that change based on purchase history. B2B Wave also relies on manual data movement to an ERP for deeper logic. BusinessCart handles account-level contract pricing, credit limits, and quote negotiation natively, on tiers from $0/month, so pricing complexity does not push you into spreadsheets or a second system.</p>
+        <p>Here is the tell that you have outgrown B2B Wave: you keep a pricing spreadsheet open next to it. A rep overrides a price by hand. A volume discount gets applied after the order ships. A buyer's tier depends on a number you track somewhere the platform cannot see. B2B Wave is a fine on-ramp, customer-specific pricing, PDF catalogs, quotes, QuickBooks sync, and it fits a lean team. The ceiling shows up when pricing turns contractual: volume breaks across product lines, tiers that shift with purchase history, deals the platform cannot express so you patch them yourself. BusinessCart holds that logic natively, account-level contract pricing, credit limits, and quote negotiation, from $0/month, so the complexity never spills into a spreadsheet or a second system.</p>
 
-        <h2>What does B2B Wave do well?</h2>
+        <h2>What B2B Wave nails</h2>
         <p>It nails the wholesale basics for a lean team. B2B Wave is built specifically for small wholesalers, distributors, and manufacturers, and reviewers skew heavily toward small companies, which tells you who it fits. Order and invoice management, inventory, customer accounts with history, customer-specific pricing and product visibility, quotes and estimates, PDF catalog creation, and QuickBooks or API integrations are all covered. If your priority is to stop taking orders by email and phone and start taking them through a clean portal, it is a reasonable first platform, and this article is not a knock on that.</p>
 
-        <h2>Where does B2B Wave start to strain?</h2>
+        <h2>The line it can't cross</h2>
         <p>At the point pricing stops being a flat per-customer rate and becomes a contract. Comparative reviews note that B2B Wave struggles with contract-specific pricing, volume breaks that apply across product lines rather than a single SKU, and customer-tier rules that shift based on purchase history. Those are exactly the pricing structures a growing distributor accumulates: a buyer earns a better bracket after hitting an annual volume, or a discount applies to a whole category once a threshold is met. When the platform cannot express that logic, teams fall back to manual overrides, and running an ERP alongside means keying data between systems, which introduces errors and slows fulfillment.</p>
         <div className="table-scroll"><table>
           <thead>
@@ -426,10 +404,10 @@ const blogPosts: BlogPostData[] = [
           </tbody>
         </table></div>
 
-        <h2>How does BusinessCart handle contract-grade pricing?</h2>
+        <h2>How BusinessCart holds the pricing logic</h2>
         <p>BusinessCart attaches pricing to the customer relationship, so an account's negotiated rates, brackets, and terms live with that account rather than in a shared list you have to hand-maintain. Per-customer pricing covers the individual rate, credit limits are enforced at quote time so exposure is controlled before an order is confirmed, and quote negotiation manages the back-and-forth that contract buyers expect. Because these are one system, a buyer moving up a tier does not require re-keying into an ERP to make the pricing stick. We break down the account-level model in <a href="/blog/per-customer-pricing-50-buyers-without-erp">per-customer pricing without an ERP</a>, and the credit control in <a href="/blog/credit-limit-enforcement-at-quote-time-b2b-feature">credit limit enforcement at quote time</a>.</p>
 
-        <h2>How do you know it is time to move?</h2>
+        <h2>The moment to move</h2>
         <p>When you are maintaining pricing in a spreadsheet next to your ordering platform, that is the signal. If reps override prices by hand, if volume discounts get applied after the fact, or if a buyer's tier depends on a number you track outside the system, the platform is no longer holding your pricing logic, you are. Our checklist in <a href="/blog/5-signs-wholesale-outgrown-spreadsheet-pricing">5 signs your wholesale business has outgrown spreadsheet pricing</a> is a useful gut check. The goal is a single system where the price a buyer sees is the contract you agreed, computed automatically.</p>
 
         <p>To be clear about fit: if your pricing genuinely is one flat rate per customer and you value B2B Wave's simplicity and QuickBooks tie-in, staying put is sensible, and BusinessCart's smaller third-party app ecosystem is a real trade-off. This is specifically about the wholesaler whose pricing has outgrown flat rates and started to look like contracts.</p>
@@ -439,9 +417,6 @@ const blogPosts: BlogPostData[] = [
 
         <h3>What does B2B Wave not handle well?</h3>
         <p>Comparative reviews cite contract-specific pricing, volume breaks across product lines, and purchase-history-based tier rules, often pushing teams to manual overrides or a separate ERP with manual data entry between systems.</p>
-
-        <h3>Does BusinessCart replace the ERP for pricing?</h3>
-        <p>For pricing logic, BusinessCart holds per-customer rates, volume breaks, credit limits, and quote negotiation natively, so you are not re-keying pricing into an ERP to make it apply at order time.</p>
 
         <p>Pricing outgrowing flat rates? See the <a href="/solutions/wholesale">Wholesale solution</a>, read <a href="/blog/businesscart-vs-sana-commerce-vs-logicblock-smb-b2b-2026">BusinessCart vs Sana vs Logicblock</a>, or <a href="/contact-us">talk to BusinessCart</a>.</p>
       </>
