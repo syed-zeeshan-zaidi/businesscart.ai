@@ -36,7 +36,7 @@ const pillars = [
   {
     icon: LockClosedIcon,
     title: 'Private Portals (B2B)',
-    desc: 'Code-gated catalog with per-customer pricing, credit limits, spend caps, and quote workflow, all enforced automatically. For selling to wholesale or repeat customers.',
+    desc: 'Login-gated (private) catalog with per-customer pricing, credit limits, spend caps, and quote workflow, all enforced automatically. For selling to wholesale or repeat customers.',
   },
   {
     icon: SparklesIcon,

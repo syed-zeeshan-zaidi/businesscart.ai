@@ -50,7 +50,7 @@ interface Stats {
 interface Visitor {
   visitorId: string;
   sellerId: string;
-  attribution: { source: string; medium: string; campaign: string; content: string; term: string; landingPage: string; referrer: string };
+  attribution: { source: string; medium: string; campaign: string; content: string; term: string; landingPage: string; referrer: string; clickIds?: Record<string, string> };
   geo: { country: string; region: string; city: string; timezone: string; ip: string; asn: string };
   device: string;
   os: string;
@@ -73,6 +73,9 @@ interface Visitor {
   firstOrderAt: string;
   totalOrders: number;
   totalRevenue: number;
+  viewContentSent?: number;
+  createdAt?: string;
+  updatedAt?: string;
   daysToRegister: number;
   daysToOrder: number;
   errorLog: string[];
@@ -239,7 +242,7 @@ const Analytics: React.FC = () => {
   const [scope, setScope] = useState(isAdmin ? 'portal' : '');
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [timeRange, setTimeRange] = useState('');
+  const [timeRange, setTimeRange] = useState('30d'); // default to Last 30 Days (was '' = all-time, which aggregates the whole visitors collection on every page load)
   const perPage = 100;
 
   const loadStats = async (sellerId?: string, since?: string) => {
@@ -639,221 +642,140 @@ const Analytics: React.FC = () => {
       </div>
 
       {selected && (() => {
-        const funnelSteps = [
-          { label: 'Visited', done: true, date: selected.firstVisit },
-          { label: 'Browsed', done: (selected.pages?.length || 0) > 1, date: selected.lastVisit },
-          { label: 'Registered', done: selected.registered, date: selected.registeredAt },
-          { label: 'Ordered', done: selected.ordered, date: selected.firstOrderAt },
-        ];
-        const statusColor = selected.ordered ? 'bg-green-500' : selected.registered ? 'bg-blue-500' : selected.isBot ? 'bg-yellow-500' : 'bg-gray-400';
-        const statusLabel = selected.ordered ? 'Customer' : selected.registered ? 'Registered' : selected.isBot ? (selected.botName || 'Bot') : 'Visitor';
+        const contacted = (selected.milestones || []).some(m => m.event === 'contact_request') || (selected.pages || []).includes('/contact-us');
+        const isLead = !selected.ordered && !selected.registered && contacted && !selected.isBot;
+        const statusLabel = selected.ordered ? 'Customer' : selected.registered ? 'Registered' : isLead ? 'Lead' : selected.isBot ? (selected.botName || 'Bot') : 'Visitor';
+        const clickIds = selected.attribution?.clickIds || {};
+        const paidClickKey = (['gclid', 'gbraid', 'wbraid', 'fbclid', 'msclkid'] as const).find(k => clickIds[k]);
+        const isPaid = !!paidClickKey;
+        const outcome = selected.ordered ? `$${(selected.totalRevenue || 0).toFixed(2)} · ${selected.totalOrders} order${selected.totalOrders === 1 ? '' : 's'}` : isLead ? 'Contact submitted' : selected.registered ? 'Registered account' : '';
         const mediumColor: Record<string, string> = { organic: 'bg-green-100 text-green-700', social: 'bg-blue-100 text-blue-700', cpc: 'bg-purple-100 text-purple-700', llm: 'bg-orange-100 text-orange-700', bot: 'bg-yellow-100 text-yellow-700', direct: 'bg-gray-100 text-gray-600', referral: 'bg-indigo-100 text-indigo-700' };
         const mColor = mediumColor[selected.attribution?.medium] || 'bg-gray-100 text-gray-600';
+        const borderColor = selected.ordered ? 'border-green-500' : selected.registered ? 'border-blue-500' : isLead ? 'border-teal-500' : selected.isBot ? 'border-yellow-500' : 'border-gray-400';
+
+        const prettyEvent = (e: string) => ({ add_to_cart: 'Added to cart', initiate_checkout: 'Started checkout', order: 'Purchased', register: 'Registered', contact_request: 'Submitted contact form', login: 'Logged in', view_content: 'Product view', landed: 'Landed', last: 'Last seen' } as Record<string, string>)[e] || e.replace(/_/g, ' ');
+        const eventDot = (e: string) => ({ landed: 'bg-blue-500', order: 'bg-green-500', register: 'bg-blue-500', add_to_cart: 'bg-orange-500', initiate_checkout: 'bg-amber-500', contact_request: 'bg-teal-600', login: 'bg-purple-500', last: 'bg-gray-300' } as Record<string, string>)[e] || 'bg-gray-400';
+        const renderMeta = (metadata: Record<string, unknown>) => Object.entries(metadata).flatMap(([k, v]) => {
+          if (k === 'capi' && Array.isArray(v)) {
+            return (v as { provider?: string; status?: string }[]).map((r, ri) => (
+              <span key={`capi${ri}`} className={`text-xs px-2 py-0.5 rounded font-medium ${r?.status === 'sent' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{r?.provider} {r?.status === 'sent' ? '✓' : '✕'}</span>
+            ));
+          }
+          if (v === null || v === undefined || v === '') return [];
+          if (k === 'items' && Array.isArray(v)) return [<span key={k} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{v.length} item{v.length === 1 ? '' : 's'}</span>];
+          const money = (k === 'amount' || k === 'price') && typeof v === 'number';
+          const display = money ? `$${(v as number).toFixed(2)}` : typeof v === 'object' ? JSON.stringify(v) : String(v);
+          return [<span key={k} className={`text-xs px-2 py-0.5 rounded ${money ? 'bg-teal-50 text-teal-700 font-medium' : 'bg-gray-100 text-gray-600'}`}>{money ? display : `${k}: ${display}`}</span>];
+        });
+        const journey: { event: string; name: string; date: string; page: string; metadata: Record<string, unknown> }[] = [
+          { event: 'landed', name: 'Landed', date: selected.firstVisit, page: selected.attribution?.landingPage || '', metadata: { source: `${selected.attribution?.source || 'direct'} / ${selected.attribution?.medium || 'direct'}`, ...(selected.attribution?.campaign ? { campaign: selected.attribution.campaign } : {}), ...(selected.attribution?.content ? { content: selected.attribution.content } : {}) } },
+          ...(selected.milestones || []).map(m => ({ event: m.event, name: prettyEvent(m.event), date: m.date, page: m.page || '', metadata: (m.metadata || {}) as Record<string, unknown> })),
+        ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        if (journey.length && new Date(selected.lastVisit).getTime() > new Date(journey[journey.length - 1].date).getTime() + 1500) {
+          journey.push({ event: 'last', name: 'Last seen', date: selected.lastVisit, page: '', metadata: {} });
+        }
 
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
-            <div className="bg-gray-50 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gray-100 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
 
-              {/* Header */}
-              <div className="bg-white rounded-t-xl p-5 border-b">
+              {/* Hero */}
+              <div className={`bg-white rounded-t-xl p-5 border-b border-l-4 ${borderColor}`}>
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${statusColor}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-800">{statusLabel}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${mColor}`}>{selected.attribution?.source || 'direct'} / {selected.attribution?.medium || 'direct'}</span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{selected.sellerId ? companies.find(c => c.id === selected.sellerId)?.name || 'Storefront' : 'Portal'} &middot; {selected.device} &middot; {selected.browser} / {selected.os}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-800">{statusLabel}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${mColor}`}>{selected.attribution?.source || 'direct'} / {selected.attribution?.medium || 'direct'}</span>
+                      {isPaid && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">Paid · {paidClickKey}</span>}
                     </div>
+                    {outcome && <p className="text-sm mt-1 font-medium text-gray-700">{outcome}</p>}
+                    <p className="text-xs text-gray-400 mt-1 font-mono truncate">{selected.sellerId ? companies.find(c => c.id === selected.sellerId)?.name || 'Storefront' : 'Portal'} · {selected.device} · {selected.browser} / {selected.os} · {formatLocation(selected.geo)}</p>
                   </div>
-                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600"><XMarkIcon className="h-5 w-5" /></button>
+                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 shrink-0 ml-2"><XMarkIcon className="h-5 w-5" /></button>
                 </div>
 
-                {/* Key Metrics */}
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{selected.totalSessions}</p>
-                    <p className="text-xs text-gray-500">Sessions</p>
+                {/* Metric strip */}
+                <div className="grid grid-cols-4 rounded-lg overflow-hidden border border-gray-100 divide-x divide-gray-100">
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 text-gray-500"><UsersIcon className="h-4 w-4 text-teal-700 shrink-0" /><span className="text-[11px] font-semibold uppercase tracking-wide">Sessions</span></div>
+                    <p className="mt-2 text-2xl font-bold text-gray-800 tabular-nums leading-none">{selected.totalSessions}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{selected.totalPageViews}</p>
-                    <p className="text-xs text-gray-500">Page Views</p>
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 text-gray-500"><EyeIcon className="h-4 w-4 text-teal-700 shrink-0" /><span className="text-[11px] font-semibold uppercase tracking-wide">Page Views</span></div>
+                    <p className="mt-2 text-2xl font-bold text-gray-800 tabular-nums leading-none">{selected.totalPageViews}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{selected.totalOrders}</p>
-                    <p className="text-xs text-gray-500">Orders</p>
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 text-gray-500">{selected.sellerId ? <ShoppingCartIcon className="h-4 w-4 text-teal-700 shrink-0" /> : <EnvelopeIcon className="h-4 w-4 text-teal-700 shrink-0" />}<span className="text-[11px] font-semibold uppercase tracking-wide">{selected.sellerId ? 'Orders' : 'Contacted'}</span></div>
+                    <p className={`mt-2 text-2xl font-bold tabular-nums leading-none ${(selected.sellerId ? selected.totalOrders > 0 : contacted) ? 'text-green-600' : 'text-gray-800'}`}>{selected.sellerId ? selected.totalOrders : (contacted ? 'Yes' : 'No')}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-teal-700">${selected.totalRevenue?.toFixed(2) || '0.00'}</p>
-                    <p className="text-xs text-gray-500">Revenue</p>
+                  <div className="p-3">
+                    <div className="flex items-center gap-1.5 text-gray-500">{selected.sellerId ? <CurrencyDollarIcon className="h-4 w-4 text-teal-700 shrink-0" /> : <GlobeAltIcon className="h-4 w-4 text-teal-700 shrink-0" />}<span className="text-[11px] font-semibold uppercase tracking-wide">{selected.sellerId ? 'Revenue' : 'Views→Ads'}</span></div>
+                    <p className={`mt-2 text-2xl font-bold tabular-nums leading-none ${selected.sellerId ? ((selected.totalRevenue || 0) > 0 ? 'text-teal-700' : 'text-gray-800') : 'text-gray-800'}`}>{selected.sellerId ? `$${selected.totalRevenue?.toFixed(2) || '0.00'}` : (selected.viewContentSent || 0)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Conversion Funnel */}
-              <div className="bg-white mx-4 mt-4 rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Conversion Journey</h4>
-                <div className="flex items-center justify-between">
-                  {funnelSteps.map((step, i) => (
-                    <React.Fragment key={step.label}>
-                      <div className="flex flex-col items-center text-center flex-1">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${step.done ? 'bg-teal-700 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                          {step.done ? '✓' : i + 1}
-                        </div>
-                        <p className={`text-xs mt-1 font-medium ${step.done ? 'text-teal-700' : 'text-gray-400'}`}>{step.label}</p>
-                        {step.done && step.date && (
-                          <p className="text-[10px] text-gray-400">{new Date(step.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                        )}
-                        {step.done && i > 0 && (
-                          <p className="text-[10px] text-gray-400">
-                            {step.label === 'Registered' && selected.daysToRegister !== null && selected.daysToRegister !== undefined ? `${selected.daysToRegister}d` : ''}
-                            {step.label === 'Ordered' && selected.daysToOrder !== null && selected.daysToOrder !== undefined ? `${selected.daysToOrder}d` : ''}
-                          </p>
-                        )}
+              {/* Journey */}
+              <div className="bg-white mx-4 mt-4 rounded-lg shadow p-4">
+                <div className="flex items-center gap-3 mb-4"><span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Journey</span><span className="text-[11px] font-bold text-teal-700">· {journey.length} event{journey.length === 1 ? '' : 's'}</span><span className="h-px flex-1 bg-gray-200" /></div>
+                <div className="relative pl-5 border-l-2 border-gray-200 space-y-4">
+                  {journey.map((ev, i) => (
+                    <div key={i} className="relative">
+                      <div className={`absolute -left-[26px] top-1 w-3 h-3 rounded-full ${eventDot(ev.event)} ring-2 ring-white`} />
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-gray-800">{ev.name}</span>
+                        <span className="text-[11px] text-gray-400 font-mono">{formatDate(ev.date)}</span>
                       </div>
-                      {i < funnelSteps.length - 1 && (
-                        <div className={`h-0.5 flex-1 mx-1 ${funnelSteps[i + 1].done ? 'bg-teal-700' : 'bg-gray-200'}`} />
+                      {ev.page && <p className="text-xs text-gray-500 mt-0.5 break-all">{ev.page}</p>}
+                      {ev.metadata && Object.keys(ev.metadata).length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">{renderMeta(ev.metadata)}</div>
                       )}
-                    </React.Fragment>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* Attribution */}
-              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Attribution</h4>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Landing Page</span>
-                    <span className="text-gray-700 text-right truncate ml-2 max-w-[200px]" title={selected.attribution?.landingPage || ''}>{selected.attribution?.landingPage || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Referrer</span>
-                    <span className="text-gray-700 text-right truncate ml-2 max-w-[200px]" title={selected.attribution?.referrer || ''}>{selected.attribution?.referrer || '-'}</span>
-                  </div>
-                  {selected.attribution?.campaign && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Campaign</span>
-                      <span className="text-gray-700">{selected.attribution.campaign}</span>
-                    </div>
-                  )}
-                  {selected.attribution?.content && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Content</span>
-                      <span className="text-gray-700">{selected.attribution.content}</span>
-                    </div>
-                  )}
-                  {selected.attribution?.term && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Keyword</span>
-                      <span className="text-gray-700">{selected.attribution.term}</span>
-                    </div>
-                  )}
+              {/* Attribution & click IDs */}
+              <div className="bg-white mx-4 mt-3 rounded-lg shadow p-4">
+                <div className="flex items-center gap-3 mb-3"><span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Attribution &amp; click IDs</span><span className="h-px flex-1 bg-gray-200" /></div>
+                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                  <span className="text-gray-400">Landing</span><span className="text-gray-700 text-right break-all">{selected.attribution?.landingPage || '-'}</span>
+                  {selected.attribution?.referrer && (<><span className="text-gray-400">Referrer</span><span className="text-gray-700 text-right break-all">{selected.attribution.referrer}</span></>)}
+                  {selected.attribution?.campaign && (<><span className="text-gray-400">Campaign</span><span className="text-gray-700 text-right">{selected.attribution.campaign}</span></>)}
+                  {selected.attribution?.content && (<><span className="text-gray-400">Content</span><span className="text-gray-700 text-right">{selected.attribution.content}</span></>)}
+                  {selected.attribution?.term && (<><span className="text-gray-400">Keyword</span><span className="text-gray-700 text-right">{selected.attribution.term}</span></>)}
+                  {Object.entries(clickIds).map(([k, v]) => v ? (<React.Fragment key={k}><span className="text-gray-400 uppercase">{k}</span><span className="text-indigo-600 font-mono text-xs text-right break-all">{v}</span></React.Fragment>) : null)}
+                  {selected.viewContentSent ? (<><span className="text-gray-400">Views sent to ads</span><span className="text-gray-700 text-right">{selected.viewContentSent}</span></>) : null}
                 </div>
               </div>
 
-              {/* Location & Device */}
-              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Location & Device</h4>
-                <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-400 text-xs">Location</span>
-                    <p className="text-gray-700">{formatLocation(selected.geo)}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 text-xs">Timezone</span>
-                    <p className="text-gray-700">{selected.geo?.timezone || '-'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 text-xs">IP / ASN</span>
-                    <p className="text-gray-700 font-mono text-xs">{selected.geo?.ip || '-'} {selected.geo?.asn ? `(${selected.geo.asn})` : ''}</p>
-                  </div>
-                  {selected.screenWidth > 0 && (
-                    <div>
-                      <span className="text-gray-400 text-xs">Screen</span>
-                      <p className="text-gray-700">{selected.screenWidth} × {selected.screenHeight}</p>
-                    </div>
-                  )}
-                  {selected.language && (
-                    <div>
-                      <span className="text-gray-400 text-xs">Language</span>
-                      <p className="text-gray-700">{selected.language}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Activity Timeline */}
-              <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</h4>
-                <div className="flex items-center gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-400 text-xs">First Visit</span>
-                    <p className="text-gray-700">{formatDate(selected.firstVisit)}</p>
-                  </div>
-                  <div className="flex-1 h-px bg-gray-200 relative">
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-700" />
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-teal-700" />
-                  </div>
-                  <div className="text-right">
-                    <span className="text-gray-400 text-xs">Last Visit</span>
-                    <p className="text-gray-700">{formatDate(selected.lastVisit)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pages */}
+              {/* Pages set */}
               {selected.pages && selected.pages.length > 0 && (
-                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pages Visited ({selected.pages.length})</h4>
-                  <div className="space-y-1">
-                    {selected.pages.map((p, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <div className="w-1.5 h-1.5 rounded-full bg-teal-700 shrink-0" />
-                        <span className="text-gray-700 break-all">{p}</span>
-                      </div>
-                    ))}
+                <div className="bg-white mx-4 mt-3 rounded-lg shadow p-4">
+                  <div className="flex items-center gap-3 mb-3"><span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Pages visited ({selected.pages.length})</span><span className="h-px flex-1 bg-gray-200" /></div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selected.pages.map((p, i) => <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded break-all">{p}</span>)}
                   </div>
                 </div>
               )}
 
-              {/* Milestones Timeline */}
-              {selected.milestones && selected.milestones.length > 0 && (
-                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Milestones ({selected.milestones.length})</h4>
-                  <div className="relative pl-4 border-l-2 border-teal-200 space-y-4">
-                    {selected.milestones.map((m, i) => {
-                      const eventColor: Record<string, string> = { order: 'bg-green-500', register: 'bg-blue-500', add_to_cart: 'bg-orange-500', login: 'bg-purple-500', visit: 'bg-gray-400' };
-                      return (
-                        <div key={i} className="relative">
-                          <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full ${eventColor[m.event] || 'bg-gray-400'} ring-2 ring-white`} />
-                          <div className="text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-800 capitalize">{m.event.replace('_', ' ')}</span>
-                              <span className="text-xs text-gray-400">{formatDate(m.date)}</span>
-                            </div>
-                            {m.page && <p className="text-xs text-gray-500 mt-0.5">{m.page}</p>}
-                            {m.metadata && Object.keys(m.metadata).length > 0 && (
-                              <div className="mt-1 flex flex-wrap gap-2">
-                                {Object.entries(m.metadata).map(([k, v]) => {
-                                  const display = (k === 'amount' || k === 'price') && typeof v === 'number' ? `$${v.toFixed(2)}` : String(v);
-                                  return <span key={k} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{k}: {display}</span>;
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {/* Environment (quiet) */}
+              <div className="bg-white mx-4 mt-3 rounded-lg shadow p-4">
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-gray-600">
+                  <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">First</span>{formatDate(selected.firstVisit)}</span>
+                  <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">Last</span>{formatDate(selected.lastVisit)}</span>
+                  {selected.geo?.timezone && <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">TZ</span>{selected.geo.timezone}</span>}
+                  {(selected.geo?.ip || selected.geo?.asn) && <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">IP/ASN</span><span className="font-mono">{selected.geo?.ip || '-'} {selected.geo?.asn ? `(${selected.geo.asn})` : ''}</span></span>}
+                  {selected.screenWidth > 0 && <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">Screen</span>{selected.screenWidth}×{selected.screenHeight}</span>}
+                  {selected.language && <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">Lang</span>{selected.language}</span>}
+                  {selected.updatedAt && <span><span className="text-gray-400 uppercase tracking-wide mr-1.5">Updated</span>{formatDate(selected.updatedAt)}</span>}
                 </div>
-              )}
+              </div>
 
               {/* Error Log */}
               {selected.errorLog && selected.errorLog.length > 0 && (
-                <div className="bg-white mx-4 mt-3 rounded-lg p-4">
-                  <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Errors ({selected.errorLog.length})</h4>
+                <div className="bg-white mx-4 mt-3 rounded-lg shadow p-4">
+                  <div className="flex items-center gap-3 mb-3"><span className="text-[11px] font-bold uppercase tracking-wider text-red-400">Errors ({selected.errorLog.length})</span><span className="h-px flex-1 bg-red-100" /></div>
                   <div className="bg-red-50 rounded p-3 text-xs text-red-700 space-y-1 font-mono">
                     {selected.errorLog.map((e, i) => <div key={i}>{e}</div>)}
                   </div>
@@ -861,7 +783,7 @@ const Analytics: React.FC = () => {
               )}
 
               {/* IDs Footer */}
-              <div className="mx-4 mt-3 mb-4 px-4 py-3 bg-gray-100 rounded-lg text-[11px] text-gray-400 font-mono flex flex-wrap gap-x-6 gap-y-1">
+              <div className="mx-4 mt-3 mb-4 px-4 py-3 bg-gray-200/70 rounded-lg text-[11px] text-gray-500 font-mono flex flex-wrap gap-x-6 gap-y-1">
                 <span>vid: {selected.visitorId}</span>
                 {selected.customerId && <span>cid: {selected.customerId}</span>}
                 {selected.sellerId && <span>sid: {selected.sellerId}</span>}

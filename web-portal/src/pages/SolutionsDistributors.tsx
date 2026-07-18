@@ -39,7 +39,7 @@ const liveFeatures = [
   { icon: AdjustmentsHorizontalIcon, title: 'Per-customer pricing tiers', desc: 'Retailers, wholesalers, end customers, each gets their negotiated rate automatically. Margins protected without manual intervention.' },
   { icon: ShieldCheckIcon, title: 'Credit limit enforcement', desc: 'Reject orders exceeding a customer\'s credit cap before they ship. No more chasing AR after the fact.' },
   { icon: ClipboardDocumentListIcon, title: 'Custom quote workflow', desc: 'Volume orders, special configurations, drop-ship requests. Full negotiation with comments and history.' },
-  { icon: LockClosedIcon, title: 'Code-gated catalog', desc: 'Each customer gets a private code unlocking your catalog with their pricing. Channel pricing stays private.' },
+  { icon: LockClosedIcon, title: 'Login-gated (private) catalog', desc: 'Each customer gets a private code unlocking your catalog with their pricing. Channel pricing stays private.' },
   { icon: ArrowsRightLeftIcon, title: 'Multi-supplier customer accounts', desc: 'When your suppliers also use BusinessCart, your buyers can manage upstream orders from the same account.' },
   { icon: CubeIcon, title: 'High-SKU catalog support', desc: 'Static HTML catalog handles thousands of SKUs without slowing down. Fast browse, instant search.' },
   { icon: BanknotesIcon, title: 'Per-customer payment methods', desc: 'PO for retailers, Stripe for end customers, cash for pickup. Configure per relationship.' },

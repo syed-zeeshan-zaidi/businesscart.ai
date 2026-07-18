@@ -913,6 +913,9 @@ func (h *LambdaHandler) buildAdConversionsInfo(acc *storage.Account) {
 			// Non-secret account/config IDs shown in full; refresh_token hinted.
 			ci.CustomerID = dec("customer_id")
 			ci.ConversionActionID = dec("conversion_action_id")
+			ci.ViewContentActionID = dec("conversion_action_id_viewcontent")
+			ci.AddToCartActionID = dec("conversion_action_id_addtocart")
+			ci.CheckoutActionID = dec("conversion_action_id_initiatecheckout")
 			ci.TokenLast4 = last4(dec("refresh_token"))
 		}
 		info[provider] = ci

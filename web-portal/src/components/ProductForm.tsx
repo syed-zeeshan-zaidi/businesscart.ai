@@ -242,7 +242,7 @@ const ProductForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const parsed = (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
+    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
     const updates: Partial<Product> = { [name]: parsed };
     // Auto-generate slug from name only when CREATING a new product.
     // Slugs are permanent URLs once a product exists: editing the title must
@@ -578,7 +578,6 @@ const ProductForm = () => {
                     <th className={`${TH} text-left`}>Status</th>
                     <th className={`${TH} text-left`}>Availability</th>
                     <th className={`${TH} text-left`}>Price</th>
-                    <th className={`${TH} text-left`}>Deal Price (%)</th>
                     <th className={`${TH} text-right`}>Actions</th>
                   </tr>
                 </thead>
@@ -626,18 +625,25 @@ const ProductForm = () => {
                           <span className="text-gray-700">{product.stock} in stock</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {product.dealPrice ? (
-                          <>
-                            {product.dealPrice}%
-                            {product.dealEndDate && (
-                              <span className={`ml-1 text-xs ${new Date(product.dealEndDate) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
-                                {new Date(product.dealEndDate) < new Date() ? '(expired)' : `(until ${new Date(product.dealEndDate).toLocaleDateString()})`}
-                              </span>
-                            )}
-                          </>
-                        ) : 'N/A'}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {product.dealPrice && product.dealPrice > 0 ? (
+                          product.dealEndDate && new Date(product.dealEndDate) < new Date() ? (
+                            <div>
+                              <span className="text-gray-700">${product.price.toFixed(2)}</span>
+                              <div className="text-xs text-red-500">{product.dealPrice}% deal expired</div>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="font-semibold text-teal-700">${(product.price * (1 - product.dealPrice / 100)).toFixed(2)}</span>
+                              <span className="ml-2 text-gray-400 line-through">${product.price.toFixed(2)}</span>
+                              <div className="text-xs font-medium text-green-600">
+                                {product.dealPrice}% off{product.dealEndDate ? ` · until ${new Date(product.dealEndDate).toLocaleDateString()}` : ''}
+                              </div>
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-gray-700">${product.price.toFixed(2)}</span>
+                        )}
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -881,6 +887,39 @@ const ProductForm = () => {
                             />
                           </div>
                         </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Cost ($) <span className="text-xs text-gray-400">(private, never shown to buyers)</span></label>
+                            <input
+                              name="cost"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.cost ?? ''}
+                              onChange={handleChange}
+                              placeholder="e.g., 12.50"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          {(() => {
+                            const c = formData.cost, p = formData.price;
+                            if (c === undefined || c <= 0 || p === undefined || p <= 0) return null;
+                            const m = p - c;
+                            const dp = formData.dealPrice;
+                            const hasDeal = dp !== undefined && dp > 0;
+                            const dealSell = hasDeal ? p * (1 - dp / 100) : p;
+                            const dm = dealSell - c;
+                            return (
+                              <div className="flex flex-col justify-end pb-1">
+                                <span className="text-xs text-gray-400">Gross margin (base price)</span>
+                                <span className="text-sm font-semibold text-gray-800">${m.toFixed(2)}<span className={`ml-1 ${m >= 0 ? 'text-green-600' : 'text-red-600'}`}>({((m / p) * 100).toFixed(1)}%)</span></span>
+                                {hasDeal && (
+                                  <span className="text-xs mt-1 text-gray-500">At deal price ${dealSell.toFixed(2)}: <span className={`font-semibold ${dm >= 0 ? 'text-green-600' : 'text-red-600'}`}>${dm.toFixed(2)} ({((dm / dealSell) * 100).toFixed(1)}%)</span></span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
                         {formData.dealPrice && formData.dealPrice > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                             <div>
@@ -909,7 +948,7 @@ const ProductForm = () => {
                         )}
                         {/* Price Tiers */}
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Volume Pricing / Quantity Breaks</label>
                           <p className="text-xs text-gray-500 mb-2">Optional. Set lower prices for bulk orders. Base price applies below the first tier.</p>
                           {(formData.priceTiers || []).map((tier, i) => (
                             <div key={i} className="flex items-center gap-2 mb-2">

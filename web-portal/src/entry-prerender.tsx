@@ -557,7 +557,7 @@ Each company can set unique rules per customer:
 
 If a customer has no custom configuration for a setting, the company's default configuration applies automatically.
 
-### Quote Negotiation
+### Quote Negotiation (RFQ)
 
 Full negotiation workflow for B2B orders:
 

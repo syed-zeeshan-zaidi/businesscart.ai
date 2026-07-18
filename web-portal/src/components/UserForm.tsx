@@ -262,6 +262,11 @@ const UserForm = () => {
     setConfigData(prev => ({ ...prev, [field]: values }));
   };
 
+  const handleCertChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setConfigData(prev => ({ ...prev, resaleCertificate: { ...prev.resaleCertificate, [name]: value || undefined } }));
+  };
+
   const indexOfLast = currentPage * accountsPerPage;
   const indexOfFirst = indexOfLast - accountsPerPage;
   const currentAccounts = filteredAccounts.slice(indexOfFirst, indexOfLast);
@@ -503,7 +508,7 @@ const UserForm = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium">Min Order Amount ($)</label>
+                        <label className="block text-sm font-medium">Min Order Value / MOV ($)</label>
                         <input type="number" name="minOrderAmountLimit" value={configData.minOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
                       </div>
                       <div>
@@ -514,7 +519,7 @@ const UserForm = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium">Min Order Quantity</label>
+                        <label className="block text-sm font-medium">Min Order Quantity (MOQ)</label>
                         <input type="number" name="minOrderQuantityLimit" value={configData.minOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
                       </div>
                       <div>
@@ -544,6 +549,58 @@ const UserForm = () => {
                         <input type="number" step="0.01" min="0" max="100" name="taxRate" value={configData.taxRate ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="e.g., 0 for tax-exempt" />
                       </div>
                     </div>
+
+                    <div className="border border-gray-200 rounded p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-700">Resale / Tax-Exemption Certificate</span>
+                        <span className="text-xs text-gray-400">Justifies a 0% tax-exempt customer</span>
+                      </div>
+                      {(() => {
+                        const cert = configData.resaleCertificate || {};
+                        const isExempt = configData.taxRate === 0;
+                        const hasCert = !!(cert.number && cert.state);
+                        const today = new Date().toISOString().slice(0, 10);
+                        const expired = !!cert.expiryDate && cert.expiryDate < today;
+                        const soon = !!cert.expiryDate && !expired && (new Date(cert.expiryDate).getTime() - Date.now()) < 60 * 24 * 3600 * 1000;
+                        let cls = '', msg = '';
+                        if (isExempt && !hasCert) { cls = 'bg-red-50 text-red-700 border-red-200'; msg = 'Tax-exempt (0%) with no resale certificate on file. The seller is liable for uncollected tax in an audit.'; }
+                        else if (isExempt && expired) { cls = 'bg-red-50 text-red-700 border-red-200'; msg = `Resale certificate expired on ${cert.expiryDate}. Renew before exempting further orders.`; }
+                        else if (isExempt && soon) { cls = 'bg-amber-50 text-amber-700 border-amber-200'; msg = `Resale certificate expires on ${cert.expiryDate}. Renewal due soon.`; }
+                        else if (hasCert) { cls = 'bg-green-50 text-green-700 border-green-200'; msg = `Resale certificate on file${cert.expiryDate ? ` (expires ${cert.expiryDate})` : ''}.`; }
+                        else { return null; }
+                        return <div className={`text-xs rounded border px-3 py-2 ${cls}`}>{msg}</div>;
+                      })()}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium">Issuing State</label>
+                          <input name="state" value={configData.resaleCertificate?.state ?? ''} onChange={handleCertChange} maxLength={2} className="w-full p-2 border rounded uppercase" placeholder="e.g., CA" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">Certificate / Permit Number</label>
+                          <input name="number" value={configData.resaleCertificate?.number ?? ''} onChange={handleCertChange} className="w-full p-2 border rounded" placeholder="Buyer's resale / sales-tax ID" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium">Type</label>
+                          <select name="type" value={configData.resaleCertificate?.type ?? ''} onChange={handleCertChange} className="w-full p-2 border rounded">
+                            <option value="">Select</option>
+                            <option value="resale">Resale</option>
+                            <option value="exemption">Exemption</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">Issue Date</label>
+                          <input type="date" name="issueDate" value={configData.resaleCertificate?.issueDate ?? ''} onChange={handleCertChange} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">Expiry Date</label>
+                          <input type="date" name="expiryDate" value={configData.resaleCertificate?.expiryDate ?? ''} onChange={handleCertChange} className="w-full p-2 border rounded" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400">The certificate document itself stays in your own records; this records its details for audit reference.</p>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium">Shipping Rate ($) Override</label>
@@ -554,7 +611,7 @@ const UserForm = () => {
                     <div className="flex items-center space-x-4">
                       <label className="flex items-center space-x-2">
                         <input type="checkbox" name="quotesAllowed" checked={configData.quotesAllowed ?? true} onChange={handleConfigChange} className="rounded" />
-                        <span className="text-sm font-medium">Quotes Allowed</span>
+                        <span className="text-sm font-medium">Quotes (RFQ) Allowed</span>
                       </label>
                       <label className="flex items-center space-x-2">
                         <input type="checkbox" name="taxableGoods" checked={configData.taxableGoods ?? true} onChange={handleConfigChange} className="rounded" />
@@ -567,7 +624,7 @@ const UserForm = () => {
                       <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-28 p-2 border rounded">
                         <option value="credit_card">Credit Card</option>
                         <option value="purchase_order">Purchase Order</option>
-                        <option value="on_account">On Account</option>
+                        <option value="on_account">On Account (Net Terms)</option>
                         <option value="stripe_pay">Stripe</option>
                       </select>
                     </div>

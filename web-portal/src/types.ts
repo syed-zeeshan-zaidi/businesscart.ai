@@ -38,7 +38,7 @@ export interface Account {
   // Per-provider on/off switch (write). A provider only dispatches when true.
   adConversionsEnabled?: Record<string, boolean>;
   // Read-only masked status for the UI: provider -> masked, secret-free status.
-  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; customerId?: string; conversionActionId?: string; tokenLast4?: string }>;
+  adConversionsInfo?: Record<string, { configured: boolean; enabled: boolean; pixelId?: string; customerId?: string; conversionActionId?: string; viewContentActionId?: string; addToCartActionId?: string; checkoutActionId?: string; tokenLast4?: string }>;
 }
 
 export interface Attribute {
@@ -114,6 +114,7 @@ export interface Product {
   description?: string;
   price: number;
   dealPrice?: number;
+  cost?: number;
   dealStartDate?: string;
   dealEndDate?: string;
   discountedPrice?: number;
@@ -386,8 +387,17 @@ export interface CustomerConfiguration {
   taxRate?: number;
   shippingRate?: number;
   leadTime?: number;
+  resaleCertificate?: ResaleCertificate;
   groupID?: string;
   groupPriceDiscount?: number;
+}
+
+export interface ResaleCertificate {
+  state?: string;
+  number?: string;
+  type?: string;
+  issueDate?: string;
+  expiryDate?: string;
 }
 
 
