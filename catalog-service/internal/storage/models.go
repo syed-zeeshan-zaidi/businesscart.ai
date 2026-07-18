@@ -82,6 +82,7 @@ type Product struct {
 	DealStartDate         *time.Time         `bson:"dealStartDate,omitempty" json:"dealStartDate,omitempty"`
 	DealEndDate           *time.Time         `bson:"dealEndDate,omitempty" json:"dealEndDate,omitempty"`
 	DiscountedPrice       float64            `bson:"-" json:"discountedPrice,omitempty"`
+	Cost                  float64            `bson:"cost,omitempty" json:"cost,omitempty"` // Confidential seller unit cost. Admin/API only: NEVER mapped to generator ProductData, feeds, or products.md.
 	SellerID              string             `bson:"sellerID" json:"sellerID"`
 	PartnerID             string             `bson:"partnerId,omitempty" json:"partnerId,omitempty"`
 	Images                []string           `bson:"images,omitempty" json:"images,omitempty"`

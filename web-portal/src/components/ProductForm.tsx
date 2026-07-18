@@ -242,7 +242,7 @@ const ProductForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const parsed = (name === 'price' || name === 'dealPrice') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
+    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
     const updates: Partial<Product> = { [name]: parsed };
     // Auto-generate slug from name only when CREATING a new product.
     // Slugs are permanent URLs once a product exists: editing the title must
@@ -886,6 +886,39 @@ const ProductForm = () => {
                               className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                             />
                           </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Cost ($) <span className="text-xs text-gray-400">(private, never shown to buyers)</span></label>
+                            <input
+                              name="cost"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.cost ?? ''}
+                              onChange={handleChange}
+                              placeholder="e.g., 12.50"
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          {(() => {
+                            const c = formData.cost, p = formData.price;
+                            if (c === undefined || c <= 0 || p === undefined || p <= 0) return null;
+                            const m = p - c;
+                            const dp = formData.dealPrice;
+                            const hasDeal = dp !== undefined && dp > 0;
+                            const dealSell = hasDeal ? p * (1 - dp / 100) : p;
+                            const dm = dealSell - c;
+                            return (
+                              <div className="flex flex-col justify-end pb-1">
+                                <span className="text-xs text-gray-400">Gross margin (base price)</span>
+                                <span className="text-sm font-semibold text-gray-800">${m.toFixed(2)}<span className={`ml-1 ${m >= 0 ? 'text-green-600' : 'text-red-600'}`}>({((m / p) * 100).toFixed(1)}%)</span></span>
+                                {hasDeal && (
+                                  <span className="text-xs mt-1 text-gray-500">At deal price ${dealSell.toFixed(2)}: <span className={`font-semibold ${dm >= 0 ? 'text-green-600' : 'text-red-600'}`}>${dm.toFixed(2)} ({((dm / dealSell) * 100).toFixed(1)}%)</span></span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                         {formData.dealPrice && formData.dealPrice > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">

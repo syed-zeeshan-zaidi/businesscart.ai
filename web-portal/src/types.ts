@@ -114,6 +114,7 @@ export interface Product {
   description?: string;
   price: number;
   dealPrice?: number;
+  cost?: number;
   dealStartDate?: string;
   dealEndDate?: string;
   discountedPrice?: number;
