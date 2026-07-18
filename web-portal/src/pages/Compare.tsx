@@ -91,7 +91,7 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Marketplace owns it</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Per-Customer Pricing</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Customer-Specific (Contract) Pricing</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus only ($2,300+/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Via plugins (often clunky)</td>
@@ -119,7 +119,7 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Order Limits (Min/Max)</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Minimum Order Rules (MOQ / MOV)</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, per-customer enforcement</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
@@ -133,7 +133,7 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Quote Negotiation</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Quote Negotiation (RFQ)</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
@@ -175,7 +175,7 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Marketplace-controlled</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Volume Price Tiers</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Volume Pricing / Quantity Breaks</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, bulk pricing per product</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-50/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
@@ -252,7 +252,7 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">B2B Statements & Credit Terms</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">B2B Invoicing, Statements & Net Terms</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: monthly statements, snapshot persistence, admin retraction</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Shopify Plus + app</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
