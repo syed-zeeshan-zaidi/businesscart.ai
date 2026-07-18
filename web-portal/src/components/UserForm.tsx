@@ -508,7 +508,7 @@ const UserForm = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium">Min Order Amount ($)</label>
+                        <label className="block text-sm font-medium">Min Order Value / MOV ($)</label>
                         <input type="number" name="minOrderAmountLimit" value={configData.minOrderAmountLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
                       </div>
                       <div>
@@ -519,7 +519,7 @@ const UserForm = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium">Min Order Quantity</label>
+                        <label className="block text-sm font-medium">Min Order Quantity (MOQ)</label>
                         <input type="number" name="minOrderQuantityLimit" value={configData.minOrderQuantityLimit ?? ''} onChange={handleConfigChange} className="w-full p-2 border rounded" placeholder="0 = no min" />
                       </div>
                       <div>
@@ -611,7 +611,7 @@ const UserForm = () => {
                     <div className="flex items-center space-x-4">
                       <label className="flex items-center space-x-2">
                         <input type="checkbox" name="quotesAllowed" checked={configData.quotesAllowed ?? true} onChange={handleConfigChange} className="rounded" />
-                        <span className="text-sm font-medium">Quotes Allowed</span>
+                        <span className="text-sm font-medium">Quotes (RFQ) Allowed</span>
                       </label>
                       <label className="flex items-center space-x-2">
                         <input type="checkbox" name="taxableGoods" checked={configData.taxableGoods ?? true} onChange={handleConfigChange} className="rounded" />
@@ -624,7 +624,7 @@ const UserForm = () => {
                       <select multiple name="paymentMethods" value={configData.paymentMethods || []} onChange={(e) => handleConfigMultiSelectChange(e, 'paymentMethods')} className="w-full h-28 p-2 border rounded">
                         <option value="credit_card">Credit Card</option>
                         <option value="purchase_order">Purchase Order</option>
-                        <option value="on_account">On Account</option>
+                        <option value="on_account">On Account (Net Terms)</option>
                         <option value="stripe_pay">Stripe</option>
                       </select>
                     </div>

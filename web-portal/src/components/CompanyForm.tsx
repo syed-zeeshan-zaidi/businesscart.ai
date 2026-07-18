@@ -823,9 +823,9 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
 
           <Section title="Order Limits" icon={<LimitsIcon />}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-              {renderInput('minOrderAmountLimit', 'Min Order Amount', '', false, 'number')}
+              {renderInput('minOrderAmountLimit', 'Min Order Value (MOV)', '', false, 'number')}
               {renderInput('maxOrderAmountLimit', 'Max Order Amount', '', false, 'number')}
-              {renderInput('minOrderQuantityLimit', 'Min Order Quantity', '', false, 'number')}
+              {renderInput('minOrderQuantityLimit', 'Min Order Quantity (MOQ)', '', false, 'number')}
               {renderInput('maxOrderQuantityLimit', 'Max Order Quantity', '', false, 'number')}
               {renderInput('monthlyOrderLimit', 'Monthly Order Limit', '', false, 'number')}
               {renderInput('yearlyOrderLimit', 'Yearly Order Limit', '', false, 'number')}
@@ -908,7 +908,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
               {renderInput('shippingRate', 'Shipping Rate ($)', 'e.g., 10.00', false, 'number')}
               <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {renderCheckbox('taxableGoods', 'Taxable Goods')}
-                {renderCheckbox('quotesAllowed', 'Quotes Allowed')}
+                {renderCheckbox('quotesAllowed', 'Quotes (RFQ) Allowed')}
                 {renderCheckbox('couponsEnabled', 'Coupons Enabled')}
               </div>
             </div>

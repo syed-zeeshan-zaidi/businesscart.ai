@@ -915,7 +915,7 @@ const ProductForm = () => {
                         )}
                         {/* Price Tiers */}
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Volume Price Tiers</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Volume Pricing / Quantity Breaks</label>
                           <p className="text-xs text-gray-500 mb-2">Optional. Set lower prices for bulk orders. Base price applies below the first tier.</p>
                           {(formData.priceTiers || []).map((tier, i) => (
                             <div key={i} className="flex items-center gap-2 mb-2">
