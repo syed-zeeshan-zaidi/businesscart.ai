@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
 const Catalog = lazy(() => import('./pages/Catalog'));
 const LineSheet = lazy(() => import('./pages/LineSheet'));
+const QuickOrder = lazy(() => import('./pages/QuickOrder'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
@@ -162,6 +163,10 @@ const AppContent = () => {
               <Route
                 path="/catalog"
                 element={isAuthenticated ? <Catalog /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quick-order"
+                element={isAuthenticated ? <QuickOrder /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/line-sheet"
