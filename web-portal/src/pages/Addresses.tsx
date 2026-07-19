@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { PageHeader, CARD, BTN_PRIMARY, Pill, Spinner } from '../components/ui';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
 import { CustomerAddress } from '../types';
@@ -102,36 +103,29 @@ const Addresses: React.FC = () => {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Your Shipping Addresses</h1>
-          <button
-            onClick={() => setIsOpen(true)}
-            className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors flex items-center space-x-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>Add Address</span>
+        <PageHeader title="Shipping addresses" subtitle="Where your orders can be delivered.">
+          <button onClick={() => setIsOpen(true)} className={`${BTN_PRIMARY} inline-flex items-center gap-2`}>
+            <PlusIcon className="h-5 w-5" /> Add address
           </button>
-        </div>
+        </PageHeader>
 
         {isLoading && !isOpen ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full" />
+            <Spinner className="h-8 w-8 border-4" />
           </div>
         ) : addresses.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
-            <h2 className="text-2xl font-semibold text-gray-800">No Addresses Found</h2>
-            <p className="text-gray-600 mt-2">You have not added any shipping addresses yet.</p>
+          <div className={`${CARD} mt-6 p-10 text-center`}>
+            <h2 className="text-lg font-semibold text-gray-900">No addresses yet</h2>
+            <p className="mt-1 text-sm text-gray-500">Add a shipping address so your orders have somewhere to go.</p>
           </div>
         ) : (
-          <div className="mb-20 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mt-6 mb-20 grid grid-cols-1 md:grid-cols-2 gap-6">
             {addresses.map((addr) => (
-              <div key={addr.id} className="bg-white rounded-lg shadow p-6">
+              <div key={addr.id} className={`${CARD} p-6`}>
                 <div className="flex justify-between items-start">
                   <h3 className="text-lg font-semibold text-gray-900">{addr.addressLabel || 'Address'}</h3>
                   {addr.isDefaultShipping && (
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">
-                      Default
-                    </span>
+                    <Pill tone="teal">Default</Pill>
                   )}
                 </div>
                 <dl className="mt-4 space-y-2 text-sm text-gray-600">

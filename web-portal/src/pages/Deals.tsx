@@ -9,6 +9,7 @@ import { Product } from '../types';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import AddToCartButton from '../components/AddToCartButton';
 import ProductDetailModal from '../components/ProductDetailModal';
+import { CARD, Spinner } from '../components/ui';
 
 const CACHE_KEY_PREFIX = 'user_deals_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -159,78 +160,80 @@ const Deals: React.FC = () => {
       <Navbar />
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {selectedCompany && (
-          <div className="bg-gradient-to-r from-teal-700 to-teal-800 text-white p-6 md:p-8 rounded-lg shadow-lg mb-8 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 text-center md:text-left">
-            {selectedCompany.logoUrl && (
-              <img src={selectedCompany.logoUrl} alt={`${selectedCompany.name} Logo`} className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-full bg-white p-2 shadow-md" />
+        <div className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 shadow-sm">
+          <div className="flex items-center gap-4 p-6 text-white md:p-8">
+            {selectedCompany?.logoUrl && (
+              <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-16 w-16 shrink-0 rounded-full bg-white/95 object-contain p-1.5 ring-1 ring-white/30 md:h-20 md:w-20" />
             )}
             <div>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-2 leading-tight">Deals from {selectedCompany.name}</h2>
-              <p className="text-lg opacity-90">Discover exclusive discounts and special offers tailored just for you!</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-teal-200">Deals</p>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{selectedCompany ? `Deals from ${selectedCompany.name}` : 'Deals'}</h1>
+              <p className="mt-1 text-sm text-teal-50/90">Current discounts and bulk pricing on your catalog.</p>
             </div>
+          </div>
+        </div>
+
+        {companies.length > 0 && (
+          <div className="mb-6 flex items-center justify-end gap-2">
+            {companies.length > 1 ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                  className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                >
+                  <span className="flex items-center">
+                    {selectedCompany?.logoUrl && (
+                      <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="mr-2 h-6 w-6 rounded-full object-cover" />
+                    )}
+                    <span className="font-medium">{selectedCompany?.name || 'Select company'}</span>
+                  </span>
+                  <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                </button>
+                {isCompanyDropdownOpen && (
+                  <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md border border-gray-200 bg-white shadow-lg">
+                    <div className="py-1" role="menu" aria-orientation="vertical">
+                      {companies.map((company) => (
+                        <button
+                          key={company.id}
+                          onClick={() => {
+                            setCompanyIdFilter(company.id);
+                            setIsCompanyDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                          role="menuitem"
+                        >
+                          {company.logoUrl && (
+                            <img src={company.logoUrl} alt={company.name} className="mr-3 h-6 w-6 rounded-full object-cover" />
+                          )}
+                          {company.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+                {companies[0].logoUrl && (
+                  <img src={companies[0].logoUrl} alt={companies[0].name} className="h-6 w-6 rounded-full object-cover" />
+                )}
+                <span className="font-semibold">{companies[0].name}</span>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Exclusive Deals</h1>
-          {companies.length > 1 ? (
-            <div className="relative w-full md:w-1/3">
-              <button
-                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-              >
-                <div className="flex items-center">
-                  {selectedCompany?.logoUrl && (
-                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                  )}
-                  <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
-                </div>
-                <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
-              </button>
-              {isCompanyDropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                    {companies.map((company) => (
-                      <button
-                        key={company.id}
-                        onClick={() => {
-                          setCompanyIdFilter(company.id);
-                          setIsCompanyDropdownOpen(false);
-                        }}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                        role="menuitem"
-                      >
-                        {company.logoUrl && (
-                          <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                        )}
-                        {company.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : companies.length === 1 && (
-            <div className="flex items-center">
-              {companies[0].logoUrl && (
-                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-3 rounded-full" />
-              )}
-              <span className="text-lg font-semibold text-gray-800">{companies[0].name}</span>
-            </div>
-          )}
-        </div>
-
         {loading ? (
-          <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full mx-auto my-12"></div>
+          <Spinner className="h-8 w-8 border-4 mx-auto my-12" />
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
                 onClick={() => openModal(product)}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
+                className="group cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-sm"
               >
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
+                <div className="flex h-48 items-center justify-center bg-gray-50">
                   <img
                     src={product.images?.[0] || 'https://via.placeholder.com/300x200'}
                     alt={product.name}
@@ -239,7 +242,7 @@ const Deals: React.FC = () => {
                   />
                 </div>
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-800 truncate">{product.name}</h2>
+                  <h2 className="truncate text-base font-semibold text-gray-900">{product.name}</h2>
                   <p className="text-gray-500 text-sm">{product.category}</p>
                   <div className="mt-4 flex justify-between items-center">
                     <div>
@@ -280,7 +283,9 @@ const Deals: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-600">No exclusive deals available at the moment.</p>
+          <div className={`${CARD} p-10 text-center`}>
+            <p className="text-sm text-gray-500">No deals right now. Check back later, or browse the full catalog.</p>
+          </div>
         )}
       </main>
       <Footer />

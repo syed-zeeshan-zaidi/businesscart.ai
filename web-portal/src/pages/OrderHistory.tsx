@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY, Pill, STATUS_TONE, Spinner } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { Order as OrderType, Account as AccountType, CompanyData } from '../types';
 import { getOrders, getAccount, deleteOrder, clearCart, addItemToCart } from '../api';
@@ -165,69 +166,62 @@ const OrderHistory: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Order History</h1>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleRefresh}
-              className="bg-teal-700 text-white px-4 py-2 rounded-md hover:bg-teal-800 transition"
-            >
-              Refresh
-            </button>
-            {availableCompanies.length > 0 && (
-              <div className="relative inline-block text-left w-full md:w-auto">
-                <button
-                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                  className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-                >
-                  <div className="flex items-center">
-                    {selectedCompany?.logoUrl && (
-                      <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                    )}
-                    <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
+        <PageHeader title="Order history" subtitle="Past orders, tracking, refunds, and one-click reorder.">
+          <button onClick={() => navigate('/catalog')} className={BTN_PRIMARY}>Browse catalog</button>
+          <button onClick={handleRefresh} className={BTN_SECONDARY}>Refresh</button>
+          {availableCompanies.length > 0 && (
+            <div className="relative inline-block text-left">
+              <button
+                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                className="inline-flex items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              >
+                <span className="flex items-center">
+                  {selectedCompany?.logoUrl && (
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="mr-2 h-6 w-6 rounded-full object-cover" />
+                  )}
+                  <span className="font-medium">{selectedCompany?.name || 'Select company'}</span>
+                </span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+              </button>
+              {isCompanyDropdownOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-60 origin-top-right rounded-md border border-gray-200 bg-white shadow-lg">
+                  <div className="py-1" role="menu" aria-orientation="vertical">
+                    {availableCompanies.map((company) => (
+                      <button
+                        key={company.id}
+                        onClick={() => {
+                          setSelectedCompanyId(company.id);
+                          setIsCompanyDropdownOpen(false);
+                        }}
+                        className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        role="menuitem"
+                      >
+                        {company.logoUrl && (
+                          <img src={company.logoUrl} alt={company.name} className="mr-3 h-6 w-6 rounded-full object-cover" />
+                        )}
+                        <span>{company.name} <span className="font-mono text-xs text-gray-400">{company.companyCode}</span></span>
+                      </button>
+                    ))}
                   </div>
-                  <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
-                </button>
-                {isCompanyDropdownOpen && (
-                  <div className="origin-top-right absolute right-0 mt-1 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                    <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                      {availableCompanies.map((company) => (
-                        <button
-                          key={company.id}
-                          onClick={() => {
-                            setSelectedCompanyId(company.id);
-                            setIsCompanyDropdownOpen(false);
-                          }}
-                          className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                          role="menuitem"
-                        >
-                          {company.logoUrl && (
-                            <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                          )}
-                          {company.name} ({company.companyCode})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+                </div>
+              )}
+            </div>
+          )}
+        </PageHeader>
 
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
+            <Spinner className="h-8 w-8 border-4" />
           </div>
         ) : filteredOrders && filteredOrders.length > 0 ? (
-          <div className="shadow-lg rounded-lg overflow-hidden">
-            <div className="divide-y divide-gray-200">
+          <div className="mt-6">
+            <div className="space-y-4">
               {filteredOrders.map((order) => {
                 const refunded = (order.refunds || []).reduce((s, r) => s + r.amount, 0);
                 const netTotal = Math.max(0, order.grandTotal - refunded);
                 const isPartiallyRefunded = refunded > 0 && order.status !== 'refunded';
                 return (
-                <div key={order.id} className="bg-white shadow rounded-lg p-6 mb-4">
+                <div key={order.id} className={`${CARD} p-6`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                     <div>
                       <p className="text-lg font-semibold text-gray-800">Order ID: {order.id}</p>
@@ -237,9 +231,7 @@ const OrderHistory: React.FC = () => {
                     <div className="mt-2 sm:mt-0 text-left sm:text-right">
                       <div className="flex items-center justify-end gap-2 flex-wrap">
                         <span>Status:</span>
-                        <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium ${order.status === 'completed' ? 'bg-green-100 text-green-800' : order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : order.status === 'refunded' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {order.status}
-                        </span>
+                        <Pill tone={STATUS_TONE[order.status] || 'gray'}>{order.status}</Pill>
                         {isPartiallyRefunded && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
                             Partially refunded
@@ -320,19 +312,14 @@ const OrderHistory: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              {selectedCompanyId ? `No orders found for ${selectedCompany?.name}` : 'You have no orders.'}
+          <div className={`${CARD} p-10 text-center mt-6`}>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {selectedCompanyId ? `No orders from ${selectedCompany?.name}` : 'No orders yet'}
             </h2>
-            <p className="text-gray-600 mb-4">
-              {selectedCompanyId ? 'There are no past orders for this company.' : 'Start shopping now to see your order history here!'}
+            <p className="mt-1 text-sm text-gray-500">
+              {selectedCompanyId ? 'There are no past orders for this company.' : 'Your past orders will show up here.'}
             </p>
-            <button
-              onClick={() => navigate('/catalog')}
-              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
-            >
-              Go to Catalog
-            </button>
+            <button onClick={() => navigate('/catalog')} className={`${BTN_PRIMARY} mt-4`}>Browse catalog</button>
           </div>
         )}
       </main>
