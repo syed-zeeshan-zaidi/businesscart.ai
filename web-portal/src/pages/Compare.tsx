@@ -182,6 +182,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Line Sheets / Printable Wholesale Catalog</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, print/PDF, curate by category or product</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-40/mo)</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin needed</td>
+                  <td className="px-6 py-4 text-sm text-red-600 font-bold">Not available</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Shopping Channel Feeds</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, Google, Facebook, Bing, Pinterest, TikTok</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-100/mo)</td>

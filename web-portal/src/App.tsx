@@ -18,6 +18,7 @@ const OrderForm = lazy(() => import('./components/OrderForm'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
 const Catalog = lazy(() => import('./pages/Catalog'));
+const LineSheet = lazy(() => import('./pages/LineSheet'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
@@ -97,6 +98,7 @@ const AppContent = () => {
     '/products',
     '/orders',
     '/quotes',
+    '/line-sheet',
     '/quote-details/:quoteId',
     '/users',
     '/codes',
@@ -160,6 +162,10 @@ const AppContent = () => {
               <Route
                 path="/catalog"
                 element={isAuthenticated ? <Catalog /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/line-sheet"
+                element={isAuthenticated ? <LineSheet /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/deals"
