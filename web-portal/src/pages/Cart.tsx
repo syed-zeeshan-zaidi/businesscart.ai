@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { Fragment, useEffect, useState, useCallback } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -23,6 +24,9 @@ const Cart: React.FC = () => {
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
   const [qtyDraft, setQtyDraft] = useState<Record<string, number>>({});
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [pendingLoad, setPendingLoad] = useState<string | null>(null);
 
   const invalidateCache = (companyId: string) => {
     localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
@@ -276,15 +280,17 @@ const Cart: React.FC = () => {
     }
   };
 
-  const handleSaveList = async () => {
-    if (!selectedCompanyId || !cart || cart.items.length === 0) return;
-    const name = window.prompt('Name this saved cart (e.g. "Weekly reorder"):')?.trim();
-    if (!name) return;
+  const openSaveModal = () => { setSaveName(''); setSaveModalOpen(true); };
+
+  const confirmSave = async () => {
+    const name = saveName.trim();
+    if (!selectedCompanyId || !cart || cart.items.length === 0 || !name) return;
     setLoading(true);
     try {
       const updated = await saveCartList(selectedCompanyId, name);
       setCart(updated);
       invalidateCache(selectedCompanyId);
+      setSaveModalOpen(false);
       toast.success(`Saved as "${name}"`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to save cart');
@@ -307,11 +313,17 @@ const Cart: React.FC = () => {
     }
   };
 
-  const handleLoadList = async (name: string) => {
+  const requestLoad = (name: string) => {
+    if (!cart) return;
+    if (cart.items.length > 0) setPendingLoad(name);
+    else doLoadList(name);
+  };
+
+  const doLoadList = async (name: string) => {
+    setPendingLoad(null);
     if (!selectedCompanyId || !cart) return;
     const list = cart.savedLists?.find((l) => l.name === name);
     if (!list) return;
-    if (cart.items.length > 0 && !window.confirm(`Load "${name}"? This replaces your current cart items.`)) return;
     setLoading(true);
     try {
       // Re-resolve current prices locally, then replace the main cart in one call.
@@ -585,7 +597,7 @@ const Cart: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Saved carts</p>
                     <button
-                      onClick={handleSaveList}
+                      onClick={openSaveModal}
                       disabled={loading || !cart || cart.items.length === 0}
                       className="text-xs font-semibold text-teal-700 hover:text-teal-900 disabled:cursor-not-allowed disabled:opacity-40"
                     >
@@ -598,7 +610,7 @@ const Cart: React.FC = () => {
                         <li key={list.name} className="flex items-center justify-between gap-2">
                           <span className="min-w-0 truncate text-sm text-gray-700">{list.name} <span className="text-gray-400">({list.items.length})</span></span>
                           <span className="flex shrink-0 items-center gap-2">
-                            <button onClick={() => handleLoadList(list.name)} disabled={loading} className="text-xs font-medium text-teal-700 hover:text-teal-900 disabled:opacity-40">Load</button>
+                            <button onClick={() => requestLoad(list.name)} disabled={loading} className="text-xs font-medium text-teal-700 hover:text-teal-900 disabled:opacity-40">Load</button>
                             <button onClick={() => handleDeleteList(list.name)} disabled={loading} className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-40">Delete</button>
                           </span>
                         </li>
@@ -613,6 +625,61 @@ const Cart: React.FC = () => {
           )
         )}
       </main>
+
+      {/* Save cart modal */}
+      <Transition appear show={saveModalOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setSaveModalOpen(false)}>
+          <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+            <div className="fixed inset-0 bg-black/25" />
+          </Transition.Child>
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                <Dialog.Panel className={`${CARD} w-full max-w-sm p-5`}>
+                  <Dialog.Title className="text-base font-semibold text-gray-900">Save cart</Dialog.Title>
+                  <p className="mt-1 text-sm text-gray-500">Name it so you can reload it later (max 3 per company).</p>
+                  <input
+                    autoFocus
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') confirmSave(); }}
+                    placeholder='e.g. "Weekly reorder"'
+                    className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:ring-teal-500"
+                  />
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button onClick={() => setSaveModalOpen(false)} className={BTN_SECONDARY}>Cancel</button>
+                    <button onClick={confirmSave} disabled={!saveName.trim() || loading} className={`${BTN_PRIMARY} disabled:opacity-50`}>Save</button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Load-confirm modal */}
+      <Transition appear show={pendingLoad !== null} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setPendingLoad(null)}>
+          <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+            <div className="fixed inset-0 bg-black/25" />
+          </Transition.Child>
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                <Dialog.Panel className={`${CARD} w-full max-w-sm p-5`}>
+                  <Dialog.Title className="text-base font-semibold text-gray-900">Load saved cart</Dialog.Title>
+                  <p className="mt-1 text-sm text-gray-600">Load &quot;{pendingLoad}&quot;? This replaces the items currently in your cart.</p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button onClick={() => setPendingLoad(null)} className={BTN_SECONDARY}>Cancel</button>
+                    <button onClick={() => pendingLoad && doLoadList(pendingLoad)} className={BTN_PRIMARY}>Load</button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
       <Footer />
     </div>
   );
