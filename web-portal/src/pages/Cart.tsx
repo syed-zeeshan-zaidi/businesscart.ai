@@ -22,6 +22,7 @@ const Cart: React.FC = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
+  const [qtyDraft, setQtyDraft] = useState<Record<string, number>>({});
 
   const invalidateCache = (companyId: string) => {
     localStorage.removeItem(`${CACHE_KEY_PREFIX}${companyId}`);
@@ -138,8 +139,10 @@ const Cart: React.FC = () => {
     return { price: effectivePrice, discountedPrice: discounted };
   };
 
-  const handleUpdateQuantity = async (itemId: string, quantity: number) => {
-    if (!selectedCompanyId || quantity < 1) return;
+  // Commits a single quantity change to the backend (one request). Returns success
+  // so the caller can clear the local draft only when the update actually landed.
+  const handleUpdateQuantity = async (itemId: string, quantity: number): Promise<boolean> => {
+    if (!selectedCompanyId || quantity < 1) return false;
 
     // Resolve tier price for the new quantity
     const item = cart?.items.find(i => i.id === itemId);
@@ -154,13 +157,27 @@ const Cart: React.FC = () => {
     try {
       const updatedCart = await updateCartItem(itemId, { entity }, selectedCompanyId);
       setCart(updatedCart);
-      toast.success('Item quantity updated!');
       invalidateCache(selectedCompanyId);
+      return true;
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update item quantity');
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  // Local-only quantity edit (no network). +/- and typing both feed this draft.
+  const setDraft = (itemId: string, value: number) => {
+    setQtyDraft((prev) => ({ ...prev, [itemId]: Math.max(1, isNaN(value) ? 1 : value) }));
+  };
+
+  // Commit the draft for one line, then clear it only on success.
+  const commitQty = async (itemId: string) => {
+    const draft = qtyDraft[itemId];
+    if (draft === undefined) return;
+    const ok = await handleUpdateQuantity(itemId, draft);
+    if (ok) setQtyDraft((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
   };
 
   const handleRemoveItem = async (itemId: string) => {
@@ -367,6 +384,8 @@ const Cart: React.FC = () => {
                     const discounted = !!item.discountedPrice && item.discountedPrice > 0 && item.discountedPrice < item.price;
                     const unit = discounted ? (item.discountedPrice as number) : item.price;
                     const nudge = nextTierNudge(item);
+                    const draftQty = qtyDraft[item.id] ?? item.quantity;
+                    const dirty = draftQty !== item.quantity;
                     return (
                       <li key={item.id} className="p-4 sm:p-6">
                         <div className="flex items-start gap-3 sm:gap-4">
@@ -393,19 +412,27 @@ const Cart: React.FC = () => {
                                 Add {nudge.need} more to pay <span className="tabular-nums">${nudge.unit.toFixed(2)}</span>/unit
                               </p>
                             ) : null}
-                            <div className="mt-3 flex items-center justify-between">
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                               <div className="flex items-center">
                                 <button
-                                  onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                  onClick={() => setDraft(item.id, draftQty - 1)}
                                   className="h-9 w-9 rounded-l-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                                  disabled={item.quantity <= 1 || loading}
+                                  disabled={draftQty <= 1 || loading}
                                   aria-label="Decrease quantity"
                                 >
                                   -
                                 </button>
-                                <span className="border-y border-gray-300 px-4 py-1.5 text-center text-sm tabular-nums">{item.quantity}</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={draftQty}
+                                  onChange={(e) => setDraft(item.id, parseInt(e.target.value, 10))}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') commitQty(item.id); }}
+                                  className="h-9 w-14 border-y border-gray-300 text-center text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                  aria-label="Quantity"
+                                />
                                 <button
-                                  onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                  onClick={() => setDraft(item.id, draftQty + 1)}
                                   className="h-9 w-9 rounded-r-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                                   disabled={loading}
                                   aria-label="Increase quantity"
@@ -413,9 +440,18 @@ const Cart: React.FC = () => {
                                   +
                                 </button>
                               </div>
+                              {dirty ? (
+                                <button
+                                  onClick={() => commitQty(item.id)}
+                                  className="rounded-md bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                                  disabled={loading}
+                                >
+                                  Update
+                                </button>
+                              ) : null}
                               <button
                                 onClick={() => handleRemoveItem(item.id)}
-                                className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                                className="ml-auto text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
                                 disabled={loading}
                               >
                                 Remove
