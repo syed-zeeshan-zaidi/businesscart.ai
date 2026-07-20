@@ -1767,6 +1767,62 @@ class BackendFlowTest:
             ok("Empty cart cannot be saved as a list")
         self.run_test("Saved cart: empty cart rejected", test_save_empty_rejected)
 
+    def phase5f_coverage_backfill(self):
+        """Backfill tests for previously-untested pushed backend changes:
+        money rounding (0046970/3ef83f9), product cost (2839320),
+        resale certificate (172c568), orders return [] not null (e02b74b)."""
+        phase("PHASE 5f: Coverage backfill (rounding, cost, resale cert, orders type)")
+        c1_id = self.ids["company1"]
+        product_a = self.product_ids["company1"][0]
+
+        def test_money_rounding():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard", extra_fields={
+                "creditLimit": 500, "minOrderAmountLimit": 20, "maxOrderAmountLimit": 1000,
+                "taxableGoods": True, "shippingRate": 15, "taxRate": 8.25,
+            })
+            assert_status(resp, 200, "Quote for rounding check")
+            q = resp.json()
+            for f in ("subtotal", "taxAmount", "shippingCost", "discountAmount", "grandTotal"):
+                v = q.get(f, 0) or 0
+                assert abs(v - round(v, 2)) < 1e-6, f"{f}={v} is not rounded to cents"
+            ok("Quote money fields all cent-rounded (no sub-cent)")
+        self.run_test("Money totals rounded to cents (regression)", test_money_rounding)
+
+        def test_orders_is_list():
+            self.use_token("customer")
+            resp = self.api.get("/checkout/orders")
+            assert_status(resp, 200, "Get orders")
+            body = resp.json()
+            assert isinstance(body, list), f"GET /orders must return a list, got {type(body).__name__}"
+            ok(f"GET /checkout/orders returns a list ({len(body)} orders)")
+        self.run_test("Orders endpoint returns list not null", test_orders_is_list)
+
+        def test_cost_field():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{pid}", {"cost": 4.25})
+            assert_status(resp, 200, "Set product cost")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "cost", 4.25, "cost round-trip")
+            ok("Product cost field persists")
+            self.api.put(f"/products/{pid}", {"cost": 0})  # reset
+        self.run_test("Product cost field round-trip", test_cost_field)
+
+        def test_resale_cert():
+            cust_id = self.ids["customer"]
+            self.use_token("company1")
+            cert = {"state": "IL", "number": "TESTRESALE-9911", "type": "resale",
+                    "issueDate": "2026-01-01", "expiryDate": "2029-01-01"}
+            resp = self.api.patch(f"/customers/{cust_id}/configuration", {"resaleCertificate": cert})
+            assert_status(resp, 200, "Set resale certificate")
+            self.use_token("admin")
+            acct = self.api.get(f"/accounts/{cust_id}").json()
+            assert_contains(json.dumps(acct), "TESTRESALE-9911", "Resale cert persists on account")
+            ok("Resale certificate persists + reads back")
+        self.run_test("Resale certificate round-trip", test_resale_cert)
+
     def phase6_enforcement(self):
         phase("PHASE 6: Enforcement Tests")
 
@@ -3450,6 +3506,7 @@ class BackendFlowTest:
             self.phase5c_groups()
             self.phase5d_order_updates()
             self.phase5e_saved_carts()
+            self.phase5f_coverage_backfill()
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()
