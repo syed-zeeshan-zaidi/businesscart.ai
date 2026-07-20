@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, Account, Product } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts } from '../api';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY, Spinner } from '../components/ui';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
 
@@ -264,25 +265,24 @@ const Cart: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Your Shopping Cart</h1>
+        <PageHeader title="Shopping cart" subtitle="Review your items, then request a quote or check out.">
           {availableCompanies.length > 0 && (
-            <div className="relative inline-block text-left w-full md:w-auto">
+            <div className="relative inline-block text-left">
               <button
                 onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                className="inline-flex items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
               >
-                <div className="flex items-center">
+                <span className="flex items-center">
                   {selectedCompany?.logoUrl && (
-                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="mr-2 h-6 w-6 rounded-full object-cover" />
                   )}
-                  <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
-                </div>
-                <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
+                  <span className="font-medium">{selectedCompany?.name || 'Select company'}</span>
+                </span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
               </button>
               {isCompanyDropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-1 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                <div className="absolute right-0 z-10 mt-2 w-60 origin-top-right rounded-md border border-gray-200 bg-white shadow-lg">
+                  <div className="py-1" role="menu" aria-orientation="vertical">
                     {availableCompanies.map((company) => (
                       <button
                         key={company.id}
@@ -290,13 +290,13 @@ const Cart: React.FC = () => {
                           setSelectedCompanyId(company.id);
                           setIsCompanyDropdownOpen(false);
                         }}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                         role="menuitem"
                       >
                         {company.logoUrl && (
-                          <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
+                          <img src={company.logoUrl} alt={company.name} className="mr-3 h-6 w-6 rounded-full object-cover" />
                         )}
-                        {company.name} ({company.companyCode})
+                        <span>{company.name} <span className="font-mono text-xs text-gray-400">{company.companyCode}</span></span>
                       </button>
                     ))}
                   </div>
@@ -304,45 +304,40 @@ const Cart: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+        </PageHeader>
 
         {loading && (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full"></div>
+            <Spinner className="h-8 w-8 border-4" />
           </div>
         )}
 
         {!loading && (!cart || !cart.items || cart.items.length === 0) ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your cart is empty</h2>
-            <p className="text-gray-600 mb-4">
-              {selectedCompanyId 
-                ? `No items in cart for ${selectedCompany?.name || 'selected company'}`
-                : 'Select a company to view your cart'
+          <div className={`${CARD} mt-6 p-10 text-center`}>
+            <h2 className="text-lg font-semibold text-gray-900">Your cart is empty</h2>
+            <p className="mt-1 mb-4 text-sm text-gray-500">
+              {selectedCompanyId
+                ? `No items in your cart for ${selectedCompany?.name || 'this company'}.`
+                : 'Select a company to view your cart.'
               }
             </p>
-            <button
-              onClick={() => navigate('/catalog')}
-              className="bg-teal-700 text-white px-6 py-2 rounded-md hover:bg-teal-800 transition"
-            >
-              Continue Shopping
-            </button>
+            <button onClick={() => navigate('/catalog')} className={BTN_PRIMARY}>Continue shopping</button>
           </div>
         ) : (
           cart && cart.items && cart.items.length > 0 && (
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800">
+            <div className={`${CARD} mt-6 overflow-hidden`}>
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="text-base font-semibold text-gray-900">
                   Cart for {selectedCompany?.name || 'selected company'}
                 </h2>
-                <p className="text-sm text-gray-600">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-gray-500">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
               </div>
 
               <ul className="divide-y divide-gray-200">
                 {cart.items.map((item) => (
                   <li key={item.id} className="p-4 sm:p-6">
                     <div className="flex items-center space-x-4">
-                      <div className="w-24 h-24 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden">
+                      <div className="w-24 h-24 bg-gray-50 rounded-md flex-shrink-0 overflow-hidden border border-gray-100">
                         <img
                           src={item.image || 'https://via.placeholder.com/96x96'}
                           alt={item.name}
@@ -352,7 +347,7 @@ const Cart: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:justify-between">
                           <h3 className="text-lg font-semibold text-gray-800 truncate pr-2">{item.name}</h3>
-                          <p className="text-lg font-semibold text-gray-800 sm:text-right">
+                          <p className="text-lg font-semibold text-gray-900 tabular-nums sm:text-right">
                             ${item.lineItemTotal.toFixed(2)}
                           </p>
                         </div>
@@ -388,34 +383,35 @@ const Cart: React.FC = () => {
                 ))}
               </ul>
 
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                  <div className="text-lg font-semibold text-gray-800 text-center sm:text-left">
-                    Total: ${cart.totalPrice?.toFixed(2) || '0.00'}
+                  <div className="text-center sm:text-left">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Total</span>
+                    <p className="text-2xl font-extrabold tracking-tight text-gray-900 tabular-nums">${cart.totalPrice?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:space-x-3 w-full sm:w-auto gap-2">
                     <button
                       onClick={handleClearCart}
-                      className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
                       disabled={loading}
                     >
-                      Clear Cart
+                      Clear cart
                     </button>
                     {selectedCompany?.quotesAllowed && (
                       <button
                         onClick={handleRequestQuote}
-                        className="w-full sm:w-auto px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900 transition disabled:opacity-50"
+                        className={`${BTN_SECONDARY} w-full sm:w-auto disabled:opacity-50`}
                         disabled={loading}
                       >
-                        {loading ? 'Processing...' : 'Request a Quote'}
+                        {loading ? 'Processing...' : 'Request a quote'}
                       </button>
                     )}
                     <button
                       onClick={handleCheckout}
-                      className="w-full sm:w-auto px-6 py-2 bg-teal-700 text-white rounded-md hover:bg-teal-800 transition disabled:opacity-50"
+                      className={`${BTN_PRIMARY} w-full sm:w-auto disabled:opacity-50`}
                       disabled={loading}
                     >
-                      {loading ? 'Processing...' : 'Proceed to Checkout'}
+                      {loading ? 'Processing...' : 'Proceed to checkout'}
                     </button>
                   </div>
                 </div>

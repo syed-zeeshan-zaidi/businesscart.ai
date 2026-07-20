@@ -10,6 +10,7 @@ import { MagnifyingGlassIcon, ChevronDownIcon } from '@heroicons/react/24/outlin
 import AddToCartButton from '../components/AddToCartButton';
 import FilterSidebar from '../components/FilterSidebar';
 import ProductDetailModal from '../components/ProductDetailModal';
+import { PageHeader, CARD, BTN_SECONDARY, Spinner } from '../components/ui';
 
 const CACHE_KEY_PREFIX = 'user_products_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
@@ -206,9 +207,52 @@ const Catalog: React.FC = () => {
       />
       <ProductDetailModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} product={selectedProduct} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Product Catalog</h1>
+        <PageHeader title="Product catalog" subtitle="Browse and add products to your cart.">
+          {companies.length > 1 ? (
+            <div className="relative">
+              <button
+                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+              >
+                <span className="flex items-center">
+                  {selectedCompany?.logoUrl && (
+                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="mr-2 h-6 w-6 rounded-full object-cover" />
+                  )}
+                  <span className="font-medium">{selectedCompany?.name || 'Select company'}</span>
+                </span>
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+              </button>
+              {isCompanyDropdownOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md border border-gray-200 bg-white shadow-lg">
+                  <div className="py-1" role="menu" aria-orientation="vertical">
+                    {companies.map((company) => (
+                      <button
+                        key={company.id}
+                        onClick={() => { setCompanyIdFilter(company.id); setIsCompanyDropdownOpen(false); }}
+                        className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        role="menuitem"
+                      >
+                        {company.logoUrl && (
+                          <img src={company.logoUrl} alt={company.name} className="mr-3 h-6 w-6 rounded-full object-cover" />
+                        )}
+                        {company.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : companies.length === 1 && (
+            <div className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+              {companies[0].logoUrl && (
+                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-6 w-6 rounded-full object-cover" />
+              )}
+              <span className="font-semibold">{companies[0].name}</span>
+            </div>
+          )}
+        </PageHeader>
 
-        <div className="mb-10 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
+        <div className="mt-6 mb-10 flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
           <div className="relative w-full md:w-1/6">
             <select
               id="category-filter"
@@ -225,9 +269,7 @@ const Catalog: React.FC = () => {
             </select>
           </div>
 
-          <button onClick={() => setIsFilterOpen(true)} className="bg-gray-200 p-2 rounded-md border border-gray-300">
-            Filters
-          </button>
+          <button onClick={() => setIsFilterOpen(true)} className={BTN_SECONDARY}>Filters</button>
 
           <div className="relative flex-grow">
             <input
@@ -240,51 +282,6 @@ const Catalog: React.FC = () => {
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           </div>
 
-          {companies.length > 1 ? (
-            <div className="relative w-full md:w-1/3">
-              <button
-                onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                className="inline-flex items-center justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-              >
-                <div className="flex items-center">
-                  {selectedCompany?.logoUrl && (
-                    <img src={selectedCompany.logoUrl} alt={selectedCompany.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                  )}
-                  <span className="font-bold">{selectedCompany?.name || 'Select Company'}</span>
-                </div>
-                <ChevronDownIcon className="ml-2 -mr-1 h-5 w-5" />
-              </button>
-              {isCompanyDropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-full rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                  <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                    {companies.map((company) => (
-                      <button
-                        key={company.id}
-                        onClick={() => {
-                          setCompanyIdFilter(company.id);
-                          setIsCompanyDropdownOpen(false);
-                        }}
-                        className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                        role="menuitem"
-                      >
-                        {company.logoUrl && (
-                          <img src={company.logoUrl} alt={company.name} className="h-8 max-w-40 mr-3 rounded-full" />
-                        )}
-                        {company.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : companies.length === 1 && (
-            <div className="flex items-center">
-              {companies[0].logoUrl && (
-                <img src={companies[0].logoUrl} alt={companies[0].name} className="h-8 w-8 mr-3 rounded-full" />
-              )}
-              <span className="text-lg font-semibold text-gray-800">{companies[0].name}</span>
-            </div>
-          )}
         </div>
 
         {Object.values(attributeFilters).some(v => v) && (
@@ -310,16 +307,16 @@ const Catalog: React.FC = () => {
         )}
 
         {loading ? (
-          <div className="animate-spin h-8 w-8 border-4 border-teal-700 border-t-transparent rounded-full mx-auto my-12"></div>
+          <Spinner className="h-8 w-8 border-4 mx-auto my-12" />
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product._id}
                 onClick={() => openModal(product)}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
+                className="group cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-sm"
               >
-                <div className="h-48 bg-gray-200 flex items-center justify-center">
+                <div className="flex h-48 items-center justify-center bg-gray-50">
                   <img
                     src={product.images?.[0] || 'https://via.placeholder.com/300x200'}
                     alt={product.name}
@@ -328,7 +325,7 @@ const Catalog: React.FC = () => {
                   />
                 </div>
                 <div className="p-4">
-                  <h2 className="text-xl font-semibold text-gray-800 truncate">{product.name}</h2>
+                  <h2 className="truncate text-base font-semibold text-gray-900">{product.name}</h2>
                   <p className="text-gray-500 text-sm">{product.category}</p>
                   <div className="mt-4 flex justify-between items-center">
                     <div>
@@ -345,7 +342,7 @@ const Catalog: React.FC = () => {
                         <p className="text-teal-700 font-bold text-lg">${product.price.toFixed(2)}</p>
                       )}
                       {product.priceTiers && product.priceTiers.length > 0 && (
-                        <p className="text-xs text-teal-600 font-medium">Bulk pricing available</p>
+                        <p className="text-xs font-medium text-teal-700">Bulk pricing available</p>
                       )}
                     </div>
                     <AddToCartButton product={product} quantity={1} />
@@ -355,7 +352,9 @@ const Catalog: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-600">No products available in the catalog.</p>
+          <div className={`${CARD} p-10 text-center`}>
+            <p className="text-sm text-gray-500">No products in this catalog yet.</p>
+          </div>
         )}
       </main>
       <Footer />
