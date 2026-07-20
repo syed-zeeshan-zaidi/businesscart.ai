@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { PageHeader, CARD, BTN_PRIMARY } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import { clampQty, qtyRuleLabel } from '../qtyRules';
 import { Product } from '../types';
 import {
   PlusIcon, TrashIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, MagnifyingGlassIcon,
@@ -272,7 +273,7 @@ const QuickOrder: React.FC = () => {
       try {
         await addItemToCart({
           entity: {
-            productId: p._id, quantity: r.qty, sellerId: p.sellerID, partnerId: p.partnerId,
+            productId: p._id, quantity: clampQty(p, r.qty), sellerId: p.sellerID, partnerId: p.partnerId,
             name: p.name, price: p.price, discountedPrice: p.discountedPrice, image: p.images?.[0], dealPrice: p.dealPrice,
           },
         });
@@ -430,6 +431,7 @@ const QuickOrder: React.FC = () => {
                               <td className="px-3 py-2">
                                 <p className="font-medium text-gray-900">{p.name}</p>
                                 {sellerNames[p.sellerID] && <p className="text-xs text-gray-400">{sellerNames[p.sellerID]}</p>}
+                                {qtyRuleLabel(p) && <p className="text-xs text-teal-700">{qtyRuleLabel(p)}</p>}
                               </td>
                               <td className="px-3 py-2 font-mono text-xs text-gray-500">{p.sku || '-'}</td>
                               <td className="px-3 py-2 text-right whitespace-nowrap text-gray-900">{currency(priceOf(p))}</td>

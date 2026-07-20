@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Product } from '../types';
 import { addItemToCart } from '../api';
+import { clampQty } from '../qtyRules';
 import { AxiosError } from 'axios';
 import { PlusIcon, CheckIcon } from '@heroicons/react/24/solid';
 
@@ -35,7 +36,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ product, quantity, va
       await addItemToCart({
         entity: {
           productId: product._id,
-          quantity,
+          quantity: clampQty(product, quantity),
           sellerId: product.sellerID,
           partnerId: product.partnerId,
           name: product.name,

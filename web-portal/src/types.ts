@@ -131,6 +131,9 @@ export interface Product {
   active?: boolean;
   featured?: boolean;
   priceTiers?: PriceTier[];
+  minOrderQty?: number;
+  orderIncrement?: number;
+  maxOrderQty?: number;
   groupIDs?: string[];
   attributes?: Attribute[];
   createdAt: Date;

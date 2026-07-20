@@ -609,6 +609,21 @@ class BackendFlowTest:
 
         self.run_test("Category hierarchy validation", test_category_hierarchy)
 
+        # Per-product quantity rules (Roadmap #39): min / increment (case pack) / max round-trip.
+        def test_quantity_rules():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{pid}", {"minOrderQty": 10, "orderIncrement": 5, "maxOrderQty": 100})
+            assert_status(resp, 200, "Set quantity rules on product")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "minOrderQty", 10, "minOrderQty round-trip")
+            assert_field(got, "orderIncrement", 5, "orderIncrement round-trip")
+            assert_field(got, "maxOrderQty", 100, "maxOrderQty round-trip")
+            ok("Per-product quantity rules persist (min/increment/max)")
+            # Reset so later cart/quote tests are unaffected.
+            self.api.put(f"/products/{pid}", {"minOrderQty": 0, "orderIncrement": 0, "maxOrderQty": 0})
+        self.run_test("Product quantity rules (min/increment/max) round-trip", test_quantity_rules)
+
     # ── Phase 4: Re-login & JWT verification ─────────────────────
 
     def phase4_jwt_verification(self):
@@ -1696,6 +1711,61 @@ class BackendFlowTest:
         # unpaid balance in phase 6e credit-limit test (GetUnpaidOrdersTotal excludes cancelled).
         self.use_token("admin")
         self.api.put(f"/checkout/orders/{order_id}", {"status": "cancelled"})
+
+    def phase5e_saved_carts(self):
+        phase("PHASE 5e: Saved Carts (Requisition Lists)")
+        c1_id = self.ids["company1"]
+        product_a = self.product_ids["company1"][0]
+
+        def _save_list(name):
+            self.use_token("customer")
+            return self.api.post("/checkout/cart", {"savedListAction": "save", "savedListName": name, "sellerId": c1_id})
+
+        def test_save_appears():
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = _save_list(f"{PREFIX} List A")
+            assert_status(resp, 200, "Save cart as List A")
+            names = [l["name"] for l in (resp.json().get("savedLists") or [])]
+            assert_contains(",".join(names), f"{PREFIX} List A", "List A in savedLists")
+            ok(f"Saved List A; savedLists={names}")
+        self.run_test("Saved cart: save appears in cart", test_save_appears)
+
+        def test_max_three():
+            _save_list(f"{PREFIX} List B")
+            _save_list(f"{PREFIX} List C")
+            resp = _save_list(f"{PREFIX} List D")
+            assert_status(resp, 400, "4th saved list rejected (max 3)")
+            ok("Max 3 saved carts enforced")
+        self.run_test("Saved cart: max 3 enforced", test_max_three)
+
+        def test_load():
+            self.use_token("customer")
+            cart = self.api.get("/checkout/cart", params={"sellerId": c1_id}).json()
+            list_a = next((l for l in (cart.get("savedLists") or []) if l["name"] == f"{PREFIX} List A"), None)
+            assert list_a is not None, "List A must exist before load"
+            self._clear_cart("customer", c1_id)
+            resp = self.api.post("/checkout/cart", {"savedListAction": "load", "sellerId": c1_id, "items": list_a["items"]})
+            assert_status(resp, 200, "Load List A into cart")
+            assert_gt(len(resp.json().get("items") or []), 0, "Loaded cart has items")
+            ok("Loaded List A into main cart")
+        self.run_test("Saved cart: load into main cart", test_load)
+
+        def test_delete():
+            self.use_token("customer")
+            resp = self.api.post("/checkout/cart", {"savedListAction": "delete", "savedListName": f"{PREFIX} List A", "sellerId": c1_id})
+            assert_status(resp, 200, "Delete List A")
+            names = [l["name"] for l in (resp.json().get("savedLists") or [])]
+            assert f"{PREFIX} List A" not in names, "List A still present after delete"
+            ok(f"Deleted List A; remaining={names}")
+        self.run_test("Saved cart: delete", test_delete)
+
+        def test_save_empty_rejected():
+            self._clear_cart("customer", c1_id)
+            resp = _save_list(f"{PREFIX} Empty")
+            assert_status(resp, 400, "Save empty cart rejected")
+            ok("Empty cart cannot be saved as a list")
+        self.run_test("Saved cart: empty cart rejected", test_save_empty_rejected)
 
     def phase6_enforcement(self):
         phase("PHASE 6: Enforcement Tests")
@@ -3379,6 +3449,7 @@ class BackendFlowTest:
             self.phase5b_tiered_pricing()
             self.phase5c_groups()
             self.phase5d_order_updates()
+            self.phase5e_saved_carts()
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()

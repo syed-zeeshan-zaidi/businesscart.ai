@@ -242,7 +242,7 @@ const ProductForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
+    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : (name === 'stock' || name === 'minOrderQty' || name === 'orderIncrement' || name === 'maxOrderQty') ? parseInt(value) || 0 : value;
     const updates: Partial<Product> = { [name]: parsed };
     // Auto-generate slug from name only when CREATING a new product.
     // Slugs are permanent URLs once a product exists: editing the title must
@@ -352,6 +352,9 @@ const ProductForm = () => {
       attributes: product.attributes || [],
       priceTiers: product.priceTiers || [],
       groupIDs: product.groupIDs || [],
+      minOrderQty: product.minOrderQty,
+      orderIncrement: product.orderIncrement,
+      maxOrderQty: product.maxOrderQty,
     });
     setEditingId(product._id);
     setSlugUnlocked(false);
@@ -852,6 +855,26 @@ const ProductForm = () => {
                               placeholder="0"
                               className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Order rules (B2B per-product quantity rules) */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Order rules</h4>
+                        <p className="text-xs text-gray-500 mb-2">Optional per-product quantity rules for B2B ordering. Leave blank for none.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Min order qty</label>
+                            <input name="minOrderQty" type="number" min="0" value={formData.minOrderQty ?? ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Case pack / increment</label>
+                            <input name="orderIncrement" type="number" min="0" value={formData.orderIncrement ?? ''} onChange={handleChange} placeholder="1" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Max order qty</label>
+                            <input name="maxOrderQty" type="number" min="0" value={formData.maxOrderQty ?? ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                           </div>
                         </div>
                       </div>

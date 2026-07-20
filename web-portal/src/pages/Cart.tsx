@@ -1,5 +1,6 @@
 import React, { Fragment, useEffect, useState, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import { clampQty, orderIncrementOf, minOrderQtyOf, qtyRuleLabel } from '../qtyRules';
 import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -179,8 +180,10 @@ const Cart: React.FC = () => {
 
   // Commit the draft for one line, then clear it only on success.
   const commitQty = async (itemId: string) => {
-    const draft = qtyDraft[itemId];
-    if (draft === undefined) return;
+    const raw = qtyDraft[itemId];
+    if (raw === undefined) return;
+    const item = cart?.items.find((i) => i.id === itemId);
+    const draft = clampQty(productMap[item?.productId || ''], raw); // snap to the product's quantity rules
     const ok = await handleUpdateQuantity(itemId, draft);
     if (ok) setQtyDraft((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
   };
@@ -464,6 +467,9 @@ const Cart: React.FC = () => {
                     const nudge = nextTierNudge(item);
                     const draftQty = qtyDraft[item.id] ?? item.quantity;
                     const dirty = draftQty !== item.quantity;
+                    const inc = orderIncrementOf(product);
+                    const minQ = minOrderQtyOf(product);
+                    const ruleLabel = qtyRuleLabel(product);
                     return (
                       <li key={item.id} className="p-4 sm:p-6">
                         <div className="flex items-start gap-3 sm:gap-4">
@@ -479,6 +485,7 @@ const Cart: React.FC = () => {
                                   ${unit.toFixed(2)}/unit
                                   {discounted ? <span className="ml-1 text-gray-400 line-through">${item.price.toFixed(2)}</span> : null}
                                 </p>
+                                {ruleLabel && <p className="mt-0.5 text-xs text-teal-700">{ruleLabel}</p>}
                               </div>
                               <div className="shrink-0 sm:text-right">
                                 <p className="text-lg font-semibold tabular-nums text-gray-900">${item.lineItemTotal.toFixed(2)}</p>
@@ -493,9 +500,9 @@ const Cart: React.FC = () => {
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <div className="flex items-center">
                                 <button
-                                  onClick={() => setDraft(item.id, draftQty - 1)}
+                                  onClick={() => setDraft(item.id, clampQty(product, draftQty - inc))}
                                   className="h-9 w-9 rounded-l-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                                  disabled={draftQty <= 1 || loading}
+                                  disabled={draftQty <= minQ || loading}
                                   aria-label="Decrease quantity"
                                 >
                                   -
@@ -511,7 +518,7 @@ const Cart: React.FC = () => {
                                   aria-label="Quantity"
                                 />
                                 <button
-                                  onClick={() => setDraft(item.id, draftQty + 1)}
+                                  onClick={() => setDraft(item.id, clampQty(product, draftQty + inc))}
                                   className="h-9 w-9 rounded-r-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                                   disabled={loading}
                                   aria-label="Increase quantity"
