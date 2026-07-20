@@ -17,6 +17,14 @@ type CartItem struct {
 	Image           string             `bson:"image,omitempty" json:"image,omitempty"`
 }
 
+// SavedList is a named snapshot of cart items ("Requisition List / Saved Cart").
+// Stored as a sub-object on the cart so it round-trips through GetCart/SaveCart and
+// survives ClearCart (which only touches items). Max 3 per cart, enforced in the service.
+type SavedList struct {
+	Name  string     `bson:"name" json:"name"`
+	Items []CartItem `bson:"items" json:"items"`
+}
+
 // Cart represents a shopping cart.
 type Cart struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
@@ -24,4 +32,5 @@ type Cart struct {
 	SellerID   string             `bson:"sellerId" json:"sellerId"`
 	Items      []CartItem         `bson:"items" json:"items"`
 	TotalPrice float64            `bson:"totalPrice" json:"totalPrice"`
+	SavedLists []SavedList        `bson:"savedLists,omitempty" json:"savedLists,omitempty"`
 }

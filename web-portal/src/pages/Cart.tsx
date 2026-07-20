@@ -5,7 +5,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, CartItem, Account, Product } from '../types';
-import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts } from '../api';
+import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts, saveCartList, deleteCartList, loadCartList } from '../api';
 import { ChevronDownIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY, Spinner } from '../components/ui';
 
@@ -276,6 +276,70 @@ const Cart: React.FC = () => {
     }
   };
 
+  const handleSaveList = async () => {
+    if (!selectedCompanyId || !cart || cart.items.length === 0) return;
+    const name = window.prompt('Name this saved cart (e.g. "Weekly reorder"):')?.trim();
+    if (!name) return;
+    setLoading(true);
+    try {
+      const updated = await saveCartList(selectedCompanyId, name);
+      setCart(updated);
+      invalidateCache(selectedCompanyId);
+      toast.success(`Saved as "${name}"`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to save cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteList = async (name: string) => {
+    if (!selectedCompanyId) return;
+    setLoading(true);
+    try {
+      const updated = await deleteCartList(selectedCompanyId, name);
+      setCart(updated);
+      invalidateCache(selectedCompanyId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete saved cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadList = async (name: string) => {
+    if (!selectedCompanyId || !cart) return;
+    const list = cart.savedLists?.find((l) => l.name === name);
+    if (!list) return;
+    if (cart.items.length > 0 && !window.confirm(`Load "${name}"? This replaces your current cart items.`)) return;
+    setLoading(true);
+    try {
+      // Re-resolve current prices locally, then replace the main cart in one call.
+      const items = list.items.map((it) => {
+        const tp = resolveTierPrice(it.productId, it.quantity);
+        return {
+          productId: it.productId,
+          quantity: it.quantity,
+          sellerId: it.sellerId || selectedCompanyId,
+          name: it.name,
+          price: tp ? tp.price : it.price,
+          discountedPrice: tp ? tp.discountedPrice : it.discountedPrice,
+          image: it.image,
+        };
+      });
+      const updated = await loadCartList(selectedCompanyId, items);
+      setCart(updated);
+      setQtyDraft({});
+      invalidateCache(selectedCompanyId);
+      window.dispatchEvent(new Event('cartUpdated'));
+      toast.success(`Loaded "${name}"`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to load saved cart');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totalItems = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const selectedCompany = availableCompanies.find(c => c.id === selectedCompanyId);
 
@@ -515,6 +579,34 @@ const Cart: React.FC = () => {
                   <button onClick={handleClearCart} className="mt-2 w-full rounded-lg px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50" disabled={loading}>
                     Clear cart
                   </button>
+                </div>
+
+                <div className="border-t border-gray-100 px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Saved carts</p>
+                    <button
+                      onClick={handleSaveList}
+                      disabled={loading || !cart || cart.items.length === 0}
+                      className="text-xs font-semibold text-teal-700 hover:text-teal-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      + Save cart
+                    </button>
+                  </div>
+                  {cart?.savedLists && cart.savedLists.length > 0 ? (
+                    <ul className="mt-2 space-y-1.5">
+                      {cart.savedLists.map((list) => (
+                        <li key={list.name} className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate text-sm text-gray-700">{list.name} <span className="text-gray-400">({list.items.length})</span></span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <button onClick={() => handleLoadList(list.name)} disabled={loading} className="text-xs font-medium text-teal-700 hover:text-teal-900 disabled:opacity-40">Load</button>
+                            <button onClick={() => handleDeleteList(list.name)} disabled={loading} className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-40">Delete</button>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-400">Save this cart to reuse it later (max 3).</p>
+                  )}
                 </div>
               </aside>
             </div>

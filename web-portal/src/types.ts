@@ -217,12 +217,18 @@ export interface CartItem {
   proposedPrice?: number;
 }
 
+export interface SavedList {
+  name: string;
+  items: CartItem[];
+}
+
 export interface Cart {
   id: string;
   accountId: string;
   sellerId: string;
   items: CartItem[];
   totalPrice: number;
+  savedLists?: SavedList[];
 }
 
 export interface QuoteHistory {
