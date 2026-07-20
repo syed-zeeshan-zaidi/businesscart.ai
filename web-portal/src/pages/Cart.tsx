@@ -6,7 +6,7 @@ import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
 import { Cart as CartType, CartItem, Account, Product } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts } from '../api';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY, Spinner } from '../components/ui';
 
 const CACHE_KEY_PREFIX = 'cart_cache_';
@@ -277,6 +277,18 @@ const Cart: React.FC = () => {
     return s + (i.price - unit) * i.quantity;
   }, 0) || 0;
 
+  // Order-rule awareness (informational; the server still enforces at checkout).
+  const companyConfig = account?.customer?.attachedCompanies?.find((c) => c.companyCodeId === selectedCompanyId);
+  const minOrderAmount = companyConfig?.minOrderAmountLimit || 0;
+  const minOrderQty = companyConfig?.minOrderQuantityLimit || 0;
+  const maxOrderAmount = companyConfig?.maxOrderAmountLimit || 0;
+  const creditLimit = companyConfig?.creditLimit || 0;
+  const cartWarnings: string[] = [];
+  if (minOrderAmount > 0 && cartSubtotal < minOrderAmount) cartWarnings.push(`Add $${(minOrderAmount - cartSubtotal).toFixed(2)} to reach the $${minOrderAmount.toFixed(2)} minimum order.`);
+  if (minOrderQty > 0 && totalItems < minOrderQty) cartWarnings.push(`Add ${minOrderQty - totalItems} more item${minOrderQty - totalItems === 1 ? '' : 's'} to reach the ${minOrderQty}-item minimum.`);
+  if (maxOrderAmount > 0 && cartSubtotal > maxOrderAmount) cartWarnings.push(`This order is over the $${maxOrderAmount.toFixed(2)} maximum for this account.`);
+  if (creditLimit > 0 && cartSubtotal > creditLimit) cartWarnings.push(`This order is over your $${creditLimit.toFixed(2)} credit limit.`);
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
@@ -444,6 +456,14 @@ const Cart: React.FC = () => {
                     <span className="text-2xl font-extrabold tracking-tight tabular-nums text-gray-900">${cartSubtotal.toFixed(2)}</span>
                   </div>
                   <p className="mt-1 text-right text-[11px] text-gray-400">before tax &amp; shipping</p>
+
+                  {cartWarnings.length > 0 && (
+                    <div className="mt-4 space-y-1 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {cartWarnings.map((w) => (
+                        <p key={w} className="flex items-start gap-1.5"><ExclamationTriangleIcon className="h-4 w-4 shrink-0" /> <span>{w}</span></p>
+                      ))}
+                    </div>
+                  )}
 
                   <button onClick={handleCheckout} className={`${BTN_PRIMARY} mt-4 w-full disabled:opacity-50`} disabled={loading}>
                     {loading ? 'Processing...' : 'Proceed to checkout'}
