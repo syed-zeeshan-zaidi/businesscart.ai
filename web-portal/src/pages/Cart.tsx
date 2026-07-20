@@ -109,6 +109,7 @@ const Cart: React.FC = () => {
 
   useEffect(() => {
     if (selectedCompanyId && initialLoadComplete) {
+      setQtyDraft({}); // drop any in-progress quantity edits when the cart's company changes
       fetchCart(selectedCompanyId);
     }
   }, [selectedCompanyId, initialLoadComplete, fetchCart]);
@@ -187,6 +188,7 @@ const Cart: React.FC = () => {
     try {
       const updatedCart = await removeItemFromCart(itemId, selectedCompanyId);
       setCart(updatedCart);
+      setQtyDraft((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
       toast.success('Item removed from cart!');
       invalidateCache(selectedCompanyId);
     } catch (err: any) {
@@ -428,7 +430,8 @@ const Cart: React.FC = () => {
                                   value={draftQty}
                                   onChange={(e) => setDraft(item.id, parseInt(e.target.value, 10))}
                                   onKeyDown={(e) => { if (e.key === 'Enter') commitQty(item.id); }}
-                                  className="h-9 w-14 border-y border-gray-300 text-center text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                  disabled={loading}
+                                  className="h-9 w-14 border-y border-gray-300 text-center text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
                                   aria-label="Quantity"
                                 />
                                 <button
