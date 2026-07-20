@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../hooks/useAuth';
-import { Cart as CartType, Account, Product } from '../types';
+import { Cart as CartType, CartItem, Account, Product } from '../types';
 import { getCart, updateCartItem, removeItemFromCart, clearCart, createQuote, getAccount, getCustomerConfigurations, getProducts } from '../api';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY, Spinner } from '../components/ui';
@@ -260,6 +260,23 @@ const Cart: React.FC = () => {
   const totalItems = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const selectedCompany = availableCompanies.find(c => c.id === selectedCompanyId);
 
+  // Next quantity-break nudge for a line (applies the customer's discount ratio to the tier price).
+  const nextTierNudge = (item: CartItem): { need: number; unit: number } | null => {
+    const product = productMap[item.productId];
+    if (!product?.priceTiers || product.priceTiers.length === 0) return null;
+    const tiers = [...product.priceTiers].sort((a, b) => a.minQty - b.minQty);
+    const next = tiers.find((t) => t.minQty > item.quantity);
+    if (!next) return null;
+    const ratio = item.discountedPrice && item.discountedPrice > 0 && item.price > 0 && item.discountedPrice < item.price ? item.discountedPrice / item.price : 1;
+    return { need: next.minQty - item.quantity, unit: next.price * ratio };
+  };
+
+  const cartSubtotal = cart?.totalPrice ?? (cart?.items?.reduce((s, i) => s + i.lineItemTotal, 0) || 0);
+  const cartSavings = cart?.items?.reduce((s, i) => {
+    const unit = i.discountedPrice && i.discountedPrice > 0 && i.discountedPrice < i.price ? i.discountedPrice : i.price;
+    return s + (i.price - unit) * i.quantity;
+  }, 0) || 0;
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
@@ -325,97 +342,122 @@ const Cart: React.FC = () => {
           </div>
         ) : (
           cart && cart.items && cart.items.length > 0 && (
-            <div className={`${CARD} mt-6 overflow-hidden`}>
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="text-base font-semibold text-gray-900">
-                  Cart for {selectedCompany?.name || 'selected company'}
-                </h2>
-                <p className="text-sm text-gray-500">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
-              </div>
-
-              <ul className="divide-y divide-gray-200">
-                {cart.items.map((item) => (
-                  <li key={item.id} className="p-4 sm:p-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-24 h-24 bg-gray-50 rounded-md flex-shrink-0 overflow-hidden border border-gray-100">
-                        <img
-                          src={item.image || 'https://via.placeholder.com/96x96'}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:justify-between">
-                          <h3 className="text-lg font-semibold text-gray-800 truncate pr-2">{item.name}</h3>
-                          <p className="text-lg font-semibold text-gray-900 tabular-nums sm:text-right">
-                            ${item.lineItemTotal.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center">
-                            <button
-                              onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-200 text-gray-600 rounded-l-md hover:bg-gray-300 disabled:opacity-50"
-                              disabled={item.quantity <= 1 || loading}
-                            >
-                              -
-                            </button>
-                            <span className="px-4 py-1 border-t border-b border-gray-300 text-center">{item.quantity}</span>
-                            <button
-                              onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                              className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-200 text-gray-600 rounded-r-md hover:bg-gray-300"
-                              disabled={loading}
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="text-red-600 hover:text-red-800 font-medium text-sm"
-                            disabled={loading}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                  <div className="text-center sm:text-left">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Total</span>
-                    <p className="text-2xl font-extrabold tracking-tight text-gray-900 tabular-nums">${cart.totalPrice?.toFixed(2) || '0.00'}</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:space-x-3 w-full sm:w-auto gap-2">
-                    <button
-                      onClick={handleClearCart}
-                      className="w-full sm:w-auto rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition disabled:opacity-50"
-                      disabled={loading}
-                    >
-                      Clear cart
-                    </button>
-                    {selectedCompany?.quotesAllowed && (
-                      <button
-                        onClick={handleRequestQuote}
-                        className={`${BTN_SECONDARY} w-full sm:w-auto disabled:opacity-50`}
-                        disabled={loading}
-                      >
-                        {loading ? 'Processing...' : 'Request a quote'}
-                      </button>
-                    )}
-                    <button
-                      onClick={handleCheckout}
-                      className={`${BTN_PRIMARY} w-full sm:w-auto disabled:opacity-50`}
-                      disabled={loading}
-                    >
-                      {loading ? 'Processing...' : 'Proceed to checkout'}
-                    </button>
-                  </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+              {/* Line items */}
+              <div className={`${CARD} overflow-hidden`}>
+                <div className="border-b border-gray-100 px-4 py-4 sm:px-6">
+                  <h2 className="text-base font-semibold text-gray-900">Cart for {selectedCompany?.name || 'selected company'}</h2>
+                  <p className="text-sm text-gray-500">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
                 </div>
+                <ul className="divide-y divide-gray-100">
+                  {cart.items.map((item) => {
+                    const product = productMap[item.productId];
+                    const discounted = !!item.discountedPrice && item.discountedPrice > 0 && item.discountedPrice < item.price;
+                    const unit = discounted ? (item.discountedPrice as number) : item.price;
+                    const nudge = nextTierNudge(item);
+                    return (
+                      <li key={item.id} className="p-4 sm:p-6">
+                        <div className="flex items-start gap-3 sm:gap-4">
+                          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-gray-100 bg-gray-50 sm:h-20 sm:w-20">
+                            <img src={item.image || 'https://via.placeholder.com/96x96'} alt={item.name} className="h-full w-full object-cover" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-2">
+                              <div className="min-w-0">
+                                <h3 className="truncate text-base font-semibold text-gray-900">{item.name}</h3>
+                                {product?.sku && <p className="font-mono text-xs text-gray-400">{product.sku}</p>}
+                                <p className="mt-0.5 text-sm tabular-nums text-gray-500">
+                                  ${unit.toFixed(2)}/unit
+                                  {discounted ? <span className="ml-1 text-gray-400 line-through">${item.price.toFixed(2)}</span> : null}
+                                </p>
+                              </div>
+                              <div className="shrink-0 sm:text-right">
+                                <p className="text-lg font-semibold tabular-nums text-gray-900">${item.lineItemTotal.toFixed(2)}</p>
+                                {discounted ? <p className="text-sm tabular-nums text-gray-400 line-through">${(item.price * item.quantity).toFixed(2)}</p> : null}
+                              </div>
+                            </div>
+                            {nudge ? (
+                              <p className="mt-2 inline-block rounded-md bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700">
+                                Add {nudge.need} more to pay <span className="tabular-nums">${nudge.unit.toFixed(2)}</span>/unit
+                              </p>
+                            ) : null}
+                            <div className="mt-3 flex items-center justify-between">
+                              <div className="flex items-center">
+                                <button
+                                  onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                  className="h-9 w-9 rounded-l-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                                  disabled={item.quantity <= 1 || loading}
+                                  aria-label="Decrease quantity"
+                                >
+                                  -
+                                </button>
+                                <span className="border-y border-gray-300 px-4 py-1.5 text-center text-sm tabular-nums">{item.quantity}</span>
+                                <button
+                                  onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                  className="h-9 w-9 rounded-r-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                                  disabled={loading}
+                                  aria-label="Increase quantity"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                                disabled={loading}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
+
+              {/* Order summary */}
+              <aside className={`${CARD} lg:sticky lg:top-6`}>
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Order summary</p>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-medium tabular-nums text-gray-900">${cartSubtotal.toFixed(2)}</span>
+                    </div>
+                    {cartSavings > 0 ? (
+                      <div className="flex justify-between text-teal-700">
+                        <span>You save</span>
+                        <span className="font-semibold tabular-nums">-${cartSavings.toFixed(2)}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex justify-between text-gray-400">
+                      <span>Tax &amp; shipping</span>
+                      <span>Calculated at checkout</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-baseline justify-between border-t border-gray-100 pt-4">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Total</span>
+                    <span className="text-2xl font-extrabold tracking-tight tabular-nums text-gray-900">${cartSubtotal.toFixed(2)}</span>
+                  </div>
+                  <p className="mt-1 text-right text-[11px] text-gray-400">before tax &amp; shipping</p>
+
+                  <button onClick={handleCheckout} className={`${BTN_PRIMARY} mt-4 w-full disabled:opacity-50`} disabled={loading}>
+                    {loading ? 'Processing...' : 'Proceed to checkout'}
+                  </button>
+                  {selectedCompany?.quotesAllowed && (
+                    <button onClick={handleRequestQuote} className={`${BTN_SECONDARY} mt-2 w-full disabled:opacity-50`} disabled={loading}>
+                      {loading ? 'Processing...' : 'Request a quote'}
+                    </button>
+                  )}
+                  <button onClick={handleClearCart} className="mt-2 w-full rounded-lg px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50" disabled={loading}>
+                    Clear cart
+                  </button>
+                </div>
+              </aside>
             </div>
           )
         )}
