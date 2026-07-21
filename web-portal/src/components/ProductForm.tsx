@@ -154,6 +154,14 @@ const ProductForm = () => {
       newErrors.push('Deal Price must be between 0 and 50');
     }
     if (formData.stock !== undefined && formData.stock < 0) newErrors.push('Stock cannot be negative');
+    // Order rules: must be non-negative, and a max cannot sit below the min or the
+    // case-pack increment (would make clampQty snap below the minimum orderable qty).
+    const minQ = formData.minOrderQty || 0;
+    const incQ = formData.orderIncrement || 0;
+    const maxQ = formData.maxOrderQty || 0;
+    if (minQ < 0 || incQ < 0 || maxQ < 0) newErrors.push('Order rules cannot be negative');
+    if (maxQ > 0 && minQ > 0 && maxQ < minQ) newErrors.push('Max order qty cannot be less than min order qty');
+    if (maxQ > 0 && incQ > 0 && maxQ < incQ) newErrors.push('Max order qty cannot be less than the case-pack increment');
     if (!formData.description) newErrors.push('Description is required');
     if (formData.priceTiers && formData.priceTiers.length > 0) {
       for (let i = 0; i < formData.priceTiers.length; i++) {

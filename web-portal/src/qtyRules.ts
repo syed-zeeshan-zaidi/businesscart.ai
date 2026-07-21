@@ -23,7 +23,9 @@ export const minOrderQtyOf = (p?: QtyRuleProduct): number => {
 export const clampQty = (p: QtyRuleProduct | undefined, desired: number): number => {
   const inc = orderIncrementOf(p);
   const min = minOrderQtyOf(p);
-  const max = p?.maxOrderQty && p.maxOrderQty > 0 ? p.maxOrderQty : 0;
+  const rawMax = p?.maxOrderQty && p.maxOrderQty > 0 ? p.maxOrderQty : 0;
+  // Ignore a contradictory max (below min) so the result never snaps under the minimum.
+  const max = rawMax > 0 && rawMax < min ? 0 : rawMax;
 
   let q = isNaN(desired) ? min : desired;
   if (q < 1) q = min;

@@ -59,8 +59,8 @@ const parseBulk = (text: string): Line[] => {
     const sku = parts[0].replace(/^"|"$/g, '').trim();
     if (!sku) continue;
     const qty = parts.length > 1 ? parseInt(parts[1].replace(/[^0-9]/g, ''), 10) : 1;
-    if (isNaN(qty)) continue;
-    out.push({ sku, qty: qty > 0 ? qty : 1 });
+    if (isNaN(qty) || qty < 1) continue; // skip a 0/negative qty line rather than silently ordering 1
+    out.push({ sku, qty });
   }
   return out;
 };
