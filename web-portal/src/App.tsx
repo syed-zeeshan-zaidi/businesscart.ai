@@ -58,6 +58,7 @@ const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Billing = lazy(() => import('./pages/Billing'));
+const MarginReport = lazy(() => import('./pages/MarginReport'));
 const BlogManager = lazy(() => import('./components/BlogManager'));
 
 const AppContent = () => {
@@ -109,6 +110,7 @@ const AppContent = () => {
     '/admin/orders',
     '/admin/billing',
     '/billing',
+    '/margin-report',
     '/locations',
     '/quote-create',
     '/analytics',
@@ -259,6 +261,10 @@ const AppContent = () => {
               <Route
                 path="/billing"
                 element={isAuthenticated ? <Billing /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/margin-report"
+                element={isAuthenticated ? <MarginReport /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/analytics"

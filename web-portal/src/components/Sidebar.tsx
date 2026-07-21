@@ -16,6 +16,7 @@ import {
   XMarkIcon,
   NewspaperIcon,
   PrinterIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
@@ -112,6 +113,7 @@ const Sidebar = () => {
           label: 'Insights',
           items: [
             { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon }] : []),
           ],
         },
       ];

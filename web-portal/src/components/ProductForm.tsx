@@ -65,6 +65,7 @@ const ProductForm = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [markupPct, setMarkupPct] = useState('');
 
   // Revoke every pending blob URL and clear the list. Single helper used by
   // save-success, close-and-reset, open-modal, and handle-edit so every
@@ -943,6 +944,46 @@ const ProductForm = () => {
                             );
                           })()}
                         </div>
+                        {(() => {
+                          const c = formData.cost;
+                          if (c === undefined || c <= 0) return null;
+                          const pct = parseFloat(markupPct);
+                          const valid = !isNaN(pct) && pct >= 0;
+                          const suggested = valid ? c * (1 + pct / 100) : 0;
+                          return (
+                            <div className="mt-4 rounded-md bg-gray-50 border border-gray-200 p-3">
+                              <div className="flex flex-wrap items-end gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600">Cost-plus markup (%)</label>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={markupPct}
+                                    onChange={(e) => setMarkupPct(e.target.value)}
+                                    placeholder="e.g., 40"
+                                    className="mt-1 w-28 p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                                  />
+                                </div>
+                                {valid && (
+                                  <div className="pb-1">
+                                    <span className="text-xs text-gray-500">Suggested price</span>
+                                    <div className="text-sm font-semibold text-gray-800">${suggested.toFixed(2)}</div>
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={!valid}
+                                  onClick={() => setFormData({ ...formData, price: parseFloat(suggested.toFixed(2)) })}
+                                  className="pb-1 text-sm font-semibold text-teal-700 hover:text-teal-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                                >
+                                  Apply to price
+                                </button>
+                              </div>
+                              <p className="mt-1 text-xs text-gray-400">Sets price to cost x (1 + markup). Helper only, nothing stored.</p>
+                            </div>
+                          );
+                        })()}
                         {formData.dealPrice && formData.dealPrice > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                             <div>
