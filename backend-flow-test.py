@@ -1805,10 +1805,19 @@ class BackendFlowTest:
             resp = self.api.put(f"/products/{pid}", {"cost": 4.25})
             assert_status(resp, 200, "Set product cost")
             got = self.api.get(f"/products/{pid}").json()
-            assert_field(got, "cost", 4.25, "cost round-trip")
-            ok("Product cost field persists")
+            assert_field(got, "cost", 4.25, "cost round-trip (owner sees it)")
+            ok("Product cost persists for owner")
+            # Confidentiality: a buyer must NOT see cost (Roadmap #40 leak fix).
+            self.use_token("customer")
+            prods = self.api.get("/products").json()
+            leaked = [p for p in prods if p.get("_id") == pid and p.get("cost")]
+            assert not leaked, "cost leaked to customer via GET /products"
+            single = self.api.get(f"/products/{pid}").json()
+            assert not single.get("cost"), "cost leaked to customer via GET /products/{id}"
+            ok("Cost NOT exposed to buyer (list + single)")
+            self.use_token("company1")
             self.api.put(f"/products/{pid}", {"cost": 0})  # reset
-        self.run_test("Product cost field round-trip", test_cost_field)
+        self.run_test("Product cost round-trip + not leaked to buyer", test_cost_field)
 
         def test_resale_cert():
             cust_id = self.ids["customer"]

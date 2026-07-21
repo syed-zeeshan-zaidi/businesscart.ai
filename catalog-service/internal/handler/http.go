@@ -336,6 +336,14 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 		}
 	}
 
+	// Confidential seller cost must never reach buyers. Phase 1 protected the
+	// storefront/feeds; this closes the authenticated-API leak (Roadmap #40).
+	if role == "customer" || role == "b2c" {
+		for _, product := range products {
+			product.Cost = 0
+		}
+	}
+
 	return h.successResponse(products), nil
 }
 
@@ -377,6 +385,11 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 		if isAssociatedCustomer && product.Active != nil && !*product.Active {
 			return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 		}
+	}
+
+	// Confidential seller cost must never reach buyers (Roadmap #40).
+	if claimRole == "customer" || claimRole == "b2c" {
+		product.Cost = 0
 	}
 
 	return h.successResponse(product), nil
