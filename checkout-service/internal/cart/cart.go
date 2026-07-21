@@ -62,6 +62,52 @@ func (s *Service) SaveCart(cart *Cart) error {
 	return nil
 }
 
+// SaveList snapshots the current main cart items into a named saved list ("Requisition
+// List / Saved Cart"). Overwrites an existing list of the same name; caps at 3 lists.
+func (s *Service) SaveList(accountID, sellerID, name string) error {
+	cart, err := s.GetCart(accountID, sellerID)
+	if err != nil {
+		return err
+	}
+	if len(cart.Items) == 0 {
+		return errors.New("cart is empty")
+	}
+	for i := range cart.SavedLists {
+		if cart.SavedLists[i].Name == name {
+			cart.SavedLists[i].Items = cart.Items
+			return s.SaveCart(cart)
+		}
+	}
+	if len(cart.SavedLists) >= 3 {
+		return errors.New("maximum of 3 saved carts per company")
+	}
+	cart.SavedLists = append(cart.SavedLists, SavedList{Name: name, Items: cart.Items})
+	return s.SaveCart(cart)
+}
+
+// DeleteList removes a named saved list from the cart. Uses a targeted $set (not the
+// whole-cart SaveCart) so that deleting the LAST list actually clears the field: the
+// struct's savedLists tag is omitempty, which would drop an empty slice from a $set:cart
+// document and leave the stale array in Mongo. An explicit bson.M value ignores omitempty.
+func (s *Service) DeleteList(accountID, sellerID, name string) error {
+	cart, err := s.GetCart(accountID, sellerID)
+	if err != nil {
+		return err
+	}
+	kept := make([]SavedList, 0, len(cart.SavedLists))
+	for _, l := range cart.SavedLists {
+		if l.Name != name {
+			kept = append(kept, l)
+		}
+	}
+	_, err = s.collection.UpdateOne(
+		context.TODO(),
+		bson.M{"accountId": accountID, "sellerId": sellerID},
+		bson.M{"$set": bson.M{"savedLists": kept}},
+	)
+	return err
+}
+
 func (s *Service) calculateTotals(cart *Cart) {
 	var total float64
 	for i := range cart.Items {

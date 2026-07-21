@@ -95,9 +95,14 @@ type Product struct {
 	Active                *bool              `bson:"active,omitempty" json:"active,omitempty"`
 	Featured              bool               `bson:"featured,omitempty" json:"featured,omitempty"`
 	PriceTiers            []PriceTier        `bson:"priceTiers,omitempty" json:"priceTiers,omitempty"`
-	GroupIDs              []string           `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
-	Attributes            []Attribute        `bson:"attributes,omitempty" json:"attributes,omitempty"`
-	Rating                *Rating            `bson:"rating,omitempty" json:"rating,omitempty"`
-	CreatedAt             time.Time          `bson:"createdAt" json:"createdAt"`
-	UpdatedAt             time.Time          `bson:"updatedAt" json:"updatedAt"`
+	// Per-product quantity rules (Roadmap #39, precursor to full UOM #38). Buyer-side
+	// enforced in the portal (cart / quick-order / add-to-cart) via clampQty.
+	MinOrderQty    int         `bson:"minOrderQty,omitempty" json:"minOrderQty,omitempty"`
+	OrderIncrement int         `bson:"orderIncrement,omitempty" json:"orderIncrement,omitempty"` // case pack: order in multiples of this
+	MaxOrderQty    int         `bson:"maxOrderQty,omitempty" json:"maxOrderQty,omitempty"`
+	GroupIDs       []string    `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
+	Attributes     []Attribute `bson:"attributes,omitempty" json:"attributes,omitempty"`
+	Rating         *Rating     `bson:"rating,omitempty" json:"rating,omitempty"`
+	CreatedAt      time.Time   `bson:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time   `bson:"updatedAt" json:"updatedAt"`
 }

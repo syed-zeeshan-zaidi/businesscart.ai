@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createBlogPost, getBlogPosts, updateBlogPost, deleteBlogPost, getProducts, getUploadUrl, uploadFileToS3 } from '../api';
 import { BlogPost, Product } from '../types';
 import Navbar from './Navbar';
+import { PageHeader, CARD, BTN_PRIMARY } from './ui';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, NewspaperIcon } from '@heroicons/react/24/outline';
@@ -188,21 +189,13 @@ const BlogManager = () => {
       <Navbar />
       <Toaster position="top-right" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <NewspaperIcon className="w-7 h-7 text-teal-700" />
-            <h1 className="text-2xl font-bold text-gray-900">Blog Posts</h1>
-          </div>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg font-semibold text-sm"
-          >
-            <PlusIcon className="w-5 h-5" />
-            New Post
+        <PageHeader title="Blog posts" subtitle="Create and manage your storefront blog.">
+          <button onClick={openCreate} className={`${BTN_PRIMARY} inline-flex items-center gap-2`}>
+            <PlusIcon className="w-5 h-5" /> New post
           </button>
-        </div>
+        </PageHeader>
 
-        <div className="relative mb-6">
+        <div className="relative mt-6 mb-6">
           <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -216,12 +209,12 @@ const BlogManager = () => {
         {loading && posts.length === 0 ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+          <div className={`${CARD} text-center py-12`}>
             <NewspaperIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No blog posts yet. Click "New Post" to create your first.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className={`${CARD} overflow-hidden`}>
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>

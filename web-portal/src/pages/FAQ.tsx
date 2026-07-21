@@ -96,6 +96,11 @@ const sections: Section[] = [
         question: 'Do you support a full multi-vendor marketplace with vendor storefronts and automated payouts?',
         answer: 'Not yet. What we support today is catalog-level: partners add products to your storefront, and they see the orders for their items. Vendor-branded storefronts, automated commission splits, per-vendor shipping tracking, and returns per vendor are on the roadmap. If you need those specific features today, tell us and we will scope them into the timeline.',
       },
+      {
+        id: 'wholesale-ordering-tools',
+        question: 'What B2B ordering tools do my wholesale customers get?',
+        answer: 'Several, all built in. Buyers get a Quick Order page (add by SKU with autocomplete, paste a list, upload a CSV, or use a browse grid) and can save up to 3 named carts per supplier to reorder in a click. You can set per-product case packs and order increments, so customers order in cases of 24 or pallets of 40. And you can generate a branded, printable or PDF line sheet of your catalog, curated by category or product. No app or plugin required.',
+      },
     ],
   },
   {
@@ -121,6 +126,11 @@ const sections: Section[] = [
         id: 'order-history',
         question: 'How do I view my past orders?',
         answer: 'Your complete order history is available from your account dashboard. You can view order details, status, and history across all companies you are associated with.',
+      },
+      {
+        id: 'quick-order-reorder',
+        question: 'Is there a faster way to place large or repeat orders?',
+        answer: 'Yes. The Quick Order page lets you add items by SKU with autocomplete, paste a "SKU, quantity" list, upload a CSV, or browse a compact grid, then add everything to your cart at once. You can also save up to 3 named carts per supplier (requisition lists) and reload one to reorder in a click, and one-click reorder any past order from your history.',
       },
     ],
   },

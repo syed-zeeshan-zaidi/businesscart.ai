@@ -65,6 +65,7 @@ const ProductForm = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [markupPct, setMarkupPct] = useState('');
 
   // Revoke every pending blob URL and clear the list. Single helper used by
   // save-success, close-and-reset, open-modal, and handle-edit so every
@@ -153,6 +154,14 @@ const ProductForm = () => {
       newErrors.push('Deal Price must be between 0 and 50');
     }
     if (formData.stock !== undefined && formData.stock < 0) newErrors.push('Stock cannot be negative');
+    // Order rules: must be non-negative, and a max cannot sit below the min or the
+    // case-pack increment (would make clampQty snap below the minimum orderable qty).
+    const minQ = formData.minOrderQty || 0;
+    const incQ = formData.orderIncrement || 0;
+    const maxQ = formData.maxOrderQty || 0;
+    if (minQ < 0 || incQ < 0 || maxQ < 0) newErrors.push('Order rules cannot be negative');
+    if (maxQ > 0 && minQ > 0 && maxQ < minQ) newErrors.push('Max order qty cannot be less than min order qty');
+    if (maxQ > 0 && incQ > 0 && maxQ < incQ) newErrors.push('Max order qty cannot be less than the case-pack increment');
     if (!formData.description) newErrors.push('Description is required');
     if (formData.priceTiers && formData.priceTiers.length > 0) {
       for (let i = 0; i < formData.priceTiers.length; i++) {
@@ -242,7 +251,7 @@ const ProductForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : name === 'stock' ? parseInt(value) || 0 : value;
+    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : (name === 'stock' || name === 'minOrderQty' || name === 'orderIncrement' || name === 'maxOrderQty') ? parseInt(value) || 0 : value;
     const updates: Partial<Product> = { [name]: parsed };
     // Auto-generate slug from name only when CREATING a new product.
     // Slugs are permanent URLs once a product exists: editing the title must
@@ -334,6 +343,7 @@ const ProductForm = () => {
     setFormData({
       name: product.name,
       price: product.price,
+      cost: product.cost,
       dealPrice: product.dealPrice,
       dealStartDate: product.dealStartDate,
       dealEndDate: product.dealEndDate,
@@ -352,6 +362,9 @@ const ProductForm = () => {
       attributes: product.attributes || [],
       priceTiers: product.priceTiers || [],
       groupIDs: product.groupIDs || [],
+      minOrderQty: product.minOrderQty,
+      orderIncrement: product.orderIncrement,
+      maxOrderQty: product.maxOrderQty,
     });
     setEditingId(product._id);
     setSlugUnlocked(false);
@@ -856,6 +869,26 @@ const ProductForm = () => {
                         </div>
                       </div>
 
+                      {/* Section: Order rules (B2B per-product quantity rules) */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Order rules</h4>
+                        <p className="text-xs text-gray-500 mb-2">Optional per-product quantity rules for B2B ordering. Leave blank for none.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Min order qty</label>
+                            <input name="minOrderQty" type="number" min="0" value={formData.minOrderQty ?? ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Case pack / increment</label>
+                            <input name="orderIncrement" type="number" min="0" value={formData.orderIncrement ?? ''} onChange={handleChange} placeholder="1" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Max order qty</label>
+                            <input name="maxOrderQty" type="number" min="0" value={formData.maxOrderQty ?? ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Section: Pricing */}
                       <div className="pt-2 border-t border-gray-100">
                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Pricing</h4>
@@ -920,6 +953,46 @@ const ProductForm = () => {
                             );
                           })()}
                         </div>
+                        {(() => {
+                          const c = formData.cost;
+                          if (c === undefined || c <= 0) return null;
+                          const pct = parseFloat(markupPct);
+                          const valid = !isNaN(pct) && pct >= 0;
+                          const suggested = valid ? c * (1 + pct / 100) : 0;
+                          return (
+                            <div className="mt-4 rounded-md bg-gray-50 border border-gray-200 p-3">
+                              <div className="flex flex-wrap items-end gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600">Cost-plus markup (%)</label>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={markupPct}
+                                    onChange={(e) => setMarkupPct(e.target.value)}
+                                    placeholder="e.g., 40"
+                                    className="mt-1 w-28 p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                                  />
+                                </div>
+                                {valid && (
+                                  <div className="pb-1">
+                                    <span className="text-xs text-gray-500">Suggested price</span>
+                                    <div className="text-sm font-semibold text-gray-800">${suggested.toFixed(2)}</div>
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={!valid}
+                                  onClick={() => setFormData({ ...formData, price: parseFloat(suggested.toFixed(2)) })}
+                                  className="pb-1 text-sm font-semibold text-teal-700 hover:text-teal-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                                >
+                                  Apply to price
+                                </button>
+                              </div>
+                              <p className="mt-1 text-xs text-gray-400">Sets price to cost x (1 + markup). Helper only, nothing stored.</p>
+                            </div>
+                          );
+                        })()}
                         {formData.dealPrice && formData.dealPrice > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                             <div>

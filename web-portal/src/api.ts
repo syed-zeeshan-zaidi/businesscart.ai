@@ -438,6 +438,32 @@ export const clearCart = async (sellerId: string, accountId?: string): Promise<C
   return response.data;
 };
 
+// Saved Cart (Requisition List) actions — reuse POST /checkout/cart (no new route).
+export const saveCartList = async (sellerId: string, name: string, accountId?: string): Promise<Cart> => {
+  let url = `${API_URL}/checkout/cart`;
+  if (accountId) url += `?accountId=${accountId}`;
+  const response = await api.post(url, { savedListAction: 'save', savedListName: name, sellerId });
+  return response.data;
+};
+
+export const deleteCartList = async (sellerId: string, name: string, accountId?: string): Promise<Cart> => {
+  let url = `${API_URL}/checkout/cart`;
+  if (accountId) url += `?accountId=${accountId}`;
+  const response = await api.post(url, { savedListAction: 'delete', savedListName: name, sellerId });
+  return response.data;
+};
+
+export const loadCartList = async (
+  sellerId: string,
+  items: { productId: string; quantity: number; sellerId: string; name: string; price: number; discountedPrice?: number; image?: string }[],
+  accountId?: string,
+): Promise<Cart> => {
+  let url = `${API_URL}/checkout/cart`;
+  if (accountId) url += `?accountId=${accountId}`;
+  const response = await api.post(url, { savedListAction: 'load', sellerId, items });
+  return response.data;
+};
+
 export const getAssociatedCompanyIds = async (): Promise<string[]> => {
   const jwt = localStorage.getItem('accessToken');
   if (!jwt) {

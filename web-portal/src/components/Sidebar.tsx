@@ -15,6 +15,8 @@ import {
   BanknotesIcon,
   XMarkIcon,
   NewspaperIcon,
+  PrinterIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
@@ -93,6 +95,7 @@ const Sidebar = () => {
             { name: 'Products', path: '/products', icon: ShoppingBagIcon },
             { name: 'Orders', path: '/orders', icon: ClipboardDocumentListIcon },
             { name: 'Quotes', path: '/quotes', icon: DocumentTextIcon },
+            ...((isAdmin || isCompany) ? [{ name: 'Line Sheet', path: '/line-sheet', icon: PrinterIcon }] : []),
             ...((isAdmin || isCompany) ? [{ name: 'Blog Posts', path: '/blog-manager', icon: NewspaperIcon }] : []),
           ],
         },
@@ -110,6 +113,7 @@ const Sidebar = () => {
           label: 'Insights',
           items: [
             { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
+            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon }] : []),
           ],
         },
       ];
@@ -218,7 +222,7 @@ const Sidebar = () => {
       </Transition>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:block w-64 bg-gray-800 h-screen sticky top-0 flex-shrink-0">
+      <div className="hidden lg:block w-64 bg-gray-800 h-screen sticky top-0 flex-shrink-0 print:hidden">
         {navContent}
       </div>
     </>

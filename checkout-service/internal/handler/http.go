@@ -33,8 +33,13 @@ type CheckoutRequest struct {
 }
 
 // CartItemRequest represents the request body for adding/updating a cart item.
+// It also carries the Saved Cart (Requisition List) actions, which reuse this endpoint.
 type CartItemRequest struct {
-	Entity cart.CartItem `json:"entity"`
+	Entity          cart.CartItem   `json:"entity"`
+	SellerID        string          `json:"sellerId,omitempty"`
+	SavedListAction string          `json:"savedListAction,omitempty"` // save | load | delete
+	SavedListName   string          `json:"savedListName,omitempty"`
+	Items           []cart.CartItem `json:"items,omitempty"` // load: frontend-resolved fresh items
 }
 
 // CustomerConfiguration represents a customer-specific configuration.
@@ -1715,6 +1720,51 @@ func (h *LambdaHandler) handleCartRequest(request events.APIGatewayProxyRequest,
 		if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 		}
+
+		// Saved Cart (Requisition List) actions reuse this endpoint (no new route/CDK).
+		if req.SavedListAction != "" {
+			sellerID := req.SellerID
+			if sellerID == "" {
+				sellerID = req.Entity.SellerID
+			}
+			if sellerID == "" {
+				return h.errorResponse(http.StatusBadRequest, "Seller ID is required"), nil
+			}
+			switch req.SavedListAction {
+			case "save":
+				if req.SavedListName == "" {
+					return h.errorResponse(http.StatusBadRequest, "List name is required"), nil
+				}
+				if err := h.cartService.SaveList(effectiveAccountID, sellerID, req.SavedListName); err != nil {
+					return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+				}
+			case "delete":
+				if err := h.cartService.DeleteList(effectiveAccountID, sellerID, req.SavedListName); err != nil {
+					return h.errorResponse(http.StatusInternalServerError, "Failed to delete saved cart"), nil
+				}
+			case "load":
+				// Frontend sends fresh, re-resolved items; replace the main cart in one call.
+				loadedCart, err := h.cartService.GetCart(effectiveAccountID, sellerID)
+				if err != nil {
+					loadedCart = &cart.Cart{AccountID: effectiveAccountID, SellerID: sellerID, Items: []cart.CartItem{}}
+				}
+				for i := range req.Items {
+					if req.Items[i].ID.IsZero() {
+						req.Items[i].ID = primitive.NewObjectID()
+					}
+				}
+				loadedCart.Items = req.Items
+				if err := h.cartService.SaveCart(loadedCart); err != nil {
+					return h.errorResponse(http.StatusInternalServerError, "Failed to load saved cart"), nil
+				}
+			default:
+				return h.errorResponse(http.StatusBadRequest, "Unknown savedListAction"), nil
+			}
+			updated, _ := h.cartService.GetCart(effectiveAccountID, sellerID)
+			respBody, _ := json.Marshal(updated)
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Headers: headers, Body: string(respBody)}, nil
+		}
+
 		if req.Entity.Quantity <= 0 {
 			return h.errorResponse(http.StatusBadRequest, "Quantity must be greater than 0"), nil
 		}

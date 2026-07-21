@@ -18,6 +18,8 @@ const OrderForm = lazy(() => import('./components/OrderForm'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
 const Catalog = lazy(() => import('./pages/Catalog'));
+const LineSheet = lazy(() => import('./pages/LineSheet'));
+const QuickOrder = lazy(() => import('./pages/QuickOrder'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const OrderSuccess = lazy(() => import('./pages/OrderSuccess'));
@@ -56,6 +58,7 @@ const Blog = lazy(() => import('./pages/Blog'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Billing = lazy(() => import('./pages/Billing'));
+const MarginReport = lazy(() => import('./pages/MarginReport'));
 const BlogManager = lazy(() => import('./components/BlogManager'));
 
 const AppContent = () => {
@@ -97,6 +100,7 @@ const AppContent = () => {
     '/products',
     '/orders',
     '/quotes',
+    '/line-sheet',
     '/quote-details/:quoteId',
     '/users',
     '/codes',
@@ -106,6 +110,7 @@ const AppContent = () => {
     '/admin/orders',
     '/admin/billing',
     '/billing',
+    '/margin-report',
     '/locations',
     '/quote-create',
     '/analytics',
@@ -160,6 +165,14 @@ const AppContent = () => {
               <Route
                 path="/catalog"
                 element={isAuthenticated ? <Catalog /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/quick-order"
+                element={isAuthenticated ? <QuickOrder /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/line-sheet"
+                element={isAuthenticated ? <LineSheet /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/deals"
@@ -248,6 +261,10 @@ const AppContent = () => {
               <Route
                 path="/billing"
                 element={isAuthenticated ? <Billing /> : <Navigate to="/login" replace />}
+              />
+              <Route
+                path="/margin-report"
+                element={isAuthenticated ? <MarginReport /> : <Navigate to="/login" replace />}
               />
               <Route
                 path="/analytics"

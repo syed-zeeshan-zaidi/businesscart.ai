@@ -131,6 +131,9 @@ export interface Product {
   active?: boolean;
   featured?: boolean;
   priceTiers?: PriceTier[];
+  minOrderQty?: number;
+  orderIncrement?: number;
+  maxOrderQty?: number;
   groupIDs?: string[];
   attributes?: Attribute[];
   createdAt: Date;
@@ -217,12 +220,18 @@ export interface CartItem {
   proposedPrice?: number;
 }
 
+export interface SavedList {
+  name: string;
+  items: CartItem[];
+}
+
 export interface Cart {
   id: string;
   accountId: string;
   sellerId: string;
   items: CartItem[];
   totalPrice: number;
+  savedLists?: SavedList[];
 }
 
 export interface QuoteHistory {
