@@ -335,6 +335,7 @@ const ProductForm = () => {
     setFormData({
       name: product.name,
       price: product.price,
+      cost: product.cost,
       dealPrice: product.dealPrice,
       dealStartDate: product.dealStartDate,
       dealEndDate: product.dealEndDate,
