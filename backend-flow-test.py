@@ -1760,6 +1760,20 @@ class BackendFlowTest:
             ok(f"Deleted List A; remaining={names}")
         self.run_test("Saved cart: delete", test_delete)
 
+        def test_delete_last():
+            # Delete the remaining lists down to zero, then confirm via a FRESH GET that
+            # savedLists is actually cleared. Guards the omitempty-on-empty-slice bug:
+            # a whole-cart $set drops an empty slice, leaving the last list stale in Mongo.
+            self.use_token("customer")
+            for nm in (f"{PREFIX} List B", f"{PREFIX} List C"):
+                resp = self.api.post("/checkout/cart", {"savedListAction": "delete", "savedListName": nm, "sellerId": c1_id})
+                assert_status(resp, 200, f"Delete {nm}")
+            cart = self.api.get("/checkout/cart", params={"sellerId": c1_id}).json()
+            remaining = cart.get("savedLists") or []
+            assert len(remaining) == 0, f"savedLists must be empty after deleting all, got {remaining}"
+            ok("Deleting the last saved cart persists (savedLists cleared)")
+        self.run_test("Saved cart: delete last clears field", test_delete_last)
+
         def test_save_empty_rejected():
             self._clear_cart("customer", c1_id)
             resp = _save_list(f"{PREFIX} Empty")

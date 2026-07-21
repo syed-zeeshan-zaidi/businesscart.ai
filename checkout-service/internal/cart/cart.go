@@ -85,20 +85,27 @@ func (s *Service) SaveList(accountID, sellerID, name string) error {
 	return s.SaveCart(cart)
 }
 
-// DeleteList removes a named saved list from the cart.
+// DeleteList removes a named saved list from the cart. Uses a targeted $set (not the
+// whole-cart SaveCart) so that deleting the LAST list actually clears the field: the
+// struct's savedLists tag is omitempty, which would drop an empty slice from a $set:cart
+// document and leave the stale array in Mongo. An explicit bson.M value ignores omitempty.
 func (s *Service) DeleteList(accountID, sellerID, name string) error {
 	cart, err := s.GetCart(accountID, sellerID)
 	if err != nil {
 		return err
 	}
-	kept := cart.SavedLists[:0]
+	kept := make([]SavedList, 0, len(cart.SavedLists))
 	for _, l := range cart.SavedLists {
 		if l.Name != name {
 			kept = append(kept, l)
 		}
 	}
-	cart.SavedLists = kept
-	return s.SaveCart(cart)
+	_, err = s.collection.UpdateOne(
+		context.TODO(),
+		bson.M{"accountId": accountID, "sellerId": sellerID},
+		bson.M{"$set": bson.M{"savedLists": kept}},
+	)
+	return err
 }
 
 func (s *Service) calculateTotals(cart *Cart) {
