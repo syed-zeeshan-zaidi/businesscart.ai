@@ -2332,6 +2332,43 @@ class BackendFlowTest:
 
         self.run_test("Visitor milestone event", test_milestone)
 
+        # Test 5b: Checkout-funnel milestones (Roadmap #41 Phase A). These are
+        # persisted as milestones for funnel visibility and deliberately NOT sent to
+        # ad platforms. Post each step, then assert all six land on the visitor doc.
+        def test_checkout_funnel_milestones():
+            funnel = [
+                ("checkout_email", {}),
+                ("checkout_details", {"amount": 23.53}),
+                ("checkout_address", {"mode": "create"}),
+                ("checkout_payment", {"method": "stripe_pay"}),
+                ("payment_redirect", {"paymentMethod": "stripe_pay", "amount": 23.53}),
+                ("payment_redirect_back", {"status": "success"}),
+            ]
+            for event, meta in funnel:
+                resp = self.api.post("/visitors/event", {
+                    "visitorId": test_vid,
+                    "event": event,
+                    "page": "/products/test.html",
+                    "metadata": meta,
+                })
+                assert_status(resp, 200, f"{event} event accepted")
+
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={test_vid}")
+            v = resp.json().get("visitors", [])[0]
+            milestones = v.get("milestones", [])
+            events_seen = [m.get("event") for m in milestones]
+            for event, _ in funnel:
+                assert event in events_seen, f"missing milestone {event} (have {events_seen})"
+            # Metadata must survive on the money-path steps.
+            prb = next((m for m in milestones if m.get("event") == "payment_redirect_back"), {})
+            assert prb.get("metadata", {}).get("status") == "success", f"payment_redirect_back status: {prb.get('metadata')}"
+            pr = next((m for m in milestones if m.get("event") == "payment_redirect"), {})
+            assert pr.get("metadata", {}).get("paymentMethod") == "stripe_pay", f"payment_redirect method: {pr.get('metadata')}"
+            ok("Checkout-funnel milestones stored (email, details, address, payment, redirect, redirect_back)")
+
+        self.run_test("Checkout funnel milestones", test_checkout_funnel_milestones)
+
         # Test 6: Click IDs follow last-click semantics; UTMs + landing page stay first-click
         def test_clickid_last_click_overwrite():
             resp = self.api.post("/visitors/event", {

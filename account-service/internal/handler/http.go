@@ -2143,6 +2143,11 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	case "initiate_checkout":
 		milestone := storage.VisitorMilestone{Event: "initiate_checkout", Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
+	case "checkout_email", "checkout_details", "checkout_address", "checkout_payment", "payment_redirect", "payment_redirect_back":
+		// Mid-funnel checkout steps (Roadmap #41 Phase A). Milestone-only: internal
+		// funnel visibility, deliberately NOT sent to ad platforms (see conversion switch above).
+		milestone := storage.VisitorMilestone{Event: req.Event, Page: req.Page, Date: now, Metadata: req.Metadata}
+		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
 	case "view_content":
 		// ViewContent is not persisted as a milestone (avoids per-view bloat under
 		// high storefront view volume). Tally successful CAPI sends on a counter
