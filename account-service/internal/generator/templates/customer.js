@@ -27,6 +27,7 @@
             const status = params.get('status');
             if (!status) return;
             const orderId = params.get('orderId');
+            this._fireCheckoutStep('payment_redirect_back', { status: status });
 
             window.history.replaceState({}, '', window.location.pathname);
 
@@ -374,6 +375,10 @@
             if (!response.ok) return null;
             const data = await response.json();
             if (data.redirectUrl) {
+                // Order POST succeeded and the gateway returned a hosted-checkout URL:
+                // fire the funnel step BEFORE navigating away so the redirect can never
+                // pre-empt the send. Pairs with payment_redirect_back on return.
+                this._fireCheckoutStep('payment_redirect', { paymentMethod: paymentMethod });
                 window.location.href = data.redirectUrl;
                 return { redirect: true };
             }
@@ -387,6 +392,10 @@
 
         async startCheckout(cartItems) {
             if (!cartItems || cartItems.length === 0) return;
+
+            // Reset the fire-once funnel map so each checkout attempt re-instruments
+            // (checkout_email -> details -> address -> payment -> payment_redirect).
+            this._checkoutFunnel = {};
 
             // Fire InitiateCheckout for EVERYONE who reaches checkout — including
             // guests, BEFORE the auth branch — so guest intent is captured. (Guests
@@ -413,6 +422,19 @@
                         return { id: it._id, quantity: it.quantity || 1, price: price };
                     });
                     window.D2C_TRACKER.trackInitiateCheckout(total, icItems);
+                }
+            } catch (e) {}
+        },
+
+        // Fire a checkout-funnel milestone at most once per attempt (map reset in
+        // startCheckout). Fully isolated: tracking can never throw into the checkout flow.
+        _fireCheckoutStep(event, metadata) {
+            try {
+                this._checkoutFunnel = this._checkoutFunnel || {};
+                if (this._checkoutFunnel[event]) return;
+                this._checkoutFunnel[event] = true;
+                if (window.D2C_TRACKER && window.D2C_TRACKER.trackStep) {
+                    window.D2C_TRACKER.trackStep(event, metadata || {});
                 }
             } catch (e) {}
         },
@@ -530,6 +552,7 @@
                     this.token = data.accessToken;
                     localStorage.setItem(AUTH_KEY, this.token);
                     this.user = data.account;
+                    this._fireCheckoutStep('checkout_email', {});
                     modal.remove();
                     await this._continueCheckout(cartItems);
                 } catch (err) {
@@ -931,6 +954,14 @@
             `;
             document.body.appendChild(overlay);
 
+            // Funnel: overlay rendered = "reached the payment page". Then auto-fire the
+            // address/payment steps already satisfied at render (a preselected default
+            // address, and a single/locked payment method that emits no change event).
+            this._fireCheckoutStep('checkout_details', { amount: quote.grandTotal });
+            if (addrList.length && addrPreselectId) this._fireCheckoutStep('checkout_address', { mode: 'preselected' });
+            const _initPay = document.querySelector('input[name="checkout-payment"]:checked')?.value;
+            if (_initPay) this._fireCheckoutStep('checkout_payment', { method: _initPay });
+
             // Close on overlay click
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) overlay.remove();
@@ -1010,7 +1041,7 @@
             };
             if (addrSectionEl) {
                 addrSectionEl.addEventListener('change', e => {
-                    if (e.target.matches('#checkout-address')) validateCheckout();
+                    if (e.target.matches('#checkout-address')) { this._fireCheckoutStep('checkout_address', { mode: 'select' }); validateCheckout(); }
                 });
                 addrSectionEl.addEventListener('click', e => {
                     const action = e.target.closest('[data-action]')?.getAttribute('data-action');
@@ -1038,6 +1069,7 @@
                     try {
                         const ok = await this.addAddress(payload);
                         if (!ok) throw new Error('save-failed');
+                        this._fireCheckoutStep('checkout_address', { mode: 'create' });
                         const fresh = await this.getAddresses();
                         // Defensive: if re-fetch returns empty after a known-successful save (network
                         // glitch / Lambda cold-start race), do NOT wipe the existing list — we'd lose
@@ -1133,6 +1165,7 @@
             paymentRadios.forEach(radio => {
                 radio.addEventListener('change', () => {
                     const method = document.querySelector('input[name="checkout-payment"]:checked')?.value;
+                    this._fireCheckoutStep('checkout_payment', { method: method });
                     const placeBtn = document.getElementById('checkout-place-order-btn');
                     const payBtnContainer = document.getElementById('d2c-pay-button');
                     if (method === 'amazon_pay') {
@@ -1193,6 +1226,8 @@
                 if (!result) throw new Error('Failed to place order');
 
                 if (result.redirect) {
+                    // payment_redirect already fired inside placeOrder, right before the
+                    // navigation to the gateway (see placeOrder redirectUrl branch).
                     status.textContent = 'Redirecting to payment provider...';
                     return;
                 }

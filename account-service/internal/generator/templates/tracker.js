@@ -147,6 +147,12 @@
         },
         trackLogin: function (customerId) {
             try { send('login', window.location.pathname, { customerId: customerId }); } catch (e) {}
+        },
+        // Generic checkout-funnel milestone (checkout_email/details/address/payment,
+        // payment_redirect, payment_redirect_back). Same fire-and-forget path as the
+        // named events above. Internal funnel only, never mapped to a CAPI conversion.
+        trackStep: function (event, metadata) {
+            try { send(event, window.location.pathname, metadata || {}); } catch (e) {}
         }
     };
 
