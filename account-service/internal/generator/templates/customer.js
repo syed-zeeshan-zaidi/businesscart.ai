@@ -379,6 +379,10 @@
                 // fire the funnel step BEFORE navigating away so the redirect can never
                 // pre-empt the send. Pairs with payment_redirect_back on return.
                 this._fireCheckoutStep('payment_redirect', { paymentMethod: paymentMethod });
+                // Clear the stage BEFORE navigating. The assignment below triggers
+                // pagehide, and a non-empty stage there would fire a false
+                // checkout_abandon on every successful handoff to the gateway.
+                this._setCheckoutStage('');
                 window.location.href = data.redirectUrl;
                 return { redirect: true };
             }
@@ -396,6 +400,7 @@
             // Reset the fire-once funnel map so each checkout attempt re-instruments
             // (checkout_email -> details -> address -> payment -> payment_redirect).
             this._checkoutFunnel = {};
+            this._setCheckoutStage('');
 
             // Fire InitiateCheckout for EVERYONE who reaches checkout — including
             // guests, BEFORE the auth branch — so guest intent is captured. (Guests
@@ -439,15 +444,79 @@
             } catch (e) {}
         },
 
+        // --- Checkout exit instrumentation ---------------------------------------
+        // The steps above only fire on the happy path, so every early exit (guest
+        // modal dismissed, 409 on a returning email, quote failure, declined card)
+        // left no trace at all. The two helpers below cover those exits. Milestone
+        // only, exactly like trackStep: never mapped to a CAPI conversion.
+
+        // Records which checkout stage is currently open so a tab close can be
+        // attributed: '' | 'modal' | 'quote' | 'overlay' | 'placing'. Cleared once the
+        // buyer advances past a stage, completes, or is handed to a payment gateway
+        // (leaving for the gateway is a handoff, not an abandonment).
+        _setCheckoutStage(stage) {
+            try {
+                this._checkoutStage = stage || '';
+                if (this._checkoutStage && !this._exitBound) {
+                    this._exitBound = true;
+                    // pagehide, not beforeunload: it survives bfcache and fires on
+                    // mobile Safari, and send() already posts with fetch keepalive so
+                    // the request outlives the page. Bound lazily on the first checkout
+                    // open, so a visitor who never checks out never registers a listener.
+                    window.addEventListener('pagehide', (e) => {
+                        if (this._checkoutStage) {
+                            // e.persisted means the page went into bfcache (tab
+                            // backgrounded, mobile app switch) and the shopper may still
+                            // come back and finish. Still recorded, because a real
+                            // abandon looks identical at this instant, but flagged so a
+                            // suspend is not read as a confirmed loss. A later `order`
+                            // milestone on the same visitor settles it.
+                            this._fireCheckoutSignal('checkout_abandon', {
+                                stage: this._checkoutStage,
+                                mode: 'exit',
+                                suspended: !!(e && e.persisted)
+                            });
+                        }
+                    });
+                }
+            } catch (e) {}
+        },
+
+        // Same fire-and-forget path as _fireCheckoutStep, but deduped on
+        // event+stage+reason instead of event alone, so a buyer blocked twice for two
+        // different reasons produces two records. Shares _checkoutFunnel, so the reset
+        // in startCheckout re-arms these for every attempt.
+        _fireCheckoutSignal(event, metadata) {
+            try {
+                const m = metadata || {};
+                const key = event + ':' + (m.stage || '') + ':' + (m.reason || m.mode || '');
+                this._checkoutFunnel = this._checkoutFunnel || {};
+                if (this._checkoutFunnel[key]) return;
+                this._checkoutFunnel[key] = true;
+                if (window.D2C_TRACKER && window.D2C_TRACKER.trackStep) {
+                    window.D2C_TRACKER.trackStep(event, m);
+                }
+            } catch (e) {}
+        },
+
         // Runs checkout once a token+user exist (logged-in OR just-registered guest):
         // sync cart → quote → checkout overlay (which handles the shipping address +
         // payment method, including its own add-address form for new customers).
         async _continueCheckout(cartItems) {
             const sellerId = window.D2C_CONFIG?.sellerId;
-            if (!sellerId || !cartItems || cartItems.length === 0) return;
+            if (!sellerId || !cartItems || cartItems.length === 0) {
+                // Silent dead end: the shopper sees nothing happen. Record it rather
+                // than leaving a checkout attempt that simply stops.
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'quote', reason: !sellerId ? 'no_seller' : 'empty_cart' });
+                return;
+            }
 
             this._showCheckoutLoading();
+            this._setCheckoutStage('quote');
 
+            // Tracks which await is in flight so the shared catch below can name the
+            // step that actually failed instead of reporting one generic error.
+            let blockedReason = 'cart_sync_failed';
             try {
                 await this.clearCart(sellerId);
                 for (const item of cartItems) {
@@ -464,6 +533,7 @@
                     if (!result) throw new Error('Failed to add item to server cart');
                 }
 
+                blockedReason = 'addresses_failed';
                 const addresses = await this.getAddresses();
                 const customerAddresses = (addresses || []).map(a => ({
                     id: a._id || a.id,
@@ -473,12 +543,23 @@
                     address: a.address || {},
                     isDefaultShipping: !!a.isDefaultShipping
                 }));
+                blockedReason = 'quote_failed';
                 const quote = await this.createQuote(sellerId, customerAddresses);
                 if (!quote) throw new Error('Failed to create quote');
 
+                blockedReason = 'overlay_render_failed';
                 this._showCheckoutOverlay(quote);
             } catch (err) {
                 console.error('Checkout failed:', err);
+                // quote_failed swallows out-of-stock, min-order and pricing rejections,
+                // which all surface to the shopper as one generic toast. Carry the
+                // message so the journey shows which one it actually was.
+                this._fireCheckoutSignal('checkout_blocked', {
+                    stage: 'quote',
+                    reason: blockedReason,
+                    message: String(err && err.message || '').slice(0, 120)
+                });
+                this._setCheckoutStage('');
                 document.getElementById('d2c-checkout-overlay')?.remove();
                 if (window.D2C_CART) window.D2C_CART.showToast(err.message || 'Checkout failed. Please try again.');
             }
@@ -519,9 +600,27 @@
                     <p style="margin:0.9rem 0 0;text-align:center;font-size:0.8rem;color:#6b7280">Already have an account? <a href="#" id="d2c-guest-signin" style="color:${esc(primaryColor)};font-weight:700;text-decoration:none">Sign in</a></p>
                 </div>`;
             document.body.appendChild(modal);
-            modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+            // The gap that mattered: initiate_checkout fires on the button tap, but the
+            // next instrumented step (checkout_email) only fires AFTER a successful
+            // account creation. Everything in between was dark, which is exactly where
+            // shoppers were dropping. This marks "the form was actually shown".
+            this._fireCheckoutSignal('checkout_modal', { stage: 'modal', mode: 'shown' });
+            this._setCheckoutStage('modal');
+            modal.addEventListener('click', e => {
+                if (e.target === modal) {
+                    this._fireCheckoutSignal('checkout_abandon', { stage: 'modal', mode: 'dismiss' });
+                    this._setCheckoutStage('');
+                    modal.remove();
+                }
+            });
             modal.querySelector('#d2c-guest-signin').addEventListener('click', e => {
-                e.preventDefault(); modal.remove(); this.showLoginModal();
+                e.preventDefault();
+                // Not a loss, a branch: they leave the guest path for the sign-in form,
+                // which has its own trackLogin. Recorded so the guest funnel doesn't
+                // look like it leaked them.
+                this._fireCheckoutSignal('checkout_abandon', { stage: 'modal', mode: 'signin' });
+                this._setCheckoutStage('');
+                modal.remove(); this.showLoginModal();
             });
             modal.querySelector('#d2c-guest-form').addEventListener('submit', async e => {
                 e.preventDefault();
@@ -529,6 +628,10 @@
                 btn.disabled = true; btn.textContent = 'Please wait...';
                 const fd = new FormData(e.target);
                 const email = String(fd.get('email')).trim();
+                // Set once a branch below has already recorded a specific reason, so the
+                // shared catch does not write a second, vaguer milestone for the same
+                // failure (the throw from the no-token branch lands in that catch).
+                let namedFailure = false;
                 try {
                     const resp = await fetch(`${API_BASE}/accounts/register`, {
                         method: 'POST',
@@ -539,6 +642,11 @@
                         // Returning guest: the email already has a (likely passwordless)
                         // account, so "sign in" is a dead end. Route to reset → set a
                         // password → continue, with the email pre-filled.
+                        // Worth its own reason: a repeat buyer typed their email and got
+                        // pushed into a password reset mid-purchase. Highest-intent
+                        // shopper hitting the highest-friction detour, previously unlogged.
+                        this._fireCheckoutSignal('checkout_blocked', { stage: 'modal', reason: 'email_exists' });
+                        this._setCheckoutStage('');
                         modal.remove();
                         if (window.D2C_CART) window.D2C_CART.showToast('Welcome back! Set a password to finish checking out.');
                         this.showLoginModal();
@@ -548,7 +656,11 @@
                         return;
                     }
                     const data = resp.ok ? await resp.json() : null;
-                    if (!data || !data.accessToken) throw new Error('Could not start checkout. Please try again.');
+                    if (!data || !data.accessToken) {
+                        this._fireCheckoutSignal('checkout_blocked', { stage: 'modal', reason: 'register_failed', status: resp.status });
+                        namedFailure = true;
+                        throw new Error('Could not start checkout. Please try again.');
+                    }
                     this.token = data.accessToken;
                     localStorage.setItem(AUTH_KEY, this.token);
                     this.user = data.account;
@@ -556,6 +668,15 @@
                     modal.remove();
                     await this._continueCheckout(cartItems);
                 } catch (err) {
+                    // Network/parse failures land here too, so record only the ones the
+                    // branch above did not already name.
+                    if (!namedFailure) {
+                        this._fireCheckoutSignal('checkout_blocked', {
+                            stage: 'modal',
+                            reason: 'register_error',
+                            message: String(err && err.message || '').slice(0, 120)
+                        });
+                    }
                     btn.disabled = false; btn.textContent = 'Continue to shipping & payment';
                     if (window.D2C_CART) window.D2C_CART.showToast(err.message || 'Something went wrong.');
                 }
@@ -961,10 +1082,23 @@
             if (addrList.length && addrPreselectId) this._fireCheckoutStep('checkout_address', { mode: 'preselected' });
             const _initPay = document.querySelector('input[name="checkout-payment"]:checked')?.value;
             if (_initPay) this._fireCheckoutStep('checkout_payment', { method: _initPay });
+            this._setCheckoutStage('overlay');
 
-            // Close on overlay click
+            // Close on overlay click. The X button keeps its inline onclick so closing
+            // can never depend on this listener; we only observe it here. The event path
+            // is computed at dispatch, so this still fires after the inline handler has
+            // detached the overlay.
             overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) overlay.remove();
+                if (e.target === overlay) {
+                    this._fireCheckoutSignal('checkout_abandon', { stage: 'overlay', mode: 'dismiss' });
+                    this._setCheckoutStage('');
+                    overlay.remove();
+                    return;
+                }
+                if (e.target.closest && e.target.closest('.checkout-close')) {
+                    this._fireCheckoutSignal('checkout_abandon', { stage: 'overlay', mode: 'close' });
+                    this._setCheckoutStage('');
+                }
             });
 
             // Coupon apply: rebuild quote with promoCode, swap totals in place. The Apply
@@ -996,6 +1130,7 @@
                             }
                         }
                     } catch {
+                        this._fireCheckoutSignal('checkout_blocked', { stage: 'overlay', reason: 'coupon_failed' });
                         if (status) { status.style.color = '#dc2626'; status.textContent = 'Could not apply code'; }
                     } finally {
                         couponApply.disabled = false;
@@ -1077,6 +1212,10 @@
                         // don't have its server-assigned id. Keep current list, restore form state,
                         // ask user to retry.
                         if (!fresh || fresh.length === 0) {
+                            // Degraded path: the address saved but the re-fetch came back
+                            // empty, so the shopper is told to close and reopen. They
+                            // usually don't. Record it as its own reason.
+                            this._fireCheckoutSignal('checkout_blocked', { stage: 'overlay', reason: 'address_refetch_empty' });
                             submitBtn.disabled = false; if (cancelBtn) cancelBtn.disabled = false;
                             submitBtn.textContent = 'Save Address';
                             if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Address saved — please tap Cancel and reopen to use it.');
@@ -1106,6 +1245,11 @@
                         renderAddrList();
                         if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Address added');
                     } catch (err) {
+                        this._fireCheckoutSignal('checkout_blocked', {
+                            stage: 'overlay',
+                            reason: 'address_save_failed',
+                            message: String(err && err.message || '').slice(0, 120)
+                        });
                         submitBtn.disabled = false; if (cancelBtn) cancelBtn.disabled = false;
                         submitBtn.textContent = 'Save Address';
                         if (window.D2C_CART?.showToast) window.D2C_CART.showToast('Could not save address. Please try again.');
@@ -1204,7 +1348,10 @@
             status.style.color = '';
             status.textContent = 'Processing your order...';
 
+            // Both branches below are a shopper who pressed Place Order and was refused.
+            // Highest-intent moment in the funnel and it emitted nothing before.
             if (deliveryMethod !== 'pickup' && !deliveryAddressId) {
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'placing', reason: 'no_delivery_address' });
                 status.style.color = '#dc2626';
                 status.textContent = 'Please add a delivery address first.';
                 btn.disabled = false;
@@ -1213,6 +1360,7 @@
             }
 
             if (deliveryMethod === 'pickup' && !pickupLocationId) {
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'placing', reason: 'no_pickup_location' });
                 status.style.color = '#dc2626';
                 status.textContent = 'Please select a pickup location.';
                 btn.disabled = false;
@@ -1220,6 +1368,7 @@
                 return;
             }
 
+            this._setCheckoutStage('placing');
             try {
                 const quoteId = quote._id || quote.id;
                 const result = await this.placeOrder(quoteId, paymentMethod, deliveryMethod, pickupLocationId, deliveryAddressId);
@@ -1228,10 +1377,14 @@
                 if (result.redirect) {
                     // payment_redirect already fired inside placeOrder, right before the
                     // navigation to the gateway (see placeOrder redirectUrl branch).
+                    // Clear the stage: being handed to the gateway is a handoff, not an
+                    // abandonment, so the pagehide beacon must stay quiet here.
+                    this._setCheckoutStage('');
                     status.textContent = 'Redirecting to payment provider...';
                     return;
                 }
 
+                this._setCheckoutStage('');
                 status.textContent = '';
                 btn.textContent = 'Order Placed!';
                 btn.style.backgroundColor = '#16a34a';
@@ -1248,6 +1401,15 @@
 
             } catch (err) {
                 console.error('Checkout failed:', err);
+                // A declined card or a gateway outage at order time surfaced only as
+                // "Checkout failed. Please try again." with no record anywhere.
+                this._fireCheckoutSignal('checkout_blocked', {
+                    stage: 'placing',
+                    reason: 'place_order_failed',
+                    method: paymentMethod,
+                    message: String(err && err.message || '').slice(0, 120)
+                });
+                this._setCheckoutStage('overlay');
                 status.textContent = 'Checkout failed. Please try again.';
                 btn.disabled = false;
                 btn.textContent = 'Try Again';
@@ -1264,11 +1426,15 @@
             const pickupLocationId = deliveryMethod === 'pickup' ? (document.getElementById('checkout-pickup')?.value || '') : '';
             const deliveryAddressId = deliveryMethod !== 'pickup' ? (document.getElementById('checkout-address')?.value || '') : '';
 
+            // Same dead ends as the Place Order button, on the Amazon Pay path. Without
+            // these, an entire payment method stays invisible in the funnel.
             if (deliveryMethod !== 'pickup' && !deliveryAddressId) {
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'overlay', reason: 'no_delivery_address', method: 'amazon_pay' });
                 container.innerHTML = '<p style="text-align:center;color:#dc2626;font-size:14px;">Please add a delivery address first.</p>';
                 return;
             }
             if (deliveryMethod === 'pickup' && !pickupLocationId) {
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'overlay', reason: 'no_pickup_location', method: 'amazon_pay' });
                 container.innerHTML = '<p style="text-align:center;color:#dc2626;font-size:14px;">Please select a pickup location first.</p>';
                 return;
             }
@@ -1277,6 +1443,7 @@
 
             const result = await this.placeOrder(quoteId, 'amazon_pay', deliveryMethod, pickupLocationId, deliveryAddressId);
             if (!result || !result.buttonConfig) {
+                this._fireCheckoutSignal('checkout_blocked', { stage: 'overlay', reason: 'pay_button_failed', method: 'amazon_pay' });
                 container.innerHTML = '<p style="text-align:center;color:#e53e3e;font-size:14px;">Failed to load Amazon Pay</p>';
                 return;
             }
@@ -1301,6 +1468,16 @@
                     }
                 });
             };
+
+            // Amazon Pay hands off by navigating the top window from inside its own SDK,
+            // so there is no redirectUrl branch to hook like Stripe has. Capture the
+            // click on the way down: fire payment_redirect (Amazon Pay never emitted it,
+            // a Phase A gap) and clear the stage, otherwise pagehide would log a false
+            // checkout_abandon on every successful Amazon handoff.
+            container.addEventListener('click', () => {
+                this._fireCheckoutStep('payment_redirect', { paymentMethod: 'amazon_pay' });
+                this._setCheckoutStage('');
+            }, true);
 
             if (window.amazon) {
                 initBtn();

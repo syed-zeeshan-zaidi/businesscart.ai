@@ -952,6 +952,23 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 			}
 			ownerID = req.CompanyID
 		}
+		// The logo key is FIXED per company, so an empty owner would send every such
+		// upload to one shared object at the bucket root ("/assets/logo") and let
+		// companies overwrite each other. Product keys carry a per-upload UUID and
+		// cannot collide that way, which is why only this path needs the guard.
+		if _, err := primitive.ObjectIDFromHex(ownerID); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Could not resolve company for logo upload"), nil
+		}
+		// A presigned PUT signs whatever Content-Type it is given, and the key is
+		// public, guessable and served from the platform's own CDN domain. Without
+		// this an authenticated caller could park arbitrary HTML there. The client
+		// "accept" attribute is a convenience, never the control. SVG is excluded on
+		// purpose: it is scriptable, and no social scraper renders it as an og:image.
+		switch req.ContentType {
+		case "image/png", "image/jpeg", "image/webp":
+		default:
+			return h.errorResponse(http.StatusBadRequest, "Logo must be a PNG, JPEG or WebP image"), nil
+		}
 		logoKey := fmt.Sprintf("%s/assets/logo", ownerID)
 		presignClient := s3.NewPresignClient(h.s3Client)
 		presignReq, err := presignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{

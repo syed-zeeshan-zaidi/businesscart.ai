@@ -2369,6 +2369,55 @@ class BackendFlowTest:
 
         self.run_test("Checkout funnel milestones", test_checkout_funnel_milestones)
 
+        # Test 5c: Checkout EXIT milestones (Roadmap #41 Phase A2). Phase A covered
+        # only the happy path, so every exit before checkout_email was invisible --
+        # including the guest-modal drop the whole epic was written about. These three
+        # events carry their detail in metadata (reason / stage / mode), so the
+        # assertions check the metadata survives, not just the event name.
+        def test_checkout_exit_milestones():
+            exits = [
+                ("checkout_modal", {"stage": "modal", "mode": "shown"}),
+                ("checkout_blocked", {"stage": "modal", "reason": "email_exists"}),
+                ("checkout_blocked", {"stage": "quote", "reason": "quote_failed", "message": "out of stock"}),
+                ("checkout_abandon", {"stage": "overlay", "mode": "exit"}),
+            ]
+            for event, meta in exits:
+                resp = self.api.post("/visitors/event", {
+                    "visitorId": test_vid,
+                    "event": event,
+                    "page": "/products/test.html",
+                    "metadata": meta,
+                })
+                assert_status(resp, 200, f"{event} event accepted")
+
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={test_vid}")
+            v = resp.json().get("visitors", [])[0]
+            milestones = v.get("milestones", [])
+            events_seen = [m.get("event") for m in milestones]
+            for event, _ in exits:
+                assert event in events_seen, f"missing milestone {event} (have {events_seen})"
+
+            blocked = [m for m in milestones if m.get("event") == "checkout_blocked"]
+            reasons = {m.get("metadata", {}).get("reason") for m in blocked}
+            assert "email_exists" in reasons, f"email_exists reason missing: {reasons}"
+            assert "quote_failed" in reasons, f"quote_failed reason missing: {reasons}"
+            # Two blocks with different reasons must both persist; a single generic
+            # "checkout failed" record would hide which one actually stopped the buyer.
+            assert len(blocked) >= 2, f"expected both blocked reasons, got {len(blocked)}"
+
+            ab = next((m for m in milestones if m.get("event") == "checkout_abandon"), {})
+            assert ab.get("metadata", {}).get("stage") == "overlay", f"abandon stage: {ab.get('metadata')}"
+
+            # Exit events are internal funnel only and must never be dispatched to the
+            # ad platforms, so no CAPI result may be attached to any of them.
+            for m in milestones:
+                if m.get("event") in ("checkout_modal", "checkout_blocked", "checkout_abandon"):
+                    assert "capi" not in m.get("metadata", {}), f"{m.get('event')} must not hit CAPI: {m.get('metadata')}"
+            ok("Checkout exit milestones stored (modal, blocked x2 reasons, abandon) and kept off CAPI")
+
+        self.run_test("Checkout exit milestones", test_checkout_exit_milestones)
+
         # Test 6: Click IDs follow last-click semantics; UTMs + landing page stay first-click
         def test_clickid_last_click_overwrite():
             resp = self.api.post("/visitors/event", {

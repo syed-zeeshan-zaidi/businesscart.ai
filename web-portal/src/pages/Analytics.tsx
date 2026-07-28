@@ -653,8 +653,23 @@ const Analytics: React.FC = () => {
         const mColor = mediumColor[selected.attribution?.medium] || 'bg-gray-100 text-gray-600';
         const borderColor = selected.ordered ? 'border-green-500' : selected.registered ? 'border-blue-500' : isLead ? 'border-teal-500' : selected.isBot ? 'border-yellow-500' : 'border-gray-400';
 
-        const prettyEvent = (e: string) => ({ add_to_cart: 'Added to cart', initiate_checkout: 'Started checkout', checkout_email: 'Entered email', checkout_details: 'Reached checkout page', checkout_address: 'Set delivery address', checkout_payment: 'Chose payment method', payment_redirect: 'Sent to payment provider', payment_redirect_back: 'Returned from payment', order: 'Purchased', register: 'Registered', contact_request: 'Submitted contact form', login: 'Logged in', view_content: 'Product view', landed: 'Landed', last: 'Last seen' } as Record<string, string>)[e] || e.replace(/_/g, ' ');
-        const eventDot = (e: string) => ({ landed: 'bg-blue-500', order: 'bg-green-500', register: 'bg-blue-500', add_to_cart: 'bg-orange-500', initiate_checkout: 'bg-amber-500', checkout_email: 'bg-amber-500', checkout_details: 'bg-amber-500', checkout_address: 'bg-amber-500', checkout_payment: 'bg-amber-500', payment_redirect: 'bg-indigo-500', payment_redirect_back: 'bg-indigo-500', contact_request: 'bg-teal-600', login: 'bg-purple-500', last: 'bg-gray-300' } as Record<string, string>)[e] || 'bg-gray-400';
+        // Exit events carry their detail in metadata, so the label reads from it:
+        // "Checkout abandoned" alone would report a switch to sign-in as a loss.
+        const abandonLabel: Record<string, string> = { exit: 'Left the page during checkout', dismiss: 'Closed the checkout form', close: 'Closed the checkout form', signin: 'Switched to sign-in' };
+        // suspended means the page went into bfcache (tab backgrounded, mobile app
+        // switch), which is not a confirmed loss: the shopper may return and buy.
+        // Reading it here is the whole point of recording the flag.
+        const suspendedLabel = 'Left checkout in the background (may return)';
+        const blockedLabel: Record<string, string> = { email_exists: 'Blocked: email already registered', register_failed: 'Blocked: could not create account', register_error: 'Blocked: sign-up error', no_seller: 'Blocked: checkout misconfigured', empty_cart: 'Blocked: cart was empty', cart_sync_failed: 'Blocked: cart sync failed', addresses_failed: 'Blocked: could not load addresses', quote_failed: 'Blocked: could not price the order', overlay_render_failed: 'Blocked: checkout page failed to render', coupon_failed: 'Blocked: coupon could not be applied', address_save_failed: 'Blocked: address save failed', address_refetch_empty: 'Blocked: address saved but not listed', no_delivery_address: 'Blocked: no delivery address', no_pickup_location: 'Blocked: no pickup location', place_order_failed: 'Blocked: order could not be placed' };
+        const prettyEvent = (e: string, m?: Record<string, unknown>) => {
+          if (e === 'checkout_abandon') {
+            if (m?.suspended === true) return suspendedLabel;
+            return abandonLabel[String(m?.mode ?? '')] || 'Left checkout';
+          }
+          if (e === 'checkout_blocked') return blockedLabel[String(m?.reason ?? '')] || 'Checkout blocked';
+          return ({ add_to_cart: 'Added to cart', initiate_checkout: 'Started checkout', checkout_modal: 'Checkout form shown', checkout_email: 'Entered email', checkout_details: 'Reached checkout page', checkout_address: 'Set delivery address', checkout_payment: 'Chose payment method', payment_redirect: 'Sent to payment provider', payment_redirect_back: 'Returned from payment', order: 'Purchased', register: 'Registered', contact_request: 'Submitted contact form', login: 'Logged in', view_content: 'Product view', landed: 'Landed', last: 'Last seen' } as Record<string, string>)[e] || e.replace(/_/g, ' ');
+        };
+        const eventDot = (e: string) => ({ landed: 'bg-blue-500', order: 'bg-green-500', register: 'bg-blue-500', add_to_cart: 'bg-orange-500', initiate_checkout: 'bg-amber-500', checkout_modal: 'bg-amber-500', checkout_email: 'bg-amber-500', checkout_details: 'bg-amber-500', checkout_address: 'bg-amber-500', checkout_payment: 'bg-amber-500', payment_redirect: 'bg-indigo-500', payment_redirect_back: 'bg-indigo-500', checkout_blocked: 'bg-red-500', checkout_abandon: 'bg-rose-400', contact_request: 'bg-teal-600', login: 'bg-purple-500', last: 'bg-gray-300' } as Record<string, string>)[e] || 'bg-gray-400';
         const renderMeta = (metadata: Record<string, unknown>) => Object.entries(metadata).flatMap(([k, v]) => {
           if (k === 'capi' && Array.isArray(v)) {
             return (v as { provider?: string; status?: string }[]).map((r, ri) => (
@@ -669,7 +684,7 @@ const Analytics: React.FC = () => {
         });
         const journey: { event: string; name: string; date: string; page: string; metadata: Record<string, unknown> }[] = [
           { event: 'landed', name: 'Landed', date: selected.firstVisit, page: selected.attribution?.landingPage || '', metadata: { source: `${selected.attribution?.source || 'direct'} / ${selected.attribution?.medium || 'direct'}`, ...(selected.attribution?.campaign ? { campaign: selected.attribution.campaign } : {}), ...(selected.attribution?.content ? { content: selected.attribution.content } : {}) } },
-          ...(selected.milestones || []).map(m => ({ event: m.event, name: prettyEvent(m.event), date: m.date, page: m.page || '', metadata: (m.metadata || {}) as Record<string, unknown> })),
+          ...(selected.milestones || []).map(m => ({ event: m.event, name: prettyEvent(m.event, (m.metadata || {}) as Record<string, unknown>), date: m.date, page: m.page || '', metadata: (m.metadata || {}) as Record<string, unknown> })),
         ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         if (journey.length && new Date(selected.lastVisit).getTime() > new Date(journey[journey.length - 1].date).getTime() + 1500) {
           journey.push({ event: 'last', name: 'Last seen', date: selected.lastVisit, page: '', metadata: {} });
