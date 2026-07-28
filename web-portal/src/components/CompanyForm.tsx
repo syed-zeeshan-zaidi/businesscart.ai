@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, GatewayConfigResponse } from '../api';
+import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, getLogoUploadUrl, uploadFileToS3, GatewayConfigResponse } from '../api';
 import { Account, CompanyData, CustomerGroup, MAX_CUSTOMER_GROUPS } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
@@ -558,6 +558,36 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [gatewayConfigs, setGatewayConfigs] = useState<GatewayConfigResponse[]>([]);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState('');
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      toast.error('Logo must be under 1 MB');
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const { uploadUrl, imageUrl } = await getLogoUploadUrl(file.type, account._id);
+      await uploadFileToS3(uploadUrl, file);
+      setCompanyData((prev) => ({ ...prev, logoUrl: imageUrl }));
+      // The CDN key is fixed per company, so after a replace the remote URL keeps
+      // serving the previous image until the edge cache expires. Preview the file
+      // we just sent so the operator sees what they uploaded, not the stale one.
+      setLogoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
+      toast.success('Logo uploaded');
+    } catch {
+      toast.error('Logo upload failed');
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     setCompanyData(account.company || {});
@@ -787,7 +817,24 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           <Section title="Company Profile" icon={<ProfileIcon />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {renderInput('name', 'Company Name')}
-              {renderInput('logoUrl', 'Logo URL', 'https://example.com/logo.png')}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Logo</label>
+                <div className="mt-1 flex items-center gap-3">
+                  {(logoPreview || companyData.logoUrl) && (
+                    <img src={logoPreview || companyData.logoUrl} alt="" className="h-10 w-10 rounded object-contain bg-white border border-gray-200 shrink-0" />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleLogoUpload}
+                    disabled={logoUploading}
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  {logoUploading ? 'Uploading…' : 'Square PNG, JPEG, WebP or SVG. At least 512×512, under 1 MB. Used as the storefront favicon, nav logo and social preview. Replacing it can take up to 24 hours to show.'}
+                </p>
+              </div>
               {renderInput('companyCode', 'Company Code', '', true)}
               {renderInput('companyCodeId', 'Company Code ID', '', true)}
             </div>

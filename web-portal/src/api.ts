@@ -183,6 +183,18 @@ export const getUploadUrl = async (contentType: string, fileExtension: string, s
   return response.data;
 };
 
+// Company logo. Same presign endpoint, but the backend stores it at the fixed
+// key <companyId>/assets/logo so a re-upload replaces the previous file instead
+// of leaving one object per upload. companyId is only honoured for admins; a
+// company account always writes under its own prefix.
+export const getLogoUploadUrl = async (contentType: string, companyId?: string): Promise<{
+  uploadUrl: string;
+  imageUrl: string;
+}> => {
+  const response = await api.post(`${API_URL}/products/upload-url`, { contentType, kind: 'logo', companyId });
+  return response.data;
+};
+
 export const uploadFileToS3 = async (uploadUrl: string, file: File): Promise<void> => {
   await axios.put(uploadUrl, file, {
     headers: { 'Content-Type': file.type },

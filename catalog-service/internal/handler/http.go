@@ -922,16 +922,53 @@ func (h *LambdaHandler) getUploadURL(userClaim map[string]interface{}, body stri
 		ContentType   string `json:"contentType"`
 		FileExtension string `json:"fileExtension"`
 		Slug          string `json:"slug"`
+		Kind          string `json:"kind"`
+		CompanyID     string `json:"companyId"`
 	}
 	if err := json.Unmarshal([]byte(body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	if req.ContentType == "" || req.FileExtension == "" {
+	// Logo uploads are stored without an extension (see the logo branch below),
+	// so only the product path requires one. Product behaviour is unchanged.
+	if req.ContentType == "" || (req.Kind != "logo" && req.FileExtension == "") {
 		return h.errorResponse(http.StatusBadRequest, "contentType and fileExtension are required"), nil
 	}
 
 	sellerID, _ := userClaim["id"].(string)
+
+	// Company logo: one fixed key per company, so a re-upload overwrites the
+	// previous object instead of accumulating one per upload. Deliberately
+	// extensionless — the stored Content-Type drives rendering, so a merchant
+	// switching PNG to JPG still leaves exactly one object behind.
+	// Admins edit other companies and pass the target id; a company caller can
+	// only ever write under its own prefix, and the id is validated as an
+	// ObjectID so it can never traverse outside the company's folder.
+	if req.Kind == "logo" {
+		ownerID := sellerID
+		if claimRole == "admin" && req.CompanyID != "" {
+			if _, err := primitive.ObjectIDFromHex(req.CompanyID); err != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid companyId"), nil
+			}
+			ownerID = req.CompanyID
+		}
+		logoKey := fmt.Sprintf("%s/assets/logo", ownerID)
+		presignClient := s3.NewPresignClient(h.s3Client)
+		presignReq, err := presignClient.PresignPutObject(context.TODO(), &s3.PutObjectInput{
+			Bucket:      aws.String(h.s3Bucket),
+			Key:         aws.String(logoKey),
+			ContentType: aws.String(req.ContentType),
+		}, s3.WithPresignExpires(15*time.Minute))
+		if err != nil {
+			log.Printf("ERROR: Failed to create logo upload URL: %v", err)
+			return h.errorResponse(http.StatusInternalServerError, "Failed to generate upload URL"), nil
+		}
+		return h.successResponse(map[string]string{
+			"uploadUrl": presignReq.URL,
+			"imageUrl":  fmt.Sprintf("https://%s/%s", h.cdnDomain, logoKey),
+		}), nil
+	}
+
 	imageID := uuid.New().String()
 	ext := req.FileExtension
 	filename := "image-" + imageID[:8]
