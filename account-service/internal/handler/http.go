@@ -1915,16 +1915,7 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	// Detect bots
 	isBot, botName := detectBot(userAgent, asn)
 
-	// Infer source from referrer if no UTM
-	source := req.UTMSource
-	medium := req.UTMMedium
-	if source == "" && req.Referrer != "" {
-		source, medium = inferSource(req.Referrer)
-	}
-	if source == "" {
-		source = "direct"
-		medium = "direct"
-	}
+	source, medium := resolveSourceMedium(req.UTMSource, req.UTMMedium, req.Referrer)
 	if isBot {
 		medium = "bot"
 	}
@@ -2143,9 +2134,15 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 	case "initiate_checkout":
 		milestone := storage.VisitorMilestone{Event: "initiate_checkout", Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
-	case "checkout_email", "checkout_details", "checkout_address", "checkout_payment", "payment_redirect", "payment_redirect_back":
-		// Mid-funnel checkout steps (Roadmap #41 Phase A). Milestone-only: internal
-		// funnel visibility, deliberately NOT sent to ad platforms (see conversion switch above).
+	case "checkout_email", "checkout_details", "checkout_address", "checkout_payment", "payment_redirect", "payment_redirect_back",
+		// Checkout EXIT steps (Roadmap #41 Phase A2). Phase A instrumented the happy
+		// path only, so every exit before checkout_email stayed invisible, including
+		// the guest-modal drop that the whole epic was written about. checkout_modal
+		// marks the form being shown, checkout_blocked carries a reason, and
+		// checkout_abandon carries the stage the shopper left from.
+		"checkout_modal", "checkout_blocked", "checkout_abandon":
+		// Milestone-only: internal funnel visibility, deliberately NOT sent to ad
+		// platforms (see conversion switch above, which maps only 4 event names).
 		milestone := storage.VisitorMilestone{Event: req.Event, Page: req.Page, Date: now, Metadata: req.Metadata}
 		logErr("addMilestone", h.db.AddVisitorMilestone(req.VisitorID, milestone))
 	case "view_content":
@@ -2449,6 +2446,18 @@ func detectBot(ua, asn string) (bool, string) {
 		"linkedinbot": "LinkedInBot", "slackbot": "Slackbot", "whatsapp": "WhatsApp",
 		"yandexbot": "YandexBot", "duckduckbot": "DuckDuckBot", "applebot": "AppleBot",
 		"semrushbot": "SemrushBot", "ahrefsbot": "AhrefsBot",
+		// Storebot-Google is Google's shopping crawler and it DRIVES CHECKOUT: it
+		// adds to cart and taps checkout to verify the flow. Its UA contains
+		// "Mozilla", so the datacenter-ASN rule below never caught it, and its
+		// synthetic add_to_cart / initiate_checkout were dispatched to Meta as real
+		// conversions (12 sends confirmed in prod). Teaching the bidder to buy
+		// traffic that looks like a crawler.
+		"storebot-google": "Storebot-Google", "google-inspectiontool": "Google-InspectionTool",
+		// Agents that fetch pages on a user's behalf. They are not shoppers and must
+		// never reach the conversion path.
+		"chatgpt-user": "ChatGPT-User", "oai-searchbot": "OAI-SearchBot",
+		"perplexity-user": "Perplexity-User", "google-extended": "Google-Extended",
+		"bytespider": "Bytespider", "amazonbot": "Amazonbot", "meta-externalagent": "MetaExternalAgent",
 	}
 	lower := strings.ToLower(ua)
 	for key, name := range bots {
@@ -2464,13 +2473,99 @@ func detectBot(ua, asn string) (bool, string) {
 	return false, ""
 }
 
+// resolveSourceMedium picks the channel for a visit: explicit UTM values win,
+// then the referrer, then "direct".
+//
+// The empty-medium case is the subtle one. Platforms that decorate their own
+// outbound links send a utm_source and no utm_medium — ChatGPT appends
+// "?utm_source=chatgpt.com" and nothing else. That used to skip inferSource
+// entirely (the old guard was `if source == ""`) and store medium as an empty
+// string, so those visits rendered as an unlabelled channel and could never show
+// up as llm. Classify the utm_source value itself first, fall back to the
+// referrer, and only then settle for "referral".
+//
+// Campaigns that set both values are untouched: the empty-medium branch cannot
+// fire for them, so google/cpc, fb/paid and ig/paid keep behaving exactly as before.
+func resolveSourceMedium(utmSource, utmMedium, referrer string) (source, medium string) {
+	source, medium = utmSource, utmMedium
+	if source == "" && referrer != "" {
+		source, medium = inferSource(referrer)
+	}
+	if source != "" && medium == "" {
+		// inferSource returns "referral" as its give-up value, so anything else
+		// means it actually recognised the token.
+		if s, m := inferSource(source); m != "referral" {
+			source, medium = s, m
+		} else if referrer != "" {
+			if _, m := inferSource(referrer); m != "referral" {
+				medium = m
+			}
+		}
+		if medium == "" {
+			medium = "referral"
+		}
+	}
+	if source == "" {
+		source = "direct"
+		medium = "direct"
+	}
+	return source, medium
+}
+
 func inferSource(referrer string) (source, medium string) {
 	r := strings.ToLower(referrer)
 	switch {
+	// LLM assistants are matched FIRST. Several of their hosts contain substrings
+	// that the search/social cases below would otherwise swallow, which silently
+	// misfiled every such visit:
+	//   "chatgpt.com" contains "t.co"      -> was returning twitter/social
+	//   "gemini.google.com" contains "google." -> was returning google/organic
+	// Order is the fix; these cases were unreachable where they used to sit.
+	case strings.Contains(r, "chat.openai.com") || strings.Contains(r, "chatgpt.com"):
+		return "chatgpt", "llm"
+	case strings.Contains(r, "perplexity.ai"):
+		return "perplexity", "llm"
+	case strings.Contains(r, "claude.ai"):
+		return "claude", "llm"
+	// vertexaisearch.cloud.google.com is the redirect host behind Gemini's
+	// grounded citations, so it carries genuine Gemini referrals.
+	case strings.Contains(r, "gemini.google.com") || strings.Contains(r, "vertexaisearch.cloud.google.com"):
+		return "gemini", "llm"
+	case strings.Contains(r, "copilot.microsoft.com"):
+		return "copilot", "llm"
+	case strings.Contains(r, "meta.ai"):
+		return "meta-ai", "llm"
+	// A bare "x.ai" matched any host containing it (linux.ai, phoenix.ai both
+	// classified as grok), so anchor on the real Grok hosts instead.
+	case strings.Contains(r, "grok.com") || strings.Contains(r, "grok.x.ai"):
+		return "grok", "llm"
+	case strings.Contains(r, "you.com"):
+		return "you", "llm"
+	case strings.Contains(r, "phind.com"):
+		return "phind", "llm"
+	case strings.Contains(r, "deepseek.com"):
+		return "deepseek", "llm"
+	case strings.Contains(r, "poe.com"):
+		return "poe", "llm"
+	case strings.Contains(r, "mistral.ai"):
+		return "mistral", "llm"
+	// Search engines. Brave and Kagi belong HERE, not in the llm block above: both
+	// are general keyword search engines that happen to ship an AI assistant, so
+	// filing an ordinary search as llm would permanently inflate the very channel
+	// this classifier exists to measure (attribution is written once, on insert).
 	case strings.Contains(r, "google."):
 		return "google", "organic"
 	case strings.Contains(r, "bing."):
 		return "bing", "organic"
+	case strings.Contains(r, "duckduckgo.com"):
+		return "duckduckgo", "organic"
+	case strings.Contains(r, "search.brave.com"):
+		return "brave", "organic"
+	case strings.Contains(r, "kagi.com"):
+		return "kagi", "organic"
+	case strings.Contains(r, "yahoo."):
+		return "yahoo", "organic"
+	// Social.
 	case strings.Contains(r, "reddit.com"):
 		return "reddit", "social"
 	case strings.Contains(r, "linkedin.com"):
@@ -2479,7 +2574,9 @@ func inferSource(referrer string) (source, medium string) {
 		return "facebook", "social"
 	case strings.Contains(r, "instagram.com"):
 		return "instagram", "social"
-	case strings.Contains(r, "twitter.com") || strings.Contains(r, "t.co"):
+	// "t.co" is a substring of every host ending in "t.com", so anchor it to the
+	// actual link-shortener URL rather than matching it anywhere in the string.
+	case strings.Contains(r, "twitter.com") || strings.Contains(r, "//t.co/") || strings.HasSuffix(r, "//t.co"):
 		return "twitter", "social"
 	case strings.Contains(r, "youtube.com"):
 		return "youtube", "social"
@@ -2487,28 +2584,6 @@ func inferSource(referrer string) (source, medium string) {
 		return "tiktok", "social"
 	case strings.Contains(r, "wa.me") || strings.Contains(r, "whatsapp.com"):
 		return "whatsapp", "social"
-	case strings.Contains(r, "chat.openai.com") || strings.Contains(r, "chatgpt.com"):
-		return "chatgpt", "llm"
-	case strings.Contains(r, "perplexity.ai"):
-		return "perplexity", "llm"
-	case strings.Contains(r, "claude.ai"):
-		return "claude", "llm"
-	case strings.Contains(r, "gemini.google.com"):
-		return "gemini", "llm"
-	case strings.Contains(r, "copilot.microsoft.com"):
-		return "copilot", "llm"
-	case strings.Contains(r, "meta.ai"):
-		return "meta-ai", "llm"
-	case strings.Contains(r, "grok.x.ai") || strings.Contains(r, "x.ai"):
-		return "grok", "llm"
-	case strings.Contains(r, "you.com"):
-		return "you", "llm"
-	case strings.Contains(r, "phind.com"):
-		return "phind", "llm"
-	case strings.Contains(r, "duckduckgo.com"):
-		return "duckduckgo", "organic"
-	case strings.Contains(r, "yahoo."):
-		return "yahoo", "organic"
 	default:
 		return "referral", "referral"
 	}

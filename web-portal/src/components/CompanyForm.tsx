@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, GatewayConfigResponse } from '../api';
+import { getAccounts, updateAccount, getAccount, regenerateStorefront, getGatewayConfigs, saveGatewayConfig, deleteGatewayConfig, getLogoUploadUrl, uploadFileToS3, GatewayConfigResponse } from '../api';
 import { Account, CompanyData, CustomerGroup, MAX_CUSTOMER_GROUPS } from '../types';
 import Navbar from './Navbar';
 import toast, { Toaster } from 'react-hot-toast';
@@ -558,6 +558,50 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [gatewayConfigs, setGatewayConfigs] = useState<GatewayConfigResponse[]>([]);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null);
+
+  // Release the last blob preview when the modal goes away, so an operator who
+  // opens several companies does not accumulate them for the page's lifetime.
+  useEffect(() => () => { if (logoPreview) URL.revokeObjectURL(logoPreview); }, [logoPreview]);
+
+  // Picking a file does NOT upload it. The S3 key is fixed per company, so an
+  // immediate PUT would overwrite the live logo everywhere (portal navbar,
+  // storefront favicon, og:image, reviews feed) before the operator pressed Save,
+  // with no way to undo it from Cancel. Hold the file and upload during save, the
+  // same deferred pattern ProductForm uses for product images.
+  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      toast.error('Logo must be under 1 MB');
+      return;
+    }
+    // createObjectURL outside the state updater: StrictMode double-invokes updaters
+    // in dev, which would mint two blob URLs and leak the one it discards.
+    const url = URL.createObjectURL(file);
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+    setPendingLogo(file);
+  };
+
+  // Uploads the held logo, if any, and returns the CDN URL to persist. Called from
+  // handleSave so an abandoned edit never touches the live asset.
+  const uploadPendingLogo = async (): Promise<string | null> => {
+    if (!pendingLogo) return null;
+    setLogoUploading(true);
+    try {
+      const { uploadUrl, imageUrl } = await getLogoUploadUrl(pendingLogo.type, account._id);
+      await uploadFileToS3(uploadUrl, pendingLogo);
+      return imageUrl;
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   useEffect(() => {
     setCompanyData(account.company || {});
@@ -693,11 +737,24 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
       }
     }
 
+    // Upload the held logo only after every validation has passed, so a rejected
+    // save never overwrites the live asset. The fixed S3 key means this PUT is
+    // destructive and irreversible, hence last.
+    let uploadedLogoUrl: string | null = null;
+    try {
+      uploadedLogoUrl = await uploadPendingLogo();
+    } catch {
+      toast.error('Logo upload failed, nothing was saved');
+      return;
+    }
+    if (uploadedLogoUrl) wirePayload.logoUrl = uploadedLogoUrl;
+
     setIsSaving(true);
     try {
       const updatedAccount = await updateAccount(account._id, {
         company: wirePayload as unknown as CompanyData
       });
+      setPendingLogo(null);
       toast.success('Company data updated successfully');
       onSave(updatedAccount);
       if (!alwaysOpen) onClose();
@@ -787,7 +844,31 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
           <Section title="Company Profile" icon={<ProfileIcon />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {renderInput('name', 'Company Name')}
-              {renderInput('logoUrl', 'Logo URL', 'https://example.com/logo.png')}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Logo</label>
+                <div className="mt-1 flex items-center gap-3">
+                  {(logoPreview || companyData.logoUrl) && (
+                    <img src={logoPreview || companyData.logoUrl} alt="" className="h-10 w-10 rounded object-contain bg-white border border-gray-200 shrink-0" />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleLogoPick}
+                    disabled={logoUploading}
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  {logoUploading
+                    ? 'Uploading…'
+                    : pendingLogo
+                      ? 'Selected. The logo is replaced when you press Save.'
+                      /* SVG is deliberately not offered: Facebook, LinkedIn and X do not
+                         render SVG og:images, so accepting it would silently break every
+                         social preview while looking fine in the browser tab. */
+                      : 'Square PNG, JPEG or WebP. At least 512×512, under 1 MB. Used as the storefront favicon, nav logo and social preview. Replacing it can take up to 24 hours to show.'}
+                </p>
+              </div>
               {renderInput('companyCode', 'Company Code', '', true)}
               {renderInput('companyCodeId', 'Company Code ID', '', true)}
             </div>
