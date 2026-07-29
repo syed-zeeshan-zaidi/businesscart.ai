@@ -407,11 +407,27 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	return err
 }
 
+// MaxVisitorMilestones bounds the per-visitor journey. The array was previously
+// an uncapped $push, which only stayed small because few events existed. The
+// checkout exit events changed that: checkout_abandon fires once per session for
+// anyone who opens checkout, and milestone writes are NOT bot-gated (only the
+// CAPI dispatch is), so a crawler that drives checkout on every visit would grow
+// one document forever toward MongoDB's 16 MB ceiling.
+//
+// 200 keeps a long journey readable in the portal while making growth bounded.
+// Truncation drops the OLDEST entries only, and loses no durable fact: ordered,
+// totalOrders, totalRevenue and registered are top-level fields, not derived
+// from this array.
+const MaxVisitorMilestones = 200
+
 func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) error {
 	filter := bson.M{"visitorId": visitorID}
 	update := bson.M{
-		"$push": bson.M{"milestones": milestone},
-		"$set":  bson.M{"updatedAt": time.Now()},
+		"$push": bson.M{"milestones": bson.M{
+			"$each":  []VisitorMilestone{milestone},
+			"$slice": -MaxVisitorMilestones,
+		}},
+		"$set": bson.M{"updatedAt": time.Now()},
 	}
 	_, err := db.visitors.UpdateOne(context.Background(), filter, update)
 	return err
