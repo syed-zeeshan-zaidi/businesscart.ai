@@ -1210,7 +1210,7 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	conversionOnly := len(payload.Company) == 0 &&
 		(len(payload.AdConversions) > 0 || len(payload.AdConversionsEnabled) > 0)
 	if !conversionOnly {
-		if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
+		if err := h.triggerD2CGeneration(targetID); err != nil {
 			return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
 		}
 	}
@@ -1241,14 +1241,17 @@ func (h *LambdaHandler) regenerateStorefront(userClaim map[string]interface{}, i
 	}
 
 	// Trigger generation synchronously
-	if err := h.triggerD2CGeneration(targetID, jwtToken); err != nil {
+	if err := h.triggerD2CGeneration(targetID); err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
 	}
 
 	return h.successResponse(map[string]string{"message": "Storefront generation has completed."}, http.StatusOK), nil
 }
 
-func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtToken string) error {
+// triggerD2CGeneration regenerates one company's storefront. It deliberately takes no
+// caller token: generation must always read the target company's own catalog, so the
+// scope is derived from accountID and never from whoever triggered the request.
+func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID) error {
 	acc, err := h.db.GetAccountByID(accountID)
 	if err != nil || acc.CompanyData == nil || acc.CompanyData.D2C == nil {
 		log.Printf("D2C Generation Skip: account or D2C config not found for %s", accountID.Hex())
@@ -1295,23 +1298,33 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 		_ = h.db.UpdateAccount(acc.ID, bson.M{"company.d2c.previewDomain": acc.CompanyData.D2C.PreviewDomain})
 	}
 
-	// 4. Fetch Products (only active products for storefront)
-	allProducts := h.fetchCompanyProducts(acc.ID.Hex(), jwtToken)
-	var products []generator.ProductData
-	for _, p := range allProducts {
-		if p.Active == nil || *p.Active {
-			products = append(products, p)
-		}
+	// 4. Fetch Products (only active products for storefront).
+	//
+	// The catalog is read with a token scoped to THIS company, never the caller's.
+	// catalog-service derives tenancy from the JWT, so an admin token resolves to
+	// every seller (role "admin" => filter {}) and published other tenants' catalogs
+	// onto this company's public storefront whenever an admin regenerated it.
+	companyID := acc.ID.Hex()
+	scopedToken, err := auth.GenerateJWT(companyID, acc.Email, storage.RoleCompany, h.jwtSecret, nil, nil)
+	if err != nil {
+		log.Printf("D2C Generation Failed for %s: could not mint scoped token: %v", companyID, err)
+		return fmt.Errorf("scoped token for storefront generation: %w", err)
 	}
 
-	// 4b. Fetch Blog Posts (isolated — silent fail; never blocks storefront)
-	allBlogPosts := h.fetchCompanyBlogPosts(acc.ID.Hex(), jwtToken)
-	var blogPosts []generator.BlogPostData
-	for _, p := range allBlogPosts {
-		if p.Active == nil || *p.Active {
-			blogPosts = append(blogPosts, p)
-		}
+	// A failed catalog read aborts generation. Publishing the empty slice would wipe the
+	// live storefront's listings and push an empty Shopping feed, removing every product
+	// from Merchant Center. A company that genuinely has no products still generates:
+	// that is a successful fetch returning none, not an error.
+	allProducts, err := h.fetchCompanyProducts(companyID, scopedToken)
+	if err != nil {
+		log.Printf("D2C Generation Failed for %s: catalog fetch: %v", companyID, err)
+		return fmt.Errorf("catalog fetch for storefront generation: %w", err)
 	}
+	products := ownedProducts(allProducts, companyID)
+
+	// 4b. Fetch Blog Posts (isolated — silent fail; never blocks storefront)
+	allBlogPosts := h.fetchCompanyBlogPosts(companyID, scopedToken)
+	blogPosts := ownedBlogPosts(allBlogPosts, companyID)
 
 	// 5. Run Generator
 	genData := generator.StorefrontData{
@@ -1338,13 +1351,52 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID, jwtTo
 	return nil
 }
 
-func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) []generator.ProductData {
+// ownedProducts keeps only companyID's active products. A generated storefront is a
+// public, single-tenant artifact, so a foreign sellerID reaching it would publish
+// another company's catalog (names, prices, SKUs, stock) on this company's domain.
+// Scope is already enforced by the company-scoped token in triggerD2CGeneration; this
+// is the publication boundary that still holds if any fetch ever returns foreign rows.
+// Returns a nil slice when nothing matches, matching the previous inline filter.
+func ownedProducts(all []generator.ProductData, companyID string) []generator.ProductData {
+	var out []generator.ProductData
+	for _, p := range all {
+		if p.SellerID != companyID {
+			log.Printf("SECURITY: dropped product %s (sellerID=%q) from storefront of %s", p.ID, p.SellerID, companyID)
+			continue
+		}
+		if p.Active == nil || *p.Active {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// ownedBlogPosts mirrors ownedProducts for editorial content.
+func ownedBlogPosts(all []generator.BlogPostData, companyID string) []generator.BlogPostData {
+	var out []generator.BlogPostData
+	for _, p := range all {
+		if p.SellerID != companyID {
+			log.Printf("SECURITY: dropped blog post %s (sellerID=%q) from storefront of %s", p.ID, p.SellerID, companyID)
+			continue
+		}
+		if p.Active == nil || *p.Active {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// fetchCompanyProducts returns the company's catalog, or an error if the catalog could
+// not be read. A failed fetch MUST NOT be reported as an empty catalog: the caller would
+// republish the live storefront and the Shopping feed with zero products, which empties
+// the site and pulls every listing out of Merchant Center. "No products" is only ever a
+// successful response that happened to contain none.
+func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) ([]generator.ProductData, error) {
 	log.Printf("Fetching products for companyID: %s using provided JWT", companyID)
 
 	catalogServiceURL := os.Getenv("CATALOG_SERVICE_URL")
 	if catalogServiceURL == "" {
-		log.Println("CATALOG_SERVICE_URL environment variable not set. Returning empty product list.")
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("CATALOG_SERVICE_URL not set")
 	}
 
 	productsURL := fmt.Sprintf("%s/products", catalogServiceURL)
@@ -1354,8 +1406,7 @@ func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) 
 
 	req, err := http.NewRequest("GET", productsURL, nil)
 	if err != nil {
-		log.Printf("Failed to create HTTP request to catalog-service for companyID %s: %v", companyID, err)
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("build catalog request: %w", err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+jwtToken)
@@ -1364,27 +1415,23 @@ func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Failed to make HTTP request to catalog-service for companyID %s: %v", companyID, err)
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("call catalog-service: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		log.Printf("Catalog-service returned non-OK status for companyID %s: %d - %s", companyID, resp.StatusCode, string(bodyBytes))
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("catalog-service returned %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Failed to read response body from catalog-service for companyID %s: %v", companyID, err)
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("read catalog response: %w", err)
 	}
 
 	var products []generator.ProductData
 	if err := json.Unmarshal(bodyBytes, &products); err != nil {
-		log.Printf("Failed to unmarshal products from catalog-service response for companyID %s: %v", companyID, err)
-		return []generator.ProductData{}
+		return nil, fmt.Errorf("decode catalog response: %w", err)
 	}
 
 	log.Printf("Successfully fetched %d products for companyID %s from catalog-service", len(products), companyID)
@@ -1396,7 +1443,7 @@ func (h *LambdaHandler) fetchCompanyProducts(companyID string, jwtToken string) 
 		}
 	}
 
-	return products
+	return products, nil
 }
 
 // fetchCompanyBlogPosts is the isolated blog fetch — mirrors fetchCompanyProducts.

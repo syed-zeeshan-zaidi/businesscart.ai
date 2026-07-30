@@ -111,6 +111,7 @@ type PriceTier struct {
 
 type ProductData struct {
 	ID                    string      `json:"_id,omitempty"`
+	SellerID              string      `json:"sellerID,omitempty"` // owning company; checked before publishing (never rendered)
 	PartnerID             string      `json:"partnerId,omitempty"`
 	Name                  string      `json:"name"`
 	Description           string      `json:"description"`
