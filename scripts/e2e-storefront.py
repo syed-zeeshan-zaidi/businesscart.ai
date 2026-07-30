@@ -34,7 +34,19 @@ import requests
 # ─── Configuration ──────────────────────────────────────────────────────────
 API_URL = os.getenv("API_URL", "http://localhost:3000")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "help@businesscart.ai")
+# ADMIN_PASSWORD: from the environment (the pre-push hook passes it explicitly).
+# For standalone runs, fall back to the gitignored scripts/.precommit.env so we
+# never hardcode a secret in a tracked file (same rule as the Stripe key below).
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".precommit.env")) as _f:
+            for _line in _f:
+                if _line.strip().startswith("ADMIN_PASSWORD="):
+                    ADMIN_PASSWORD = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    except OSError:
+        pass
 # Stripe SANDBOX (test-mode) secret key. Read from the environment (or the
 # gitignored scripts/.precommit.env), never hardcoded — a committed key, even a
 # test one, is a secret leak (GitHub push protection blocks it). Must be an
