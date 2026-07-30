@@ -48,6 +48,8 @@ if not ADMIN_PASSWORD:
 
 USETGO_COMPANY_ID = "68d46f98e4dc5dd472e33655"
 USETGO_UID = "ui-sid-888"
+# Set by step_regenerate so the tenant-isolation check can reuse the admin session.
+ADMIN_TOKEN = None
 STOREFRONT_DIR = os.path.abspath(f"./storefronts/{USETGO_UID}")
 COPY_SCRIPT = os.path.abspath("./copy_d2c_files.sh")
 
@@ -127,6 +129,8 @@ def step_regenerate():
         if not token:
             fail(f"login response missing token: {r.json()}")
             return
+        global ADMIN_TOKEN
+        ADMIN_TOKEN = token
         ok("admin login")
     except Exception as e:
         fail(f"admin login error: {e}")
@@ -163,6 +167,80 @@ def step_regenerate():
     except Exception as e:
         fail(f"copy script error: {e}")
         return
+
+
+# ─── Step 2.5: Tenant isolation ─────────────────────────────────────────────
+def step_tenant_isolation():
+    """Every generated page must belong to the company being regenerated.
+
+    The regen above runs as ADMIN, which is exactly how one tenant's catalog once
+    got published onto another tenant's public storefront: catalog-service derives
+    tenancy from the JWT, and an admin token resolves to every seller. The schema
+    step cannot catch that, because a foreign product's page still has perfectly
+    valid JSON-LD; it would just report a larger PDP count and pass.
+
+    Pages are named {slug}-{last6ofID}.html by the generator, so the filename
+    suffix maps a page back to the product that produced it.
+    """
+    step("Step 2.5/4: Tenant isolation (no foreign products or posts on this storefront)")
+
+    if not ADMIN_TOKEN:
+        fail("tenant isolation: no admin token available")
+        return
+
+    hdrs = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
+
+    def owned_suffixes(endpoint, label):
+        try:
+            r = requests.get(f"{API_URL}{endpoint}", headers=hdrs, timeout=30)
+        except Exception as e:
+            fail(f"tenant isolation: {label} fetch error: {e}")
+            return None
+        if r.status_code != 200:
+            fail(f"tenant isolation: {label} fetch returned {r.status_code}")
+            return None
+        rows = r.json() or []
+        # Admin sees every seller; that breadth is the point — it is what the
+        # storefront must NOT contain.
+        mine = {str(x["_id"])[-6:] for x in rows
+                if x.get("sellerID") == USETGO_COMPANY_ID and x.get("_id")}
+        if not mine:
+            fail(f"tenant isolation: admin catalog returned no {label} for this company")
+            return None
+        return mine, len(rows)
+
+    def check(pattern, mine, label, skip=()):
+        # index.html and other listing pages are generated, not product/post pages,
+        # so they carry no ID suffix to attribute (same exclusion as step_schema).
+        pages = sorted(p for p in glob.glob(pattern)
+                       if os.path.basename(p) not in skip)
+        foreign = []
+        for p in pages:
+            suffix = os.path.basename(p)[:-len(".html")].rsplit("-", 1)[-1]
+            if suffix not in mine:
+                foreign.append(os.path.basename(p))
+        if foreign:
+            fail(f"CROSS-TENANT LEAK: {len(foreign)} {label} page(s) not owned by this "
+                 f"company: {foreign[:5]}{' …' if len(foreign) > 5 else ''}")
+            return False
+        return len(pages)
+
+    res = owned_suffixes("/products", "products")
+    if not res:
+        return
+    mine_products, total_products = res
+
+    res = owned_suffixes("/blog", "blog posts")
+    mine_posts, total_posts = res if res else (set(), 0)
+
+    n_pdp = check(f"{STOREFRONT_DIR}/products/*.html", mine_products, "product",
+                  skip=("index.html",))
+    n_blog = (check(f"{STOREFRONT_DIR}/blog/*.html", mine_posts, "blog",
+                    skip=("index.html",)) if mine_posts else 0)
+
+    if n_pdp is not False and n_blog is not False:
+        ok(f"tenant isolation: {n_pdp} PDP(s) + {n_blog} blog page(s) all owned by this "
+           f"company (admin sees {total_products} products / {total_posts} posts across all sellers)")
 
 
 # ─── Step 3: JSON-LD schema validation ──────────────────────────────────────
@@ -568,6 +646,7 @@ if __name__ == "__main__":
     step_clean()
     step_regenerate()
     if failed == 0:
+        step_tenant_isolation()
         step_schema()
         step_tracking()
         step_lighthouse()
