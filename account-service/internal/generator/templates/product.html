@@ -392,9 +392,15 @@
             [[if gt (len .Product.Images) 1]]
             <div style="display:flex;gap:0.5rem;margin-top:0.75rem;overflow-x:auto;padding-bottom:0.25rem">
                 [[range $i, $url := .Product.Images]]
+                [[/* Thumbnails reuse the full-size image url (there are no derivatives),
+                     so without these the browser races 7 full-resolution decodes against
+                     the hero and delays LCP. The hero keeps fetchpriority=high; every
+                     thumbnail yields to it. Index 0 is the same url as the hero, so it
+                     costs nothing extra. */]]
                 <img src="[[$url]]" alt="[[$.Product.Name]] [[printf "%d" $i]]"
                     onclick="document.getElementById('main-product-img').src=this.src;document.querySelectorAll('.thumb-img').forEach(function(t){t.style.borderColor='#e5e7eb'});this.style.borderColor='var(--primary)'"
-                    class="thumb-img"
+                    class="thumb-img" width="64" height="64"
+                    loading="lazy" decoding="async" fetchpriority="low"
                     style="width:64px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid [[if eq $i 0]]var(--primary)[[else]]#e5e7eb[[end]]">
                 [[end]]
             </div>
