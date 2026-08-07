@@ -648,7 +648,12 @@ const UserForm = () => {
                   </div>
                   <div className="flex justify-end space-x-2 pt-6">
                     <button type="button" onClick={() => setIsConfigModalOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
-                    <button type="button" onClick={handleSaveConfiguration} disabled={isLoading} className="px-4 py-2 bg-teal-700 text-white rounded">Save Configuration</button>
+                    <button
+                      type="button"
+                      onClick={handleSaveConfiguration}
+                      disabled={isLoading}
+                      className="px-4 py-2 bg-teal-700 text-white rounded disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >Save Configuration</button>
                   </div>
                 </Dialog.Panel>
               </Transition.Child>

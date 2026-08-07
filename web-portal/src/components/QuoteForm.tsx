@@ -34,21 +34,39 @@ const getCurrentUser = () => {
 const QuoteForm = () => {
   /* ------------------------ State ------------------------ */
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
   const navigate = useNavigate();
 
   /* ------------------------ Derived ------------------------ */
   const currentUser = useMemo(() => getCurrentUser(), []);
   const companyId = currentUser?.role === 'company' ? currentUser?.id : undefined;
 
+  // Quotes waiting on THIS person's own sign-off (Roadmap #21d). Matched on the
+  // individual account, not the organisation: colleagues share an OrgID, so
+  // matching that would put every seller's quote in everyone's queue.
+  const awaitingMyApproval = useMemo(
+    () =>
+      quotes.filter(
+        (q) =>
+          q.status === 'pending_approval' &&
+          q.approvalChain?.[q.approvalStage ?? 0]?.side === 'seller' &&
+          (q.approvalChain?.[q.approvalStage ?? 0]?.approvers || []).some(
+            (a) => a.accountId === currentUser?.id
+          )
+      ),
+    [quotes, currentUser]
+  );
+
   const filteredQuotes = useMemo(
     () =>
-      quotes.filter((q) =>
+      (showPendingOnly ? awaitingMyApproval : quotes).filter((q) =>
         q.id.toLowerCase().includes(searchQuery.toLowerCase())
       ),
-    [quotes, searchQuery]
+    [quotes, awaitingMyApproval, showPendingOnly, searchQuery]
   );
 
   const totalPages = Math.ceil(filteredQuotes.length / QUOTES_PER_PAGE);
@@ -101,7 +119,30 @@ const QuoteForm = () => {
     navigate(`/quote-details/${quoteId}`);
   };
 
+  // The seller's escape hatch when a buyer's approver never responds. Deliberate
+  // and separate from Approve: the generic status path refuses a quote awaiting
+  // approval precisely so an override cannot happen by accident.
+  const handleForceRelease = async (quoteId: string) => {
+    if (statusUpdatingId) return;
+    if (!window.confirm('Release this order without the outstanding approval? Whoever is still to sign off will not have done so, and this is recorded on the order.')) return;
+    setStatusUpdatingId(quoteId);
+    try {
+      const updatedQuote = await patchQuote(quoteId, 'forceReleaseApproval', {});
+      setQuotes((prevQuotes) => prevQuotes.map((q) => (q.id === quoteId ? updatedQuote : q)));
+      toast.success('Order released without buyer approval');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not release this order');
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
   const handleUpdateStatus = async (quoteId: string, status: string) => {
+    // Guard against a double-click firing two status changes at a quote the row
+    // still shows as un-actioned. The second request used to be able to resolve
+    // an order that the first had just handed to the buyer's approval chain.
+    if (statusUpdatingId) return;
+    setStatusUpdatingId(quoteId);
     try {
       const updatedQuote = await patchQuote(quoteId, 'updateStatus', { status });
       setQuotes((prevQuotes) =>
@@ -112,6 +153,8 @@ const QuoteForm = () => {
       toast.error(
         err.response?.data?.message || `Error updating quote status`
       );
+    } finally {
+      setStatusUpdatingId(null);
     }
   };
 
@@ -133,6 +176,30 @@ const QuoteForm = () => {
             </button>
           )}
         </header>
+
+        {/* "Awaiting my approval" (Roadmap #21d). The seller-side mirror of the
+            buyer's queue: without a list, an approver has no way to find what is
+            sitting on them, which is the complaint levelled at Adobe Commerce. */}
+        {awaitingMyApproval.length > 0 && (
+          <section className="mb-4 flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => {
+                setShowPendingOnly((v) => !v);
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 text-sm rounded-md border ${
+                showPendingOnly
+                  ? 'bg-teal-700 text-white border-teal-700'
+                  : 'bg-white text-teal-700 border-teal-300 hover:bg-teal-50'
+              }`}
+            >
+              Awaiting my approval ({awaitingMyApproval.length})
+            </button>
+            {showPendingOnly && (
+              <span className="text-xs text-gray-500">Showing only quotes waiting on your decision.</span>
+            )}
+          </section>
+        )}
 
         {/* Search */}
         <section className="mb-6">
@@ -210,17 +277,29 @@ const QuoteForm = () => {
                         >
                           <EyeIcon className="h-5 w-5" />
                         </button>
+                        {currentUser && (currentUser.role === 'company' || currentUser.role === 'admin') && quote.status === 'pending_approval' && (
+                          <button
+                            onClick={() => handleForceRelease(quote.id)}
+                            disabled={statusUpdatingId !== null}
+                            title="An approver has not responded. Release the order anyway."
+                            className="text-amber-600 hover:text-amber-800 ml-4 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
+                            Release
+                          </button>
+                        )}
                         {currentUser && (currentUser.role === 'company' || currentUser.role === 'admin') && quote.status === 'proposed' && (
                           <>
                             <button
                               onClick={() => handleUpdateStatus(quote.id, 'approved')}
-                              className="text-green-600 hover:text-green-800 ml-4"
+                              disabled={statusUpdatingId !== null}
+                              className="text-green-600 hover:text-green-800 ml-4 disabled:text-gray-400 disabled:cursor-not-allowed"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleUpdateStatus(quote.id, 'rejected')}
-                              className="text-red-600 hover:text-red-800 ml-4"
+                              disabled={statusUpdatingId !== null}
+                              className="text-red-600 hover:text-red-800 ml-4 disabled:text-gray-400 disabled:cursor-not-allowed"
                             >
                               Reject
                             </button>

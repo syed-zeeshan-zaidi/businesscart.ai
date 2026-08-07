@@ -186,6 +186,34 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (re
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+// newOrgInviteCode mints a join code for an organisation.
+//
+// Long and random because it is multi-use and, unlike the admin-issued company
+// and customer codes, it is handed out by the organisation itself: anyone
+// holding it can join and inherit that organisation's view of its data.
+func newOrgInviteCode() (string, error) {
+	b := make([]byte, 18)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "ORG-" + strings.ToUpper(hex.EncodeToString(b)), nil
+}
+
+// orgIDFromClaim resolves the organisation a caller acts within (Roadmap #21c).
+//
+// Seller-scoped records are keyed by the ROOT account's id, so lookups must use
+// this rather than the caller's own id — otherwise a second account in the same
+// organisation resolves an empty result set. Tokens minted before this claim
+// existed, and any account without a parent, fall back to the account's own id,
+// so behaviour is unchanged until a parent is actually assigned.
+func orgIDFromClaim(userClaim map[string]interface{}) string {
+	if org, _ := userClaim["org_id"].(string); org != "" {
+		return org
+	}
+	id, _ := userClaim["id"].(string)
+	return id
+}
+
 // resolveFloat returns the customer override if set, else the company default (nil if zero).
 func resolveFloat(companyDefault float64, customerOverride *float64) *float64 {
 	if customerOverride != nil {
@@ -203,6 +231,62 @@ func override(cfg *storage.CustomerConfiguration, getter func(*storage.CustomerC
 		return nil
 	}
 	return getter(cfg)
+}
+
+// trimChainForClaim strips display-only fields from a chain before it goes into
+// the JWT.
+//
+// The chain travels in the Authorization header of every request the account
+// makes. It is carried once per token rather than once per attached company since
+// #21d, which removed the worst of the growth, but at the configured caps
+// (5 levels x 10 approvers) the names alone still run to hundreds of bytes on a
+// header with a hard API Gateway limit — and overrunning it fails in the worst
+// possible way, with login succeeding and every subsequent request rejected.
+// checkout-service needs only the id (authorisation) and the email
+// (notification); display falls back to the email.
+func trimChainForClaim(chain []storage.ApprovalStepConfig) []storage.ApprovalStepConfig {
+	if len(chain) == 0 {
+		return nil
+	}
+	out := make([]storage.ApprovalStepConfig, 0, len(chain))
+	for _, step := range chain {
+		approvers := make([]storage.Approver, 0, len(step.Approvers))
+		for _, a := range step.Approvers {
+			approvers = append(approvers, storage.Approver{AccountID: a.AccountID, Email: a.Email})
+		}
+		out = append(out, storage.ApprovalStepConfig{Name: step.Name, Approvers: approvers})
+	}
+	return out
+}
+
+// orgApprovalClaim builds the organisation's approval policy claim.
+//
+// Sourced from the organisation's own account, never from anything the other side
+// of the trade wrote. It serves BOTH sides: a buying organisation gating its own
+// spending, and a selling organisation requiring internal sign-off before a quote
+// goes out. One policy per token rather than one per supplier relationship.
+//
+// Caller must have established the account is not RoleB2C — a storefront shopper
+// is a person, not an organisation.
+func orgApprovalClaim(gov *storage.OrgGovernance) *auth.OrgApproval {
+	if gov == nil || gov.Approval == nil {
+		return nil
+	}
+	p := gov.Approval
+	claim := &auth.OrgApproval{Scope: p.Scope, Chain: trimChainForClaim(p.Chain)}
+	if p.Threshold > 0 {
+		v := p.Threshold
+		claim.Threshold = &v
+	}
+	if p.QuantityThreshold > 0 {
+		v := p.QuantityThreshold
+		claim.QuantityThreshold = &v
+	}
+	if p.ValidityHours > 0 {
+		v := p.ValidityHours
+		claim.ValidityHours = &v
+	}
+	return claim
 }
 
 func extractClaim(userClaim map[string]interface{}) (role, userID string, err error) {
@@ -378,6 +462,45 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	}
 
 	// Logic for roles from original handler
+	// Joining an existing organisation short-circuits the role/code switch below:
+	// a colleague inherits the organisation's platform role and its data, so they
+	// need no code of their own. Handled before the switch so an invite code can
+	// never be combined with a company/customer code to claim something extra.
+	if strings.TrimSpace(req.OrgInviteCode) != "" {
+		root, rErr := h.db.GetAccountByOrgInviteCode(strings.TrimSpace(req.OrgInviteCode))
+		if rErr != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid organisation invite code"), nil
+		}
+		// Only a root hands out invites; a member cannot spawn a sub-organisation,
+		// which keeps the hierarchy one level deep and OrgID a single lookup.
+		if !root.IsOrgRoot() {
+			return h.errorResponse(http.StatusBadRequest, "That invite code does not belong to an organisation"), nil
+		}
+		// A storefront shopper is a person, not an organisation, and must never
+		// gain a colleague's view of B2B data.
+		if root.Role == storage.RoleB2C {
+			return h.errorResponse(http.StatusBadRequest, "Storefront accounts do not have an organisation"), nil
+		}
+		acc.Role = root.Role
+		acc.ParentAccountID = root.ID.Hex()
+		acc.OrgRole = storage.OrgRoleUser
+		// Customers reach their suppliers through customerConfigs, so a colleague
+		// inherits the same attachments; otherwise they would join the
+		// organisation but see none of the companies it buys from.
+		if root.Role == storage.RoleCustomer && root.CustomerData != nil {
+			acc.CustomerData = &storage.CustomerData{CustomerConfigs: root.CustomerData.CustomerConfigs}
+		}
+		if err := h.db.CreateAccount(acc); err != nil {
+			log.Printf("Failed to create member account: %v", err)
+			return h.errorResponse(http.StatusInternalServerError, "failed to create account"), nil
+		}
+		return h.successResponse(map[string]string{
+			"message":   "Joined organisation",
+			"accountId": acc.ID.Hex(),
+			"orgId":     root.ID.Hex(),
+		}, http.StatusCreated), nil
+	}
+
 	switch req.Role {
 	case "admin":
 		// No specific data needed
@@ -534,8 +657,42 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 func (h *LambdaHandler) issueCustomerToken(user *storage.Account) (string, string, error) {
 	var assocIDs []string
 	var configs []auth.CustomerConfiguration
-	if (user.Role == storage.RoleCustomer || user.Role == storage.RoleB2C) && user.CustomerData != nil {
-		for _, e := range user.CustomerData.CustomerConfigs {
+	// The approval policy belongs to the ORGANISATION, so a colleague who joined
+	// resolves the root's rather than their own — theirs is nil. Without this a
+	// buying organisation could configure approvals, invite colleagues, and have
+	// none of their orders gated: the control would silently miss exactly the
+	// people it exists for. Read once per login, and only for an account that
+	// actually has a parent.
+	orgGovernance := user.Governance
+	// A colleague's own account holds neither the organisation's policy nor its
+	// trading terms, so both are read from the root. One lookup, once per login.
+	customerData := user.CustomerData
+	if user.ParentAccountID != "" {
+		if rootOID, oErr := primitive.ObjectIDFromHex(user.ParentAccountID); oErr == nil {
+			if root, rErr := h.db.GetAccountByID(rootOID); rErr == nil {
+				orgGovernance = root.Governance
+				// The SUPPLIER RELATIONSHIPS too, not just the policy. Joining
+				// copied the root's customerConfigs once, at registration, and the
+				// copy then froze: a seller raising this buyer's credit limit or
+				// moving them to another price group reached the root at their next
+				// login and never reached anyone who had already joined. Two people
+				// in the same buying organisation checked out on different terms.
+				// Reading them live also fixes the PATCH join path, which copies
+				// nothing at all and so left a colleague attached to no suppliers.
+				if root.Role == storage.RoleCustomer && root.CustomerData != nil {
+					customerData = root.CustomerData
+				}
+			} else {
+				// Fail closed on the safe side: no policy means no gate, but say so
+				// loudly rather than let a silent miss look like "not configured".
+				log.Printf("ERROR: could not load organisation root %s for account %s; approval policy and supplier terms will NOT be applied: %v",
+					user.ParentAccountID, user.ID.Hex(), rErr)
+			}
+		}
+	}
+
+	if (user.Role == storage.RoleCustomer || user.Role == storage.RoleB2C) && customerData != nil {
+		for _, e := range customerData.CustomerConfigs {
 			assocIDs = append(assocIDs, e.CodeID)
 		}
 
@@ -563,7 +720,7 @@ func (h *LambdaHandler) issueCustomerToken(user *storage.Account) (string, strin
 			}
 		}
 
-		for _, e := range user.CustomerData.CustomerConfigs {
+		for _, e := range customerData.CustomerConfigs {
 			config := auth.CustomerConfiguration{CompanyID: e.CodeID}
 
 			// Existing 5 fields: customer override only (backward compatible)
@@ -623,11 +780,21 @@ func (h *LambdaHandler) issueCustomerToken(user *storage.Account) (string, strin
 		assocIDs = append(assocIDs, user.PartnerData.CompanyID)
 	}
 
-	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.Email, user.Role, h.jwtSecret, assocIDs, configs)
+	// OrgID resolves to the account's own id until a parent is assigned, so this
+	// is inert for every account that exists today.
+	// One org-level policy per token, for a buying OR selling organisation. b2c is
+	// excluded: a storefront shopper is a person, not an organisation, and
+	// withholding the claim is the first of the two guards that keep D2C ungated.
+	var orgApproval *auth.OrgApproval
+	if user.Role == storage.RoleCustomer || user.Role == storage.RoleCompany {
+		orgApproval = orgApprovalClaim(orgGovernance)
+	}
+
+	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.OrgID(), user.Email, user.Role, h.jwtSecret, assocIDs, configs, orgApproval)
 	if err != nil {
 		return "", "", err
 	}
-	refreshToken, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.Email, user.Role, h.jwtRefreshSecret, assocIDs)
+	refreshToken, _ := auth.GenerateRefreshToken(user.ID.Hex(), user.OrgID(), user.Email, user.Role, h.jwtRefreshSecret, assocIDs)
 	return accessToken, refreshToken, nil
 }
 
@@ -781,16 +948,31 @@ func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request ev
 	case storage.RoleAdmin:
 		filter = bson.M{}
 	case storage.RoleCompany:
+		// Customers are attached to the ORGANISATION's id, so a second account in
+		// the same selling organisation must resolve the same customer list rather
+		// than an empty one.
+		orgID := orgIDFromClaim(userClaim)
+		orgIDHex, _ := primitive.ObjectIDFromHex(orgID)
 		userIDHex, _ := primitive.ObjectIDFromHex(userID)
 		filter = bson.M{
 			"$or": []bson.M{
 				{"_id": userIDHex},
-				{"customer.customerConfigs.codeId": userID},
+				{"_id": orgIDHex},
+				{"customer.customerConfigs.codeId": orgID},
+				// Colleagues in the same organisation, so the Staff panel can list
+				// them and the root can remove one.
+				{"parentAccountId": orgID},
 			},
 		}
 	case storage.RoleCustomer, storage.RoleB2C, storage.RolePartner:
 		userIDHex, _ := primitive.ObjectIDFromHex(userID)
-		filter = bson.M{"_id": userIDHex}
+		// Themselves, plus anyone in their organisation. Deliberately NOT every
+		// customer of their supplier: that list stays private, which is why
+		// approvers are named by email rather than picked from a directory.
+		filter = bson.M{"$or": []bson.M{
+			{"_id": userIDHex},
+			{"parentAccountId": orgIDFromClaim(userClaim)},
+		}}
 	default:
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized"), nil
 	}
@@ -808,7 +990,7 @@ func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request ev
 }
 
 func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
-	role, userID, err := extractClaim(userClaim)
+	role, _, err := extractClaim(userClaim)
 	if err != nil {
 		return h.errorResponse(http.StatusUnauthorized, "Invalid token claims"), nil
 	}
@@ -820,7 +1002,7 @@ func (h *LambdaHandler) exportCustomers(userClaim map[string]interface{}) (event
 	if role == storage.RoleAdmin {
 		filter = bson.M{"role": bson.M{"$in": []string{"customer", "b2c"}}}
 	} else {
-		filter = bson.M{"customer.customerConfigs.codeId": userID}
+		filter = bson.M{"customer.customerConfigs.codeId": orgIDFromClaim(userClaim)}
 	}
 
 	accounts, err := h.db.GetAccounts(filter)
@@ -1058,6 +1240,29 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		Company              map[string]interface{}       `json:"company"`
 		AdConversions        map[string]map[string]string `json:"adConversions"`
 		AdConversionsEnabled map[string]bool              `json:"adConversionsEnabled"`
+		// The account's OWN internal structure (Roadmap #21 approvals today;
+		// buyer roles, hierarchy and cost centres later). It rides this endpoint
+		// rather than a new one precisely because the authorisation above is
+		// already the rule an organisation's self-governance needs: only that
+		// account, or an admin acting for it, may write here. A seller therefore
+		// cannot reach into their buyer's internal process, which is what went
+		// wrong when this lived on the seller-written customer configuration.
+		Governance *struct {
+			Approval *storage.ApprovalPolicy `json:"approval"`
+		} `json:"governance"`
+		// Organisation membership controls (Roadmap #21c Phase 2). Same reasoning
+		// as governance: this endpoint already restricts writes to the account
+		// itself (or an admin), which is exactly who should hand out invites and
+		// remove colleagues.
+		Org *struct {
+			RegenerateInviteCode bool   `json:"regenerateInviteCode"`
+			RevokeInviteCode     bool   `json:"revokeInviteCode"`
+			RemoveAccountID      string `json:"removeAccountId"`
+			// An account that already exists joining an organisation. Registration
+			// only covers people who are new; someone who already has a login
+			// could otherwise never become a colleague.
+			JoinWithInviteCode string `json:"joinWithInviteCode"`
+		} `json:"org"`
 	}
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid body"), nil
@@ -1189,7 +1394,170 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		setFields["adConversionsEnabled."+provider] = enabled
 	}
 
+	// Own internal governance. The authorisation at the top of this handler is
+	// what makes this safe: only this account (or an admin) reaches here.
+	if payload.Governance != nil {
+		// Checked against the TARGET account's role, not the caller's, so an admin
+		// acting for a customer still works.
+		//
+		// Trading accounts only. A buying organisation gates its own spending; a
+		// selling organisation requires internal sign-off before a quote goes out
+		// (Roadmap #21d). Both are organisations with people in them.
+		//
+		// This was customer-only until #21c: a selling company used to be a SINGLE
+		// account whose _id is the sellerId on every product, quote, order and
+		// statement, so there was no second person at the seller to name and the
+		// policy would have been a control that looks armed and never fires.
+		// Organisation membership supplied the missing people.
+		//
+		// b2c stays out. A storefront shopper is a person, not an organisation.
+		target, tErr := h.db.GetAccountByID(targetID)
+		if tErr != nil {
+			return h.errorResponse(http.StatusNotFound, "Account not found"), nil
+		}
+		if target.Role != storage.RoleCustomer && target.Role != storage.RoleCompany {
+			return h.errorResponse(http.StatusForbidden,
+				"An internal approval structure is available to buying and selling accounts only."), nil
+		}
+		// The policy belongs to the ORGANISATION and is read from its root, so a
+		// colleague writing one on their own account would store something nothing
+		// ever reads — a control that looks configured and never fires.
+		if !target.IsOrgRoot() {
+			return h.errorResponse(http.StatusForbidden,
+				"Your organisation's approval structure is set by its owner."), nil
+		}
+		// Approvers are named by EMAIL and resolved here. The account id is never
+		// taken from the client: there is no way for the caller to enumerate other
+		// accounts (a customer's GET /accounts returns only themselves, by design,
+		// so the seller's customer list stays private), and resolving server-side
+		// means a policy can only ever name a real account that the person setting
+		// it already knows how to reach.
+		if err := h.resolveApprovers(payload.Governance.Approval, target, string(target.Role)); err != nil {
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
+		if err := validateApprovalPolicy(payload.Governance.Approval); err != nil {
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
+		// A seller only ever has a decision point on a NEGOTIABLE quote. Self-serve
+		// checkout is created and paid by the buyer with no seller step in between,
+		// so a "standard" scope on a selling account would store a control that
+		// looks armed and can never fire.
+		if target.Role == storage.RoleCompany && payload.Governance.Approval != nil {
+			switch payload.Governance.Approval.Scope {
+			case storage.ApprovalScopeStandard, storage.ApprovalScopeBoth:
+				return h.errorResponse(http.StatusBadRequest,
+					"A selling organisation can only require approval on quotes: a self-serve order has no seller step to hold."), nil
+			}
+		}
+		// Store nothing empty: a cleared policy unsets the key rather than
+		// leaving a hollow object, so an account that governs nothing carries
+		// no field at all.
+		if payload.Governance.Approval == nil || isEmptyApprovalPolicy(payload.Governance.Approval) {
+			unsetFields["governance.approval"] = ""
+		} else {
+			setFields["governance.approval"] = payload.Governance.Approval
+		}
+	}
+
+	// Organisation membership. Only a root hands out invites: its id is the OrgID
+	// that every seller-scoped record is keyed by, so letting a member invite
+	// would create a second level whose data ownership is undefined.
+	if payload.Org != nil {
+		target, tErr := h.db.GetAccountByID(targetID)
+		if tErr != nil {
+			return h.errorResponse(http.StatusNotFound, "Account not found"), nil
+		}
+		if target.Role == storage.RoleB2C {
+			return h.errorResponse(http.StatusForbidden, "Storefront accounts do not have an organisation"), nil
+		}
+		// Joining is the one org action an account takes on ITSELF rather than on
+		// people below it, so it is handled before the root-only gate.
+		if code := strings.TrimSpace(payload.Org.JoinWithInviteCode); code != "" {
+			// Joining clears this account's own invite code while regenerate would
+			// set it; naming one path in both $set and $unset makes MongoDB reject
+			// the entire update. They are also contradictory in intent — you are
+			// either becoming part of an organisation or running your own.
+			if payload.Org.RegenerateInviteCode || payload.Org.RevokeInviteCode {
+				return h.errorResponse(http.StatusBadRequest,
+					"Joining an organisation cannot be combined with changing your own invite code"), nil
+			}
+			if !target.IsOrgRoot() {
+				return h.errorResponse(http.StatusBadRequest, "You already belong to an organisation"), nil
+			}
+			// Someone who has people of their own would drag them into a second
+			// level. Keeping the hierarchy one deep is what lets OrgID stay a
+			// single field read rather than a tree walk.
+			members, mErr := h.db.GetAccounts(bson.M{"parentAccountId": targetID.Hex()})
+			if mErr == nil && len(members) > 0 {
+				return h.errorResponse(http.StatusBadRequest,
+					"Your organisation already has people in it, so it cannot join another"), nil
+			}
+			root, rErr := h.db.GetAccountByOrgInviteCode(code)
+			if rErr != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid organisation invite code"), nil
+			}
+			if !root.IsOrgRoot() {
+				return h.errorResponse(http.StatusBadRequest, "That invite code does not belong to an organisation"), nil
+			}
+			if root.ID.Hex() == targetID.Hex() {
+				return h.errorResponse(http.StatusBadRequest, "You cannot join your own organisation"), nil
+			}
+			// A colleague shares the organisation's view of its data, so the
+			// platform role has to match — a customer must not land inside a
+			// selling company and inherit its catalogue and orders.
+			if root.Role != target.Role {
+				return h.errorResponse(http.StatusBadRequest,
+					"That invite code belongs to a different kind of account"), nil
+			}
+			setFields["parentAccountId"] = root.ID.Hex()
+			setFields["orgRole"] = storage.OrgRoleUser
+			// Their own invite code would be meaningless once they are not a root.
+			unsetFields["orgInviteCode"] = ""
+		}
+
+		if !target.IsOrgRoot() {
+			return h.errorResponse(http.StatusForbidden, "Only the organisation owner can manage its people"), nil
+		}
+		if payload.Org.RegenerateInviteCode {
+			code, cErr := newOrgInviteCode()
+			if cErr != nil {
+				return h.errorResponse(http.StatusInternalServerError, "Could not generate an invite code"), nil
+			}
+			setFields["orgInviteCode"] = code
+		}
+		if payload.Org.RevokeInviteCode {
+			// Rotating or revoking never touches existing members: their link is
+			// ParentAccountID, not the code they happened to arrive with.
+			unsetFields["orgInviteCode"] = ""
+		}
+		if id := strings.TrimSpace(payload.Org.RemoveAccountID); id != "" {
+			memberOID, mErr := primitive.ObjectIDFromHex(id)
+			if mErr != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid account ID"), nil
+			}
+			person, mErr := h.db.GetAccountByID(memberOID)
+			if mErr != nil || person.ParentAccountID != targetID.Hex() {
+				return h.errorResponse(http.StatusBadRequest, "That account does not belong to your organisation"), nil
+			}
+			// Unlink rather than delete. The person may own quotes, orders and
+			// decisions that must stay attributable, so removing them from the
+			// organisation must not erase the account behind that history.
+			if err := h.db.UpdateAccount(memberOID, nil, map[string]interface{}{"parentAccountId": "", "orgRole": ""}); err != nil {
+				return h.errorResponse(http.StatusInternalServerError, "Could not remove them from your organisation"), nil
+			}
+		}
+	}
+
 	if len(setFields) == 0 && len(unsetFields) == 0 {
+		// A removal writes to the other account's document, not this one, so it
+		// is a complete request even with nothing to set here.
+		if payload.Org != nil && strings.TrimSpace(payload.Org.RemoveAccountID) != "" {
+			acc, gErr := h.db.GetAccountByID(targetID)
+			if gErr != nil {
+				return h.errorResponse(http.StatusInternalServerError, "Removed, but could not reload the account"), nil
+			}
+			return h.successResponse(acc, http.StatusOK), nil
+		}
 		return h.errorResponse(http.StatusBadRequest, "Nothing to update"), nil
 	}
 
@@ -1204,12 +1572,19 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	// Trigger D2C generation if enabled (this will also generate PreviewDomain if
-	// missing). A conversion-only change (no company/storefront fields) doesn't
-	// affect the generated storefront, so skip the expensive regen + S3 upload and
-	// its misleading 500. Any company/D2C edit still regenerates as before.
-	conversionOnly := len(payload.Company) == 0 &&
-		(len(payload.AdConversions) > 0 || len(payload.AdConversionsEnabled) > 0)
-	if !conversionOnly {
+	// missing).
+	//
+	// `company` is the ONLY field on this endpoint the generator reads, so
+	// anything else cannot change the storefront and must not pay for a full
+	// regen + S3 upload + CloudFront invalidation, nor risk its misleading 500.
+	// This started as a conversion-only exemption and had to be generalised:
+	// `governance` and `org` (Roadmap #21/#21c/#21d) ride this same endpoint, so
+	// every approval-policy save and every invite-code click on a company account
+	// was regenerating the whole storefront — and once a catalog-fetch failure
+	// became fatal, "Save approval structure" could return 500 with the write
+	// already committed. Any company/D2C edit still regenerates as before.
+	affectsStorefront := len(payload.Company) > 0
+	if affectsStorefront {
 		if err := h.triggerD2CGeneration(targetID); err != nil {
 			return h.errorResponse(http.StatusInternalServerError, "Storefront generation failed: "+err.Error()), nil
 		}
@@ -1305,7 +1680,7 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID) error
 	// every seller (role "admin" => filter {}) and published other tenants' catalogs
 	// onto this company's public storefront whenever an admin regenerated it.
 	companyID := acc.ID.Hex()
-	scopedToken, err := auth.GenerateJWT(companyID, acc.Email, storage.RoleCompany, h.jwtSecret, nil, nil)
+	scopedToken, err := auth.GenerateJWT(companyID, acc.OrgID(), acc.Email, storage.RoleCompany, h.jwtSecret, nil, nil, nil)
 	if err != nil {
 		log.Printf("D2C Generation Failed for %s: could not mint scoped token: %v", companyID, err)
 		return fmt.Errorf("scoped token for storefront generation: %w", err)
@@ -2242,7 +2617,10 @@ func (h *LambdaHandler) handleVisitors(userClaim map[string]interface{}, request
 	// Company: forced to their own sellerId
 	sellerID := ""
 	if role == storage.RoleCompany {
-		sellerID, _ = userClaim["id"].(string)
+		// The organisation, not the individual login: visitor data is keyed by the
+		// root's id like every other seller-scoped record, so a colleague scoping
+		// by their own account would see no traffic at all.
+		sellerID = orgIDFromClaim(userClaim)
 		if sellerID == "" {
 			return h.errorResponse(http.StatusForbidden, "Invalid account"), nil
 		}
@@ -2418,6 +2796,116 @@ func validateCompanyFieldTypes(company map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+// Bounds on an approval chain. Deep chains are an anti-pattern (over-engineered
+// approval routing is the most commonly reported B2B misconfiguration), and the
+// resolved chain rides in the JWT, so a cap keeps every request small.
+const (
+	MaxApprovalSteps    = 5
+	MaxApproversPerStep = 10
+)
+
+// resolveApprovers turns the emails on a policy into real accounts.
+//
+// The caller supplies addresses of people they already work with; this fills in
+// the account id and display name. Anything the client sent as an id is
+// discarded, so a policy can never point at an account the setter merely guessed.
+//
+// Approvers must share the role of the account being configured AND belong to the
+// same organisation. Sign-off happens inside an organisation, so a buyer's chain
+// names colleagues at the buyer and a seller's names colleagues at the seller.
+func (h *LambdaHandler) resolveApprovers(p *storage.ApprovalPolicy, setter *storage.Account, setterRole string) error {
+	if p == nil {
+		return nil
+	}
+	for i := range p.Chain {
+		for j := range p.Chain[i].Approvers {
+			a := &p.Chain[i].Approvers[j]
+			email := strings.ToLower(strings.TrimSpace(a.Email))
+			if email == "" {
+				return fmt.Errorf("approval level %d approver %d needs an email address", i+1, j+1)
+			}
+			acc, err := h.db.GetAccountByEmail(email)
+			if err != nil {
+				return fmt.Errorf("no account found for %s; they must be registered before they can approve", email)
+			}
+			if string(acc.Role) != setterRole {
+				return fmt.Errorf("%s cannot approve for your organisation", email)
+			}
+			// Naming an approver grants them sight of this organisation's quotes
+			// while those await a decision, so it must be a colleague — someone in
+			// the same organisation. This replaces an earlier proxy ("shares a
+			// supplier"), which was the closest the data model could get before
+			// organisation membership existed and would still have admitted an
+			// unrelated customer of the same supplier.
+			if acc.OrgID() != setter.OrgID() {
+				return fmt.Errorf("%s is not part of your organisation", email)
+			}
+			a.AccountID = acc.ID.Hex()
+			a.Email = email
+			a.Name = acc.Name
+		}
+	}
+	return nil
+}
+
+// validateApprovalScope rejects a scope outside the known vocabulary.
+//
+// Without it a typo (or a trailing space) stores happily and then fails the scope
+// comparison at quote time forever: the organisation sees a configured policy,
+// gets no error anywhere, and no order is ever held.
+func validateApprovalScope(scope string) error {
+	switch scope {
+	case "", storage.ApprovalScopeNone, storage.ApprovalScopeStandard,
+		storage.ApprovalScopeNegotiable, storage.ApprovalScopeBoth:
+		return nil
+	}
+	return fmt.Errorf("scope must be one of none, standard, negotiable, both (got %q)", scope)
+}
+
+// validateApprovalPolicy rejects a malformed policy at the API boundary so the DB
+// never holds a value that later fails to decode or can never be satisfied.
+func validateApprovalPolicy(p *storage.ApprovalPolicy) error {
+	if p == nil {
+		return nil
+	}
+	if err := validateApprovalScope(p.Scope); err != nil {
+		return err
+	}
+	if p.Threshold < 0 || p.QuantityThreshold < 0 || p.ValidityHours < 0 {
+		return fmt.Errorf("approval thresholds and validity hours cannot be negative")
+	}
+	if len(p.Chain) > MaxApprovalSteps {
+		return fmt.Errorf("an approval chain supports at most %d levels, got %d", MaxApprovalSteps, len(p.Chain))
+	}
+	for i, step := range p.Chain {
+		if len(step.Approvers) == 0 {
+			return fmt.Errorf("approval level %d has no approvers; it could never be cleared", i+1)
+		}
+		if len(step.Approvers) > MaxApproversPerStep {
+			return fmt.Errorf("approval level %d supports at most %d approvers, got %d", i+1, MaxApproversPerStep, len(step.Approvers))
+		}
+		for j, a := range step.Approvers {
+			if strings.TrimSpace(a.AccountID) == "" {
+				return fmt.Errorf("approval level %d approver %d is missing an account", i+1, j+1)
+			}
+			// checkout-service addresses approval mail from its own denormalised
+			// copy and must never call back here, so a missing address means an
+			// approver who silently never gets told.
+			if strings.TrimSpace(a.Email) == "" {
+				return fmt.Errorf("approval level %d approver %d is missing an email, so they could not be notified", i+1, j+1)
+			}
+		}
+	}
+	return nil
+}
+
+// isEmptyApprovalPolicy reports a policy that would gate nothing, so it can be
+// unset rather than stored as noise.
+func isEmptyApprovalPolicy(p *storage.ApprovalPolicy) bool {
+	return len(p.Chain) == 0 && p.Threshold == 0 && p.QuantityThreshold == 0 &&
+		(p.Scope == "" || p.Scope == storage.ApprovalScopeNone)
 }
 
 func validatePassword(password string) error {

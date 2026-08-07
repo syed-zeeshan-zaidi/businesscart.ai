@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -166,9 +167,20 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (re
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User claim is not a map"), nil
 	}
 
+	// The organisation this caller acts within (Roadmap #21c). Seller-scoped
+	// records are keyed by the ROOT account's id, so authorisation compares
+	// against this rather than the caller's own id — otherwise a second account
+	// in the same organisation is locked out of its own company's data. Older
+	// tokens carry no org_id, and an account with no parent resolves to its own
+	// id, so this falls back to accountID and behaves exactly as before.
+	orgID, _ := userClaim["org_id"].(string)
+
 	accountID, ok := userClaim["id"].(string)
 	if !ok {
 		return h.errorResponse(http.StatusUnauthorized, "Unauthorized: User ID missing"), nil
+	}
+	if orgID == "" {
+		orgID = accountID
 	}
 
 	role, ok := userClaim["role"].(string)
@@ -266,33 +278,38 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (re
 		}
 	}
 
+	// The organisation's own approval policy (Roadmap #21), carried once rather
+	// than once per supplier. account-service emits it for company and customer
+	// roles only, so a b2c storefront shopper's token carries nothing here.
+	approval := approvalPolicyFromClaim(userClaim)
+
 	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
 	if strings.HasPrefix(request.Path, "/checkout/cart") {
 		return h.handleCartRequest(request, accountID, role, associateCompanyIDs)
 	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
-		return h.handleQuoteRequest(request, accountID, role, configurations)
+		return h.handleQuoteRequest(request, accountID, orgID, role, configurations, approval)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
-		return h.handleOrderRequest(request, accountID, role)
+		return h.handleOrderRequest(request, accountID, orgID, role, configurations, approval)
 	} else if strings.HasPrefix(request.Path, "/checkout/statements") {
-		return h.handleStatementsRequest(request, accountID, role)
+		return h.handleStatementsRequest(request, accountID, orgID, role)
 	} else if strings.HasPrefix(request.Path, "/checkout/gateways") {
-		return h.handleGatewayRequest(request, accountID, role)
+		return h.handleGatewayRequest(request, accountID, orgID, role)
 	}
 
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "export" {
-		return h.handleOrdersExport(request, accountID, role)
+		return h.handleOrdersExport(request, accountID, orgID, role)
 	}
 	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "statement" {
-		return h.handleGetStatementRequest(request, accountID, role)
+		return h.handleGetStatementRequest(request, accountID, orgID, role)
 	}
 	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[3] == "statement" && parts[4] == "send" {
-		return h.handleSendStatementRequest(request, accountID, role)
+		return h.handleSendStatementRequest(request, accountID, orgID, role)
 	}
 	// Guard: any other request under /statement is a client mistake — refuse
 	// rather than fall through to handlePlaceOrderRequest (which would parse
@@ -301,41 +318,41 @@ func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest
 		return h.errorResponse(http.StatusMethodNotAllowed, "Use GET /checkout/orders/statement or POST /checkout/orders/statement/send"), nil
 	}
 	if request.HTTPMethod == "POST" {
-		return h.handlePlaceOrderRequest(request, accountID)
+		return h.handlePlaceOrderRequest(request, accountID, role, configurations, approval)
 	}
 	if request.HTTPMethod == "GET" {
-		return h.handleGetOrdersRequest(request, accountID, role)
+		return h.handleGetOrdersRequest(request, accountID, orgID, role)
 	}
 	if request.HTTPMethod == "DELETE" && len(parts) == 4 { // /checkout/orders/{orderId}
 		return h.handleDeleteOrderRequest(parts[3], role)
 	}
 	if request.HTTPMethod == "PUT" && len(parts) == 4 { // /checkout/orders/{orderId}
-		return h.handleUpdateOrderRequest(parts[3], request, accountID, role)
+		return h.handleUpdateOrderRequest(parts[3], request, accountID, orgID, role)
 	}
 	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[4] == "request-review" { // /checkout/orders/{orderId}/request-review
-		return h.handleRequestReviewRequest(parts[3], accountID, role)
+		return h.handleRequestReviewRequest(parts[3], accountID, orgID, role)
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleQuoteRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "POST" {
-		return h.handleCreateQuoteRequest(request, accountID, role, configurations)
+		return h.handleCreateQuoteRequest(request, accountID, orgID, role, configurations, approval)
 	}
 	if request.HTTPMethod == "GET" {
 		if len(parts) == 3 { // /checkout/quotes
-			return h.handleGetMyQuotesRequest(request, accountID, role)
+			return h.handleGetMyQuotesRequest(request, accountID, orgID, role)
 		}
 		if len(parts) == 4 { // /checkout/quotes/{quoteId}
 			quoteId := parts[3]
-			return h.handleGetQuoteRequest(request, accountID, role, quoteId)
+			return h.handleGetQuoteRequest(request, accountID, orgID, role, quoteId)
 		}
 	}
 	if request.HTTPMethod == "PATCH" {
 		if len(parts) == 4 { // /checkout/quotes/{quoteId}
 			quoteId := parts[3]
-			return h.handlePatchQuoteRequest(request, accountID, role, quoteId)
+			return h.handlePatchQuoteRequest(request, accountID, orgID, role, approval, quoteId)
 		}
 	}
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
@@ -363,7 +380,7 @@ type updateStatusRequest struct {
 	Status string `json:"status"`
 }
 
-func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, approval resolvedApprovalPolicy, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
 	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
@@ -372,6 +389,32 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 	var patch PatchRequest
 	if err := json.Unmarshal([]byte(request.Body), &patch); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body\n"+err.Error()), nil
+	}
+
+	// Load once, and authorise against the actual document. Every operation below
+	// used to check only the CALLER'S ROLE, never whether the quote belonged to
+	// them — so any company token could mutate any other company's quotes, and a
+	// customer could act on a stranger's. Reading the quote up front also gives
+	// the approval transitions the prior status they need.
+	existing, err := h.quoteService.GetQuote(quoteID)
+	if err != nil {
+		return h.errorResponse(http.StatusNotFound, "Quote not found"), nil
+	}
+	switch role {
+	case "company":
+		// Compared against the organisation, not the individual account, so every
+		// account in the selling organisation reaches its own company's quotes.
+		if existing.SellerID != orgID {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: this quote belongs to another seller"), nil
+		}
+	case "customer", "b2c":
+		if existing.AccountID != accountID && !existing.CanBeReadByApprover(accountID) {
+			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
+		}
+	case "admin":
+		// Admin may act on any quote.
+	default:
+		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
 	var updatedQuote *quote.Quote
@@ -389,6 +432,9 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		if role != "company" && role != "admin" {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can apply discounts"), nil
 		}
+		if msg := approvalLocksMoney(existing); msg != "" {
+			return h.errorResponse(http.StatusConflict, msg), nil
+		}
 		var discountData applyDiscountRequest
 		if err := json.Unmarshal(patch.Value, &discountData); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid discount data"), nil
@@ -397,6 +443,9 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 	case "sellerUpdate":
 		if role != "company" && role != "admin" {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can update quote as seller"), nil
+		}
+		if msg := approvalLocksMoney(existing); msg != "" {
+			return h.errorResponse(http.StatusConflict, msg), nil
 		}
 		var sellerUpdateData sellerUpdateRequest
 		if err := json.Unmarshal(patch.Value, &sellerUpdateData); err != nil {
@@ -411,6 +460,27 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		if role != "customer" && role != "b2c" && role != "admin" {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Only customer or admin can propose changes"), nil
 		}
+		// Ownership, not just readability. The shared authorisation above admits
+		// approvers so they can read and decide, but proposing prices is the
+		// BUYER's action — without this an approver could rewrite the figures on
+		// a colleague's order while it sat waiting for their own sign-off.
+		if role != "admin" && existing.AccountID != accountID {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: only the buyer who owns this quote can propose changes"), nil
+		}
+		// Proposing prices is part of quote NEGOTIATION. The portal only ever
+		// offers it on a negotiable quote in draft/open/proposed, and the backend
+		// must say the same: on a standard quote it is meaningless, and on a held
+		// one it moved the quote out of pending_approval with the chain left
+		// intact, so the seller's next approve took the ungated path and the order
+		// was paid with a level still recorded as pending.
+		if existing.QuoteType != "negotiable" {
+			return h.errorResponse(http.StatusBadRequest,
+				"Prices can only be proposed on a negotiable quote."), nil
+		}
+		if !existing.OpenToBuyerChanges() {
+			return h.errorResponse(http.StatusConflict,
+				"This quote is not open for changes. Ask the seller to reopen it."), nil
+		}
 		var customerProposeData customerProposeRequest
 		if err := json.Unmarshal(patch.Value, &customerProposeData); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid customer propose data"), nil
@@ -424,7 +494,213 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		if err := json.Unmarshal(patch.Value, &statusData); err != nil {
 			return h.errorResponse(http.StatusBadRequest, "Invalid status data"), nil
 		}
-		updatedQuote, err = h.quoteService.UpdateQuoteStatus(quoteID, statusData.Status)
+
+		// A buyer's approver said no. That decision is theirs, and the seller must
+		// not be able to launder it into an approval through the generic status
+		// path — which would leave a payable order carrying a "rejected" step, and
+		// on the negotiable side would rebuild the chain as all-pending and erase
+		// the refusal outright. Force-release deliberately does NOT cover this: it
+		// exists for an approver who never responded, not one who declined.
+		if statusData.Status == "approved" && existing.ApprovalRejected() {
+			return h.errorResponse(http.StatusConflict,
+				"This order was rejected by an approver and cannot be approved here. It must be resubmitted."), nil
+		}
+
+		// Seller approval of a negotiated quote that either organisation's policy
+		// still gates: settle the prices and hand it to the chain in ONE write, so
+		// the quote is never briefly committed as approved-and-payable.
+		//
+		// Judge both gates on the SETTLED money — what the buyer would actually owe
+		// once the negotiated prices are applied. Testing the stored total let a
+		// quote negotiated upward past its threshold approve itself. Standard
+		// quotes are gated at creation, so only negotiable ones are gated here.
+		// CanEnterApproval confines this to states where "the seller approves" is
+		// meaningful. Without it the transition also fired from `ordered` (re-running
+		// a chain on an order already paid for) and from `rejected`.
+		//
+		// The two chains are concatenated, seller first, into the single ordered
+		// chain the state machine already walks. Seller-side sign-off is a gate on
+		// what LEAVES the seller, so it has to clear before the offer is put to the
+		// buyer at all; running it second would ask the buyer to approve a price
+		// their supplier had not yet committed to.
+		var combined []quote.ApprovalStep
+		var buyerGated bool
+		var validityHours float64
+		eligible := statusData.Status == "approved" &&
+			existing.QuoteType == "negotiable" &&
+			existing.CanEnterApproval()
+		if eligible {
+			settled := existing.SettledCopy()
+
+			// The SELLING organisation's own policy (Roadmap #21d), read live from
+			// the approving account's token. Unlike the buyer's it is never
+			// denormalised onto the quote: the seller is present at exactly the
+			// moment it is needed, so copying it at create time would only add a
+			// stale second copy. Admins carry no policy, so they are unaffected.
+			if len(approval.chain) > 0 && quote.PolicyGates(approval.scope, approval.threshold,
+				approval.qtyThreshold, existing.QuoteType, settled.GrandTotal, settled.TotalQuantity()) {
+				sellerSteps := buildApprovalChain(approval.chain, quote.ApprovalSideSeller, accountID)
+				if len(sellerSteps) == 0 {
+					// Every configured approver was the person approving. Proceeding
+					// without the seller's gate is the only functional option — nobody
+					// is left who could clear it — but say so, or a company sees a
+					// policy it believes is armed and no gate ever fires. Mirrors the
+					// same warning on the buyer's side at quote creation.
+					log.Printf("WARN: seller %s has an approval policy whose only approver is %s, who is approving; quote %s proceeds without the seller's gate",
+						existing.SellerID, accountID, quoteID.Hex())
+				}
+				combined = append(combined, sellerSteps...)
+				validityHours = approval.validityHours
+			}
+
+			// Whether the BUYER's levels will actually run, not merely whether their
+			// policy would gate. ShouldGate needs a non-empty chain, and after a
+			// withdraw-and-reinstate the stored chain can hold the SELLER's levels —
+			// so asking it alone reported "buyer gated" on a quote where no buyer
+			// level exists, and then demanded a buyer email to notify about a
+			// decision nobody would ever make.
+			// StepsForSide, not the whole chain. The stored chain may already hold
+			// the seller's own levels from an earlier approval, and feeding the
+			// whole thing back through re-tagged those as buyer-side: their
+			// company-role approvers could then never clear them (a buyer level
+			// demands a customer), stranding the quote in pending_approval with only
+			// force-release as a way out, and the seller's levels were appended a
+			// second time on top.
+			buyerSteps := buildApprovalChain(
+				existing.StepsForSide(quote.ApprovalSideBuyer), quote.ApprovalSideBuyer, existing.AccountID)
+			buyerGated = len(buyerSteps) > 0 && settled.ShouldGate(existing.QuoteType)
+			if buyerGated {
+				combined = append(combined, buyerSteps...)
+				// The buyer's window wins when both sides set one: it is the buyer's
+				// price snapshot going stale that the window exists to bound.
+				if existing.ApprovalValidityHours > 0 {
+					validityHours = existing.ApprovalValidityHours
+				}
+			}
+		}
+		gated := len(combined) > 0
+
+		// An approval must NEVER leave an undecided level behind. Overriding one is
+		// a real need, but it has to be asked for explicitly through
+		// forceReleaseApproval, which is logged and marks the levels released.
+		//
+		// Asked AFTER `gated` because the question is about the outcome, not the
+		// starting point. Keyed on the prior status instead, this only refused the
+		// direct pending_approval -> approved hop, and a seller could launder a
+		// held STANDARD order past its chain in two calls: set it to "open" (the
+		// guard did not fire, and standard quotes are never re-gated here since
+		// they gate at creation), then to "approved". The order became payable with
+		// every level still reading "pending" and nothing recorded anywhere.
+		//
+		// Withdrawing or rejecting a held order stays allowed: stock runs out and
+		// prices turn out wrong, and blocking every transition left a seller with
+		// no way to cancel at all, since force-release only ever approves.
+		if statusData.Status == "approved" && !gated &&
+			existing.ApprovalRequired && existing.CurrentStep() != nil {
+			return h.errorResponse(http.StatusConflict,
+				"This order still has an approval level awaiting a decision. Use the release action to override it deliberately."), nil
+		}
+
+		// Same rule as create time: a gated order whose buyer cannot be told the
+		// outcome is not workable. Checked here too because a quote can be
+		// negotiated up past its threshold after being created below it. Applied
+		// only when the BUYER's chain is involved — a purely internal seller
+		// sign-off is the seller's own business and must not be blocked by a gap in
+		// the buyer record.
+		if buyerGated && existing.CustomerEmail == "" {
+			return h.errorResponse(http.StatusBadRequest,
+				"This order now requires buyer approval, but the quote carries no buyer email to notify them of the outcome."), nil
+		}
+
+		if gated {
+			updatedQuote, err = h.quoteService.ApproveIntoApproval(quoteID, existing.Status, combined, validityHours)
+			if err != nil {
+				if errors.Is(err, quote.ErrApprovalConflict) {
+					return h.errorResponse(http.StatusConflict,
+						"This quote changed while you were approving it. Please refresh and try again."), nil
+				}
+				return h.errorResponse(http.StatusInternalServerError, "Failed to start the approval workflow: "+err.Error()), nil
+			}
+			h.notifyCurrentApprovers(updatedQuote)
+		} else {
+			updatedQuote, err = h.quoteService.UpdateQuoteStatus(quoteID, statusData.Status)
+		}
+
+	case "forceReleaseApproval":
+		// The explicit override, replacing the inferred one. Deliberate, logged,
+		// and conditional on the quote genuinely awaiting approval, so a repeated
+		// request cannot release something that was never gated.
+		if role != "company" && role != "admin" {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can release an approval"), nil
+		}
+		updatedQuote, err = h.quoteService.ForceRelease(quoteID)
+		if err != nil {
+			return h.errorResponse(http.StatusConflict, err.Error()), nil
+		}
+		log.Printf("INFO: quote %s force-released by %s, overriding a pending buyer approval", quoteID.Hex(), accountID)
+		// The buyer's checkout stopped at "we have notified your approver", so
+		// without this they have no way of learning the order became payable
+		// except by revisiting the quote.
+		h.notifyApprovalOutcome(updatedQuote)
+
+	case "approvalDecision":
+		// Sign-off. Authorisation is by membership of the step that is currently
+		// awaiting a decision, not by role alone: an approver is an ordinary
+		// account inside the organisation that owns the step.
+		//
+		// The step's own tag decides which role may act. Checking the role alone
+		// would let a colleague at the seller clear the buyer's level and vice
+		// versa — each side's control would be enforceable by the other, which is
+		// precisely what it exists to prevent. Admin is on neither side and is
+		// excluded from both; an admin who must unblock a quote uses
+		// forceReleaseApproval, which is logged as the override it is.
+		currentStep := existing.CurrentStep()
+		if currentStep == nil {
+			return h.errorResponse(http.StatusConflict, "This quote is not awaiting an approval decision"), nil
+		}
+		if currentStep.SideOf() == quote.ApprovalSideSeller {
+			if role != "company" {
+				return h.errorResponse(http.StatusForbidden,
+					"Forbidden: this level is approved inside the selling organisation"), nil
+			}
+		} else if role != "customer" {
+			return h.errorResponse(http.StatusForbidden,
+				"Forbidden: this level is approved inside the buying organisation"), nil
+		}
+		var decisionData struct {
+			Decision string `json:"decision"`
+			Note     string `json:"note,omitempty"`
+		}
+		if err := json.Unmarshal(patch.Value, &decisionData); err != nil {
+			return h.errorResponse(http.StatusBadRequest, "Invalid approval decision data"), nil
+		}
+		if decisionData.Decision != "approve" && decisionData.Decision != "reject" {
+			return h.errorResponse(http.StatusBadRequest, "decision must be \"approve\" or \"reject\""), nil
+		}
+		if !existing.IsApprover(accountID) {
+			return h.errorResponse(http.StatusForbidden, "Forbidden: You are not an approver for this step"), nil
+		}
+		approver := quote.Approver{AccountID: accountID, Email: h.requestUserEmail}
+		// Prefer the configured display name so the audit trail reads well.
+		for _, a := range currentStep.Approvers {
+			if a.AccountID == accountID {
+				if a.Name != "" {
+					approver.Name = a.Name
+				}
+				if a.Email != "" {
+					approver.Email = a.Email
+				}
+				break
+			}
+		}
+		updatedQuote, err = h.quoteService.RecordApprovalDecision(quoteID, approver, decisionData.Decision == "approve", decisionData.Note)
+		if err != nil {
+			if errors.Is(err, quote.ErrApprovalConflict) {
+				return h.errorResponse(http.StatusConflict, err.Error()), nil
+			}
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
+		h.notifyApprovalOutcome(updatedQuote)
 	default:
 		return h.errorResponse(http.StatusBadRequest, "Invalid patch operation"), nil
 	}
@@ -433,10 +709,10 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		return h.errorResponse(http.StatusInternalServerError, "Failed to perform patch operation: "+err.Error()), nil
 	}
 
-	return h.successResponse(updatedQuote), nil
+	return h.successResponse(redactQuoteFor(updatedQuote, role)), nil
 }
 
-func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
 	log.Printf("handleGetMyQuotesRequest: accountID=%s, role=%s", accountID, role)
 	var quotes []quote.Quote
 	var err error
@@ -446,7 +722,7 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 	if role == "customer" || role == "b2c" {
 		quotes, err = h.quoteService.GetQuotesByAccountID(context.Background(), accountID, sellerID)
 	} else if role == "company" {
-		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), accountID)
+		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), orgID)
 	} else if role == "admin" {
 		quotes, err = h.quoteService.GetQuotesBySellerID(context.Background(), sellerID)
 	} else {
@@ -457,6 +733,12 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 		return h.errorResponse(http.StatusInternalServerError, "Failed to retrieve quotes"), nil
 	}
 
+	if role != "admin" {
+		side := approvalSideForRole(role)
+		for i := range quotes {
+			quotes[i] = *quotes[i].RedactedFor(side)
+		}
+	}
 	respBody, _ := json.Marshal(quotes)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
@@ -465,7 +747,7 @@ func (h *LambdaHandler) handleGetMyQuotesRequest(request events.APIGatewayProxyR
 	}, nil
 }
 
-func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, quoteIdStr string) (events.APIGatewayProxyResponse, error) {
 	quoteID, err := primitive.ObjectIDFromHex(quoteIdStr)
 	if err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid quote ID"), nil
@@ -478,11 +760,14 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 
 	// Authorization logic
 	isOwner := quote.AccountID == accountID
-	isSeller := quote.SellerID == accountID
+	isSeller := quote.SellerID == orgID
 
 	switch role {
 	case "customer", "b2c":
-		if !isOwner {
+		// Owner, or someone named anywhere in the approval chain. Strictly more
+		// permissive than before, so every existing caller (including every b2c
+		// storefront shopper, who owns their quote) still passes.
+		if !isOwner && !quote.CanBeReadByApprover(accountID) {
 			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 		}
 	case "company":
@@ -495,7 +780,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
-	respBody, _ := json.Marshal(quote)
+	respBody, _ := json.Marshal(redactQuoteFor(quote, role))
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers:    corsHeaders(h.requestOrigin),
@@ -503,7 +788,7 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 	}, nil
 }
 
-func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		QuoteID           string            `json:"quoteId"`
 		PaymentMethod     string            `json:"paymentMethod"`
@@ -534,6 +819,66 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 
 	if q.Status != "approved" {
 		return h.errorResponse(http.StatusForbidden, "Quote is not approved for order placement"), nil
+	}
+
+	// No approval-window check here by design. The window bounds how long an
+	// approval REQUEST may sit unanswered — RecordApprovalDecision refuses an
+	// expired one, and the window is cleared the moment the chain clears. An
+	// order that carries a completed approval is payable like any other; blocking
+	// it here instead made settled negotiable quotes permanently unpayable, since
+	// those cannot be re-submitted from the cart.
+
+	// Approval backstop, before any gateway call so no money can move.
+	//
+	// A quote drafted by a sales rep carries no buyer policy: the seller's token
+	// has no configurations claim, and accepting a policy from the request body
+	// would let a seller name any account as approver. The buyer's own signed
+	// claim IS here, so this is where their policy finally applies. Without it a
+	// buyer could ask their rep to draft the order and skip their own chain.
+	//
+	// Only quotes the BUYER's chain has not already decided reach this. A
+	// buyer-created quote had that decision made at creation and its money has not
+	// changed since, so this cannot double-gate one.
+	//
+	// Keyed on a buyer-side step rather than on approvalRequired alone: a
+	// rep-drafted quote that cleared the SELLER's own levels (#21d) is also marked
+	// required, and treating that as "already approved" let the buyer's policy be
+	// skipped entirely by asking a rep to draft the order — the exact bypass this
+	// backstop exists to close.
+	buyerAlreadyDecided := q.ApprovalRequired && q.HasApprovalSide(quote.ApprovalSideBuyer)
+	if role == "customer" && !buyerAlreadyDecided {
+		policy := approval
+		candidate := *q
+		candidate.ApprovalScope = policy.scope
+		candidate.ApprovalThreshold = policy.threshold
+		candidate.ApprovalQuantityThreshold = policy.qtyThreshold
+		candidate.ApprovalChain = buildApprovalChain(policy.chain, quote.ApprovalSideBuyer, q.AccountID)
+		if candidate.ShouldGate(q.QuoteType) {
+			// Levels already signed off at the seller stay on the chain ahead of
+			// the buyer's, so the record of who authorised what survives the
+			// rebuild, and the stage starts after them.
+			settled := q.ResolvedSteps()
+			full := append(settled, candidate.ApprovalChain...)
+			held, hErr := h.quoteService.HoldForApproval(q.ID, full, len(settled), policy.validityHours, q.Status, h.requestUserEmail)
+			if hErr != nil {
+				if errors.Is(hErr, quote.ErrApprovalConflict) {
+					return h.errorResponse(http.StatusConflict,
+						"This order changed while it was being submitted. Please refresh and try again."), nil
+				}
+				return h.errorResponse(http.StatusInternalServerError, "Could not route this order for approval: "+hErr.Error()), nil
+			}
+			h.notifyCurrentApprovers(held)
+			respBody, _ := json.Marshal(map[string]interface{}{
+				"pendingApproval": true,
+				"quoteId":         q.ID.Hex(),
+				"message":         "This order needs approval from your organisation. We have notified your approver.",
+			})
+			return events.APIGatewayProxyResponse{
+				StatusCode: http.StatusAccepted,
+				Headers:    corsHeaders(h.requestOrigin),
+				Body:       string(respBody),
+			}, nil
+		}
 	}
 
 	if h.gatewayStore == nil {
@@ -780,10 +1125,12 @@ func (h *LambdaHandler) createOrderFromQuote(q *quote.Quote, accountID, customer
 	return h.successResponse(createdOrder), nil
 }
 
-func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
 	var sellerID string
 	if role == "company" {
-		sellerID = accountID
+		// The seller's own orders: scoped to the ORGANISATION so every account in
+		// it sees the same book, not just the one that happens to own the id.
+		sellerID = orgID
 	}
 	orders, err := h.orderService.GetOrders(accountID, role, sellerID)
 	if err != nil {
@@ -815,7 +1162,7 @@ func (h *LambdaHandler) handleGetOrdersRequest(request events.APIGatewayProxyReq
 //
 // Auth: admin sees all (or filter via sellerId); company sees only their own.
 // Mirrors the customer export pattern at /accounts/export.
-func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest, accountID, orgID, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" && role != "company" {
 		return h.errorResponse(http.StatusForbidden, "Only admin or company can export orders"), nil
 	}
@@ -841,10 +1188,10 @@ func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest
 	}
 
 	// Scope (mirrors handleGetStatementRequest): admin can pass any sellerId
-	// (or empty for all); company is forced to their own accountID.
+	// (or empty for all); company is forced to their own organisation.
 	sellerID := q["sellerId"]
 	if role == "company" {
-		sellerID = accountID
+		sellerID = orgID
 	}
 
 	orders, err := h.orderService.GetOrdersForExport(sellerID, format, from, to)
@@ -883,12 +1230,12 @@ func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest
 // GET /checkout/orders/statement?sellerId=<id>&from=<RFC3339>&to=<RFC3339>
 // Auth: admin can request any sellerId; company can request only their own.
 // Pure routing/auth — business logic lives in statement.Compute.
-func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
 	sellerID := request.QueryStringParameters["sellerId"]
 	if sellerID == "" {
 		return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
 	}
-	if role != "admin" && !(role == "company" && sellerID == accountID) {
+	if role != "admin" && !(role == "company" && sellerID == orgID) {
 		return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 	}
 
@@ -936,7 +1283,7 @@ func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxy
 // Body: { sellerId, from (RFC3339), to (RFC3339), recipientEmail, companyName,
 //
 //	periodLabel, paymentInstructions, dryRun }
-func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
 	}
@@ -1065,7 +1412,7 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 //
 //	GET    /checkout/statements?sellerId=<id>   admin or own-seller
 //	DELETE /checkout/statements/{id}            admin only
-func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(strings.Trim(request.Path, "/"), "/")
 	// parts: ["checkout", "statements"] or ["checkout", "statements", "{id}"]
 
@@ -1074,7 +1421,7 @@ func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRe
 		if sellerID == "" {
 			return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
 		}
-		if role != "admin" && !(role == "company" && sellerID == accountID) {
+		if role != "admin" && !(role == "company" && sellerID == orgID) {
 			return h.errorResponse(http.StatusForbidden, "Forbidden"), nil
 		}
 		stmts, err := h.statementService.ListBySeller(sellerID, 24)
@@ -1206,7 +1553,7 @@ func trackingURLFor(carrier, number string) string {
 	return ""
 }
 
-func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request events.APIGatewayProxyRequest, accountID, orgID, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" && role != "company" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin or company only"), nil
 	}
@@ -1245,7 +1592,7 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Order not found"), nil
 	}
-	if role == "company" && existing.SellerID != accountID {
+	if role == "company" && existing.SellerID != orgID {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
 	}
 
@@ -1381,7 +1728,7 @@ func (h *LambdaHandler) handleUpdateOrderRequest(orderIDStr string, request even
 // customer and marks the order with reviewRequestedAt. Admin/company only.
 // Customer replies by email; admin manually transcribes the review into the
 // product via the catalog admin UI (intentional manual moderation, no spam vector).
-func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, orgID, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "admin" && role != "company" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin or company only"), nil
 	}
@@ -1393,7 +1740,7 @@ func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, role s
 	if err != nil {
 		return h.errorResponse(http.StatusNotFound, "Order not found"), nil
 	}
-	if role == "company" && existing.SellerID != accountID {
+	if role == "company" && existing.SellerID != orgID {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: not your order"), nil
 	}
 	// A review request only makes sense once the customer has the goods, so gate
@@ -1440,7 +1787,253 @@ func (h *LambdaHandler) handleRequestReviewRequest(orderIDStr, accountID, role s
 	return h.successResponse(updated), nil
 }
 
-func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration) (events.APIGatewayProxyResponse, error) {
+// sameCurrentApprovers reports whether two quotes are waiting on the same set of
+// people. Used so a resubmission whose approvers were reconfigured still sends a
+// fresh request even when the money did not move.
+func sameCurrentApprovers(a, b *quote.Quote) bool {
+	stepA, stepB := a.CurrentStep(), b.CurrentStep()
+	if stepA == nil || stepB == nil {
+		return stepA == stepB
+	}
+	if len(stepA.Approvers) != len(stepB.Approvers) {
+		return false
+	}
+	seen := make(map[string]bool, len(stepA.Approvers))
+	for _, x := range stepA.Approvers {
+		seen[x.AccountID] = true
+	}
+	for _, y := range stepB.Approvers {
+		if !seen[y.AccountID] {
+			return false
+		}
+	}
+	return true
+}
+
+// notifyCurrentApprovers emails everyone who can clear the step now awaiting a
+// decision. Sent synchronously: Lambda freezes the execution environment once the
+// handler returns, so a goroutine send is unreliable (same reason the quote and
+// order confirmation mails are synchronous).
+func (h *LambdaHandler) notifyCurrentApprovers(q *quote.Quote) {
+	if h.emailSender == nil || q == nil {
+		return
+	}
+	step := q.CurrentStep()
+	if step == nil {
+		return
+	}
+	brandName, brandEmail := mailer.CompanyBrand(q.SellerID)
+	sender, _ := mailer.SenderForCompany(context.Background(), q.SellerID, h.emailSender)
+	expires := ""
+	if q.ApprovalExpiresAt != nil {
+		expires = q.ApprovalExpiresAt.Format("2 Jan 2006, 15:04 MST")
+	}
+	for _, approver := range step.Approvers {
+		if approver.Email == "" {
+			// Address is denormalised onto the chain precisely so we never have to
+			// call account-service to resolve it. A blank one means the config was
+			// saved without it; log rather than reach across the service boundary.
+			log.Printf("WARN: approver %s on quote %s has no email on the chain, cannot notify", approver.AccountID, q.ID.Hex())
+			continue
+		}
+		msg := mailer.ApprovalRequestMessage(approver.Email, mailer.ApprovalRequestData{
+			QuoteID: q.ID.Hex(),
+			// A seller's own manager is approving something different: their rep
+			// wants to SEND this quote, and the customer has not seen it yet.
+			SellerSide: step.SideOf() == quote.ApprovalSideSeller,
+			// Who placed the order is the first thing an approver needs, and the
+			// template has always had a slot for it. The buyer's name is not
+			// available here (the JWT carries no name), so their address is the
+			// honest identifier — better than the field going unrendered.
+			RequesterName: q.CustomerEmail,
+			StepName:      step.Name,
+			GrandTotal:    q.GrandTotal,
+			ExpiresAt:     expires,
+			BrandName:     brandName,
+			BrandEmail:    brandEmail,
+		})
+		if err := sender.Send(context.Background(), msg); err != nil {
+			log.Printf("WARN: approval request email failed for %s: %v", approver.Email, err)
+		}
+	}
+}
+
+// notifyApprovalOutcome tells the buyer where their order stands after a
+// decision, and pulls in the next tier of approvers when one remains.
+func (h *LambdaHandler) notifyApprovalOutcome(q *quote.Quote) {
+	if h.emailSender == nil || q == nil {
+		return
+	}
+	if q.Status == quote.StatusPendingApproval {
+		h.notifyCurrentApprovers(q)
+		return
+	}
+	// Goes to the BUYER waiting on the outcome, not h.requestUserEmail — that is
+	// the approver who just decided, and mailing them about their own click tells
+	// the person actually blocked on this nothing at all.
+	if q.CustomerEmail == "" {
+		log.Printf("WARN: quote %s has no customerEmail; cannot notify the buyer of approval outcome %q", q.ID.Hex(), q.Status)
+		return
+	}
+	brandName, brandEmail := mailer.CompanyBrand(q.SellerID)
+	sender, _ := mailer.SenderForCompany(context.Background(), q.SellerID, h.emailSender)
+	msg := mailer.QuoteStatusMessage(q.CustomerEmail, mailer.QuoteStatusData{
+		QuoteID:    q.ID.Hex(),
+		Status:     q.Status,
+		BrandName:  brandName,
+		BrandEmail: brandEmail,
+	})
+	if err := sender.Send(context.Background(), msg); err != nil {
+		log.Printf("WARN: approval outcome email failed for %s: %v", q.CustomerEmail, err)
+	}
+}
+
+// approvalSideForRole maps a caller to the side of the trade whose approval
+// levels they are entitled to see in full. Admin sees everything: they are the
+// platform operator, not a party to the trade.
+func approvalSideForRole(role string) string {
+	if role == "company" {
+		return quote.ApprovalSideSeller
+	}
+	return quote.ApprovalSideBuyer
+}
+
+// redactQuoteFor applies that to a single quote, leaving admin untouched.
+func redactQuoteFor(q *quote.Quote, role string) *quote.Quote {
+	if role == "admin" {
+		return q
+	}
+	return q.RedactedFor(approvalSideForRole(role))
+}
+
+// approvalLocksMoney reports why a quote's money must not be changed right now,
+// or "" when it may be.
+//
+// Once a buyer's approval chain is running, or has run, the figures are what
+// somebody signed off on. Re-pricing underneath that produced an order payable at
+// a total no approver ever saw, with the earlier decision still recorded against
+// it and nobody re-notified.
+func approvalLocksMoney(q *quote.Quote) string {
+	if q == nil {
+		return ""
+	}
+	if q.Status == quote.StatusPendingApproval {
+		who := "the buyer"
+		if step := q.CurrentStep(); step != nil && step.SideOf() == quote.ApprovalSideSeller {
+			who = "your own organisation"
+		}
+		return "This order is awaiting approval by " + who + ", so its prices cannot be changed. Release or withdraw it first."
+	}
+	if q.ApprovalRequired && q.Status == "approved" {
+		return "This order has already been through approval, so its prices cannot be changed."
+	}
+	// A paid order's quote is the record of what was actually bought. The order
+	// carries its own snapshot so the charge cannot change retroactively, but
+	// re-pricing the quote underneath it destroys the trail showing what the buyer
+	// approved and paid.
+	if q.Status == "ordered" {
+		return "This quote has already been ordered, so its prices cannot be changed."
+	}
+	return ""
+}
+
+// resolvedApprovalPolicy is a buyer's own approval policy for one seller, read
+// out of their signed claim.
+type resolvedApprovalPolicy struct {
+	scope         string
+	threshold     float64
+	qtyThreshold  float64
+	validityHours float64
+	chain         []quote.ApprovalStep
+}
+
+// approvalPolicyFromClaim reads the organisation's approval policy out of the
+// signed token. Returns a zero policy when there is none, which gates nothing.
+//
+// One decode per request, into one value, whichever side of the trade the caller
+// is on: a buying organisation gating its own spending, or a selling organisation
+// requiring internal sign-off before a quote goes out.
+func approvalPolicyFromClaim(userClaim map[string]interface{}) resolvedApprovalPolicy {
+	var p resolvedApprovalPolicy
+	raw, ok := userClaim["orgApproval"]
+	if !ok || raw == nil {
+		return p
+	}
+	b, mErr := json.Marshal(raw)
+	if mErr != nil {
+		return p
+	}
+	var claim struct {
+		Scope             string               `json:"scope"`
+		Threshold         *float64             `json:"threshold"`
+		QuantityThreshold *float64             `json:"quantityThreshold"`
+		ValidityHours     *float64             `json:"validityHours"`
+		Chain             []quote.ApprovalStep `json:"chain"`
+	}
+	if uErr := json.Unmarshal(b, &claim); uErr != nil {
+		// Never swallow this. A shape drift between the emitter (account-service)
+		// and this consumer would leave the chain nil, needsApproval false, and
+		// every order for this organisation sailing through ungated — a security
+		// control failing open with nothing to explain it.
+		log.Printf("ERROR: approval policy claim could not be decoded, approvals will NOT be enforced for this token: %v", uErr)
+		return p
+	}
+	p.scope = claim.Scope
+	p.chain = claim.Chain
+	if claim.Threshold != nil {
+		p.threshold = *claim.Threshold
+	}
+	if claim.QuantityThreshold != nil {
+		p.qtyThreshold = *claim.QuantityThreshold
+	}
+	if claim.ValidityHours != nil {
+		p.validityHours = *claim.ValidityHours
+	}
+	return p
+}
+
+// buildApprovalChain returns a clean, pending copy of the configured chain for a
+// given buyer.
+//
+// Decision fields are deliberately dropped so a chain arriving from config (or
+// from a re-submitted cart) can never carry a previous run's approvals.
+//
+// The person the chain is being built FOR is removed from every step. One policy
+// is shared by everyone in the organisation, so without this the person named as
+// approver becomes their own approver the moment they act, and signs off on their
+// own decision — which voids the control entirely. That is the buyer on a buyer
+// chain and the approving rep on a seller chain. Steps left with no approvers are
+// dropped, since nobody could ever clear them.
+func buildApprovalChain(configured []quote.ApprovalStep, side, excludeAccountID string) []quote.ApprovalStep {
+	if len(configured) == 0 {
+		return nil
+	}
+	chain := make([]quote.ApprovalStep, 0, len(configured))
+	for _, step := range configured {
+		approvers := make([]quote.Approver, 0, len(step.Approvers))
+		for _, a := range step.Approvers {
+			if a.AccountID == excludeAccountID {
+				continue
+			}
+			approvers = append(approvers, a)
+		}
+		if len(approvers) == 0 {
+			continue
+		}
+		chain = append(chain, quote.ApprovalStep{
+			Name:      step.Name,
+			Side:      side,
+			Approvers: approvers,
+			Status:    quote.ApprovalStepPending,
+		})
+	}
+	if len(chain) == 0 {
+		return nil
+	}
+	return chain
+}
+
+func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		CartID                string                  `json:"cartId"`
 		SellerID              string                  `json:"sellerId"`
@@ -1465,6 +2058,17 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		LeadTime              float64                 `json:"leadTime"`
 		PromoCode             string                  `json:"promoCode,omitempty"`
 		CouponsEnabled        bool                    `json:"couponsEnabled,omitempty"`
+
+		// No approval policy is accepted from the body. An organisation's approval
+		// structure belongs to that organisation and reaches checkout only through
+		// the buyer's own signed claim. A seller relaying it here could name any
+		// account as an approver, and this service cannot verify membership
+		// without calling account-service, which the architecture forbids.
+		//
+		// BuyerEmail stays: on the sales-rep path the caller is the seller, so the
+		// buyer's address must come from the seller's portal for the approval
+		// outcome to reach the person actually waiting on it.
+		BuyerEmail string `json:"buyerEmail,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
@@ -1473,7 +2077,7 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	// Determine the effective AccountID
 	effectiveAccountID := accountID
 	if (role == "company" || role == "admin") && req.AccountID != "" {
-		if role == "company" && req.SellerID != accountID {
+		if role == "company" && req.SellerID != orgID {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Company can only create quotes for its own customers."), nil
 		}
 		effectiveAccountID = req.AccountID
@@ -1495,6 +2099,25 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	effectiveTaxRate := req.TaxRate           // company default (from JWT), 0 if not set
 	effectiveShippingRate := req.ShippingRate // company default, 0 if not set
 	effectiveLeadTime := req.LeadTime
+
+	// Approval policy from the buyer's signed claim and nowhere else. Read through
+	// the same helper the place-order backstop uses, so the two paths cannot drift
+	// apart the way the duplicated gating logic did.
+	policy := approval
+	approvalThreshold := policy.threshold
+	approvalQtyThreshold := policy.qtyThreshold
+	approvalValidityHours := policy.validityHours
+	approvalScope := policy.scope
+	approvalChain := policy.chain
+	isSalesRepDraft := (role == "company" || role == "admin") && req.AccountID != ""
+
+	// Who is waiting on the approval decision. A buyer creating their own quote
+	// is the token holder; on the sales-rep path the token holder is the seller,
+	// so the buyer's address has to come from the seller's portal.
+	buyerEmail := h.requestUserEmail
+	if isSalesRepDraft {
+		buyerEmail = req.BuyerEmail
+	}
 
 	for _, config := range configurations {
 		if config.CompanyID == req.SellerID {
@@ -1561,8 +2184,16 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 	}
 
 	// Calculate totals — taxRate is a percentage (e.g., 8.25 means 8.25%)
+	//
+	// A tax-exempt customer stores rate 0, not "rate 8.25 with amount zeroed".
+	// applyApprovedPricing recomputes tax from the STORED rate on seller approval,
+	// so keeping a live rate on an exempt quote resurrected the tax — and that
+	// inflated total now also feeds the approval gate and is what gets charged.
+	if !effectiveTaxable {
+		effectiveTaxRate = 0
+	}
 	taxAmount := roundCents(cart.TotalPrice * (effectiveTaxRate / 100))
-	if !effectiveTaxable || effectiveTaxRate <= 0 {
+	if effectiveTaxRate <= 0 {
 		taxAmount = 0
 	}
 	shippingCost := effectiveShippingRate
@@ -1644,9 +2275,97 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		}
 	}
 
+	// Buyer-side approval gate (Roadmap #21).
+	//
+	// The role check is the guard that keeps D2C safe. A b2c storefront shopper
+	// reaches this same endpoint (templates/customer.js posts quoteType:"standard"),
+	// and the storefront has no approval UI, so gating one would dead-end a real
+	// sale. account-service already withholds the claim from b2c tokens; this
+	// refuses to act on it regardless, because access tokens live 72h and outlive
+	// a config change. A quote drafted BY a rep FOR a buyer still gates: the
+	// buyer, not the rep, is the one whose policy applies.
+	// On the sales-rep path the buyer is someone else, so their role has to come
+	// from the seller's own portal. Requiring it to be "customer" keeps a D2C
+	// shopper from being gated when an admin drafts an order for them — the same
+	// protection the JWT path gets from its own role check.
+	// Only a signed customer claim can gate. A rep-drafted quote carries no buyer
+	// claim, so it is not gated at creation.
+	approvalEligible := role == "customer"
+
+	// Build the chain FIRST, so the buyer is already excluded before any
+	// threshold decision, and so an ineligible buyer never gets a chain
+	// persisted onto their quote. Persisting one regardless would let the
+	// seller-approve gate (which re-checks chain presence, not role) strand a
+	// b2c buyer at pending_approval with no way to pay.
+	//
+	// The THRESHOLDS go with it. `approval` is whatever the CALLER's token
+	// carries, and on the sales-rep path the caller is the seller, so their own
+	// #21d policy would otherwise be persisted into fields that ShouldGate reads
+	// as the buyer's. Inert only while the chain is empty — the moment a seller
+	// chain lands on the quote, the seller's threshold would fire a buyer gate the
+	// buyer never configured.
+	var chain []quote.ApprovalStep
+	if !approvalEligible {
+		approvalScope = ""
+		approvalThreshold = 0
+		approvalQtyThreshold = 0
+		approvalValidityHours = 0
+	}
+	if approvalEligible {
+		chain = buildApprovalChain(approvalChain, quote.ApprovalSideBuyer, effectiveAccountID)
+		if len(approvalChain) > 0 && len(chain) == 0 {
+			// Every configured approver was the buyer themselves. Proceeding
+			// ungated is the only functional option (nobody is left who could
+			// approve), but it is a misconfiguration worth surfacing.
+			log.Printf("WARN: approval chain for buyer %s at seller %s contains only the buyer; order proceeds ungated",
+				effectiveAccountID, req.SellerID)
+		}
+	}
+
+	// Same predicate the seller-approve path uses, asked of a candidate carrying
+	// this checkout's money and policy. Keeping the rule in one function is what
+	// stops the two paths drifting apart.
+	candidate := &quote.Quote{
+		Items:                     cart.Items,
+		GrandTotal:                grandTotal,
+		ApprovalScope:             approvalScope,
+		ApprovalThreshold:         approvalThreshold,
+		ApprovalQuantityThreshold: approvalQtyThreshold,
+		ApprovalChain:             chain,
+	}
+	needsApproval := approvalEligible && candidate.ShouldGate(req.QuoteType)
+
+	// A gated order the buyer can never be told about is not a workable order:
+	// the approval outcome email is their only signal, and on the sales-rep path
+	// nothing else notifies them at all. Refuse rather than persist a blank one.
+	if needsApproval && buyerEmail == "" {
+		return h.errorResponse(http.StatusBadRequest,
+			"This order requires approval, but no buyer email was supplied to notify them of the outcome."), nil
+	}
+
 	initialStatus := "draft"
 	if req.QuoteType == "standard" {
 		initialStatus = "approved"
+		if needsApproval {
+			// Blocks payment for free: handlePlaceOrderRequest already refuses any
+			// status that is not "approved".
+			initialStatus = quote.StatusPendingApproval
+		}
+	}
+
+	// Only stamp the window when the chain STARTS NOW, i.e. a standard checkout
+	// held on the spot. A negotiable quote's chain does not begin until the
+	// seller approves (SendForApproval stamps it then), so the quoteType check
+	// is load-bearing: needsApproval alone is true for a negotiable quote whose
+	// scope covers it, and would start the clock during the negotiation.
+	var approvalExpiresAt *time.Time
+	if needsApproval && req.QuoteType == "standard" {
+		hours := approvalValidityHours
+		if hours <= 0 {
+			hours = quote.DefaultApprovalValidityHours
+		}
+		exp := time.Now().Add(time.Duration(hours * float64(time.Hour)))
+		approvalExpiresAt = &exp
 	}
 
 	newQuote := &quote.Quote{
@@ -1670,11 +2389,60 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		LeadTime:                    effectiveLeadTime,
 		PromoCode:                   req.PromoCode,
 		PromoDiscount:               promoDiscount,
+		ApprovalScope:               approvalScope,
+		ApprovalThreshold:           approvalThreshold,
+		ApprovalQuantityThreshold:   approvalQtyThreshold,
+		ApprovalExpiresAt:           approvalExpiresAt,
+		ApprovalStage:               0,
+		ApprovalChain:               chain,
+		ApprovalRequired:            needsApproval && req.QuoteType == "standard",
+		ApprovalValidityHours:       approvalValidityHours,
+		CustomerEmail:               buyerEmail,
+	}
+
+	// A standard quote upserts in place, so re-checking-out re-sends the approval
+	// request. Read the prior state ONLY when the gate is about to fire (a rare
+	// path) so an unchanged resubmission does not spam approvers, while ordinary
+	// checkout keeps its single write with no extra round trip.
+	var prior *quote.Quote
+	if needsApproval && req.QuoteType == "standard" {
+		if quotes, pErr := h.quoteService.GetQuotesByAccountID(context.Background(), effectiveAccountID, req.SellerID); pErr == nil {
+			for i, p := range quotes {
+				// The accountId match is essential: this query also returns quotes
+				// this account merely APPROVES, so without it a colleague's
+				// standard quote could stand in as "prior" and suppress a
+				// notification that genuinely needed sending.
+				if p.QuoteType == "standard" && p.AccountID == effectiveAccountID {
+					prior = &quotes[i]
+					break
+				}
+			}
+		}
 	}
 
 	createdQuote, err := h.quoteService.CreateQuote(newQuote)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Failed to create or update quote"), nil
+	}
+
+	// Approval gate fired at create time: pull in the first tier of approvers.
+	// Editing the cart resets the chain to stage 0 above, so a genuine change
+	// must re-notify. An identical resubmission (same total, already awaiting the
+	// same approvers) must not.
+	if createdQuote.Status == quote.StatusPendingApproval {
+		// Suppress ONLY a genuinely identical resubmission. The stage check is
+		// what makes this safe: the rebuilt chain always restarts at 0, so if the
+		// previous one had already cleared a level, that approval was just
+		// discarded and those approvers must be asked again. Comparing the total
+		// alone would silently drop that notification and stall the order.
+		unchanged := prior != nil &&
+			prior.Status == quote.StatusPendingApproval &&
+			prior.ApprovalStage == 0 &&
+			math.Abs(prior.GrandTotal-createdQuote.GrandTotal) < 0.005 &&
+			sameCurrentApprovers(prior, createdQuote)
+		if !unchanged {
+			h.notifyCurrentApprovers(createdQuote)
+		}
 	}
 
 	// Quote-requested email — synchronous so it actually delivers (same Lambda
@@ -2061,7 +2829,7 @@ func buildRedirectURL(base, status, orderID string) string {
 
 // --- Gateway Config CRUD (company/admin only) ---
 
-func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyRequest, accountID, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyRequest, accountID, orgID, role string) (events.APIGatewayProxyResponse, error) {
 	if role != "company" && role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Only company or admin can manage gateways"), nil
 	}
@@ -2075,7 +2843,7 @@ func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyReque
 	}
 	sellerID := parts[3]
 
-	if role == "company" && sellerID != accountID {
+	if role == "company" && sellerID != orgID {
 		return h.errorResponse(http.StatusForbidden, "Cannot manage gateways for another company"), nil
 	}
 

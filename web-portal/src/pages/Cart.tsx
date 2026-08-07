@@ -257,6 +257,14 @@ const Cart: React.FC = () => {
     const toastId = toast.loading('Creating quote...');
     try {
       const quote = await createQuote(await buildQuoteRequest('standard'));
+      // Buyer-side approval (Roadmap #21). Only branch on the status the server
+      // actually returned — never announce approval unconditionally, or buyers
+      // stop being able to tell when sign-off is genuinely required.
+      if (quote.status === 'pending_approval') {
+        toast.success('Sent for approval', { id: toastId });
+        navigate(`/quote/${quote.id}`);
+        return;
+      }
       toast.success('Proceeding to checkout!', { id: toastId });
       navigate(`/checkout/${quote.id}`);
     } catch (err: any) {

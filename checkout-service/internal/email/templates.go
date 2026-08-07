@@ -392,6 +392,82 @@ const quoteStatusHTMLTmpl = `<!DOCTYPE html>
 </body>
 </html>`
 
+// ─────────────────────── Order Approval Request ───────────────────────
+
+type ApprovalRequestData struct {
+	QuoteID       string
+	StepName      string
+	RequesterName string
+	GrandTotal    float64
+	ExpiresAt     string
+	BrandName     string
+	BrandEmail    string
+	// True when this is the SELLING organisation's own sign-off (Roadmap #21d),
+	// which is a different thing to approve: their rep is asking to SEND a quote,
+	// not to commit to buying one. The buyer-worded copy told a sales manager an
+	// order had been "placed" and asked them to approve it, on a quote the
+	// customer had not even been shown yet.
+	SellerSide bool
+}
+
+// ApprovalRequestMessage builds the email sent to an approver when an order is
+// waiting on their sign-off. Sent to every approver on the current step: any one
+// of them can clear it, which is what stops an order stalling when someone is
+// away.
+func ApprovalRequestMessage(to string, data ApprovalRequestData) Message {
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("Approval needed: order #%s ($%.2f)", lastSix(data.QuoteID), data.GrandTotal),
+		HTMLBody: renderHTML(approvalRequestHTMLTmpl, data),
+		TextBody: approvalRequestText(data),
+	}
+}
+
+func approvalRequestText(d ApprovalRequestData) string {
+	var b bytes.Buffer
+	if d.SellerSide {
+		b.WriteString("A quote is waiting for your approval before it goes to the customer.\n\n")
+	} else {
+		b.WriteString("An order is waiting for your approval.\n\n")
+	}
+	b.WriteString(fmt.Sprintf("Quote ID: %s\n", d.QuoteID))
+	if d.RequesterName != "" {
+		if d.SellerSide {
+			b.WriteString(fmt.Sprintf("Customer: %s\n", d.RequesterName))
+		} else {
+			b.WriteString(fmt.Sprintf("Requested by: %s\n", d.RequesterName))
+		}
+	}
+	b.WriteString(fmt.Sprintf("Quote total: $%.2f\n", d.GrandTotal))
+	if d.StepName != "" {
+		b.WriteString(fmt.Sprintf("Approval step: %s\n", d.StepName))
+	}
+	if d.ExpiresAt != "" {
+		b.WriteString(fmt.Sprintf("\nPlease respond by %s. After that this request can no longer be decided, because the total is a price snapshot taken when the quote was priced.\n", d.ExpiresAt))
+	}
+	b.WriteString("\nLog in to BusinessCart to approve or reject.\n\n")
+	b.WriteString(brandFooterText(d.BrandName, d.BrandEmail))
+	b.WriteString("\n")
+	return b.String()
+}
+
+const approvalRequestHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Approval needed</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">Approval needed</h1>
+  <p style="font-size:16px;line-height:1.5">{{if .SellerSide}}A quote is waiting for your approval before it goes to the customer.{{else}}An order is waiting for your approval.{{end}}</p>
+  <p style="font-size:14px;color:#64748b">Quote ID: <strong>{{.QuoteID}}</strong></p>
+  {{if .RequesterName}}<p style="font-size:16px;line-height:1.5">{{if .SellerSide}}Customer{{else}}Requested by{{end}}: <strong>{{.RequesterName}}</strong></p>{{end}}
+  <p style="font-size:20px;line-height:1.5">Quote total: <strong style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</strong></p>
+  {{if .StepName}}<p style="font-size:14px;color:#64748b">Approval step: {{.StepName}}</p>{{end}}
+  {{if .ExpiresAt}}<p style="font-size:14px;color:#b45309">Please respond by {{.ExpiresAt}}. After that this request can no longer be decided, because the total is a price snapshot taken when the quote was priced.</p>{{end}}
+  <p style="font-size:16px;line-height:1.5">Log in to <a href="https://businesscart.ai" style="color:#0d9488;text-decoration:none">BusinessCart</a> to approve or reject this order.</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
+</body>
+</html>`
+
 // lastSix returns the last 6 characters of an ID for compact display.
 func lastSix(s string) string {
 	if len(s) <= 6 {

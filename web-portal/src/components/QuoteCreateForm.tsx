@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { createQuote, getAccounts, getProducts, addItemToCart, getCart, updateCartItem, removeItemFromCart, getAccount, getCompanyLocations } from '../api';
 import { Account, Product, CreateQuoteRequest, Cart, CustomerCodeEntry } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 const QuoteCreateForm: React.FC = () => {
   const navigate = useNavigate();
+  const { decodeJWT } = useAuth();
   const [customers, setCustomers] = useState<Account[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
@@ -25,7 +27,17 @@ const QuoteCreateForm: React.FC = () => {
         setProducts(allProducts);
 
         // Assuming the logged-in user is a company
-        const companyAccount = accounts.find(acc => acc.role === 'company');
+        // The seller is the ORGANISATION, taken from the token. Picking the first
+        // account with role 'company' was fine while an organisation was a single
+        // account; now that colleagues exist, several documents match and Mongo
+        // returns them unordered — landing on a colleague would read the wrong
+        // cart and be rejected by the sellerId check on quote creation.
+        const token = localStorage.getItem('accessToken');
+        const claims = token ? decodeJWT(token) : null;
+        const orgId = claims?.org_id;
+        const companyAccount = orgId
+          ? accounts.find(acc => acc._id === orgId)
+          : accounts.find(acc => acc.role === 'company' && !acc.parentAccountId);
         if(companyAccount) {
           setCurrentCompanyId(companyAccount._id);
         } else {
@@ -40,7 +52,7 @@ const QuoteCreateForm: React.FC = () => {
       }
     };
     fetchInitialData();
-  }, [navigate]);
+  }, [navigate, decodeJWT]);
 
   const fetchCart = useCallback(async () => {
     if (!selectedCustomer || !currentCompanyId) return;
@@ -146,7 +158,13 @@ const QuoteCreateForm: React.FC = () => {
       const configurations = customerConfig?.configuration ? [customerConfig.configuration] : [];
 
       const company = companyAccount.company;
+
+      // The buyer's approval policy is deliberately NOT sent. It belongs to the
+      // buyer and reaches checkout through their own signed claim; a seller
+      // relaying it could name any account as an approver. A rep-drafted quote is
+      // therefore gated when the BUYER places the order, using their own policy.
       const newQuote: CreateQuoteRequest = {
+        buyerEmail: customerAccount.email,
         sellerId: currentCompanyId,
         accountId: selectedCustomer,
         quotesAllowed: company?.quotesAllowed || true,

@@ -217,6 +217,64 @@ type CustomerConfiguration struct {
 	ResaleCertificate     *ResaleCertificate   `bson:"resaleCertificate,omitempty" json:"resaleCertificate,omitempty"`
 }
 
+// OrgGovernance is an account's OWN internal structure: how IT governs ITS
+// people and spending. It hangs off Account rather than CompanyData or
+// CustomerData deliberately, so it is role-agnostic — a selling company, a
+// buying customer and (later) a partner all describe themselves the same way,
+// and neither side configures the other's internals.
+//
+// Deliberately a container, not a bare field. The roadmap's remaining B2B org
+// work all lands inside it without reshaping anything: buyer roles/permissions
+// (#35g) become Members, account hierarchy / divisions (#35h) becomes a parent
+// reference, cost centres and spend allocation (#35i) become another sub-object,
+// and punchout (#22) maps an inbound procurement identity onto the same Members.
+// Adding those is additive; nothing already stored has to move.
+//
+// Never populated for RoleB2C: a D2C shopper is a person, not an organisation.
+type OrgGovernance struct {
+	Approval *ApprovalPolicy `bson:"approval,omitempty" json:"approval,omitempty"`
+	// Reserved, in name only, for the roadmap items above:
+	//   Members       []OrgMember    (#35g buyer roles / punchout identities)
+	//   ParentAccount string         (#35h hierarchy, divisions)
+	//   CostCenters   []CostCenter   (#35i spend allocation)
+}
+
+// ApprovalPolicy is how an organisation gates its OWN spending. Set by that
+// organisation, never by the party on the other side of the trade.
+type ApprovalPolicy struct {
+	Scope             string               `bson:"scope,omitempty" json:"scope,omitempty"`
+	Threshold         float64              `bson:"threshold,omitempty" json:"threshold,omitempty"`
+	QuantityThreshold float64              `bson:"quantityThreshold,omitempty" json:"quantityThreshold,omitempty"`
+	ValidityHours     float64              `bson:"validityHours,omitempty" json:"validityHours,omitempty"`
+	Chain             []ApprovalStepConfig `bson:"chain,omitempty" json:"chain,omitempty"`
+}
+
+// ApprovalScope values. Mirrors the existing quoteType vocabulary so a scope can
+// be compared directly against a quote's type.
+const (
+	ApprovalScopeNone       = "none"
+	ApprovalScopeStandard   = "standard"
+	ApprovalScopeNegotiable = "negotiable"
+	ApprovalScopeBoth       = "both"
+)
+
+// ApprovalStepConfig is one tier of an approval chain. Several approvers may sit
+// on a step and ANY ONE of them clears it — that is what keeps an order moving
+// when someone is on leave, without needing a scheduler to escalate.
+type ApprovalStepConfig struct {
+	Name      string     `bson:"name,omitempty" json:"name,omitempty"`
+	Approvers []Approver `bson:"approvers,omitempty" json:"approvers,omitempty"`
+}
+
+// Approver identifies a customer account that may sign off on an order. Email and
+// name are stored alongside the ID so checkout-service can address the approval
+// email off its own denormalised copy, never calling account-service.
+type Approver struct {
+	AccountID string `bson:"accountId" json:"accountId"`
+	Email     string `bson:"email,omitempty" json:"email,omitempty"`
+	Name      string `bson:"name,omitempty" json:"name,omitempty"`
+}
+
 // ResaleCertificate records the compliance document that justifies a tax-exempt
 // (TaxRate = 0) B2B customer. Metadata only: the platform stores the reference
 // details so an admin can see a valid certificate is on file before exempting a
@@ -253,21 +311,40 @@ type PartnerData struct {
 
 // Full Account Document structure
 type Account struct {
-	ID               primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
-	Name             string             `bson:"name" json:"name"`
-	Email            string             `bson:"email" json:"email"`
-	PhoneNumber      string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
-	Password         string             `bson:"password" json:"-"` // Do not expose password
-	Role             string             `bson:"role" json:"role"`
-	AccountStatus    AccountStatus      `bson:"accountStatus" json:"accountStatus"`
-	CreatedAt        time.Time          `bson:"createdAt" json:"createdAt"`
-	UpdatedAt        time.Time          `bson:"updatedAt" json:"updatedAt"`
-	CompanyData      *CompanyData       `bson:"company,omitempty" json:"company,omitempty"`
-	CustomerData     *CustomerData      `bson:"customer,omitempty" json:"customer,omitempty"`
-	PartnerData      *PartnerData       `bson:"partner,omitempty" json:"partner,omitempty"`
-	Address          *Address           `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
-	ResetToken       string             `bson:"resetToken,omitempty" json:"-"`
-	ResetTokenExpiry *time.Time         `bson:"resetTokenExpiry,omitempty" json:"-"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Name          string             `bson:"name" json:"name"`
+	Email         string             `bson:"email" json:"email"`
+	PhoneNumber   string             `bson:"phoneNumber,omitempty" json:"phoneNumber,omitempty"`
+	Password      string             `bson:"password" json:"-"` // Do not expose password
+	Role          string             `bson:"role" json:"role"`
+	AccountStatus AccountStatus      `bson:"accountStatus" json:"accountStatus"`
+	CreatedAt     time.Time          `bson:"createdAt" json:"createdAt"`
+	UpdatedAt     time.Time          `bson:"updatedAt" json:"updatedAt"`
+	// The code colleagues use to join this organisation. Only ever set on a root
+	// account, generated on request and rotatable, so a leaked code can be
+	// invalidated without disturbing the people who already joined.
+	OrgInviteCode string `bson:"orgInviteCode,omitempty" json:"orgInviteCode,omitempty"`
+	// This account's standing INSIDE its organisation, as opposed to Role which
+	// is its standing on the platform. Roadmap #35(g) refines this into real
+	// permissions; today it distinguishes who may manage the organisation.
+	OrgRole string `bson:"orgRole,omitempty" json:"orgRole,omitempty"`
+	// Organisation membership (Roadmap #21c). When set, this account belongs to
+	// the organisation rooted at that account; when absent, the account IS its own
+	// organisation. That default is what lets this ship inert: every existing
+	// account resolves to an OrgID equal to its own id, so nothing behaves
+	// differently until a parent is actually assigned.
+	ParentAccountID string `bson:"parentAccountId,omitempty" json:"parentAccountId,omitempty"`
+	// The account's own internal governance (approvals today; buyer roles,
+	// hierarchy and cost centres later). Role-agnostic on purpose — see
+	// OrgGovernance. omitempty throughout so an account that has never
+	// configured anything stores no key at all.
+	Governance       *OrgGovernance `bson:"governance,omitempty" json:"governance,omitempty"`
+	CompanyData      *CompanyData   `bson:"company,omitempty" json:"company,omitempty"`
+	CustomerData     *CustomerData  `bson:"customer,omitempty" json:"customer,omitempty"`
+	PartnerData      *PartnerData   `bson:"partner,omitempty" json:"partner,omitempty"`
+	Address          *Address       `bson:"address,omitempty" json:"address,omitempty"` // Account holder's primary address
+	ResetToken       string         `bson:"resetToken,omitempty" json:"-"`
+	ResetTokenExpiry *time.Time     `bson:"resetTokenExpiry,omitempty" json:"-"`
 	// AdConversions holds per-provider ad-platform conversion credentials for a
 	// company account: provider ("meta") -> {field ("pixel_id"/"access_token")
 	// -> AES-GCM-encrypted value}. json:"-" so the secret token is never
@@ -281,6 +358,42 @@ type Account struct {
 	// AdConversionsInfo is a computed, secret-free view for the admin UI
 	// (configured + enabled + pixelId + token last-4). Never persisted (bson:"-").
 	AdConversionsInfo map[string]AdConversionInfo `bson:"-" json:"adConversionsInfo,omitempty"`
+}
+
+// OrgID is the organisation this account acts within.
+//
+// Every seller-scoped record (products, quotes, orders, statements, storefronts)
+// is keyed by the ROOT account's id, so authorisation must compare against this
+// rather than the caller's own id — otherwise a second account in the same
+// organisation is locked out of its own company's data. An account with no
+// parent is its own organisation, which keeps every existing single-account
+// organisation behaving exactly as before.
+// Standing inside an organisation. A root account (no parent) is the owner
+// implicitly.
+//
+// "user" rather than "member" to match the market: Adobe Commerce calls these
+// company users, OroCommerce customer users. The portal labels them by side —
+// a selling company's people are Staff, a buying organisation's are Company
+// users — because they are two different populations and calling a customer's
+// buyers "staff" in a merchant portal reads as though they work for the seller.
+const (
+	OrgRoleOwner = "owner"
+	OrgRoleAdmin = "admin"
+	OrgRoleUser  = "user"
+)
+
+// IsOrgRoot reports whether this account IS the organisation rather than a
+// member of one. The root's id is the OrgID every seller-scoped record is keyed
+// by, which is why only it may hand out invite codes.
+func (a *Account) IsOrgRoot() bool {
+	return a.ParentAccountID == ""
+}
+
+func (a *Account) OrgID() string {
+	if a.ParentAccountID != "" {
+		return a.ParentAccountID
+	}
+	return a.ID.Hex()
 }
 
 // AdConversionInfo is the masked, display-safe status of a provider's creds.
@@ -406,6 +519,11 @@ type RegisterRequest struct {
 	Code          string   `json:"code"`
 	CustomerCodes []string `json:"customerCodes"`
 	PhoneNumber   string   `json:"phoneNumber,omitempty"`
+	// Joining an existing organisation as a colleague (Roadmap #21c Phase 2).
+	// Multi-use, like the customer and partner codes: one organisation, many
+	// people. Supplying it makes every other role/code field irrelevant, because
+	// a member inherits both from the organisation they are joining.
+	OrgInviteCode string `json:"orgInviteCode,omitempty"`
 }
 
 type LoginRequest struct {

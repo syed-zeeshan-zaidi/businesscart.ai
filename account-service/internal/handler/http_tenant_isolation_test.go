@@ -89,7 +89,7 @@ func TestScopedToken_ResolvesToCompanyTenantInCatalogService(t *testing.T) {
 	const secret = "test-secret"
 	const companyID = "68d46f98e4dc5dd472e33655"
 
-	tok, err := auth.GenerateJWT(companyID, "owner@example.com", storage.RoleCompany, secret, nil, nil)
+	tok, err := auth.GenerateJWT(companyID, companyID, "owner@example.com", storage.RoleCompany, secret, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("mint failed: %v", err)
 	}

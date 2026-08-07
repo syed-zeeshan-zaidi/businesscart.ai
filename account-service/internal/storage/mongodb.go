@@ -168,6 +168,15 @@ func (db *DB) DeleteAccount(id primitive.ObjectID) error {
 	return err
 }
 
+// GetAccountByOrgInviteCode finds the organisation root that owns an invite code.
+// Codes are multi-use by design (one organisation, many colleagues), so this is a
+// plain lookup with no claim semantics.
+func (db *DB) GetAccountByOrgInviteCode(code string) (*Account, error) {
+	var acc Account
+	err := db.accounts.FindOne(context.Background(), bson.M{"orgInviteCode": code}).Decode(&acc)
+	return &acc, err
+}
+
 func (db *DB) GetAccounts(filter bson.M) ([]*Account, error) {
 	cursor, err := db.accounts.Find(context.Background(), filter)
 	if err != nil {

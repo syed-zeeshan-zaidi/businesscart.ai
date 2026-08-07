@@ -7,6 +7,8 @@ import { useAuth } from '../hooks/useAuth';
 import { Account as AccountType } from '../types';
 import { getAccount } from '../api';
 import AssociationModal from '../components/AssociationModal';
+import ApprovalPolicyForm from '../components/ApprovalPolicyForm';
+import OrgPeopleForm from '../components/OrgPeopleForm';
 import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY } from '../components/ui';
 
 const LOCAL_KEY = 'account'; // <-- single key for localStorage
@@ -90,7 +92,14 @@ const Account: React.FC = () => {
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader title="Your account" subtitle="Your profile, the companies you buy from, and their terms.">
+        <PageHeader
+          title="Your account"
+          subtitle={
+            account?.role === 'company'
+              ? 'Your profile, the people in your organisation, and your own approval rules.'
+              : 'Your profile, the companies you buy from, and their terms.'
+          }
+        >
           {account?.role === 'customer' && (
             <button onClick={() => setIsAssociationModalOpen(true)} className={BTN_PRIMARY}>
               Associate with company
@@ -162,6 +171,37 @@ const Account: React.FC = () => {
           <div className={`${CARD} p-8 text-center mt-6`}>
             <p className="text-sm text-gray-600">We could not load your account. Try Refresh, or sign in again.</p>
           </div>
+        )}
+
+        {/* The people who share this account's data. Only the organisation ROOT
+            sees this: its id is the OrgID every seller-scoped record is keyed by,
+            so only it can hand out invites. b2c is excluded — a storefront
+            shopper is a person, not an organisation. */}
+        {account && account.role !== 'b2c' && !account.parentAccountId && (
+          <OrgPeopleForm
+            account={account}
+            onChanged={updated => {
+              setAccount(updated);
+              localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+            }}
+          />
+        )}
+
+        {/* The organisation's own approval structure, set by its ROOT: the policy
+            is read from the organisation root at login, so a colleague writing one
+            on their own account would store something nothing reads.
+
+            Both trading sides (Roadmap #21d): a buying organisation gates what it
+            commits to, a selling one gates what leaves it. b2c is excluded, since
+            a storefront shopper is a person rather than an organisation. */}
+        {account && (account.role === 'customer' || account.role === 'company') && !account.parentAccountId && (
+          <ApprovalPolicyForm
+            account={account}
+            onSaved={updated => {
+              setAccount(updated);
+              localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
+            }}
+          />
         )}
       </main>
       <AssociationModal

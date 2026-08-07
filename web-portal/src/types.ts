@@ -21,15 +21,44 @@ export interface PartnerData {
   status: string;
 }
 
+// An account's OWN internal structure. Role-agnostic: a selling company, a
+// buying customer and (later) a partner all describe themselves the same way,
+// and neither side configures the other's. Never present on a b2c account.
+export interface OrgGovernance {
+  approval?: ApprovalPolicy;
+}
+
+export interface ApprovalPolicy {
+  scope?: ApprovalScope;
+  threshold?: number;
+  quantityThreshold?: number;
+  validityHours?: number;
+  chain?: ApprovalStepConfig[];
+}
+
+// Standing inside an organisation, distinct from `role` which is standing on the
+// platform. Labelled by side in the UI: a selling company's people are Staff, a
+// buying organisation's are Company users.
+export type OrgRole = 'owner' | 'admin' | 'user';
+
 export interface Account {
   _id: string;
   name: string;
   email: string;
-  role: 'admin' | 'company' | 'customer' | 'partner';
+  // Mirrors the five roles the backend defines. 'b2c' was missing, which meant
+  // TypeScript could not express "not a storefront shopper" — the exact check
+  // that keeps a D2C customer out of organisation governance.
+  role: 'admin' | 'company' | 'customer' | 'partner' | 'b2c';
   accountStatus: 'active' | 'pending' | 'suspended' | 'inactive';
   company?: CompanyData;
   customer?: CustomerData;
   partner?: PartnerData;
+  governance?: OrgGovernance;
+  // Organisation membership (Roadmap #21c). Absent parentAccountId means this
+  // account IS the organisation; the invite code only ever exists on that root.
+  parentAccountId?: string;
+  orgInviteCode?: string;
+  orgRole?: OrgRole;
   address?: Address;
   password?: string;
   // Ad-platform conversion credentials. Write-only: provider -> { field -> value }
@@ -264,13 +293,22 @@ export interface Quote {
   createdAt: string;
   expiresAt: string;
   quoteType: 'standard' | 'negotiable';
-  status: 'draft' | 'open' | 'proposed' | 'approved' | 'rejected' | 'ordered';
+  status: 'draft' | 'open' | 'proposed' | 'pending_approval' | 'approved' | 'rejected' | 'ordered';
   history: QuoteHistory[];
   comments: Comment[];
   discountPercentage?: number;
   discountAmount?: number;
   notes?: string;
   leadTime?: number;
+  approvalScope?: ApprovalScope;
+  approvalThreshold?: number;
+  approvalQuantityThreshold?: number;
+  approvalExpiresAt?: string;
+  approvalStage?: number;
+  approvalChain?: ApprovalStep[];
+  // Whether the gate actually fired, as opposed to a policy merely being
+  // attached. Chain presence alone is true for ordinary un-gated orders too.
+  approvalRequired?: boolean;
 }
 
 export type DeliveryMethod = 'pickup' | 'dropoff' | 'shipping_out';
@@ -409,11 +447,47 @@ export interface ResaleCertificate {
   expiryDate?: string;
 }
 
+// Buyer-side order approval (Roadmap #21). Scope reuses the quoteType vocabulary
+// so it can be compared directly against a quote's type.
+export type ApprovalScope = 'none' | 'standard' | 'negotiable' | 'both';
+
+export interface Approver {
+  accountId: string;
+  email?: string;
+  name?: string;
+}
+
+// One tier of an approval chain. Several approvers may sit on a step and ANY ONE
+// of them clears it, so an order does not stall when someone is on leave.
+export interface ApprovalStepConfig {
+  name?: string;
+  // Optional on READ. The backend redacts the other organisation's levels down to
+  // their existence and status (Roadmap #21d), so a step that is not yours comes
+  // back with no approvers, no name and no note. Required when CONFIGURING a
+  // policy, which the form enforces separately.
+  approvers?: Approver[];
+}
+
+export interface ApprovalStep extends ApprovalStepConfig {
+  // Which organisation owns this level (Roadmap #21d). The seller's levels run
+  // first, before the quote is put to the buyer at all. Absent means buyer: that
+  // is what every quote written before #21d carries.
+  side?: 'seller' | 'buyer';
+  status?: 'pending' | 'approved' | 'rejected' | 'released';
+  decidedBy?: Approver;
+  decidedAt?: string;
+  note?: string;
+}
+
 
 
 export interface DecodedUser {
 
   id: string;
+
+  // The organisation this account acts within (Roadmap #21c). Equal to id until
+  // the account joins one, so callers may use it unconditionally.
+  org_id?: string;
 
   email: string;
 
@@ -450,4 +524,11 @@ export interface CreateQuoteRequest {
   taxRate?: number;
   shippingRate?: number;
   leadTime?: number;
+  // Sales-rep path only (Roadmap #21). Honoured by the backend solely when the
+  // caller is company/admin drafting for another account; a buyer's own request
+  // is resolved from their signed JWT instead.
+  // The buyer's address, which the backend cannot infer when the caller is the
+  // seller. The approval policy itself is never sent: it belongs to the buyer and
+  // reaches checkout through their own signed claim.
+  buyerEmail?: string;
 }
