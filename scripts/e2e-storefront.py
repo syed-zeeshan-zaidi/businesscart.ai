@@ -34,26 +34,38 @@ import requests
 # ─── Configuration ──────────────────────────────────────────────────────────
 API_URL = os.getenv("API_URL", "http://localhost:3000")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "help@businesscart.ai")
-# ADMIN_PASSWORD: from the environment (the pre-push hook passes it explicitly).
-# For standalone runs, fall back to the gitignored scripts/.precommit.env so we
-# never hardcode a secret in a tracked file (same rule as the Stripe key below).
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-if not ADMIN_PASSWORD:
+def _secret(name):
+    """A test secret: from the environment, else the gitignored precommit env.
+
+    The pre-push hook passes these explicitly; a standalone run has neither, and
+    hardcoding one in a tracked file is a secret leak even for a test key. One
+    loader for every secret rather than a per-key block: the ADMIN_PASSWORD block
+    was copied for that key alone, so STRIPE_TEST_SECRET_KEY documented a fallback
+    it never actually had, and running this test by hand failed on a key that was
+    sitting in the file the whole time.
+    """
+    val = os.getenv(name)
+    if val:
+        return val
     try:
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".precommit.env")) as _f:
-            for _line in _f:
-                if _line.strip().startswith("ADMIN_PASSWORD="):
-                    ADMIN_PASSWORD = _line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".precommit.env")) as f:
+            for line in f:
+                if line.strip().startswith(name + "="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
     except OSError:
         pass
+    return None
+
+
+# ADMIN_PASSWORD: from the environment (the pre-push hook passes it explicitly).
+ADMIN_PASSWORD = _secret("ADMIN_PASSWORD")
 # Stripe SANDBOX (test-mode) secret key. Read from the environment (or the
 # gitignored scripts/.precommit.env), never hardcoded — a committed key, even a
 # test one, is a secret leak (GitHub push protection blocks it). Must be an
 # sk_test_ key (guarded in main()); a live sk_live_ key is never accepted. The
 # test writes it into the throwaway company's gateway config via the backend API
 # with sandbox=True, so nothing is ever charged for real.
-STRIPE_TEST_SECRET_KEY = os.getenv("STRIPE_TEST_SECRET_KEY")
+STRIPE_TEST_SECRET_KEY = _secret("STRIPE_TEST_SECRET_KEY")
 # Stripe's universal test card (any future expiry, any CVC, any ZIP).
 STRIPE_TEST_CARD = os.getenv("STRIPE_TEST_CARD", "4242424242424242")
 STRIPE_TEST_EXP = "12/34"   # MM/YY, comfortably in the future
