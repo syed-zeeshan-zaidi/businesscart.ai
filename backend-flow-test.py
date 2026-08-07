@@ -2722,7 +2722,7 @@ class BackendFlowTest:
         self.run_test("9c-8. Re-approval rebuilds each side from its own half",
                       test_reapproval_does_not_duplicate_or_retag)
 
-        # 9c-9. Teardown, as its own test rather than a trailing line inside the
+        # 9c-12. Teardown, as its own test rather than a trailing line inside the
         # last one. An approval policy is GLOBAL to the account: leave one armed and
         # every standard quote in every later phase is held, so phase 12 fails with
         # "Quote is not approved for order placement" and the real cause is six
@@ -2734,7 +2734,89 @@ class BackendFlowTest:
             clear_policy("customer", cust_id)
             ok("Both organisations' policies cleared for the phases that follow")
 
-        self.run_test("9c-9. Teardown: approval policies cleared", test_policies_cleared)
+        # 9c-10. THE ERASURE (Roadmap #21f). The chain is live state and is rebuilt
+        # whenever the gate re-fires, so a seller who withdrew a part-approved quote
+        # and reinstated it wiped who had approved which level, and their note with
+        # it. The record now lives outside the chain and nothing removes an entry.
+        def test_decision_record_survives_withdraw_and_reinstate():
+            set_policy("company1", c1_id, threshold=1, scope="negotiable",
+                       chain=[{"name": "Sales manager", "approvers": [{"email": staff_email}]}])
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"name": "Finance", "approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+
+            # The seller's own level signs off, and that is the record at risk.
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision",
+                "value": {"decision": "approve", "note": "margin checked"},
+            })
+            assert_status(resp, 200, "Seller's approver signs off")
+
+            # Withdraw, then reinstate. This is what used to erase it.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "rejected"},
+            })
+            assert_status(resp, 200, "Seller withdraws the quote")
+            approve_as_seller(qid)
+
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+
+            # The chain is legitimately rebuilt and shows the level pending again.
+            if (q.get("approvalChain") or [])[0].get("status") not in (None, "pending"):
+                raise AssertionError("setup wrong: the chain was expected to be rebuilt fresh")
+
+            # The record is not.
+            decisions = q.get("approvalDecisions") or []
+            mine = [d for d in decisions if (d.get("side") or "buyer") == "seller"]
+            if not mine:
+                raise AssertionError(
+                    f"the seller's approval was erased by withdraw-and-reinstate; "
+                    f"decision record is {decisions!r}"
+                )
+            d = mine[0]
+            if (d.get("by") or {}).get("email", "").lower() != staff_email.lower():
+                raise AssertionError(f"the record lost who approved: {d!r}")
+            if d.get("note") != "margin checked":
+                raise AssertionError(f"the record lost the approver's note: {d!r}")
+            if not d.get("grandTotal"):
+                raise AssertionError(
+                    f"the record lost the total it was decided at, so it no longer says "
+                    f"what was approved: {d!r}"
+                )
+            ok("Decision record survived the rebuild, with who, note and total intact")
+            self._record_qid = qid
+
+        self.run_test("9c-10. A withdraw-and-reinstate cannot erase the record",
+                      test_decision_record_survives_withdraw_and_reinstate)
+
+        # 9c-11. The record must not leak across the trade either. Redacting the
+        # chain but not the log would have reopened the whole disclosure through a
+        # second field.
+        def test_decision_record_is_redacted_per_side():
+            qid = self._record_qid
+            self.re_login("customer")
+            self.use_token("customer")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            for d in (q.get("approvalDecisions") or []):
+                if (d.get("side") or "buyer") == "seller":
+                    if d.get("by") or d.get("note") or d.get("stepName"):
+                        raise AssertionError(
+                            f"the buyer can read inside the seller's decision: {d!r}"
+                        )
+                    if not d.get("decision"):
+                        raise AssertionError("the buyer lost the fact that a seller level was decided")
+            ok("Buyer sees that the seller decided, but not who or what they wrote")
+
+        self.run_test("9c-11. The decision record is redacted per side",
+                      test_decision_record_is_redacted_per_side)
+
+        self.run_test("9c-12. Teardown: approval policies cleared", test_policies_cleared)
 
 
     # ── Phase 9: B2B multi-buyer order approval (Roadmap #21) ─────

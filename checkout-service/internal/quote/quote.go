@@ -120,6 +120,18 @@ type Quote struct {
 	// notify the person WAITING on the decision. The PATCH caller is the
 	// approver, so their address is the wrong target for that email.
 	CustomerEmail string `bson:"customerEmail,omitempty" json:"customerEmail,omitempty"`
+
+	// Append-only record of every approval decision ever made on this quote
+	// (Roadmap #21f). DELIBERATELY EXCLUDED from the $set map in CreateQuote,
+	// which is the opposite of the rule stated for the fields above.
+	//
+	// Those fields must be listed there because a standard quote is upserted in
+	// place and stale state would survive. Here surviving is the entire point: a
+	// buyer who edits their cart and re-submits gets a fresh chain, and the record
+	// of what was approved before that edit has to outlive it. Each entry carries
+	// its own total, so an earlier decision cannot be mistaken for one about the
+	// current order.
+	ApprovalDecisions []ApprovalDecision `bson:"approvalDecisions,omitempty" json:"approvalDecisions,omitempty"`
 }
 
 // DefaultApprovalValidityHours bounds how long a pending approval may sit before
@@ -184,6 +196,34 @@ type ApprovalStep struct {
 	Note      string     `bson:"note,omitempty" json:"note,omitempty"`
 }
 
+// ApprovalDecision is one decision, recorded once and never rewritten.
+//
+// The CHAIN is live state: it is rebuilt whenever the gate re-fires, and
+// buildApprovalChain deliberately strips decision fields so a rebuilt chain can
+// never carry a previous run's approvals. That is right for a re-submitted cart,
+// where old sign-offs must not survive a changed order. It was also erasing the
+// record: a seller who withdrew a part-approved quote and reinstated it wiped who
+// had approved which level, and their note with it (Roadmap #21f).
+//
+// So the record lives OUTSIDE the chain. Nothing ever removes an entry, and the
+// two writes that create one do it in the same update as the decision itself, so
+// a decision can never be committed without its record.
+//
+// GrandTotal is carried per entry because a quote's money changes between runs.
+// "Jane approved level 1" is misleading on its own once the cart has been
+// re-submitted at a different total; "Jane approved level 1 at $4,200" is not.
+type ApprovalDecision struct {
+	Side     string    `bson:"side,omitempty" json:"side,omitempty"`
+	Level    int       `bson:"level" json:"level"`
+	StepName string    `bson:"stepName,omitempty" json:"stepName,omitempty"`
+	Decision string    `bson:"decision" json:"decision"`
+	By       *Approver `bson:"by,omitempty" json:"by,omitempty"`
+	At       time.Time `bson:"at" json:"at"`
+	Note     string    `bson:"note,omitempty" json:"note,omitempty"`
+	// What the buyer would have owed when this decision was made.
+	GrandTotal float64 `bson:"grandTotal,omitempty" json:"grandTotal,omitempty"`
+}
+
 // Approval sides. A step is cleared by an account on the side that owns it, so
 // the tag is what decides which role may act on the step currently in front.
 const (
@@ -234,10 +274,11 @@ func (q *Quote) HasApprovalSide(side string) bool {
 //
 // Returns a copy; the stored quote is untouched.
 func (q *Quote) RedactedFor(side string) *Quote {
-	if q == nil || len(q.ApprovalChain) == 0 {
+	if q == nil || (len(q.ApprovalChain) == 0 && len(q.ApprovalDecisions) == 0) {
 		return q
 	}
 	c := *q
+
 	c.ApprovalChain = make([]ApprovalStep, 0, len(q.ApprovalChain))
 	for _, step := range q.ApprovalChain {
 		if step.SideOf() == side {
@@ -249,7 +290,67 @@ func (q *Quote) RedactedFor(side string) *Quote {
 			Status: step.Status,
 		})
 	}
+
+	// The decision LOG gets the same treatment as the chain, and for the same
+	// reason. It holds precisely what must not cross the trade: who signed off
+	// inside an organisation and what they wrote while doing it. Skipping it here
+	// would have reopened the whole disclosure through a second field.
+	//
+	// The entry itself is kept so each side can still see that the other's level
+	// was decided and when, which is what a rep needs to answer "where is my
+	// order". Identity and note are dropped.
+	if len(q.ApprovalDecisions) > 0 {
+		c.ApprovalDecisions = make([]ApprovalDecision, 0, len(q.ApprovalDecisions))
+		for _, d := range q.ApprovalDecisions {
+			if d.SideOf() == side {
+				c.ApprovalDecisions = append(c.ApprovalDecisions, d)
+				continue
+			}
+			// An OVERRIDE keeps its author for everyone. A release is the one
+			// decision that crosses the boundary: it is always made by the seller,
+			// and it can be made against the BUYER's level, so tagging it with the
+			// level's side would have hidden the seller's own person from their own
+			// organisation and hidden from the buyer who overruled their control.
+			// An approve or reject is internal to one organisation; an override
+			// acts on the other party and must not be anonymous to them.
+			if d.Decision != ApprovalStepReleased {
+				d.By = nil
+			}
+			d.Note = ""
+			d.StepName = ""
+			c.ApprovalDecisions = append(c.ApprovalDecisions, d)
+		}
+	}
 	return &c
+}
+
+// SideOf returns the side a decision belongs to, treating an empty tag as buyer,
+// exactly as a step does.
+func (d ApprovalDecision) SideOf() string {
+	if d.Side == ApprovalSideSeller {
+		return ApprovalSideSeller
+	}
+	return ApprovalSideBuyer
+}
+
+// NewApprovalDecision builds a log entry from the step being decided.
+//
+// One constructor so the two writers cannot drift: a decision recorded with a
+// different level base, or without its total, is worse than none because it
+// looks authoritative.
+func NewApprovalDecision(q *Quote, step ApprovalStep, stage int, decision string, by *Approver, note string, at time.Time) ApprovalDecision {
+	return ApprovalDecision{
+		Side:     step.SideOf(),
+		Level:    stage + 1, // 1-based, matching what the portal shows
+		StepName: step.Name,
+		Decision: decision,
+		By:       by,
+		At:       at,
+		Note:     note,
+		// The money as it stands at the moment of the decision, so the entry
+		// still means something after the quote is re-priced or re-submitted.
+		GrandTotal: q.GrandTotal,
+	}
 }
 
 // StepsForSide returns just the steps one organisation owns.

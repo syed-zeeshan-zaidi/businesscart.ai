@@ -538,3 +538,105 @@ func TestRedactedFor_HidesTheOtherSidesPeopleAndNotes(t *testing.T) {
 		t.Fatal("RedactedFor mutated the quote it was called on")
 	}
 }
+
+// --- Roadmap #21f: the decision record ------------------------------------
+
+// The record must survive a chain rebuild. buildApprovalChain strips decision
+// fields so a re-submitted cart cannot carry stale approvals, and that same code
+// was erasing who had approved what on a withdraw-and-reinstate.
+func TestApprovalDecisions_SurviveAChainRebuild(t *testing.T) {
+	at := time.Now()
+	q := &Quote{
+		GrandTotal: 4200,
+		ApprovalChain: []ApprovalStep{
+			{Name: "Finance", Status: ApprovalStepApproved,
+				DecidedBy: &Approver{AccountID: "b1", Name: "Jane"}, DecidedAt: &at},
+		},
+		ApprovalDecisions: []ApprovalDecision{
+			{Level: 1, StepName: "Finance", Decision: ApprovalStepApproved,
+				By: &Approver{AccountID: "b1", Name: "Jane"}, At: at, GrandTotal: 4200},
+		},
+	}
+	// What a withdraw-and-reinstate does to the chain.
+	q.ApprovalChain = []ApprovalStep{{Name: "Finance", Status: ApprovalStepPending}}
+
+	if len(q.ApprovalDecisions) != 1 || q.ApprovalDecisions[0].By.Name != "Jane" {
+		t.Fatal("rebuilding the chain must not touch the decision record")
+	}
+	if q.ApprovalDecisions[0].GrandTotal != 4200 {
+		t.Fatal("the entry lost the total it was decided at, so it no longer says what was approved")
+	}
+}
+
+func TestNewApprovalDecision_LevelIsOneBased(t *testing.T) {
+	q := &Quote{GrandTotal: 99.5}
+	d := NewApprovalDecision(q, ApprovalStep{Name: "Director", Side: ApprovalSideSeller},
+		1, ApprovalStepApproved, &Approver{AccountID: "s1"}, "ok", time.Now())
+	if d.Level != 2 {
+		t.Fatalf("stage 1 must record as level 2 to match the portal, got %d", d.Level)
+	}
+	if d.SideOf() != ApprovalSideSeller {
+		t.Fatalf("side not carried: %q", d.SideOf())
+	}
+	if d.GrandTotal != 99.5 {
+		t.Fatalf("total not carried: %v", d.GrandTotal)
+	}
+}
+
+// The record holds exactly what must not cross the trade. Redacting the chain but
+// not the log would have reopened the whole disclosure through a second field.
+func TestRedactedFor_RedactsTheDecisionRecord(t *testing.T) {
+	at := time.Now()
+	q := &Quote{ApprovalDecisions: []ApprovalDecision{
+		{Level: 1, Side: ApprovalSideSeller, StepName: "Sales manager", Decision: ApprovalStepApproved,
+			By: &Approver{AccountID: "s1", Email: "manager@seller.test"}, At: at, Note: "margin is thin"},
+		{Level: 2, Side: ApprovalSideBuyer, StepName: "Finance", Decision: ApprovalStepApproved,
+			By: &Approver{AccountID: "b1", Email: "cfo@buyer.test"}, At: at, Note: "within budget"},
+	}}
+
+	forBuyer := q.RedactedFor(ApprovalSideBuyer)
+	if forBuyer.ApprovalDecisions[0].By != nil || forBuyer.ApprovalDecisions[0].Note != "" ||
+		forBuyer.ApprovalDecisions[0].StepName != "" {
+		t.Fatalf("buyer can read inside the seller's decision: %+v", forBuyer.ApprovalDecisions[0])
+	}
+	if forBuyer.ApprovalDecisions[0].Decision != ApprovalStepApproved || forBuyer.ApprovalDecisions[0].Level != 1 {
+		t.Fatal("buyer lost the fact that the seller's level was decided")
+	}
+	if forBuyer.ApprovalDecisions[1].Note != "within budget" {
+		t.Fatal("buyer lost the note on their OWN decision")
+	}
+
+	forSeller := q.RedactedFor(ApprovalSideSeller)
+	if forSeller.ApprovalDecisions[1].By != nil || forSeller.ApprovalDecisions[1].Note != "" {
+		t.Fatalf("seller can read inside the buyer's decision: %+v", forSeller.ApprovalDecisions[1])
+	}
+
+	// Redaction is for the wire only.
+	if q.ApprovalDecisions[0].By == nil || q.ApprovalDecisions[0].Note == "" {
+		t.Fatal("RedactedFor mutated the quote it was called on")
+	}
+}
+
+// An override is the one decision that crosses the boundary. It is always made by
+// the seller and can be made against the BUYER's level, so tagging it by the
+// level's side would hide the seller's own person from their own organisation and
+// hide from the buyer who overruled their control.
+func TestRedactedFor_AnOverrideKeepsItsAuthorForEveryone(t *testing.T) {
+	at := time.Now()
+	q := &Quote{ApprovalDecisions: []ApprovalDecision{
+		// A seller force-releasing the BUYER's level: side is the level's, the
+		// author is the seller's.
+		{Level: 1, Side: ApprovalSideBuyer, StepName: "Finance", Decision: ApprovalStepReleased,
+			By: &Approver{AccountID: "s9", Email: "ops@seller.test"}, At: at},
+	}}
+	for _, side := range []string{ApprovalSideBuyer, ApprovalSideSeller} {
+		got := q.RedactedFor(side).ApprovalDecisions[0]
+		if got.By == nil || got.By.Email != "ops@seller.test" {
+			t.Fatalf("%s side cannot see who performed the override: %+v", side, got)
+		}
+	}
+	// The buyer's own level LABEL is still theirs alone.
+	if q.RedactedFor(ApprovalSideSeller).ApprovalDecisions[0].StepName != "" {
+		t.Fatal("the buyer's internal level name leaked to the seller on an override")
+	}
+}

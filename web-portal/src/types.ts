@@ -306,6 +306,7 @@ export interface Quote {
   approvalExpiresAt?: string;
   approvalStage?: number;
   approvalChain?: ApprovalStep[];
+  approvalDecisions?: ApprovalDecision[];
   // Whether the gate actually fired, as opposed to a policy merely being
   // attached. Chain presence alone is true for ordinary un-gated orders too.
   approvalRequired?: boolean;
@@ -466,6 +467,23 @@ export interface ApprovalStepConfig {
   // back with no approvers, no name and no note. Required when CONFIGURING a
   // policy, which the form enforces separately.
   approvers?: Approver[];
+}
+
+// One decision, recorded once and never rewritten (Roadmap #21f). The chain is
+// live state and gets rebuilt whenever the gate re-fires; this outlives it, so a
+// withdraw-and-reinstate can no longer erase who approved what. Each entry
+// carries the total at the time, because the money changes between runs.
+export interface ApprovalDecision {
+  side?: 'seller' | 'buyer';
+  level: number;
+  stepName?: string;
+  decision: 'approved' | 'rejected' | 'released';
+  // Absent on the other organisation's entries: who signed off inside a business,
+  // and what they wrote, is not the counterparty's to see.
+  by?: Approver;
+  at: string;
+  note?: string;
+  grandTotal?: number;
 }
 
 export interface ApprovalStep extends ApprovalStepConfig {

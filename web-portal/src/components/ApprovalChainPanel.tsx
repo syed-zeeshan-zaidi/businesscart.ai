@@ -34,7 +34,10 @@ const ApprovalChainPanel: React.FC<Props> = ({ quote, currentUserId, userRole, o
   // eligible quote, so chain presence alone would show a bogus 'Level 1 pending'
   // card on ordinary under-threshold orders.
   const chain = quote.approvalRequired ? quote.approvalChain || [] : [];
-  if (chain.length === 0) return null;
+  const decisions = quote.approvalDecisions ?? [];
+  // A recorded decision must never be hidden, even if the chain is somehow gone.
+  // The whole point of the record is that it outlives the chain.
+  if (chain.length === 0 && decisions.length === 0) return null;
 
   const stage = quote.approvalStage ?? 0;
   const awaitingApproval = quote.status === 'pending_approval';
@@ -121,6 +124,40 @@ const ApprovalChainPanel: React.FC<Props> = ({ quote, currentUserId, userRole, o
           );
         })}
       </ol>
+
+      {/* The permanent record, distinct from the chain above.
+          The chain is live state and is rebuilt whenever the gate re-fires, so it
+          only ever shows the CURRENT run. This is every decision ever made on the
+          quote, including ones from before a withdraw-and-reinstate that the chain
+          no longer reflects, and every level a seller override skipped. Collapsed
+          by default because on a simple quote it just restates the chain; native
+          <details> so it costs no state and no JS. */}
+      {decisions.length > 0 && (
+        <details className="mt-4 border-t pt-4">
+          <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+            Decision record ({decisions.length})
+          </summary>
+          <ol className="mt-3 space-y-2">
+            {decisions.map((d, i) => (
+              <li key={i} className="text-xs text-gray-600 border-l-2 border-gray-200 pl-3">
+                <span className="font-medium text-gray-800">
+                  Level {d.level}
+                  {d.stepName ? ` (${d.stepName})` : ''}
+                  {' '}
+                  {d.decision === 'released' ? 'released without approval' : d.decision}
+                </span>
+                {' by '}
+                {d.by ? (d.by.name || d.by.email || d.by.accountId) : `the ${sideOf(d) === 'seller' ? 'selling' : 'buying'} organisation`}
+                {' on '}{new Date(d.at).toLocaleString()}
+                {typeof d.grandTotal === 'number' && d.grandTotal > 0 && (
+                  <span className="text-gray-500"> at ${d.grandTotal.toFixed(2)}</span>
+                )}
+                {d.note ? <span className="block text-gray-500 mt-0.5">&ldquo;{d.note}&rdquo;</span> : null}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
 
       {awaitingApproval && (
         <div className="mt-4 border-t pt-4">

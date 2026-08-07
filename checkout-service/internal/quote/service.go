@@ -397,6 +397,11 @@ func (s *Service) RecordApprovalDecision(quoteID primitive.ObjectID, approver Ap
 	}
 	newStage, newStatus := current.NextApprovalState(approve)
 
+	// The permanent record, pushed in the SAME update as the decision. A separate
+	// write would leave a window where a decision is committed with no record of
+	// who made it, which is the exact failure this log exists to prevent.
+	logEntry := NewApprovalDecision(current, *step, observedStage, decided.Status, &approver, note, now)
+
 	set := bson.M{
 		fmt.Sprintf("approvalChain.%d", observedStage): decided,
 		"approvalStage": newStage,
@@ -418,8 +423,11 @@ func (s *Service) RecordApprovalDecision(quoteID primitive.ObjectID, approver Ap
 		"status":        StatusPendingApproval,
 	}
 	update := bson.M{
-		"$set":  set,
-		"$push": bson.M{"history": QuoteHistory{Status: newStatus, ChangedAt: now}},
+		"$set": set,
+		"$push": bson.M{
+			"history":           QuoteHistory{Status: newStatus, ChangedAt: now},
+			"approvalDecisions": logEntry,
+		},
 	}
 	if len(unset) > 0 {
 		update["$unset"] = unset
@@ -575,7 +583,7 @@ func (s *Service) HoldForApproval(quoteID primitive.ObjectID, chain []ApprovalSt
 // stalled approval has usually lapsed too, and handlePlaceOrderRequest refuses an
 // expired quote — without this the release would succeed and the buyer still
 // could not pay.
-func (s *Service) ForceRelease(quoteID primitive.ObjectID) (*Quote, error) {
+func (s *Service) ForceRelease(quoteID primitive.ObjectID, releasedBy *Approver) (*Quote, error) {
 	current, err := s.GetQuote(quoteID)
 	if err != nil {
 		return nil, err
@@ -583,14 +591,29 @@ func (s *Service) ForceRelease(quoteID primitive.ObjectID) (*Quote, error) {
 	// Mark the outstanding levels as released rather than leaving them "pending".
 	// A released order is approved and payable, and a chain still reading
 	// "Level 1 — Pending" on it tells the buyer the opposite of what happened.
+	now := time.Now()
 	chain := append([]ApprovalStep(nil), current.ApprovalChain...)
+	// Every level the override actually skipped gets its own entry. Recording only
+	// the quote-level fact would leave the log saying an order became payable with
+	// no indication of which sign-offs were bypassed to get there, which is the
+	// single most important thing to be able to reconstruct later.
+	var released []interface{}
 	for i := range chain {
 		if chain[i].Status == ApprovalStepPending {
 			chain[i].Status = ApprovalStepReleased
+			released = append(released, NewApprovalDecision(
+				current, chain[i], i, ApprovalStepReleased, releasedBy, "", now))
 		}
 	}
 
-	now := time.Now()
+	push := bson.M{"history": QuoteHistory{Status: "approved", ChangedAt: now}}
+	// Only when there is something to record. MongoDB rejects `$each: null`, so an
+	// empty slice here would turn a release with nothing left pending from a
+	// harmless no-op into a hard failure on the seller's escape hatch.
+	if len(released) > 0 {
+		push["approvalDecisions"] = bson.M{"$each": released}
+	}
+
 	res, err := s.collection.UpdateOne(context.Background(),
 		// approvalStage is part of the filter because the chain below is a
 		// read-modify-write: without it, an approver deciding at the same instant
@@ -600,7 +623,7 @@ func (s *Service) ForceRelease(quoteID primitive.ObjectID) (*Quote, error) {
 		bson.M{
 			"$set":   bson.M{"status": "approved", "approvalChain": chain},
 			"$unset": bson.M{"approvalExpiresAt": ""},
-			"$push":  bson.M{"history": QuoteHistory{Status: "approved", ChangedAt: now}},
+			"$push":  push,
 		})
 	if err != nil {
 		return nil, err

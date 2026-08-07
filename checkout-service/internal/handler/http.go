@@ -633,7 +633,11 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		if role != "company" && role != "admin" {
 			return h.errorResponse(http.StatusForbidden, "Forbidden: Only company or admin can release an approval"), nil
 		}
-		updatedQuote, err = h.quoteService.ForceRelease(quoteID)
+		// Named, because an override is the entry in the log that most needs an
+		// owner. The email comes off the token; there is no chain entry to read a
+		// display name from, since the releaser is by definition not an approver.
+		updatedQuote, err = h.quoteService.ForceRelease(quoteID,
+			&quote.Approver{AccountID: accountID, Email: h.requestUserEmail})
 		if err != nil {
 			return h.errorResponse(http.StatusConflict, err.Error()), nil
 		}
@@ -2461,7 +2465,11 @@ func (h *LambdaHandler) handleCreateQuoteRequest(request events.APIGatewayProxyR
 		}
 	}
 
-	respBody, _ := json.Marshal(createdQuote)
+	// Redacted like every other quote response. A standard quote is upserted with
+	// NO status constraint, so a re-submission returns a document that may already
+	// carry a decision record; on the sales-rep path the caller is the SELLER, and
+	// that record is the buyer's. This was the one response path that skipped it.
+	respBody, _ := json.Marshal(redactQuoteFor(createdQuote, role))
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
 		Headers:    corsHeaders(h.requestOrigin),
