@@ -140,6 +140,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Staff &amp; Buyer Roles</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Owner, admin and staff, on your side and your customer&rsquo;s, in every tier. Staff cannot see product costs or margins; only the owner changes payment settings and billing</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Staff permissions, with the number of staff accounts capped by plan</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">WordPress user roles; finer control via plugin, you maintain it</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not applicable</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Buyer-Side Order Approvals</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: multiple levels, several approvers per level, thresholds on order value or quantity</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Not native; app or custom development</td>
@@ -392,7 +399,7 @@ const Compare: React.FC = () => {
                   </tr>
                   <tr>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">BigCommerce B2B Edition</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">Three fixed buyer roles, Enterprise plan required</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Tied to buyer roles: three predefined (junior, senior, admin) plus custom roles with configurable permissions</td>
                     <td className="px-6 py-4 text-sm text-gray-500">No</td>
                   </tr>
                   <tr>

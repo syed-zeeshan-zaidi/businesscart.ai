@@ -106,6 +106,11 @@ export const sections: Section[] = [
         answer: 'Several, all built in. Buyers get a Quick Order page (add by SKU with autocomplete, paste a list, upload a CSV, or use a browse grid) and can save up to 3 named carts per supplier to reorder in a click. You can set per-product case packs and order increments, so customers order in cases of 24 or pallets of 40. And you can generate a branded, printable or PDF line sheet of your catalog, curated by category or product. No app or plugin required.',
       },
       {
+        id: 'staff-roles-costs',
+        question: 'Can I let staff use the portal without showing them my costs and margins?',
+        answer: 'Yes. Everyone you invite is an owner, an admin or staff. Staff run the day to day: orders, quotes, customers, and the product catalog. What they cannot see is what your goods cost you, so the Margin Report and every cost figure are blank for them, enforced by the API and not just hidden in the screen. Admins see costs and margins. Only you, the owner, can change payment gateway settings or see your billing statements, because whoever can rewrite a gateway secret can redirect the money your store takes.',
+      },
+      {
         id: 'seller-side-approvals',
         question: 'Can I require internal sign-off before a quote goes out to a customer?',
         answer: 'Yes, and this is rare: most B2B platforms only let the buying side approve. Set a threshold on order value or total quantity, then name who signs off inside your own company. When a rep approves a quote at or above it, the quote goes to your approver first and the customer sees nothing until your side has cleared it. You can have several levels, and several people on each level, so a quote does not stall because one person is away. Your customer never sees who your approvers are or what they wrote on a decision.',
@@ -145,6 +150,11 @@ export const sections: Section[] = [
         id: 'quick-order-reorder',
         question: 'Is there a faster way to place large or repeat orders?',
         answer: 'Yes. The Quick Order page lets you add items by SKU with autocomplete, paste a "SKU, quantity" list, upload a CSV, or browse a compact grid, then add everything to your cart at once. You can also save up to 3 named carts per supplier (requisition lists) and reload one to reorder in a click, and one-click reorder any past order from your history.',
+      },
+      {
+        id: 'buyer-org-roles',
+        question: 'Can colleagues in my company have different levels of access?',
+        answer: 'Yes, and you set it up yourself rather than asking your supplier to. Colleagues who join with your invite code are owner, admin or staff. Everyone can order, subject to whatever approval rules you have set. Only you, as the owner, can change those approval rules, invite or remove colleagues, or change anyone\'s level. Your supplier cannot see or change any of it.',
       },
       {
         id: 'buyer-side-approvals',
