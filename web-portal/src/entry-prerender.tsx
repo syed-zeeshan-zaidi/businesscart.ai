@@ -22,7 +22,7 @@ import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
 import About from './pages/About';
 import Careers from './pages/Careers';
 import ContactUs from './pages/ContactUs';
-import FAQ from './pages/FAQ';
+import FAQ, { sections as faqSections } from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ApiStatus from './pages/ApiStatus';
@@ -176,6 +176,25 @@ const blogSchema = (post: typeof blogPosts[0]) => JSON.stringify({
   mainEntityOfPage: `${baseUrl}/blog/${post.slug}`,
 });
 
+// FAQPage structured data, generated from the page's own question list.
+//
+// Every question, flattened across sections: the schema describes the PAGE, and a
+// consumer extracting Q&A pairs has no use for our section headings. Answers are
+// plain strings already, which is what acceptedAnswer wants.
+const faqSchema = () => JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  name: 'Frequently Asked Questions',
+  url: `${baseUrl}/faq`,
+  mainEntity: faqSections.flatMap((section) =>
+    section.questions.map((q) => ({
+      '@type': 'Question',
+      name: q.question,
+      acceptedAnswer: { '@type': 'Answer', text: q.answer },
+    }))
+  ),
+});
+
 const pages: PageEntry[] = [
   {
     route: '/',
@@ -294,7 +313,7 @@ const pages: PageEntry[] = [
     output: 'faq/index.html',
     title: 'Frequently Asked Questions — BusinessCart.ai',
     description: 'Answers on BusinessCart.ai pricing, B2B config, payment gateways, AI add-on, storefronts, and migration from Shopify, WooCommerce, marketplaces.',
-    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Frequently Asked Questions', url: `${baseUrl}/faq` }),
+    schema: faqSchema(),
   },
   {
     route: '/privacy-policy',

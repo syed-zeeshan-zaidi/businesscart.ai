@@ -15,7 +15,11 @@ interface Section {
   questions: Question[];
 }
 
-const sections: Section[] = [
+// Exported so the prerenderer can build this page's FAQPage structured data from
+// the same array the page renders. A hand-maintained second copy would drift the
+// first time a question is edited, and structured data that disagrees with the
+// visible page is worse than none.
+export const sections: Section[] = [
   {
     id: 'general',
     title: 'General',
