@@ -140,6 +140,20 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Buyer-Side Order Approvals</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: multiple levels, several approvers per level, thresholds on order value or quantity</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not native; app or custom development</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin, you maintain it</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not applicable</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Seller-Side Quote Approvals</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: your rep drafts, your manager signs off before the customer sees it</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not available</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not applicable</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Multiple Payment Gateways</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Amazon Pay, Stripe, Authorize.net, offline</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Yes, but extra fee for non-Shopify gateways</td>
@@ -330,6 +344,106 @@ const Compare: React.FC = () => {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* B2B Approval Workflows.
+              Its own section rather than two more rows, because the platforms that
+              actually compete on approvals (Adobe, Oro, Sana, Logicblock,
+              BigCommerce) are not the platforms in the table above, and mixing
+              enterprise B2B suites into a table that includes Etsy serves neither
+              reader. Laid out with platforms as ROWS: seven columns would fight
+              mobile, three do not. */}
+          <div className="mt-16">
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-4 text-center">
+              Which B2B Platforms Actually Have Order Approvals?
+            </h2>
+            <p className="max-w-3xl mx-auto text-center text-gray-600 mb-8">
+              <strong>Short answer:</strong> most have half of it. Buyer-side approval, where a
+              purchasing organisation signs off on its own spending, is fairly common. Seller-side
+              approval, where your rep drafts a quote and your own manager signs off before the
+              customer ever sees it, is rare. Of the platforms below, BusinessCart.ai and
+              OroCommerce are the only two with both.
+            </p>
+
+            <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buyer-Side Approvals</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seller-Side Approvals</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  <tr className="bg-teal-50">
+                    <td className="px-6 py-4 text-sm font-bold text-teal-700">BusinessCart.ai</td>
+                    <td className="px-6 py-4 text-sm font-bold text-teal-700">Multiple levels, several approvers per level so nothing stalls when someone is away, thresholds on order value or quantity, and a validity window so a stale price cannot be paid weeks later</td>
+                    <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes. Your rep drafts, your manager signs off before the customer sees the quote</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Shopify Plus B2B</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Not native. App or custom development</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Adobe Commerce B2B</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Approval rules, on the paid edition only</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">BigCommerce B2B Edition</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Three fixed buyer roles, Enterprise plan required</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">OroCommerce</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Yes</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Yes, the only other platform here with it</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Sana Commerce</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Handled in your ERP, not the commerce platform. The order is held in SAP Business One or Dynamics NAV and approved there, so you need the ERP to get it</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Logicblock</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Approval chains are advertised, mechanics are not published</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">Not published</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">
+              Sources, checked August 2026:{' '}
+              <a className="underline" target="_blank" rel="noopener noreferrer nofollow" href="https://experienceleague.adobe.com/en/docs/commerce-admin/b2b/purchase-orders/account-dashboard-approval-rules">Adobe Commerce approval rules</a>,{' '}
+              <a className="underline" target="_blank" rel="noopener noreferrer nofollow" href="https://www.bigcommerce.com/blog/now-available-custom-buyer-roles-in-b2b-edition/">BigCommerce buyer roles</a>,{' '}
+              <a className="underline" target="_blank" rel="noopener noreferrer nofollow" href="https://support.sana-commerce.com/Content/ERP-User-Guide/SAPB1/Sales-Orders/Approve-Sales-Order-SAPB1.htm">Sana order approval</a>,{' '}
+              <a className="underline" target="_blank" rel="noopener noreferrer nofollow" href="https://www.logicblock.com/b2b-purchasing/">Logicblock B2B purchasing</a>.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-8 mt-10">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">Who sets the rules?</h3>
+                <p className="text-gray-600">
+                  In BusinessCart.ai each organisation configures its own. You set who signs off
+                  inside your company, and your customer sets who signs off inside theirs. Neither
+                  side can edit the other, and neither side sees the other&rsquo;s approver names or
+                  the notes they write on a decision. A supplier has no business running its
+                  customer&rsquo;s internal purchasing process, and your customers have no business
+                  seeing how you review your own margins.
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">Can the record be changed later?</h3>
+                <p className="text-gray-600">
+                  No. Every decision in BusinessCart.ai records who made it, when, the note they
+                  left and the order total at that moment, and entries are never edited or removed.
+                  If a quote is withdrawn and reinstated, the earlier sign-offs stay on the record.
+                  Overrides are recorded too, naming the person who released the order and every
+                  approval level they skipped.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Who Is This For */}
