@@ -22,11 +22,16 @@ import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
 import { computeTier, TierName } from '../tier';
 import { Order } from '../types';
+import { canSeeCost, isOrgOwner } from '../orgRole';
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
+  // Why this entry is not usable by the current account (Roadmap #35g). Empty or
+  // absent means usable. Present means the entry still renders, greyed out, with
+  // this as its tooltip: role-gated controls are never hidden from the DOM.
+  disabledReason?: string;
 }
 
 interface NavSection {
@@ -50,6 +55,14 @@ const Sidebar = () => {
 
   const isAdmin = user?.role === 'admin';
   const isCompany = user?.role === 'company';
+  // Seniority inside the organisation (Roadmap #35g). Entries the caller is not
+  // senior enough for stay VISIBLE and disabled with a reason, per the platform
+  // rule that role-gated controls are never hidden from the DOM. Someone who
+  // cannot open the Margin Report should be able to see that it exists and learn
+  // who can, rather than wonder why a colleague's portal has a page theirs does
+  // not.
+  const seesCost = canSeeCost(user);
+  const ownsAccount = isOrgOwner(user);
   const isPartner = user?.role === 'partner';
 
   // Pending order count + current pricing tier from dashboard cache (no API calls).
@@ -105,7 +118,7 @@ const Sidebar = () => {
             { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
             { name: 'Users', path: '/users', icon: UserIcon },
             ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
-            ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon }] : []),
+            ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon, disabledReason: isCompany && !ownsAccount ? 'Only the account owner can see billing.' : '' }] : []),
             { name: 'Locations', path: '/locations', icon: MapPinIcon },
           ],
         },
@@ -113,7 +126,7 @@ const Sidebar = () => {
           label: 'Insights',
           items: [
             { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
-            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon }] : []),
+            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon, disabledReason: isCompany && !seesCost ? 'Cost and margin figures are visible to owners and admins.' : '' }] : []),
           ],
         },
       ];
@@ -134,7 +147,17 @@ const Sidebar = () => {
               <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">{section.label}</p>
             )}
             <div className="space-y-0.5">
-              {section.items.map((link) => (
+              {section.items.map((link) => (link.disabledReason ? (
+                <div
+                  key={link.name}
+                  title={link.disabledReason}
+                  aria-disabled="true"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 cursor-not-allowed"
+                >
+                  <link.icon className="h-5 w-5 shrink-0" />
+                  <span className="flex-1">{link.name}</span>
+                </div>
+              ) : (
                 <NavLink
                   key={link.name}
                   to={link.path}
@@ -153,7 +176,7 @@ const Sidebar = () => {
                     <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{pendingOrders}</span>
                   )}
                 </NavLink>
-              ))}
+              )))}
             </div>
           </div>
         ))}

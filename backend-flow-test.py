@@ -2297,6 +2297,140 @@ class BackendFlowTest:
 
         self.run_test("9b-9. Only the organisation owner sets the policy", test_only_root_sets_policy)
 
+        # ── Roadmap #35g: seniority inside the organisation ──────────────
+        # #21c gave organisations people. Until #35g their OrgRole was written on
+        # join and never read, so everyone an owner invited got the owner's whole
+        # portal: product costs, margins, payment credentials, billing.
+
+        def test_org_role_is_derived_not_migrated():
+            """Every account that already existed keeps exactly what it had."""
+            self.re_login("company1")
+            claims = self.api.decode_jwt(self.jwts["company1"])["user"]
+            if claims.get("org_role") != "owner":
+                raise AssertionError(
+                    f"a root account resolved to {claims.get('org_role')!r}, not owner. "
+                    f"Roots are owners by definition, which is what makes this safe "
+                    f"to ship with no migration"
+                )
+            self.re_login("staff")
+            staff_claims = self.api.decode_jwt(self.jwts["staff"])["user"]
+            if staff_claims.get("org_role") != "user":
+                raise AssertionError(f"a joiner resolved to {staff_claims.get('org_role')!r}, not user")
+            ok("Root resolves to owner, joiner to user, with nothing migrated")
+
+        self.run_test("9b-10. Org seniority is derived, not migrated", test_org_role_is_derived_not_migrated)
+
+        def test_staff_cannot_see_product_cost():
+            """The exposure #35g closes: confidential cost, but inside the seller."""
+            self.use_token("company1")
+            products = self.api.get("/products").json() or []
+            with_cost = [p for p in products if (p.get("cost") or 0) > 0]
+            if not with_cost:
+                # Give the owner's catalogue a cost so the assertion means something.
+                pid = products[0]["_id"]
+                r = self.api.put(f"/products/{pid}", {"cost": 4.25})
+                assert_status(r, 200, "Owner sets a product cost")
+                target = pid
+            else:
+                target = with_cost[0]["_id"]
+
+            self.use_token("company1")
+            owner_view = self.api.get(f"/products/{target}").json()
+            if not (owner_view.get("cost") or 0) > 0:
+                raise AssertionError("setup failed: the owner cannot see the cost either")
+
+            self.re_login("staff")
+            self.use_token("staff")
+            staff_view = self.api.get(f"/products/{target}").json()
+            if (staff_view.get("cost") or 0) != 0:
+                raise AssertionError(
+                    f"staff read the product cost ({staff_view.get('cost')!r}). Cost is "
+                    f"confidential from buyers (#40) and from staff inside the seller (#35g)"
+                )
+            listed = self.api.get("/products").json() or []
+            leaked = [p["_id"] for p in listed if (p.get("cost") or 0) > 0]
+            if leaked:
+                raise AssertionError(f"the product LIST leaked cost to staff for {len(leaked)} product(s)")
+            ok("Owner sees cost, staff sees zero, on both the single read and the list")
+
+        self.run_test("9b-11. Staff cannot see product cost or margin", test_staff_cannot_see_product_cost)
+
+        def test_only_owner_touches_payment_credentials():
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.post("/checkout/gateways", {
+                "gatewayName": "stripe_pay", "sandbox": True,
+                "sandboxCredentials": {"secretKey": "sk_test_should_never_be_written"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff wrote payment gateway credentials (got {resp.status_code}). "
+                    f"Whoever can rewrite the gateway secret can redirect every payment "
+                    f"the store takes"
+                )
+            ok("Staff refused on payment gateway settings (403)")
+
+        self.run_test("9b-12. Only the owner manages payment credentials",
+                      test_only_owner_touches_payment_credentials)
+
+        def test_only_owner_sees_billing_statements():
+            """Hiding the nav entry was never enough: the UI is not a boundary."""
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff read the company's billing statements (got {resp.status_code}). "
+                    f"A statement carries the tier, monthly fee, per-order rate and "
+                    f"transaction fees this business pays"
+                )
+            resp = self.api.get("/checkout/orders/statement", params={"sellerId": c1_id})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff computed a live billing statement (got {resp.status_code})"
+                )
+            self.use_token("company1")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Owner still reads their own statements")
+            ok("Statements refused for staff (403), unchanged for the owner")
+
+        self.run_test("9b-14. Only the owner sees billing statements",
+                      test_only_owner_sees_billing_statements)
+
+        def test_owner_can_promote_and_demote():
+            self.re_login("company1")
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "admin"}})
+            assert_status(resp, 200, "Owner promotes staff to admin")
+
+            self.re_login("staff")
+            if self.api.decode_jwt(self.jwts["staff"])["user"].get("org_role") != "admin":
+                raise AssertionError("promotion did not reach the claim")
+            self.use_token("staff")
+            promoted = self.api.get("/products").json() or []
+            if not any((p.get("cost") or 0) > 0 for p in promoted):
+                raise AssertionError("an admin still could not see cost after promotion")
+            ok("Promoted to admin, cost now visible")
+
+            # A colleague cannot promote themselves.
+            resp = self.api.patch(f"/accounts/{self.ids['staff']}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "admin"}})
+            if resp.status_code == 200:
+                raise AssertionError("a colleague promoted themselves")
+            ok("A colleague cannot set their own seniority")
+
+            self.re_login("company1")
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "user"}})
+            assert_status(resp, 200, "Owner demotes back to staff")
+            self.re_login("staff")
+            ok("Demoted back to staff")
+
+        self.run_test("9b-13. Only the owner sets a colleague's seniority",
+                      test_owner_can_promote_and_demote)
+
 
     # ── Phase 9c: Seller-side quote approval (Roadmap #21d) ───────
 

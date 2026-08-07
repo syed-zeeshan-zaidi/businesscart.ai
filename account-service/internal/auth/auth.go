@@ -67,7 +67,12 @@ type UserClaims struct {
 	// The organisation this account acts within (Roadmap #21c). Equal to ID for
 	// an account that is its own organisation, which is every account until a
 	// parent is assigned — so consumers may compare against it unconditionally.
-	OrgID               string                  `json:"org_id,omitempty"`
+	OrgID string `json:"org_id,omitempty"`
+	// Seniority inside that organisation (Roadmap #35g): owner, admin or user.
+	// Consumers must treat an ABSENT claim as unrestricted, not as "user": it is
+	// absent on platform-admin and storefront tokens, where restricting would be
+	// wrong. Every org-capable token carries a value.
+	OrgRole             string                  `json:"org_role,omitempty"`
 	Email               string                  `json:"email"`
 	Role                string                  `json:"role"`
 	AssociateCompanyIDs []string                `json:"associate_company_ids"`
@@ -82,13 +87,14 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID, orgID, email, role, secret string, associateCompanyIDs []string, configs []CustomerConfiguration, orgApproval *OrgApproval) (string, error) {
+func GenerateJWT(userID, orgID, orgRole, email, role, secret string, associateCompanyIDs []string, configs []CustomerConfiguration, orgApproval *OrgApproval) (string, error) {
 	expirationTime := time.Now().Add(72 * time.Hour)
 
 	claims := &CustomClaims{
 		User: UserClaims{
 			ID:                  userID,
 			OrgID:               orgID,
+			OrgRole:             orgRole,
 			Email:               email,
 			Role:                role,
 			AssociateCompanyIDs: associateCompanyIDs,

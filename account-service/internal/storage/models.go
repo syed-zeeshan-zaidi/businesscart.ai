@@ -385,6 +385,26 @@ const (
 // IsOrgRoot reports whether this account IS the organisation rather than a
 // member of one. The root's id is the OrgID every seller-scoped record is keyed
 // by, which is why only it may hand out invite codes.
+// EffectiveOrgRole is this account's seniority inside its organisation.
+//
+// DERIVED, never migrated. The root of an organisation IS its owner by
+// definition, so there is nothing to backfill: every account that exists today is
+// its own root and resolves to owner, keeping exactly the access it already has.
+// Only accounts that joined someone else's organisation are constrained, and a
+// stored value is only ever needed to promote one of those to admin.
+//
+// Anything unrecognised resolves to the LEAST privileged role. A permission that
+// fails open because a field was empty or misspelled is not a permission.
+func (a *Account) EffectiveOrgRole() string {
+	if a.IsOrgRoot() {
+		return OrgRoleOwner
+	}
+	if a.OrgRole == OrgRoleAdmin {
+		return OrgRoleAdmin
+	}
+	return OrgRoleUser
+}
+
 func (a *Account) IsOrgRoot() bool {
 	return a.ParentAccountID == ""
 }

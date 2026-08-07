@@ -47,6 +47,24 @@ func NewLambdaHandler(db *storage.DB, jwtSecret string, s3Client *s3.Client, s3B
 	}
 }
 
+// hidesCost reports whether this caller must never see confidential seller cost.
+//
+// Buyers, for the reason #40 records. And staff INSIDE the selling organisation
+// whose seniority is "user" (Roadmap #35g): a sales rep processes orders and
+// maintains the catalogue, but what the goods cost the business is not theirs to
+// see. Same rule as #40, turned inward.
+//
+// An ABSENT org_role never hides anything. It is absent on platform-admin tokens,
+// and on any token minted before #35g shipped; defaulting those to hidden would
+// blank the margin figures of the very people who own them. Every org-capable
+// token carries an explicit value.
+func hidesCost(role, orgRole string) bool {
+	if role == "customer" || role == "b2c" {
+		return true
+	}
+	return role == "company" && orgRole == "user"
+}
+
 func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	h.requestOrigin = request.Headers["origin"]
 	if h.requestOrigin == "" {
@@ -358,7 +376,8 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 
 	// Confidential seller cost must never reach buyers. Phase 1 protected the
 	// storefront/feeds; this closes the authenticated-API leak (Roadmap #40).
-	if role == "customer" || role == "b2c" {
+	// Extended in #35g to staff inside the seller who are not senior enough.
+	if orgRole, _ := userClaim["org_role"].(string); hidesCost(role, orgRole) {
 		for _, product := range products {
 			product.Cost = 0
 		}
@@ -406,8 +425,9 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 		}
 	}
 
-	// Confidential seller cost must never reach buyers (Roadmap #40).
-	if claimRole == "customer" || claimRole == "b2c" {
+	// Confidential seller cost must never reach buyers (Roadmap #40), nor staff
+	// inside the seller who are not senior enough to see it (Roadmap #35g).
+	if claimOrgRole, _ := userClaim["org_role"].(string); hidesCost(claimRole, claimOrgRole) {
 		product.Cost = 0
 	}
 

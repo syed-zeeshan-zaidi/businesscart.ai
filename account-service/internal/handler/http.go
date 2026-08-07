@@ -790,7 +790,15 @@ func (h *LambdaHandler) issueCustomerToken(user *storage.Account) (string, strin
 		orgApproval = orgApprovalClaim(orgGovernance)
 	}
 
-	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.OrgID(), user.Email, user.Role, h.jwtSecret, assocIDs, configs, orgApproval)
+	// Seniority inside the organisation. Emitted for the two org-capable roles
+	// only: a platform admin belongs to no organisation, and a storefront shopper
+	// is a person rather than one.
+	orgRole := ""
+	if user.Role == storage.RoleCustomer || user.Role == storage.RoleCompany {
+		orgRole = user.EffectiveOrgRole()
+	}
+
+	accessToken, err := auth.GenerateJWT(user.ID.Hex(), user.OrgID(), orgRole, user.Email, user.Role, h.jwtSecret, assocIDs, configs, orgApproval)
 	if err != nil {
 		return "", "", err
 	}
@@ -1262,6 +1270,12 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 			// only covers people who are new; someone who already has a login
 			// could otherwise never become a colleague.
 			JoinWithInviteCode string `json:"joinWithInviteCode"`
+			// Promote or demote a colleague (Roadmap #35g). Rides this payload
+			// rather than a new route for the same reason the rest of it does: the
+			// authorisation here is already exactly right, self-or-admin, and the
+			// root-only gate below is exactly who should be handing out seniority.
+			SetRoleAccountID string `json:"setRoleAccountId"`
+			SetRole          string `json:"setRole"`
 		} `json:"org"`
 	}
 	if err := json.Unmarshal([]byte(body), &payload); err != nil {
@@ -1530,6 +1544,33 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 			// ParentAccountID, not the code they happened to arrive with.
 			unsetFields["orgInviteCode"] = ""
 		}
+		if id := strings.TrimSpace(payload.Org.SetRoleAccountID); id != "" {
+			want := strings.TrimSpace(payload.Org.SetRole)
+			// Owner is not assignable. It means "root of this organisation", which
+			// is a structural fact rather than a setting, so granting it would put
+			// the account in a state EffectiveOrgRole cannot produce.
+			if want != storage.OrgRoleAdmin && want != storage.OrgRoleUser {
+				return h.errorResponse(http.StatusBadRequest,
+					"A colleague can be set to admin or user."), nil
+			}
+			memberOID, mErr := primitive.ObjectIDFromHex(id)
+			if mErr != nil {
+				return h.errorResponse(http.StatusBadRequest, "Invalid account id"), nil
+			}
+			member, memErr := h.db.GetAccountByID(memberOID)
+			if memErr != nil {
+				return h.errorResponse(http.StatusNotFound, "That person is not in your organisation"), nil
+			}
+			// Scoped to THIS organisation. Without it a root could rewrite the
+			// seniority of anyone whose id they happened to guess.
+			if member.ParentAccountID != targetID.Hex() {
+				return h.errorResponse(http.StatusForbidden, "That person is not in your organisation"), nil
+			}
+			if uErr := h.db.UpdateAccount(memberOID, bson.M{"orgRole": want}, bson.M{}); uErr != nil {
+				return h.errorResponse(http.StatusInternalServerError, "Could not change their role"), nil
+			}
+		}
+
 		if id := strings.TrimSpace(payload.Org.RemoveAccountID); id != "" {
 			memberOID, mErr := primitive.ObjectIDFromHex(id)
 			if mErr != nil {
@@ -1549,9 +1590,16 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 	}
 
 	if len(setFields) == 0 && len(unsetFields) == 0 {
-		// A removal writes to the other account's document, not this one, so it
-		// is a complete request even with nothing to set here.
-		if payload.Org != nil && strings.TrimSpace(payload.Org.RemoveAccountID) != "" {
+		// Some org actions write to a COLLEAGUE's document rather than this one, so
+		// the request is complete even with nothing to set here. Listed once, as a
+		// predicate: this guard has now rejected a perfectly good request twice, by
+		// running after a block that had already written and reporting 400 for a
+		// change that actually applied. Anything added to the org payload that
+		// targets another account belongs in here.
+		writesToAColleague := payload.Org != nil &&
+			(strings.TrimSpace(payload.Org.RemoveAccountID) != "" ||
+				strings.TrimSpace(payload.Org.SetRoleAccountID) != "")
+		if writesToAColleague {
 			acc, gErr := h.db.GetAccountByID(targetID)
 			if gErr != nil {
 				return h.errorResponse(http.StatusInternalServerError, "Removed, but could not reload the account"), nil
@@ -1675,12 +1723,17 @@ func (h *LambdaHandler) triggerD2CGeneration(accountID primitive.ObjectID) error
 
 	// 4. Fetch Products (only active products for storefront).
 	//
+	// Deliberately the LEAST privileged org role. The generator never reads
+	// Product.Cost, and confidential cost must never reach a public storefront
+	// (Roadmap #40), so the machine token that builds one is given no way to see
+	// it. Nothing in generation needs more.
+	//
 	// The catalog is read with a token scoped to THIS company, never the caller's.
 	// catalog-service derives tenancy from the JWT, so an admin token resolves to
 	// every seller (role "admin" => filter {}) and published other tenants' catalogs
 	// onto this company's public storefront whenever an admin regenerated it.
 	companyID := acc.ID.Hex()
-	scopedToken, err := auth.GenerateJWT(companyID, acc.OrgID(), acc.Email, storage.RoleCompany, h.jwtSecret, nil, nil, nil)
+	scopedToken, err := auth.GenerateJWT(companyID, acc.OrgID(), storage.OrgRoleUser, acc.Email, storage.RoleCompany, h.jwtSecret, nil, nil, nil)
 	if err != nil {
 		log.Printf("D2C Generation Failed for %s: could not mint scoped token: %v", companyID, err)
 		return fmt.Errorf("scoped token for storefront generation: %w", err)

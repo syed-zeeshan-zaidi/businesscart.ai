@@ -283,6 +283,10 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (re
 	// roles only, so a b2c storefront shopper's token carries nothing here.
 	approval := approvalPolicyFromClaim(userClaim)
 
+	// Seniority inside the caller's organisation (Roadmap #35g). Absent on
+	// platform-admin and storefront tokens, where restricting would be wrong.
+	orgRole, _ := userClaim["org_role"].(string)
+
 	log.Printf("Account ID: %s, Role: %s, Associate Company IDs: %v", accountID, role, associateCompanyIDs)
 
 	if strings.HasPrefix(request.Path, "/checkout/cart") {
@@ -290,26 +294,26 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (re
 	} else if strings.HasPrefix(request.Path, "/checkout/quotes") {
 		return h.handleQuoteRequest(request, accountID, orgID, role, configurations, approval)
 	} else if strings.HasPrefix(request.Path, "/checkout/orders") {
-		return h.handleOrderRequest(request, accountID, orgID, role, configurations, approval)
+		return h.handleOrderRequest(request, accountID, orgID, role, orgRole, configurations, approval)
 	} else if strings.HasPrefix(request.Path, "/checkout/statements") {
-		return h.handleStatementsRequest(request, accountID, orgID, role)
+		return h.handleStatementsRequest(request, accountID, orgID, role, orgRole)
 	} else if strings.HasPrefix(request.Path, "/checkout/gateways") {
-		return h.handleGatewayRequest(request, accountID, orgID, role)
+		return h.handleGatewayRequest(request, accountID, orgID, role, orgRole)
 	}
 
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
-func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleOrderRequest(request events.APIGatewayProxyRequest, accountID, orgID, role, orgRole string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	parts := strings.Split(request.Path, "/")
 	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "export" {
 		return h.handleOrdersExport(request, accountID, orgID, role)
 	}
 	if request.HTTPMethod == "GET" && len(parts) == 4 && parts[3] == "statement" {
-		return h.handleGetStatementRequest(request, accountID, orgID, role)
+		return h.handleGetStatementRequest(request, accountID, orgID, role, orgRole)
 	}
 	if request.HTTPMethod == "POST" && len(parts) == 5 && parts[3] == "statement" && parts[4] == "send" {
-		return h.handleSendStatementRequest(request, accountID, orgID, role)
+		return h.handleSendStatementRequest(request, accountID, orgID, role, orgRole)
 	}
 	// Guard: any other request under /statement is a client mistake — refuse
 	// rather than fall through to handlePlaceOrderRequest (which would parse
@@ -1234,7 +1238,13 @@ func (h *LambdaHandler) handleOrdersExport(request events.APIGatewayProxyRequest
 // GET /checkout/orders/statement?sellerId=<id>&from=<RFC3339>&to=<RFC3339>
 // Auth: admin can request any sellerId; company can request only their own.
 // Pure routing/auth — business logic lives in statement.Compute.
-func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID, role, orgRole string) (events.APIGatewayProxyResponse, error) {
+	// A billing statement is what this company owes the platform: its tier,
+	// monthly fee, per-order rate and transaction fees. That is the owner's
+	// business, not every colleague's.
+	if msg := notOrgOwner(role, orgRole, "Billing statements are visible to the account owner."); msg != "" {
+		return h.errorResponse(http.StatusForbidden, msg), nil
+	}
 	sellerID := request.QueryStringParameters["sellerId"]
 	if sellerID == "" {
 		return h.errorResponse(http.StatusBadRequest, "sellerId required"), nil
@@ -1287,7 +1297,13 @@ func (h *LambdaHandler) handleGetStatementRequest(request events.APIGatewayProxy
 // Body: { sellerId, from (RFC3339), to (RFC3339), recipientEmail, companyName,
 //
 //	periodLabel, paymentInstructions, dryRun }
-func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProxyRequest, accountID, orgID, role, orgRole string) (events.APIGatewayProxyResponse, error) {
+	// A billing statement is what this company owes the platform: its tier,
+	// monthly fee, per-order rate and transaction fees. That is the owner's
+	// business, not every colleague's.
+	if msg := notOrgOwner(role, orgRole, "Billing statements are visible to the account owner."); msg != "" {
+		return h.errorResponse(http.StatusForbidden, msg), nil
+	}
 	if role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Forbidden: admin only"), nil
 	}
@@ -1416,7 +1432,13 @@ func (h *LambdaHandler) handleSendStatementRequest(request events.APIGatewayProx
 //
 //	GET    /checkout/statements?sellerId=<id>   admin or own-seller
 //	DELETE /checkout/statements/{id}            admin only
-func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID, orgID string, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleStatementsRequest(request events.APIGatewayProxyRequest, accountID, orgID, role, orgRole string) (events.APIGatewayProxyResponse, error) {
+	// A billing statement is what this company owes the platform: its tier,
+	// monthly fee, per-order rate and transaction fees. That is the owner's
+	// business, not every colleague's.
+	if msg := notOrgOwner(role, orgRole, "Billing statements are visible to the account owner."); msg != "" {
+		return h.errorResponse(http.StatusForbidden, msg), nil
+	}
 	parts := strings.Split(strings.Trim(request.Path, "/"), "/")
 	// parts: ["checkout", "statements"] or ["checkout", "statements", "{id}"]
 
@@ -1890,6 +1912,25 @@ func (h *LambdaHandler) notifyApprovalOutcome(q *quote.Quote) {
 	if err := sender.Send(context.Background(), msg); err != nil {
 		log.Printf("WARN: approval outcome email failed for %s: %v", q.CustomerEmail, err)
 	}
+}
+
+// notOrgOwner reports why a caller may not touch something reserved to the
+// organisation's owner, or "" when they may.
+//
+// Used for the two things that are the business's money rather than its trade:
+// payment gateway credentials, and the platform billing statements that say what
+// this company owes. Day-to-day work (orders, quotes, customers) is deliberately
+// not gated here.
+//
+// An ABSENT org_role is never restricted. It is absent on platform-admin tokens
+// and on any token minted before #35g; treating those as junior would lock the
+// owner out of their own billing for the life of their session. Every org-capable
+// token carries an explicit value.
+func notOrgOwner(role, orgRole, what string) string {
+	if role == "company" && orgRole != "" && orgRole != "owner" {
+		return what
+	}
+	return ""
 }
 
 // approvalSideForRole maps a caller to the side of the trade whose approval
@@ -2837,9 +2878,14 @@ func buildRedirectURL(base, status, orderID string) string {
 
 // --- Gateway Config CRUD (company/admin only) ---
 
-func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyRequest, accountID, orgID, role string) (events.APIGatewayProxyResponse, error) {
+func (h *LambdaHandler) handleGatewayRequest(request events.APIGatewayProxyRequest, accountID, orgID, role, orgRole string) (events.APIGatewayProxyResponse, error) {
 	if role != "company" && role != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Only company or admin can manage gateways"), nil
+	}
+	// Payment credentials are the keys to the business's money: a colleague who
+	// can rewrite the gateway secret can redirect every payment the store takes.
+	if msg := notOrgOwner(role, orgRole, "Payment gateway settings are managed by the account owner."); msg != "" {
+		return h.errorResponse(http.StatusForbidden, msg), nil
 	}
 	if h.gatewayStore == nil {
 		return h.errorResponse(http.StatusServiceUnavailable, "Gateway service not configured"), nil

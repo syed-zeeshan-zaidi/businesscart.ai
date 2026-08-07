@@ -507,6 +507,12 @@ export interface DecodedUser {
   // the account joins one, so callers may use it unconditionally.
   org_id?: string;
 
+  // Seniority inside that organisation (Roadmap #35g). Absent on platform-admin
+  // tokens and on any token minted before it shipped, so ABSENT means
+  // unrestricted, never "user". The backend applies the same rule and is the
+  // authority; these checks only keep the UI honest.
+  org_role?: 'owner' | 'admin' | 'user';
+
   email: string;
 
   role: 'admin' | 'company' | 'customer' | 'partner';

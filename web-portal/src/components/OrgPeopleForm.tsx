@@ -67,8 +67,8 @@ const OrgPeopleForm: React.FC<Props> = ({ account, onChanged }) => {
       </div>
       <p className="text-sm text-gray-500 mb-4">
         {isCompany
-          ? 'Colleagues who join with your invite code see the same products, orders and customers as you.'
-          : 'Colleagues who join with your invite code buy from the same suppliers, and can be named as approvers on your orders.'}
+          ? 'Colleagues who join with your invite code see the same products, orders and customers as you. Staff cannot see what your products cost you or your margins; admins can. Only you can change payment settings and billing.'
+          : 'Colleagues who join with your invite code buy from the same suppliers, and can be named as approvers on your orders. Only you can change your approval rules.'}
       </p>
 
       <div className="border border-gray-200 rounded p-3 mb-4">
@@ -123,6 +123,21 @@ const OrgPeopleForm: React.FC<Props> = ({ account, onChanged }) => {
                 <p className="text-sm font-medium text-gray-800 truncate">{p.name || p.email}</p>
                 <p className="text-xs text-gray-500 truncate">{p.email}</p>
               </div>
+              {/* Seniority (Roadmap #35g). Owner is deliberately not offered: it
+                  means "root of this organisation", a structural fact rather than
+                  a setting, and the backend refuses it for the same reason. */}
+              <select
+                value={p.orgRole === 'admin' ? 'admin' : 'user'}
+                disabled={busy}
+                onChange={e => patchOrg(
+                  { setRoleAccountId: p._id, setRole: e.target.value },
+                  `${p.name || p.email} is now ${e.target.value === 'admin' ? 'an admin' : 'staff'}`,
+                )}
+                className="text-xs border border-gray-300 rounded px-2 py-1 disabled:opacity-50 shrink-0"
+              >
+                <option value="user">Staff</option>
+                <option value="admin">Admin</option>
+              </select>
               <button
                 onClick={() => {
                   if (!window.confirm(`Remove ${p.name || p.email} from your organisation? Their orders and approval decisions are kept.`)) return;
