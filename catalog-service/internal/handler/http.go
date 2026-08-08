@@ -386,6 +386,46 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 	return h.successResponse(products), nil
 }
 
+// productAccessResult says whether a caller may read a product, and on what
+// basis. The basis matters: only a CUSTOMER is barred from inactive products,
+// because the people who own or supply a product need to see it while it is off.
+type productAccessResult struct {
+	allowed    bool
+	asCustomer bool
+}
+
+// productAccess decides who may read a single product.
+//
+// Extracted from the handler so it can be tested without a database, and because
+// it was silently wrong: a PARTNER matched neither branch. Ownership was measured
+// against product.SellerID, which is the company whose catalogue the product
+// appears in and never the partner, so a partner supplying a product could list
+// it (the list endpoint scopes on partnerId) and then get 403 fetching that same
+// product by id. The two endpoints disagreed about who owns a partner's product.
+func productAccess(role, accountID, orgID string, associatedCompanyIDs []string, p *storage.Product) productAccessResult {
+	if p == nil {
+		return productAccessResult{}
+	}
+	if role == "admin" {
+		return productAccessResult{allowed: true}
+	}
+	if p.SellerID == orgID {
+		return productAccessResult{allowed: true}
+	}
+	// A partner owns what they supply, matching how the list endpoint scopes them.
+	if role == "partner" && p.PartnerID != "" && p.PartnerID == accountID {
+		return productAccessResult{allowed: true}
+	}
+	if role == "customer" || role == "b2c" {
+		for _, id := range associatedCompanyIDs {
+			if id == p.SellerID {
+				return productAccessResult{allowed: true, asCustomer: true}
+			}
+		}
+	}
+	return productAccessResult{}
+}
+
 func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
 
@@ -401,26 +441,21 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 
 	// Authorization check for non-admin roles
 	if claimRole != "admin" {
-		isOwner := product.SellerID == orgIDFromClaim(userClaim)
-
-		isAssociatedCustomer := false
-		if claimRole == "customer" || claimRole == "b2c" {
-			if assocCompanies, ok := userClaim["associate_company_ids"].([]interface{}); ok {
-				for _, companyID := range assocCompanies {
-					if companyID.(string) == product.SellerID {
-						isAssociatedCustomer = true
-						break
-					}
+		claimID, _ := userClaim["id"].(string)
+		var assoc []string
+		if raw, ok := userClaim["associate_company_ids"].([]interface{}); ok {
+			for _, c := range raw {
+				if s, ok := c.(string); ok {
+					assoc = append(assoc, s)
 				}
 			}
 		}
-
-		if !isOwner && !isAssociatedCustomer {
+		access := productAccess(claimRole, claimID, orgIDFromClaim(userClaim), assoc, product)
+		if !access.allowed {
 			return h.errorResponse(http.StatusForbidden, "Unauthorized to access this product"), nil
 		}
-
 		// Customers cannot view inactive products
-		if isAssociatedCustomer && product.Active != nil && !*product.Active {
+		if access.asCustomer && product.Active != nil && !*product.Active {
 			return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 		}
 	}

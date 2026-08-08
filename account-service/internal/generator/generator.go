@@ -82,6 +82,20 @@ type BlogPostData struct {
 	WordCount   int    `json:"-"`
 }
 
+// LastModTime is when this post's content last changed: its edit date, or its
+// publish date when it has never been edited.
+//
+// A method rather than template logic because BlogLastMod computes the same rule
+// for the blog index and category pages, and the two disagreeing is exactly the
+// bug this fixes: a published-but-never-edited post had no UpdatedAt, so its own
+// page lost its <lastmod> while the index that aggregates it kept one.
+func (b BlogPostData) LastModTime() time.Time {
+	if b.UpdatedAt.After(b.PublishedAt) {
+		return b.UpdatedAt
+	}
+	return b.PublishedAt
+}
+
 type Attribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -212,11 +226,8 @@ func (g *Generator) Generate(data StorefrontData) error {
 		}
 	}
 	for _, b := range data.BlogPosts {
-		if b.UpdatedAt.After(newestPost) {
-			newestPost = b.UpdatedAt
-		}
-		if b.PublishedAt.After(newestPost) {
-			newestPost = b.PublishedAt
+		if lm := b.LastModTime(); lm.After(newestPost) {
+			newestPost = lm
 		}
 	}
 	if !newestProduct.IsZero() {

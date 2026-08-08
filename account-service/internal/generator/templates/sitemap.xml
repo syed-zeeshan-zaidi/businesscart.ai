@@ -53,7 +53,7 @@
     </url>
     [[end]][[range .BlogPosts]]<url>
         <loc>https://[[$.Domain]]/blog/[[.Filename]].html</loc>
-[[if lastmod .UpdatedAt]]        <lastmod>[[lastmod .UpdatedAt]]</lastmod>
+[[if lastmod .LastModTime]]        <lastmod>[[lastmod .LastModTime]]</lastmod>
 [[end]]        <priority>0.6</priority>
     </url>
     [[end]][[end]]
