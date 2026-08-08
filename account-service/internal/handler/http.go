@@ -994,6 +994,30 @@ func (h *LambdaHandler) getAccounts(userClaim map[string]interface{}, request ev
 		return h.successResponse([]*storage.Account{}, http.StatusOK), nil
 	}
 
+	// An account's OWN internal structure is not the list reader's to see. This is
+	// the one endpoint that returns somebody else's document, and it returns the
+	// whole thing unprojected, so two things leaked:
+	//
+	//   - a seller's list contains every attached CUSTOMER, so it handed the
+	//     supplier each buyer's governance.approval chain, approver emails and
+	//     names included. That is exactly the data Quote.RedactedFor strips from
+	//     the quote payload, and exactly what the FAQ and Compare page promise a
+	//     supplier cannot see.
+	//   - every colleague's list contains the organisation ROOT, so a staff-level
+	//     account could read orgInviteCode and hand it to an outsider, walking
+	//     straight past "only the organisation owner can manage its people".
+	//
+	// Redacted rather than dropped from the JSON entirely, because the owner's own
+	// account page legitimately renders both fields.
+	if role != storage.RoleAdmin {
+		for i := range accounts {
+			if accounts[i] != nil && accounts[i].ID.Hex() != userID {
+				accounts[i].Governance = nil
+				accounts[i].OrgInviteCode = ""
+			}
+		}
+	}
+
 	return h.successResponse(accounts, http.StatusOK), nil
 }
 
@@ -1446,10 +1470,14 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		// so the seller's customer list stays private), and resolving server-side
 		// means a policy can only ever name a real account that the person setting
 		// it already knows how to reach.
-		if err := h.resolveApprovers(payload.Governance.Approval, target, string(target.Role)); err != nil {
+		// Size FIRST, then resolve. resolveApprovers issues one GetAccountByEmail
+		// per named approver with no cap of its own, so validating afterwards let a
+		// single request run hundreds of thousands of Mongo queries inside one
+		// Lambda invocation before being rejected as too large.
+		if err := validateApprovalPolicy(payload.Governance.Approval); err != nil {
 			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 		}
-		if err := validateApprovalPolicy(payload.Governance.Approval); err != nil {
+		if err := h.resolveApprovers(payload.Governance.Approval, target, string(target.Role)); err != nil {
 			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 		}
 		// A seller only ever has a decision point on a NEGOTIABLE quote. Self-serve
@@ -1531,6 +1559,14 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 
 		if !target.IsOrgRoot() {
 			return h.errorResponse(http.StatusForbidden, "Only the organisation owner can manage its people"), nil
+		}
+		if payload.Org.RegenerateInviteCode && payload.Org.RevokeInviteCode {
+			// Naming one path in both $set and $unset makes MongoDB reject the
+			// entire update, so this 500s and takes any company or governance
+			// fields in the same payload down with it. The join branch above
+			// already guards this hazard; this pair had no equivalent.
+			return h.errorResponse(http.StatusBadRequest,
+				"Choose either a new invite code or revoking the current one, not both."), nil
 		}
 		if payload.Org.RegenerateInviteCode {
 			code, cErr := newOrgInviteCode()

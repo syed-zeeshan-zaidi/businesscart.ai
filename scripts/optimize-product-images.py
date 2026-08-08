@@ -9,7 +9,7 @@ Phase 1 converts every non-WebP product image to WebP and nothing else:
       68d4.../33b536c1-.../13-3-cowhide-gloves.jpg
    -> 68d4.../33b536c1-.../13-3-cowhide-gloves.webp
   * the DB URL is rewritten to the same path with the new extension
-  * the old non-WebP object is deleted, so S3 keeps no unused originals
+  * the old non-WebP object is KEPT until --cleanup runs after a regen
 
 Keeping the path stable means nothing else has to be reasoned about: no new
 UUIDs, no key-convention drift, no CloudFront invalidation beyond the changed
@@ -24,11 +24,17 @@ images under the operator's own prefix.
 SAFETY
   * --dry-run is the DEFAULT. --apply is required to write anything.
   * Every original is downloaded to an archive directory BEFORE any write.
-    The old S3 object is deleted at the end, so the archive is the only
-    rollback path.
-  * Ordering per image is: upload new -> verify -> rewrite DB -> delete old.
-    A crash at any point leaves either an unused .webp (harmless) or a DB
-    still pointing at the intact original. It never leaves a broken URL.
+    The old S3 object is left in place by this command, so both the archive
+    and the original object are rollback paths until --cleanup runs.
+  * Ordering per image is: upload new -> verify -> rewrite DB. A crash at any
+    point leaves either an unused .webp (harmless) or a DB still pointing at
+    the intact original, so the DB never points at a missing object.
+  * Originals are KEPT by default. The generated storefront and the shopping
+    feeds are static artifacts that keep serving the OLD urls until a regen
+    runs, so deleting in the same pass would 404 every product image on the
+    live site in the meantime. Regenerate, then run --cleanup. Deleting in one
+    pass is available via --delete-originals for the case where nothing static
+    references the images.
   * Images not hosted on the platform CDN are skipped, never rewritten.
   * Idempotent: images already .webp are skipped, so re-running is a no-op.
 
@@ -36,6 +42,8 @@ USAGE
   python3 scripts/optimize-product-images.py                     # dry run, all sellers
   python3 scripts/optimize-product-images.py --seller <id>       # dry run, one seller
   python3 scripts/optimize-product-images.py --apply             # convert, all sellers
+  #   ... then REGENERATE the storefront (required) ...
+  python3 scripts/optimize-product-images.py --cleanup --apply   # reclaim the originals
   python3 scripts/optimize-product-images.py --apply --limit 3   # convert 3 images
 """
 
@@ -106,13 +114,13 @@ def human(n):
     return f"{n/1024/1024:.2f} MB" if n >= 1024 * 1024 else f"{n/1024:.0f} KB"
 
 
-def cleanup(s3, db, apply):
-    """Delete non-WebP objects nothing references any more.
+def scan_unreferenced(s3, db, verbose=False):
+    """Originals no product references any more, whose .webp sibling exists.
 
-    Safe to run only once the storefront has been regenerated, because until
-    then the generated pages still point at the originals.
+    Read-only. Shared by --cleanup and by the startup banner, so that forgetting
+    to reclaim after a convert run surfaces on the NEXT run of the script rather
+    than sitting in S3 costing money unnoticed.
     """
-    print(f"{YELLOW}cleanup: removing unreferenced non-WebP objects{NC}\n")
     referenced = set()
     for p in db.products.find({}, {"images": 1, "image": 1}):
         for u in (list(p.get("images") or []) + ([p["image"]] if p.get("image") else [])):
@@ -134,10 +142,22 @@ def cleanup(s3, db, apply):
             try:
                 s3.head_object(Bucket=BUCKET, Key=sibling)
             except ClientError:
-                print(f"  {YELLOW}skip{NC} {k} {DIM}(no .webp sibling){NC}")
+                if verbose:
+                    print(f"  {YELLOW}skip{NC} {k} {DIM}(no .webp sibling){NC}")
                 continue
             victims.append(k)
             freed += obj["Size"]
+    return victims, freed
+
+
+def cleanup(s3, db, apply):
+    """Delete non-WebP objects nothing references any more.
+
+    Safe to run only once the storefront has been regenerated, because until
+    then the generated pages still point at the originals.
+    """
+    print(f"{YELLOW}cleanup: removing unreferenced non-WebP objects{NC}\n")
+    victims, freed = scan_unreferenced(s3, db, verbose=True)
 
     print(f"  unreferenced originals with a .webp sibling: {len(victims)}  ({human(freed)})")
     if not apply:
@@ -158,14 +178,17 @@ def main():
     ap.add_argument("--quality", type=int, default=82, help="WebP quality (default 82)")
     ap.add_argument("--limit", type=int, help="stop after N images (for a cautious first run)")
     ap.add_argument("--archive-dir", default=os.path.join(REPO, "backups", "product-images"))
-    ap.add_argument("--keep-originals", action="store_true",
-                    help="convert + rewrite the DB but do NOT delete the old objects yet. "
-                         "Use this for a zero-downtime migration: the generated storefront "
-                         "still points at the old urls until a regen runs, so deleting now "
-                         "would 404 every image on the live site. Run --cleanup afterwards.")
+    # There is deliberately NO flag to delete originals during a convert run.
+    # It used to be the default, with --keep-originals as the opt-out, which is
+    # backwards: the generated storefront and the shopping feeds are static
+    # artifacts still serving the OLD urls until a regen runs, so the default run
+    # 404'd every product image on the live site. Regenerating is a required step
+    # between converting and reclaiming the space, so it is not offered as a
+    # choice at all. Convert -> regen -> --cleanup.
     ap.add_argument("--cleanup", action="store_true",
-                    help="delete non-WebP objects that no product references any more. "
-                         "Run this AFTER --keep-originals and AFTER the storefront regen.")
+                    help="delete the originals, once no product references them any more. "
+                         "Run this ONLY after the storefront has been regenerated: until "
+                         "then the generated pages and feeds still serve the old urls.")
     args = ap.parse_args()
 
     if args.cleanup:
@@ -179,6 +202,19 @@ def main():
 
     s3 = boto3.client("s3")
     db = MongoClient(mongo_uri())[DB_NAME]
+
+    # Anything a PREVIOUS run converted but never reclaimed. Surfaced on every
+    # invocation, including a plain dry run, because the reclaim step is manual
+    # and easy to forget: originals then sit in S3 costing money with nothing
+    # pointing at them and nothing saying so.
+    try:
+        pending, pending_bytes = scan_unreferenced(s3, db)
+        if pending:
+            print(f"{RED}PENDING CLEANUP:{NC} {len(pending)} original(s) from an earlier run are "
+                  f"unreferenced and still in S3 ({human(pending_bytes)}).")
+            print(f"  Reclaim them with:  python3 {os.path.basename(__file__)} --cleanup --apply\n")
+    except ClientError as e:
+        print(f"{YELLOW}could not check for pending cleanup: {e}{NC}\n")
 
     q = {"sellerID": args.seller} if args.seller else {}
     products = list(db.products.find(q, {"name": 1, "sellerID": 1, "images": 1, "image": 1}))
@@ -278,25 +314,10 @@ def main():
             docs_updated += 1
             touched.add(pid)
 
-    # ---- Pass 3: delete originals, only now that no document references them.
-    deleted = 0
-    for key, _ in ([] if args.keep_originals else converted):
-        still = db.products.count_documents({"$or": [{"images": f"https://{CDN}/{key}"},
-                                                     {"image": f"https://{CDN}/{key}"}]})
-        if still:
-            print(f"  {YELLOW}keeping{NC} {key} — still referenced by {still} product(s)")
-            continue
-        try:
-            s3.delete_object(Bucket=BUCKET, Key=key)
-            deleted += 1
-        except ClientError as e:
-            failures.append((key, f"delete: {e}"))
-
     saved = before_total - after_total
     print(f"\n{YELLOW}{'='*70}{NC}")
     print(f"  converted   : {len(converted)} image(s)")
     print(f"  products    : {docs_updated} document(s) rewritten")
-    print(f"  old objects : {deleted} deleted from S3")
     print(f"  size        : {human(before_total)} -> {human(after_total)}  "
           f"{GREEN}saved {human(saved)} ({100*saved/before_total:.0f}%){NC}")
     print(f"  archive     : {archive}")
@@ -305,7 +326,11 @@ def main():
         for k, e in failures[:10]:
             print(f"    {k}: {e}")
     print(f"{YELLOW}{'='*70}{NC}")
-    print(f"\n{YELLOW}NOTE:{NC} storefront + feeds still serve the OLD urls until a regen runs.")
+    print(f"\n{YELLOW}NEXT, AND REQUIRED:{NC} the database now points at the .webp images, but the\n"
+          f"  generated storefront and the shopping feeds are static and still serve the OLD\n"
+          f"  urls. REGENERATE THE STOREFRONT before anything else, or the site keeps serving\n"
+          f"  the originals. The originals are still in S3, so nothing is broken meanwhile.\n"
+          f"  Once the regen is done, reclaim the space with:  --cleanup --apply")
     return 1 if failures else 0
 
 

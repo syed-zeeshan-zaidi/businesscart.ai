@@ -455,7 +455,15 @@ func (q *Quote) ApprovalExpired(now time.Time) bool {
 // revisit their own rejection, but must not be able to overturn the buyer's.
 func (q *Quote) ApprovalRejected() bool {
 	for _, step := range q.ApprovalChain {
-		if step.Status == ApprovalStepRejected {
+		// BUYER-side only, as the name and the rule above say. Matching any side
+		// dead-ended the quote permanently once #21d gave sellers their own levels:
+		// a sales manager rejecting a margin froze the quote in "rejected", and
+		// nothing could revive it. Force-release could not (it filters on
+		// pending_approval), customerPropose could not (it excludes rejected), and
+		// a rep re-pricing it via sellerUpdate could then never approve it again.
+		// A buyer-created standard quote can be resubmitted from the cart; a
+		// rep-drafted negotiable one has no such escape.
+		if step.SideOf() == ApprovalSideBuyer && step.Status == ApprovalStepRejected {
 			return true
 		}
 	}

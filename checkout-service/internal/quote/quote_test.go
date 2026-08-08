@@ -640,3 +640,32 @@ func TestRedactedFor_AnOverrideKeepsItsAuthorForEveryone(t *testing.T) {
 		t.Fatal("the buyer's internal level name leaked to the seller on an override")
 	}
 }
+
+// ApprovalRejected must mean the BUYER refused, which is the decision a seller
+// may not overturn. Matching any side froze a quote permanently once #21d gave
+// sellers their own levels: the seller-approve path 409s on it, force-release
+// only acts on pending_approval, and customerPropose excludes rejected, so a
+// rep-drafted negotiable quote had no way back at all.
+func TestApprovalRejected_IsBuyerSideOnly(t *testing.T) {
+	sellerRejected := &Quote{ApprovalChain: []ApprovalStep{
+		{Name: "Sales manager", Side: ApprovalSideSeller, Status: ApprovalStepRejected},
+		{Name: "Finance", Side: ApprovalSideBuyer, Status: ApprovalStepPending},
+	}}
+	if sellerRejected.ApprovalRejected() {
+		t.Fatal("a seller's own manager declining must not read as the buyer refusing, or the seller can never revisit their own decision")
+	}
+
+	buyerRejected := &Quote{ApprovalChain: []ApprovalStep{
+		{Side: ApprovalSideSeller, Status: ApprovalStepApproved},
+		{Side: ApprovalSideBuyer, Status: ApprovalStepRejected},
+	}}
+	if !buyerRejected.ApprovalRejected() {
+		t.Fatal("a buyer's refusal must be reported, or a seller could launder it into an approval")
+	}
+
+	// Untagged steps are buyer-side: that is every quote written before #21d.
+	legacy := &Quote{ApprovalChain: []ApprovalStep{{Status: ApprovalStepRejected}}}
+	if !legacy.ApprovalRejected() {
+		t.Fatal("a pre-#21d rejection stopped being recognised")
+	}
+}
