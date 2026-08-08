@@ -36,5 +36,5 @@
 - **HTML Version**: [View Page]([[.Product.Filename]].html)
 
 ## Metadata
-- **Generated**: [[.Timestamp]]
+[[if lastmod .Product.UpdatedAt]]- **Last updated**: [[lastmod .Product.UpdatedAt]][[end]]
 - **Product ID**: [[.Product.ID]]

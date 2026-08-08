@@ -44,9 +44,16 @@ type StorefrontData struct {
 	HasBlog          bool           // true if any active blog posts (drives footer link)
 	Year             int
 	Timestamp        string
-	BasePath         string
-	ApiBase          string // Public-facing API URL for browser JS calls
-	Domain           string // Pre-computed: CustomDomain if set, else PreviewDomain
+	// The most recent real content change, used for sitemap <lastmod> on pages
+	// that aggregate many items (home, listing, category, blog index). Distinct
+	// from Timestamp, which is when generation ran: stamping generation time as
+	// lastmod told crawlers every page changed on every regen, which is both
+	// untrue and the thing that trains them to ignore the signal.
+	CatalogLastMod string
+	BlogLastMod    string
+	BasePath       string
+	ApiBase        string // Public-facing API URL for browser JS calls
+	Domain         string // Pre-computed: CustomDomain if set, else PreviewDomain
 }
 
 // BlogPostData mirrors catalog-service storage.BlogPost for rendering.
@@ -117,6 +124,7 @@ type ProductData struct {
 	Description           string      `json:"description"`
 	Price                 float64     `json:"price"`
 	DealPrice             float64     `json:"dealPrice,omitempty"`
+	UpdatedAt             time.Time   `json:"updatedAt,omitempty"`
 	DealStartDate         *time.Time  `json:"dealStartDate,omitempty"`
 	DealEndDate           *time.Time  `json:"dealEndDate,omitempty"`
 	DiscountedPrice       float64     `json:"discountedPrice,omitempty"`
@@ -192,6 +200,31 @@ func (g *Generator) Generate(data StorefrontData) error {
 
 	data.Year = time.Now().Year()
 	data.Timestamp = time.Now().Format(time.RFC3339)
+
+	// Real content-change dates, computed from the items themselves. Empty when
+	// nothing carries a date, in which case the sitemap omits <lastmod> for those
+	// pages rather than inventing one: an absent lastmod is valid, a wrong one is
+	// a lie crawlers eventually learn to discount.
+	var newestProduct, newestPost time.Time
+	for _, p := range data.Products {
+		if p.UpdatedAt.After(newestProduct) {
+			newestProduct = p.UpdatedAt
+		}
+	}
+	for _, b := range data.BlogPosts {
+		if b.UpdatedAt.After(newestPost) {
+			newestPost = b.UpdatedAt
+		}
+		if b.PublishedAt.After(newestPost) {
+			newestPost = b.PublishedAt
+		}
+	}
+	if !newestProduct.IsZero() {
+		data.CatalogLastMod = newestProduct.UTC().Format(time.RFC3339)
+	}
+	if !newestPost.IsZero() {
+		data.BlogLastMod = newestPost.UTC().Format(time.RFC3339)
+	}
 
 	// Pre-compute domain for templates
 	if data.Config.CustomDomain != "" {
@@ -815,6 +848,7 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			return int(((original - discounted) / original) * 100)
 		},
 		"subtractFloat": func(a, b float64) float64 { return a - b },
+		"lastmod":       lastmodString,
 		"primaryOf": func(cat string) string {
 			p, _ := parseCategoryParts(cat)
 			return p
@@ -1002,6 +1036,9 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			"subtract": func(a, b int) int { return a - b },
 			"printf":   fmt.Sprintf,
 			"slugify":  slugify,
+			// Same helper as the HTML map. The .md companions carry a real
+			// last-updated date too, so it has to be registered on both.
+			"lastmod": lastmodString,
 		}).Parse(sanitizedContent)
 		if err != nil {
 			log.Printf("ERROR: Failed to parse Text template %s: %v", tmplName, err)
@@ -1013,6 +1050,17 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	}
 
 	return os.WriteFile(outputPath, buf.Bytes(), 0644)
+}
+
+// lastmodString formats a content-change date for sitemap <lastmod> and for the
+// .md companions, or "" when the item carries none so the caller can omit the
+// field entirely. An absent lastmod is valid; a fabricated one is a lie crawlers
+// learn to discount.
+func lastmodString(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
 
 // slugify converts a string to a URL-safe lowercase slug.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"business-cart/account-service/internal/storage"
 )
@@ -28,6 +29,9 @@ func TestGenerateIsByteIdenticalAcrossRuns(t *testing.T) {
 		products = append(products, ProductData{
 			ID: name, Name: name, Category: cat, Price: price,
 			Description: name + " description", Slug: name,
+			// A real change date, as the catalog supplies. Without one the sitemap
+			// and .md companions would simply omit the field, which is also stable.
+			UpdatedAt: time.Date(2026, 7, 4, 9, 30, 0, 0, time.UTC),
 		})
 	}
 	add("Welding Gloves", "Gloves/Welding", 39.99)
@@ -48,18 +52,22 @@ func TestGenerateIsByteIdenticalAcrossRuns(t *testing.T) {
 			Products:  products,
 		}
 		if err := g.Generate(data); err != nil {
-			t.Skipf("generation unavailable in this environment: %v", err)
+			t.Fatalf("generation failed: %v", err)
 		}
 		// Files that embed the generation time by design, so they can never be
 		// byte-stable and are not what this test is about. Worth knowing: that
 		// timestamp lands in EVERY product .md companion and in sitemap.xml's
 		// lastmod, so those still churn on every regen even with ordering fixed.
 		// Tracked separately; see the note added to Roadmap #31.
+		// llms.txt keeps a "Last generated" line on purpose: it is informational
+		// for an LLM consumer and one churning file is a fair price. privacy and
+		// terms render a "Last updated" from the same stamp, which is a separate
+		// question about legal-document dating (see Roadmap #31b) and is not what
+		// this test is about. Everything else must be byte-stable, INCLUDING the
+		// sitemap and the .md companions, which used to churn on every regen.
 		stamped := func(rel string) bool {
 			base := filepath.Base(rel)
-			return base == "llms.txt" || base == "sitemap.xml" || base == "index.md" ||
-				base == "products.md" || base == "privacy.html" || base == "terms.html" ||
-				filepath.Ext(rel) == ".md"
+			return base == "llms.txt" || base == "privacy.html" || base == "terms.html"
 		}
 		sums := map[string]string{}
 		_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -85,7 +93,7 @@ func TestGenerateIsByteIdenticalAcrossRuns(t *testing.T) {
 	b := run(t.TempDir())
 
 	if len(a) == 0 {
-		t.Skip("generator produced no files in this environment")
+		t.Fatal("generator produced no files; the comparison below would be vacuous")
 	}
 	if len(a) != len(b) {
 		t.Fatalf("run 1 produced %d files, run 2 produced %d", len(a), len(b))

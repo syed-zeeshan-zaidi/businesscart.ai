@@ -24,5 +24,5 @@ This storefront contains [[len .Products]] products.
 - [Sitemap](sitemap.xml)
 
 ## Metadata
-- **Generated**: [[.Timestamp]]
+[[if .CatalogLastMod]]- **Last updated**: [[.CatalogLastMod]][[end]]
 - **Year**: [[.Year]]

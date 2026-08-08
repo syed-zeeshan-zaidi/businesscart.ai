@@ -21,7 +21,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"subtract", "printf", "slugify", "jsArray", "paymentLabel", "deliveryLabel",
 		"isOnlinePayment", "savingsPercent", "subtractFloat", "primaryOf", "subOf",
 		"uniquePrimaries", "subsOf", "primaryCount", "catSlug", "rawHTML", "safeHTML",
-		"catCount", "stars", "distPct", "reviewsJSONLD", "distCount",
+		"catCount", "stars", "distPct", "reviewsJSONLD", "distCount", "lastmod",
 	}
 	htmlFuncs := htmltemplate.FuncMap{}
 	for _, n := range htmlFuncNames {
@@ -32,6 +32,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"subtract": nopAny,
 		"printf":   nopAny,
 		"slugify":  nopAny,
+		"lastmod":  nopAny,
 	}
 
 	partials, err := fs.ReadFile(g.TemplateFS, "partials.html")
