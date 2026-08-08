@@ -271,6 +271,14 @@ func (g *Generator) Generate(data StorefrontData) error {
 	for cat := range categoryCounts {
 		data.Categories = append(data.Categories, cat)
 	}
+	// Sorted because Go randomises map iteration order, and this slice is the
+	// category nav rendered on every PDP, listing and category page. Unsorted, an
+	// unchanged catalogue produced a different byte output on every regen: 34 of
+	// 107 PDPs "differed" on a byte-diff with zero real content change, which made
+	// it impossible to cheaply prove a storefront change was inert, churned S3
+	// objects and invalidated CloudFront for nothing, and could shuffle the nav
+	// under a returning visitor. Matches sort.Strings(data.BlogCategories) above.
+	sort.Strings(data.Categories)
 
 	// Top primary categories by product count (for footer — max 6)
 	primaryCounts := map[string]int{}
@@ -282,8 +290,15 @@ func (g *Generator) Generate(data StorefrontData) error {
 	for p := range primaryCounts {
 		primaries = append(primaries, p)
 	}
+	// Count descending, then name, because sort.Slice is NOT stable: two
+	// categories with the same product count would otherwise keep the random map
+	// order they were appended in, and the footer would reshuffle between regens
+	// even with the list above sorted.
 	sort.Slice(primaries, func(i, j int) bool {
-		return primaryCounts[primaries[i]] > primaryCounts[primaries[j]]
+		if primaryCounts[primaries[i]] != primaryCounts[primaries[j]] {
+			return primaryCounts[primaries[i]] > primaryCounts[primaries[j]]
+		}
+		return primaries[i] < primaries[j]
 	})
 	if len(primaries) > 6 {
 		data.TopCategories = primaries[:6]
