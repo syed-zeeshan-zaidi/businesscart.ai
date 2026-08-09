@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-Platform-wide product image optimizer — PHASE 1: format only (roadmap #44 Part A).
+Platform-wide product image optimizer — format AND size (roadmap #44 Part A).
 
-Phase 1 converts every non-WebP product image to WebP and nothing else:
+It brings every platform-hosted product image to WebP AND within the size
+budget:
 
-  * dimensions are NOT changed (that is phase 2)
-  * the S3 key is NOT changed except for the extension
+  * non-WebP is re-encoded to WebP
       68d4.../33b536c1-.../13-3-cowhide-gloves.jpg
    -> 68d4.../33b536c1-.../13-3-cowhide-gloves.webp
-  * the DB URL is rewritten to the same path with the new extension
-  * the old non-WebP object is KEPT until --cleanup runs after a regen
+  * anything over MAX_BYTES is downscaled to MAX_LONG_EDGE and re-encoded,
+    including images that are ALREADY WebP. A resized WebP gets a fresh 8-hex
+    suffix rather than overwriting in place, because overwriting the same key
+    leaves CloudFront serving the cached old bytes until its TTL expires.
+  * nothing is ever upscaled
+  * the DB URL is rewritten to the new object
+  * the old object is KEPT until --cleanup runs after a regen
 
-Keeping the path stable means nothing else has to be reasoned about: no new
+Rewriting to a new key means nothing else has to be reasoned about: no new
 UUIDs, no key-convention drift, no CloudFront invalidation beyond the changed
 object, and a diff of the DB shows only ".jpg" -> ".webp".
 
@@ -36,7 +41,12 @@ SAFETY
     pass is available via --delete-originals for the case where nothing static
     references the images.
   * Images not hosted on the platform CDN are skipped, never rewritten.
-  * Idempotent: images already .webp are skipped, so re-running is a no-op.
+  * Selects on FORMAT and on WEIGHT. Phase 1 selected on format alone, so an
+    image already converted to WebP was skipped however heavy it was, which is
+    how a 689 KB .webp hero survived the sweep and kept failing Lighthouse.
+  * Idempotent: an image that is already WebP and within the size budget is
+    skipped, and a re-encode that gains less than MIN_GAIN is refused, so the
+    sweep converges to a no-op instead of churning new keys forever.
 
 USAGE
   python3 scripts/optimize-product-images.py                     # dry run, all sellers
@@ -49,11 +59,12 @@ USAGE
 
 import argparse
 import io
+import uuid
 import json
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 try:
     import boto3
@@ -66,6 +77,27 @@ except ImportError as e:
 GREEN, RED, YELLOW, DIM, NC = "\033[0;32m", "\033[0;31m", "\033[0;33m", "\033[2m", "\033[0m"
 
 BUCKET = os.getenv("PRODUCT_IMAGES_BUCKET", "businesscart-product-images-prod")
+
+# Phase 2 targets (Roadmap #44 Part A).
+#
+# 1290 px long edge: product.html renders the hero at width=645 height=645 with
+# fetchpriority=high (it IS the LCP element) and there is NO srcset, so the same
+# file also serves the 64x64 thumbnails and the 300x300 related cards. It must be
+# sized for the largest consumer, 645 CSS px x 2 for retina. Clicking a thumbnail
+# swaps it into that same 645 px slot, so nothing needs more resolution.
+MAX_LONG_EDGE = 1290
+# Above this an image is worth re-encoding even if it is already WebP. Byte size
+# is the operative metric because it is what LCP actually pays; dimensions matter
+# only in so far as they drive it. It is also readable from S3 metadata without
+# downloading the body, which is what keeps the scan cheap.
+MAX_BYTES = 200 * 1024
+# Re-encoding that barely helps is not worth a new object and a DB write. Without
+# this floor an image that can never get under MAX_BYTES would be rewritten to a
+# fresh key on every run, churning S3 and the database forever.
+MIN_GAIN = 0.05
+# An unreferenced object younger than this is not treated as garbage: a presigned
+# upload reaches the bucket before the product row that will point at it.
+UNREFERENCED_GRACE_DAYS = 7
 CDN = os.getenv("PRODUCT_IMAGES_CDN", "d10v0xlzz7lzsq.cloudfront.net")
 DB_NAME = "ProductService"
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,8 +125,13 @@ def key_from_url(url):
     return key or None
 
 
-def to_webp(raw, quality):
-    """Re-encode bytes as WebP at the SAME pixel dimensions. Returns (bytes, w, h)."""
+def to_webp(raw, quality, max_edge=None):
+    """Re-encode bytes as WebP, optionally downscaled. Returns (bytes, w, h).
+
+    Downscale only: a long edge already at or under max_edge is left alone, and
+    nothing is ever upscaled. Enlarging a small image would add bytes and invent
+    detail that was never photographed.
+    """
     im = Image.open(io.BytesIO(raw))
     # Phone photos carry EXIF rotation that WebP will not preserve; bake it in
     # so the converted image is not silently rotated on the storefront.
@@ -105,6 +142,12 @@ def to_webp(raw, quality):
         im = im.convert("RGBA")
     else:
         im = im.convert("RGB")
+    if max_edge:
+        longest = max(im.width, im.height)
+        if longest > max_edge:
+            scale = max_edge / longest
+            im = im.resize((max(1, round(im.width * scale)),
+                            max(1, round(im.height * scale))), Image.LANCZOS)
     out = io.BytesIO()
     im.save(out, format="WEBP", quality=quality, method=6)
     return out.getvalue(), im.width, im.height
@@ -121,30 +164,52 @@ def scan_unreferenced(s3, db, verbose=False):
     to reclaim after a convert run surfaces on the NEXT run of the script rather
     than sitting in S3 costing money unnoticed.
     """
+    # EVERY collection that can point at an object in this bucket, not just
+    # products. blog_posts.featuredImage is uploaded through the same presigned
+    # route and lands in the same bucket; no post carries one today, but the field
+    # is supported, so a products-only scan would eventually delete a live blog
+    # image. A deletion pass must be told about every referrer, not the one that
+    # happens to be populated.
     referenced = set()
     for p in db.products.find({}, {"images": 1, "image": 1}):
         for u in (list(p.get("images") or []) + ([p["image"]] if p.get("image") else [])):
             k = key_from_url(u)
             if k:
                 referenced.add(k)
+    for b in db.blog_posts.find({}, {"featuredImage": 1}):
+        k = key_from_url(b.get("featuredImage") or "")
+        if k:
+            referenced.add(k)
+
+    # An unreferenced object must also be OLD. A presigned upload lands in the
+    # bucket before the product that will point at it is saved, so a just-arrived
+    # object is not garbage, it is a merchant mid-edit.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=UNREFERENCED_GRACE_DAYS)
 
     victims, freed = [], 0
     paginator = s3.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=BUCKET):
         for obj in page.get("Contents", []):
             k = obj["Key"]
-            if k.lower().endswith(".webp") or k.endswith("/assets/logo"):
+            if k.endswith("/assets/logo") or k in referenced:
                 continue
-            if k in referenced:
-                continue
-            # only remove an original whose converted sibling actually exists
-            sibling = k.rsplit(".", 1)[0] + ".webp"
-            try:
-                s3.head_object(Bucket=BUCKET, Key=sibling)
-            except ClientError:
+            if obj["LastModified"] > cutoff:
                 if verbose:
-                    print(f"  {YELLOW}skip{NC} {k} {DIM}(no .webp sibling){NC}")
+                    print(f"  {YELLOW}skip{NC} {k} {DIM}(uploaded in the last "
+                          f"{UNREFERENCED_GRACE_DAYS}d, may be mid-edit){NC}")
                 continue
+            # A non-WebP original is only garbage once its converted form exists.
+            # A superseded WebP has no extension sibling to check: it was replaced
+            # by a differently-named WebP, and being unreferenced AND old is the
+            # evidence. Phase 2 creates exactly those, so skipping .webp here
+            # (which Phase 1 did) would leak every image it ever resized.
+            if not k.lower().endswith(".webp"):
+                try:
+                    s3.head_object(Bucket=BUCKET, Key=k.rsplit(".", 1)[0] + ".webp")
+                except ClientError:
+                    if verbose:
+                        print(f"  {YELLOW}skip{NC} {k} {DIM}(no .webp sibling){NC}")
+                    continue
             victims.append(k)
             freed += obj["Size"]
     return victims, freed
@@ -172,7 +237,7 @@ def cleanup(s3, db, apply):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Phase 1: convert product images to WebP in place.")
+    ap = argparse.ArgumentParser(description="Convert product images to WebP and bring them within the size budget.")
     ap.add_argument("--apply", action="store_true", help="actually write (default is dry run)")
     ap.add_argument("--seller", help="restrict to one sellerID (default: all sellers)")
     ap.add_argument("--quality", type=int, default=82, help="WebP quality (default 82)")
@@ -196,7 +261,7 @@ def main():
 
     mode = f"{RED}APPLY{NC}" if args.apply else f"{YELLOW}DRY RUN{NC}"
     print(f"{YELLOW}{'='*70}{NC}")
-    print(f"  Product image optimizer — PHASE 1 (format only)   [{mode}]")
+    print(f"  Product image optimizer — format + size   [{mode}]")
     print(f"  bucket={BUCKET}  cdn={CDN}")
     print(f"{YELLOW}{'='*70}{NC}\n")
 
@@ -231,18 +296,40 @@ def main():
             k = key_from_url(u)
             if k is None:
                 skipped_foreign += 1
-            elif not k.lower().endswith(".webp"):
+            else:
                 refs[k].append(p["_id"])
 
-    todo = sorted(refs)
+    # Phase 1 selected on FORMAT alone, so an image already converted to WebP was
+    # skipped no matter how heavy it was. That is how a 689 KB .webp hero survived
+    # the sweep and kept failing Lighthouse. Phase 2 selects on weight too, read
+    # from S3 metadata with head_object so nothing is downloaded to decide.
+    todo, oversize, already_ok = [], 0, 0
+    for k in sorted(refs):
+        is_webp = k.lower().endswith(".webp")
+        try:
+            size = s3.head_object(Bucket=BUCKET, Key=k)["ContentLength"]
+        except ClientError:
+            # Referenced by a product but missing from the bucket. Not ours to
+            # fix here, and downloading it would fail anyway.
+            continue
+        if not is_webp:
+            todo.append(k)
+        elif size > MAX_BYTES:
+            todo.append(k)
+            oversize += 1
+        else:
+            already_ok += 1
+
+    todo = sorted(todo)
     if args.limit:
         todo = todo[: args.limit]
 
     print(f"products scanned     : {len(products)}")
     print(f"non-CDN images skipped: {skipped_foreign}  {DIM}(third-party hosts, not ours to rewrite){NC}")
-    print(f"images to convert    : {len(todo)}\n")
+    print(f"already compliant    : {already_ok}  {DIM}(WebP and <= {human(MAX_BYTES)}){NC}")
+    print(f"images to process    : {len(todo)}  {DIM}({oversize} already WebP but over {human(MAX_BYTES)}){NC}\n")
     if not todo:
-        print(f"{GREEN}nothing to do — every platform-hosted image is already WebP{NC}")
+        print(f"{GREEN}nothing to do — every platform-hosted image is WebP and within budget{NC}")
         return 0
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
@@ -251,13 +338,32 @@ def main():
 
     # ---- Pass 1: archive, convert, upload the new .webp. No DB write, no delete.
     for i, key in enumerate(todo, 1):
-        new_key = key.rsplit(".", 1)[0] + ".webp"
+        # A resized WebP keeps the .webp extension, so swapping the extension
+        # would produce the SAME key: we would overwrite the object in place and
+        # CloudFront would keep serving the cached old bytes until its TTL. A
+        # fresh name means a new URL, so the change is live immediately and no
+        # invalidation is needed. Matches the platform key convention.
+        stem, _, ext = key.rpartition(".")
+        if ext.lower() == "webp":
+            new_key = f"{stem}-{uuid.uuid4().hex[:8]}.webp"
+        else:
+            new_key = f"{stem}.webp"
         try:
             raw = s3.get_object(Bucket=BUCKET, Key=key)["Body"].read()
-            webp, w, h = to_webp(raw, args.quality)
+            webp, w, h = to_webp(raw, args.quality, MAX_LONG_EDGE)
         except (ClientError, OSError, ValueError) as e:
             failures.append((key, f"read/convert: {e}"))
             print(f"  {RED}FAIL{NC} {key}\n       {e}")
+            continue
+
+        # Refuse a rewrite that does not earn itself. Without this an image that
+        # can never get under MAX_BYTES would be rewritten to a fresh key on
+        # every run, churning S3 and the database forever, and the sweep would
+        # never become a no-op.
+        if raw and (1 - len(webp) / len(raw)) < MIN_GAIN:
+            print(f"  [{i}/{len(todo)}] {DIM}skip{NC} {human(len(raw))} -> {human(len(webp))} "
+                  f"(under {MIN_GAIN:.0%} gain, leaving it alone)  "
+                  f"{DIM}{key.split('/')[-1][:44]}{NC}")
             continue
 
         before_total += len(raw)
