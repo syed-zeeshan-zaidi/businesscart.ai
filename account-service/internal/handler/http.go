@@ -1470,14 +1470,16 @@ func (h *LambdaHandler) updateAccount(userClaim map[string]interface{}, id strin
 		// so the seller's customer list stays private), and resolving server-side
 		// means a policy can only ever name a real account that the person setting
 		// it already knows how to reach.
-		// Size FIRST, then resolve. resolveApprovers issues one GetAccountByEmail
-		// per named approver with no cap of its own, so validating afterwards let a
-		// single request run hundreds of thousands of Mongo queries inside one
-		// Lambda invocation before being rejected as too large.
-		if err := validateApprovalPolicy(payload.Governance.Approval); err != nil {
+		// SHAPE first, so an oversized chain is rejected before resolveApprovers
+		// issues one DB lookup per named approver. Then resolve, then the full
+		// check, which verifies what resolution produced.
+		if err := validateApprovalPolicyBounds(payload.Governance.Approval); err != nil {
 			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 		}
 		if err := h.resolveApprovers(payload.Governance.Approval, target, string(target.Role)); err != nil {
+			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
+		}
+		if err := validateApprovalPolicy(payload.Governance.Approval); err != nil {
 			return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 		}
 		// A seller only ever has a decision point on a NEGOTIABLE quote. Self-serve
@@ -2953,9 +2955,18 @@ func validateApprovalScope(scope string) error {
 	return fmt.Errorf("scope must be one of none, standard, negotiable, both (got %q)", scope)
 }
 
-// validateApprovalPolicy rejects a malformed policy at the API boundary so the DB
-// never holds a value that later fails to decode or can never be satisfied.
-func validateApprovalPolicy(p *storage.ApprovalPolicy) error {
+// validateApprovalPolicyBounds rejects a policy that is the wrong SHAPE, using
+// only what the request itself carries.
+//
+// Split out so it can run BEFORE resolveApprovers, which issues one
+// GetAccountByEmail per named approver and has no cap of its own: a chain of
+// 500 levels x 500 approvers would otherwise run 250k Mongo queries inside a
+// single Lambda invocation before anything rejected it as too large.
+//
+// It deliberately does NOT check account id or email. Those are what
+// resolveApprovers fills in, so requiring them here would reject every valid
+// policy. That is exactly what happened when the two calls were simply swapped.
+func validateApprovalPolicyBounds(p *storage.ApprovalPolicy) error {
 	if p == nil {
 		return nil
 	}
@@ -2975,6 +2986,23 @@ func validateApprovalPolicy(p *storage.ApprovalPolicy) error {
 		if len(step.Approvers) > MaxApproversPerStep {
 			return fmt.Errorf("approval level %d supports at most %d approvers, got %d", i+1, MaxApproversPerStep, len(step.Approvers))
 		}
+	}
+	return nil
+}
+
+// validateApprovalPolicy rejects a malformed policy at the API boundary so the DB
+// never holds a value that later fails to decode or can never be satisfied.
+//
+// Runs AFTER resolveApprovers, because the identity checks below are checks on
+// what resolution produced.
+func validateApprovalPolicy(p *storage.ApprovalPolicy) error {
+	if p == nil {
+		return nil
+	}
+	if err := validateApprovalPolicyBounds(p); err != nil {
+		return err
+	}
+	for i, step := range p.Chain {
 		for j, a := range step.Approvers {
 			if strings.TrimSpace(a.AccountID) == "" {
 				return fmt.Errorf("approval level %d approver %d is missing an account", i+1, j+1)
