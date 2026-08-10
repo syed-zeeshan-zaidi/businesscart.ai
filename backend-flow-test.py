@@ -1843,6 +1843,89 @@ class BackendFlowTest:
             self.api.put(f"/products/{pid}", {"cost": 0})  # reset
         self.run_test("Product cost round-trip + not leaked to buyer", test_cost_field)
 
+        def test_package_dimensions():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{pid}",
+                                {"weight": 2.5, "length": 12, "width": 8, "height": 4})
+            assert_status(resp, 200, "Set package weight + dimensions")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "weight", 2.5, "weight round-trip")
+            assert_field(got, "length", 12, "length round-trip")
+            assert_field(got, "width", 8, "width round-trip")
+            assert_field(got, "height", 4, "height round-trip")
+            ok("Package weight + dimensions persist")
+
+            # A numeric STRING must be coerced to a number, never stored as text.
+            # account-service decodes the catalog response into a typed float64,
+            # so a single string here fails storefront generation for the WHOLE
+            # company, not just this product.
+            resp = self.api.put(f"/products/{pid}", {"weight": "3.25"})
+            assert_status(resp, 200, "Numeric-string weight accepted")
+            got = self.api.get(f"/products/{pid}").json()
+            assert isinstance(got.get("weight"), (int, float)), \
+                f"weight stored as {type(got.get('weight')).__name__}, must be numeric"
+            assert_field(got, "weight", 3.25, "weight coerced from string")
+            ok("Numeric-string weight coerced to a number")
+
+            # Garbage and negatives are refused rather than persisted.
+            assert_status(self.api.put(f"/products/{pid}", {"weight": "abc"}),
+                          400, "Non-numeric weight rejected")
+            assert_status(self.api.put(f"/products/{pid}", {"height": -3}),
+                          400, "Negative dimension rejected")
+            ok("Non-numeric and negative package values rejected")
+
+            # 0 clears the field (omitempty) instead of storing a meaningless zero,
+            # which is how the portal removes a value the merchant blanked out.
+            resp = self.api.put(f"/products/{pid}",
+                                {"weight": 0, "length": 0, "width": 0, "height": 0})
+            assert_status(resp, 200, "Clear package fields")
+            got = self.api.get(f"/products/{pid}").json()
+            for f in ("weight", "length", "width", "height"):
+                assert not got.get(f), f"{f} still present after clearing: {got.get(f)}"
+            ok("Zero clears package fields instead of storing 0")
+        self.run_test("Package weight + dimensions round-trip, coercion, clearing",
+                      test_package_dimensions)
+
+        def test_custom_labels():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            labels = {f"customLabel{i}": v for i, v in enumerate(
+                ["high-margin", "q4-push", "commodity", "restock-slow", "clearance"])}
+            resp = self.api.put(f"/products/{pid}", labels)
+            assert_status(resp, 200, "Set all five custom labels")
+            got = self.api.get(f"/products/{pid}").json()
+            for k, v in labels.items():
+                assert_field(got, k, v, f"{k} round-trip")
+            ok("All five custom labels persist")
+
+            # Whitespace is trimmed, so a stray space never becomes a second
+            # distinct ad-group value in Merchant Center.
+            resp = self.api.put(f"/products/{pid}", {"customLabel0": "  padded  "})
+            assert_status(resp, 200, "Whitespace-padded label accepted")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "customLabel0", "padded", "custom label trimmed")
+            ok("Custom label whitespace trimmed")
+
+            # Google caps a label at 100 characters and is the strictest of the
+            # five channels, so the platform enforces its limit for everyone.
+            assert_status(self.api.put(f"/products/{pid}", {"customLabel1": "x" * 101}),
+                          400, "Over-long custom label rejected")
+            resp = self.api.put(f"/products/{pid}", {"customLabel1": "y" * 100})
+            assert_status(resp, 200, "Exactly 100 characters accepted")
+            ok("Custom label 100-char cap enforced at the boundary")
+
+            # Empty string clears the label rather than storing "".
+            resp = self.api.put(f"/products/{pid}", {f"customLabel{i}": "" for i in range(5)})
+            assert_status(resp, 200, "Clear custom labels")
+            got = self.api.get(f"/products/{pid}").json()
+            for i in range(5):
+                assert not got.get(f"customLabel{i}"), \
+                    f"customLabel{i} still present after clearing: {got.get(f'customLabel{i}')}"
+            ok("Empty string clears custom labels")
+        self.run_test("Custom labels round-trip, trim, 100-char cap, clearing",
+                      test_custom_labels)
+
         def test_resale_cert():
             cust_id = self.ids["customer"]
             self.use_token("company1")

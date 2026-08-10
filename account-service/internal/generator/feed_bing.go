@@ -24,7 +24,8 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 	b.WriteString("id" + tab + "title" + tab + "description" + tab + "link" + tab + "image_link" + tab +
 		"price" + tab + "sale_price" + tab + "availability" + tab + "condition" + tab + "brand" + tab +
 		"gtin" + tab + "mpn" + tab + "product_type" + tab + "google_product_category" + tab + "color" + tab + "size" + tab + "material" + tab +
-		"gender" + tab + "age_group" + tab + "identifier_exists\n")
+		"gender" + tab + "age_group" + tab + "identifier_exists" + tab + "shipping_weight" + tab +
+		customLabelHeader(tab) + "\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
@@ -89,7 +90,11 @@ func buildBingFeed(data StorefrontData) ([]byte, error) {
 			tsvSafe(productAttr(p.Attributes, "material")) + tab +
 			tsvSafe(gender) + tab +
 			tsvSafe(ageGroup) + tab +
-			identifierExists + "\n")
+			identifierExists + tab +
+			// Microsoft's product model carries a shipping weight but no
+			// dimension fields at all, so only the weight is emitted here.
+			feedShippingWeight(p) + tab +
+			customLabelCols(p, tab, tsvSafe) + "\n")
 	}
 
 	return []byte(b.String()), nil

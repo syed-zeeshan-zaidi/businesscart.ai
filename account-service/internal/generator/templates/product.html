@@ -476,7 +476,9 @@
             </div>
             [[end]]
 
-            [[if .Product.Attributes]]
+            [[$dims := dims .Product.Length .Product.Width .Product.Height]]
+            [[$weight := num .Product.Weight]]
+            [[if or .Product.Attributes $dims $weight]]
             <div style="border-top: 1px solid #e2e8f0; padding-top: 3rem; margin-top: 1rem">
                 <h2
                     style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 900; margin-bottom: 2rem; color: var(--text); opacity: 0.7">
@@ -486,6 +488,18 @@
                     <div class="spec-item">
                         <div class="spec-key">[[.Key]]</div>
                         <div class="spec-val">[[.Value]]</div>
+                    </div>
+                    [[end]]
+                    [[if $weight]]
+                    <div class="spec-item">
+                        <div class="spec-key">Shipping Weight</div>
+                        <div class="spec-val">[[$weight]] lb</div>
+                    </div>
+                    [[end]]
+                    [[if $dims]]
+                    <div class="spec-item">
+                        <div class="spec-key">Package Dimensions</div>
+                        <div class="spec-val">[[$dims]] in</div>
                     </div>
                     [[end]]
                 </div>

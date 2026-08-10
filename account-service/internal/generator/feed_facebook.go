@@ -20,7 +20,7 @@ func buildFacebookFeed(data StorefrontData) ([]byte, error) {
 	var b strings.Builder
 
 	// Header
-	b.WriteString("id,title,description,availability,condition,price,link,image_link,brand,product_type,google_product_category,sale_price\n")
+	b.WriteString("id,title,description,availability,condition,price,link,image_link,brand,product_type,google_product_category,sale_price,shipping_weight," + customLabelHeader(",") + "\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
@@ -50,7 +50,8 @@ func buildFacebookFeed(data StorefrontData) ([]byte, error) {
 			image = p.Images[0]
 		}
 
-		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s\n",
+		// Meta's catalog schema has a shipping weight but no dimension fields.
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			csvEscape(p.ID),
 			csvEscape(p.Name),
 			csvEscape(stripHTML(p.Description)),
@@ -63,6 +64,8 @@ func buildFacebookFeed(data StorefrontData) ([]byte, error) {
 			csvEscape(feedCategory(p.Category)),
 			csvEscape(p.GoogleProductCategory),
 			csvEscape(salePrice),
+			csvEscape(feedShippingWeight(p)),
+			customLabelCols(p, ",", csvEscape),
 		))
 	}
 

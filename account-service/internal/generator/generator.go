@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	texttemplate "text/template"
 	"time"
@@ -151,11 +152,26 @@ type ProductData struct {
 	SKU                   string      `json:"sku,omitempty"`
 	Barcode               string      `json:"barcode,omitempty"`
 	Stock                 int         `json:"stock"`
-	Active                *bool       `json:"active,omitempty"`
-	Featured              bool        `json:"featured,omitempty"`
-	Attributes            []Attribute `json:"attributes"`
-	Rating                *Rating     `json:"rating,omitempty"`
-	Filename              string      `json:"-"` // Pre-computed: slug-suffix (no extension)
+	// Package weight (lb) and dimensions (in), as shipped. Decoded straight from
+	// the catalog response; no mapping step. Rendered on the PDP and the .md
+	// companions so a shopper (or an LLM) can answer "how big is it".
+	Weight float64 `json:"weight,omitempty"`
+	Length float64 `json:"length,omitempty"`
+	Width  float64 `json:"width,omitempty"`
+	Height float64 `json:"height,omitempty"`
+	// Merchant-set ad segmentation labels (Roadmap #45). FEED-ONLY: never
+	// rendered on the storefront, since they are internal campaign metadata and
+	// are explicitly invisible to shoppers.
+	CustomLabel0 string      `json:"customLabel0,omitempty"`
+	CustomLabel1 string      `json:"customLabel1,omitempty"`
+	CustomLabel2 string      `json:"customLabel2,omitempty"`
+	CustomLabel3 string      `json:"customLabel3,omitempty"`
+	CustomLabel4 string      `json:"customLabel4,omitempty"`
+	Active       *bool       `json:"active,omitempty"`
+	Featured     bool        `json:"featured,omitempty"`
+	Attributes   []Attribute `json:"attributes"`
+	Rating       *Rating     `json:"rating,omitempty"`
+	Filename     string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
 type Generator struct {
@@ -860,6 +876,8 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 		},
 		"subtractFloat": func(a, b float64) float64 { return a - b },
 		"lastmod":       lastmodString,
+		"dims":          dimsString,
+		"num":           numString,
 		"primaryOf": func(cat string) string {
 			p, _ := parseCategoryParts(cat)
 			return p
@@ -1047,9 +1065,12 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			"subtract": func(a, b int) int { return a - b },
 			"printf":   fmt.Sprintf,
 			"slugify":  slugify,
-			// Same helper as the HTML map. The .md companions carry a real
-			// last-updated date too, so it has to be registered on both.
+			// Same helpers as the HTML map. The .md companions carry a real
+			// last-updated date and the package specs too, so they have to be
+			// registered on both maps or they silently render nothing.
 			"lastmod": lastmodString,
+			"dims":    dimsString,
+			"num":     numString,
 		}).Parse(sanitizedContent)
 		if err != nil {
 			log.Printf("ERROR: Failed to parse Text template %s: %v", tmplName, err)
@@ -1072,6 +1093,29 @@ func lastmodString(t time.Time) string {
 		return ""
 	}
 	return t.UTC().Format(time.RFC3339)
+}
+
+// numString renders a measurement without trailing zeros, so 2.5 stays "2.5"
+// but 12.0 reads "12" rather than "12.00". Returns "" for a zero/absent value
+// so a template can omit the row entirely.
+func numString(v float64) string {
+	if v <= 0 {
+		return ""
+	}
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// dimsString renders package dimensions as "L x W x H", skipping any axis the
+// merchant left blank, and "" when none are set. A merchant who fills only two
+// of three gets "12 x 8" rather than a broken "12 x  x 4".
+func dimsString(l, w, h float64) string {
+	parts := make([]string, 0, 3)
+	for _, v := range []float64{l, w, h} {
+		if s := numString(v); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, " x ")
 }
 
 // slugify converts a string to a URL-safe lowercase slug.

@@ -251,7 +251,15 @@ const ProductForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const parsed = (name === 'price' || name === 'dealPrice' || name === 'cost') ? parseFloat(value) || undefined : (name === 'stock' || name === 'minOrderQty' || name === 'orderIncrement' || name === 'maxOrderQty') ? parseInt(value) || 0 : value;
+    // Package fields default to 0 rather than undefined so CLEARING one actually
+    // sends a value: JSON.stringify drops undefined keys, which would leave a
+    // stale weight on the record with no way to remove it. The backend treats 0
+    // as "unset this field".
+    const parsed =
+      ['price', 'dealPrice', 'cost'].includes(name) ? (parseFloat(value) || undefined)
+      : ['weight', 'length', 'width', 'height'].includes(name) ? (parseFloat(value) || 0)
+      : ['stock', 'minOrderQty', 'orderIncrement', 'maxOrderQty'].includes(name) ? (parseInt(value) || 0)
+      : value;
     const updates: Partial<Product> = { [name]: parsed };
     // Auto-generate slug from name only when CREATING a new product.
     // Slugs are permanent URLs once a product exists: editing the title must
@@ -365,6 +373,15 @@ const ProductForm = () => {
       minOrderQty: product.minOrderQty,
       orderIncrement: product.orderIncrement,
       maxOrderQty: product.maxOrderQty,
+      weight: product.weight,
+      length: product.length,
+      width: product.width,
+      height: product.height,
+      customLabel0: product.customLabel0,
+      customLabel1: product.customLabel1,
+      customLabel2: product.customLabel2,
+      customLabel3: product.customLabel3,
+      customLabel4: product.customLabel4,
     });
     setEditingId(product._id);
     setSlugUnlocked(false);
@@ -886,6 +903,56 @@ const ProductForm = () => {
                             <label className="block text-sm font-medium text-gray-700">Max order qty</label>
                             <input name="maxOrderQty" type="number" min="0" value={formData.maxOrderQty ?? ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Shipping (package as shipped; fixed units lb / in) */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Shipping</h4>
+                        <p className="text-xs text-gray-500 mb-2">Weight and size of the package as shipped, not the product on its own. Shown on the storefront and used for shipping rates. Leave blank if not applicable.</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Weight (lb)</label>
+                            <input name="weight" type="number" min="0" step="0.01" value={formData.weight || ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Length (in)</label>
+                            <input name="length" type="number" min="0" step="0.01" value={formData.length || ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Width (in)</label>
+                            <input name="width" type="number" min="0" step="0.01" value={formData.width || ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Height (in)</label>
+                            <input name="height" type="number" min="0" step="0.01" value={formData.height || ''} onChange={handleChange} placeholder="0" className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section: Ad segmentation (custom_label_0-4, feed-only) */}
+                      <div className="pt-2 border-t border-gray-100">
+                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 mt-4">Ad segmentation</h4>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Optional labels sent to shopping feeds (Google, Bing, Meta, Pinterest, TikTok) to split ad campaigns.
+                          Never shown to shoppers. Use them for groupings your categories cannot express, like margin tier or
+                          seasonality. Max 100 characters each.
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {[0, 1, 2, 3, 4].map((i) => (
+                            <div key={i}>
+                              <label className="block text-sm font-medium text-gray-700">Custom label {i}</label>
+                              <input
+                                name={`customLabel${i}`}
+                                type="text"
+                                maxLength={100}
+                                value={(formData[`customLabel${i}` as keyof Product] as string) || ''}
+                                onChange={handleChange}
+                                placeholder={i === 0 ? 'e.g. high-margin' : ''}
+                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
 

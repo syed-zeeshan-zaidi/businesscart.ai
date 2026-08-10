@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"business-cart/catalog-service/internal/storage"
 
@@ -246,6 +247,11 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	}
 	product.SKU = strings.TrimSpace(product.SKU)
 	product.Barcode = strings.TrimSpace(product.Barcode)
+	product.CustomLabel0 = strings.TrimSpace(product.CustomLabel0)
+	product.CustomLabel1 = strings.TrimSpace(product.CustomLabel1)
+	product.CustomLabel2 = strings.TrimSpace(product.CustomLabel2)
+	product.CustomLabel3 = strings.TrimSpace(product.CustomLabel3)
+	product.CustomLabel4 = strings.TrimSpace(product.CustomLabel4)
 	for i := range product.Attributes {
 		product.Attributes[i].Key = strings.TrimSpace(product.Attributes[i].Key)
 		product.Attributes[i].Value = strings.TrimSpace(product.Attributes[i].Value)
@@ -608,6 +614,76 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 				updates["groupIDs"] = cleaned
 			}
 		}
+	}
+
+	// Coerce package weight/dimensions to float64; empty → $unset (honors omitempty).
+	// Same guard as price/stock: this handler writes a raw bson.M, so an uncoerced
+	// string stored here would later break the typed decode of the catalog response
+	// in account-service and fail storefront generation for the whole company.
+	for _, f := range []string{"weight", "length", "width", "height"} {
+		raw, ok := updates[f]
+		if !ok {
+			continue
+		}
+		var n float64
+		switch v := raw.(type) {
+		case nil:
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		case string:
+			if strings.TrimSpace(v) == "" {
+				delete(updates, f)
+				unsetFields[f] = ""
+				continue
+			}
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+			if err != nil {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+			}
+			n = parsed
+		case float64:
+			n = v
+		default:
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+		}
+		if n < 0 {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Product %s cannot be negative", f)), nil
+		}
+		if n == 0 {
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		}
+		updates[f] = n
+	}
+
+	// Trim custom labels and enforce Google's 100-char cap; empty → $unset so a
+	// cleared label leaves no residue on the doc (honors omitempty).
+	for i := 0; i < 5; i++ {
+		f := fmt.Sprintf("customLabel%d", i)
+		raw, ok := updates[f]
+		if !ok {
+			continue
+		}
+		s, isStr := raw.(string)
+		if raw != nil && !isStr {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+		}
+		s = strings.TrimSpace(s)
+		// Runes, not bytes: the create path validates with `max=100`, which
+		// go-playground measures as utf8.RuneCountInString. Using len() here
+		// would reject a 100-character label containing any multibyte character
+		// that create had just accepted.
+		if utf8.RuneCountInString(s) > 100 {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("%s must be 100 characters or fewer", f)), nil
+		}
+		if s == "" {
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		}
+		updates[f] = s
 	}
 
 	// Coerce deal date strings to time.Time (empty → $unset from MongoDB)

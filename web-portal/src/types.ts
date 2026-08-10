@@ -163,6 +163,17 @@ export interface Product {
   minOrderQty?: number;
   orderIncrement?: number;
   maxOrderQty?: number;
+  // Package as shipped. Weight in pounds, dimensions in inches (fixed units).
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  // Shopping-feed campaign segmentation. Feed-only, never shown to shoppers.
+  customLabel0?: string;
+  customLabel1?: string;
+  customLabel2?: string;
+  customLabel3?: string;
+  customLabel4?: string;
   groupIDs?: string[];
   attributes?: Attribute[];
   createdAt: Date;

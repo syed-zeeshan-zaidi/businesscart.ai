@@ -97,12 +97,30 @@ type Product struct {
 	PriceTiers            []PriceTier        `bson:"priceTiers,omitempty" json:"priceTiers,omitempty"`
 	// Per-product quantity rules (Roadmap #39, precursor to full UOM #38). Buyer-side
 	// enforced in the portal (cart / quick-order / add-to-cart) via clampQty.
-	MinOrderQty    int         `bson:"minOrderQty,omitempty" json:"minOrderQty,omitempty"`
-	OrderIncrement int         `bson:"orderIncrement,omitempty" json:"orderIncrement,omitempty"` // case pack: order in multiples of this
-	MaxOrderQty    int         `bson:"maxOrderQty,omitempty" json:"maxOrderQty,omitempty"`
-	GroupIDs       []string    `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
-	Attributes     []Attribute `bson:"attributes,omitempty" json:"attributes,omitempty"`
-	Rating         *Rating     `bson:"rating,omitempty" json:"rating,omitempty"`
-	CreatedAt      time.Time   `bson:"createdAt" json:"createdAt"`
-	UpdatedAt      time.Time   `bson:"updatedAt" json:"updatedAt"`
+	MinOrderQty    int `bson:"minOrderQty,omitempty" json:"minOrderQty,omitempty"`
+	OrderIncrement int `bson:"orderIncrement,omitempty" json:"orderIncrement,omitempty"` // case pack: order in multiples of this
+	MaxOrderQty    int `bson:"maxOrderQty,omitempty" json:"maxOrderQty,omitempty"`
+	// Package weight and dimensions, as shipped (the parcel, not the bare product).
+	// Units are fixed platform-wide: weight in POUNDS, dimensions in INCHES.
+	// Precursor to carrier rating (Roadmap #19) and the shipping_* feed fields.
+	Weight float64 `bson:"weight,omitempty" json:"weight,omitempty" validate:"gte=0"`
+	Length float64 `bson:"length,omitempty" json:"length,omitempty" validate:"gte=0"`
+	Width  float64 `bson:"width,omitempty" json:"width,omitempty" validate:"gte=0"`
+	Height float64 `bson:"height,omitempty" json:"height,omitempty" validate:"gte=0"`
+	// Merchant-set shopping-feed segmentation labels (Roadmap #45). Invisible to
+	// shoppers; they exist only to subdivide ad campaigns by something the site
+	// taxonomy cannot express (margin tier, price band, performance tier).
+	// Deliberately NOT derived from Category: one site category can legitimately
+	// span several ad segments. Capped at 100 to satisfy Google, the strictest of
+	// the five channels, so one value stays valid everywhere.
+	CustomLabel0 string      `bson:"customLabel0,omitempty" json:"customLabel0,omitempty" validate:"max=100"`
+	CustomLabel1 string      `bson:"customLabel1,omitempty" json:"customLabel1,omitempty" validate:"max=100"`
+	CustomLabel2 string      `bson:"customLabel2,omitempty" json:"customLabel2,omitempty" validate:"max=100"`
+	CustomLabel3 string      `bson:"customLabel3,omitempty" json:"customLabel3,omitempty" validate:"max=100"`
+	CustomLabel4 string      `bson:"customLabel4,omitempty" json:"customLabel4,omitempty" validate:"max=100"`
+	GroupIDs     []string    `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
+	Attributes   []Attribute `bson:"attributes,omitempty" json:"attributes,omitempty"`
+	Rating       *Rating     `bson:"rating,omitempty" json:"rating,omitempty"`
+	CreatedAt    time.Time   `bson:"createdAt" json:"createdAt"`
+	UpdatedAt    time.Time   `bson:"updatedAt" json:"updatedAt"`
 }

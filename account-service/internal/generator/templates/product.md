@@ -7,7 +7,9 @@
 - **Category**: [[.Product.Category]]
 - **Availability**: [[if gt .Product.Stock 0]]In Stock ([[.Product.Stock]] available)[[else]]Out of Stock[[end]][[if .Product.SKU]]
 - **SKU**: [[.Product.SKU]][[end]][[if .Product.Barcode]]
-- **Barcode**: [[.Product.Barcode]][[end]]
+- **Barcode**: [[.Product.Barcode]][[end]][[if num .Product.Weight]]
+- **Shipping Weight**: [[num .Product.Weight]] lb[[end]][[if dims .Product.Length .Product.Width .Product.Height]]
+- **Package Dimensions**: [[dims .Product.Length .Product.Width .Product.Height]] in[[end]]
 - **Description**: [[.Product.Description]]
 [[if .Product.Image]]- **Image**: [[.Product.Image]][[end]]
 
