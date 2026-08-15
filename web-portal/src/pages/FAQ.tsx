@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
@@ -291,12 +292,12 @@ const FAQ: React.FC = () => {
           {/* Still have questions */}
           <div className="mt-12 text-center">
             <p className="text-gray-600 mb-4">Still have questions?</p>
-            <a
-              href="mailto:help@businesscart.ai?subject=Question%20-%20BusinessCart.ai"
+            <Link
+              to="/contact-us"
               className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
             >
               Contact Us
-            </a>
+            </Link>
           </div>
         </div>
 

@@ -15,6 +15,7 @@ import {
   DevicePhoneMobileIcon,
   PhotoIcon,
   CommandLineIcon,
+  ChatBubbleLeftRightIcon,
   SparklesIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
@@ -46,20 +47,21 @@ const liveFeatures = [
   { icon: TagIcon, title: 'Time-based deals', desc: 'Schedule sales with start and end dates. Built in, no app required.' },
   { icon: DevicePhoneMobileIcon, title: 'PWA installable app', desc: 'Customers can install your store as a mobile app from any browser. No App Store fees.' },
   { icon: PhotoIcon, title: 'Image CDN included', desc: 'Product images delivered globally with year-long cache. No third-party CDN needed.' },
+  { icon: ChatBubbleLeftRightIcon, title: 'Verified product reviews', desc: 'BusinessCart emails a review request only after delivery and publishes the buyer\'s reply on the product page. No public form, so no fabricated reviews.' },
   { icon: CommandLineIcon, title: 'Full REST API access', desc: 'Every operation has a REST endpoint. Integrate or extend with your existing tooling.' },
 ];
 
 const betaFeatures = [
   { title: 'Bulk product import via CSV', desc: 'CSV import in active development. Manual upload via web portal works today.' },
+  { title: 'Public review submission form', desc: 'Reviews are entered from a verified buyer\'s emailed reply today. A public submission form on the storefront is in development.' },
   { title: 'Android customer mobile app', desc: 'Login, catalog, cart, checkout, and order history shipped. Payment UI in progress.' },
 ];
 
 const roadmap = [
-  { quarter: 'q2' as const, feature: 'Push notifications', why: 'Bring customers back without paying for ads' },
   { quarter: 'q3' as const, feature: 'Loyalty program', why: 'Reward repeat customers, lift LTV' },
-  { quarter: 'q3' as const, feature: 'Product reviews + ratings', why: 'Social proof on every product page' },
   { quarter: 'q3' as const, feature: 'Subscription / recurring orders', why: 'Predictable revenue from subscribe-and-save' },
   { quarter: 'q3' as const, feature: 'BOGO + coupon engine', why: 'Flash sales, percentage codes, free shipping' },
+  { quarter: 'q4' as const, feature: 'Push notifications', why: 'Bring customers back without paying for ads' },
   { quarter: 'q4' as const, feature: 'iOS customer app', why: 'Native iPhone and iPad shopping' },
   { quarter: 'q4' as const, feature: 'Multi-language storefronts', why: 'Sell internationally in your customer\'s language' },
   { quarter: 'q4' as const, feature: 'Multi-currency checkout', why: 'Charge in local currency at checkout' },

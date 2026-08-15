@@ -48,15 +48,16 @@ const liveFeatures = [
   { icon: ChartBarIcon, title: 'Privacy-safe analytics', desc: 'UTM, geo, conversion funnel. Track which AI channels send traffic. First-party only, no third-party cookies.' },
   { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your brand owns the AI-citation surface, not a marketplace, not a subdomain.' },
   { icon: CommandLineIcon, title: 'Full REST API', desc: 'Sync to additional discovery channels as they emerge. Every operation has an endpoint.' },
+  { icon: ChatBubbleLeftRightIcon, title: 'Verified product reviews', desc: 'BusinessCart emails a review request only after delivery and publishes the buyer\'s reply on the product page, so AI engines read real ratings. No public form, so no fabricated reviews.' },
   { icon: MagnifyingGlassIcon, title: 'Built for the AI shopping era', desc: 'The first storefront architecture designed from the ground up for AI-native discovery.' },
 ];
 
 const betaFeatures = [
   { title: 'Bulk product import via CSV', desc: 'CSV export works today; bulk import is in active development. Critical for migrating large catalogs into AI-readable format fast.' },
+  { title: 'Public review submission form', desc: 'Reviews are entered from a verified buyer\'s emailed reply today. A public submission form on the storefront is in development.' },
 ];
 
 const roadmap = [
-  { quarter: 'q3' as const, feature: 'Product reviews + ratings', why: 'Reviews appear in LLM citations, adds context AI engines value' },
   { quarter: 'q4' as const, feature: 'Conversational search on storefront', why: 'Natural-language search on your store, powered by your own catalog' },
   { quarter: 'q4' as const, feature: 'Multi-language storefronts', why: 'Sell to international AI queries in their language' },
   { quarter: 'y2027' as const, feature: 'AI agent transaction support', why: 'Direct purchases from ChatGPT, Perplexity, and other agents. Gated on those platforms releasing public commerce APIs (timing outside our control)' },

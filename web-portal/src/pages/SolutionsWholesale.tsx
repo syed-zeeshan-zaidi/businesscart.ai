@@ -45,6 +45,10 @@ const liveFeatures = [
   { icon: ClipboardDocumentListIcon, title: 'Line sheets (print / PDF)', desc: 'Generate a branded wholesale line sheet, curated by category or product, then print or save to PDF for buyers and reps. Built in, no third-party app.' },
   { icon: CurrencyDollarIcon, title: 'Monthly + yearly spend caps', desc: 'Set spending limits per customer relationship. Useful for staged rollouts, trial accounts, or risk management.' },
   { icon: ClipboardDocumentListIcon, title: 'Full quote negotiation workflow', desc: 'Customer proposes, you counter, they approve, it converts to an order, with comments, history, and full audit trail.' },
+  { icon: ShieldCheckIcon, title: 'Buyer-side order approvals', desc: 'Your customer sets their own approval chain: multiple levels, several approvers per level, triggered by order value or quantity. The order cannot be paid until every level signs off.' },
+  { icon: ShieldCheckIcon, title: 'Seller-side quote approvals', desc: 'Your rep drafts the quote, your manager signs off before the customer ever sees it. Shopify B2B, Adobe Commerce B2B and BigCommerce B2B Edition have no native equivalent.' },
+  { icon: UserGroupIcon, title: 'Staff accounts with seniority', desc: 'Invite colleagues into one organisation instead of sharing a login. Staff cannot see what products cost you or your margins, and only the owner changes payment settings and billing.' },
+  { icon: ClipboardDocumentListIcon, title: 'Append-only approval record', desc: 'Every approval, rejection and override is stored permanently with who decided, when, their note, and the order total at that moment. A withdrawn and reinstated quote keeps its earlier sign-offs.' },
   { icon: LockClosedIcon, title: 'Private, code-gated catalog', desc: 'Customers only see your catalog after entering a customer code you share. No public listing, no competitors next to you.' },
   { icon: BanknotesIcon, title: 'Per-customer payment methods', desc: 'Customer A pays via Stripe. Customer B uses purchase orders. Customer C pays cash on pickup. You decide who gets what.' },
   { icon: ServerIcon, title: 'Per-customer delivery options', desc: 'Some customers get pickup only. Some get delivery. Some get shipping. Restrict per relationship. They only see their options.' },
@@ -84,7 +88,7 @@ const faqs = [
   },
   {
     q: 'What if a sales rep needs to place an order on behalf of a customer?',
-    a: 'Reps log in as admin and can create quotes on behalf of any customer. The customer\'s pricing, payment methods, and limits all apply automatically, the rep cannot accidentally override them. The customer sees the quote in their portal and can approve or counter.',
+    a: 'Each rep gets their own staff account inside your organisation, no shared admin login, and creates quotes on behalf of any of your customers. The customer\'s pricing, payment methods, and limits all apply automatically, and the rep cannot override them. If you require seller-side approval, your manager signs the quote off before the customer sees it. The customer then sees the quote in their portal and can approve or counter.',
   },
   {
     q: 'How does the quote workflow handle counter-offers?',

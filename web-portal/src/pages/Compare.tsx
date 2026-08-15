@@ -161,6 +161,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">Not applicable</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Approval Audit Record</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in and append-only: every approval, rejection and override records who decided, when, their note, and the order total at that moment. Withdrawing and reinstating a quote never erases earlier sign-offs</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not native; whatever an approvals app chooses to log</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin, you maintain it</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Not applicable</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Multiple Payment Gateways</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Amazon Pay, Stripe, Authorize.net, offline</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Yes, but extra fee for non-Shopify gateways</td>
@@ -232,7 +239,7 @@ const Compare: React.FC = () => {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">Shopping Channel Feeds</td>
-                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in, Google, Facebook, Bing, Pinterest, TikTok</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built-in: Google, Facebook, Bing, Pinterest, TikTok. Carries custom_label_0 to custom_label_4 for ad segmentation, plus package weight on all five and package dimensions wherever the channel supports them</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires app ($10-100/mo)</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Requires plugin ($0-200/yr)</td>
                   <td className="px-6 py-4 text-sm text-red-600 font-bold">Locked in, no feed export</td>
@@ -570,12 +577,12 @@ const Compare: React.FC = () => {
               >
                 Get Started Free
               </Link>
-              <a
-                href="mailto:help@businesscart.ai?subject=Demo%20Request%20-%20BusinessCart.ai"
+              <Link
+                to="/contact-us"
                 className="inline-flex items-center justify-center px-8 py-3 border-2 border-teal-700 text-base font-medium rounded-md text-teal-700 hover:bg-teal-700 hover:text-white transition"
               >
                 Request a Demo
-              </a>
+              </Link>
             </div>
           </div>
         </div>
