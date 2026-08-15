@@ -796,6 +796,44 @@ func (h *LambdaHandler) handleGetQuoteRequest(request events.APIGatewayProxyRequ
 	}, nil
 }
 
+// checkoutLineLabel renders the cart as the single line item the shopper sees on
+// a hosted checkout page. It is a label only: the charged amount stays the
+// quote's grand total, because that total also carries shipping, tax and
+// discounts that no per-product breakdown would reconstruct.
+//
+// Returns "" when there is nothing usable to show, which leaves the gateway on
+// its own reference-based fallback.
+func checkoutLineLabel(items []cart.CartItem) string {
+	named := make([]cart.CartItem, 0, len(items))
+	for _, it := range items {
+		if strings.TrimSpace(it.Name) != "" {
+			named = append(named, it)
+		}
+	}
+	if len(named) == 0 {
+		return ""
+	}
+	label := strings.TrimSpace(named[0].Name)
+	if named[0].Quantity > 1 {
+		label = fmt.Sprintf("%s (x%d)", label, named[0].Quantity)
+	}
+	if extra := len(named) - 1; extra > 0 {
+		label = fmt.Sprintf("%s + %d more", label, extra)
+	}
+	return label
+}
+
+// checkoutLineImage picks the thumbnail to sit beside that label: the first item
+// that actually has one, which need not be the first item in the cart.
+func checkoutLineImage(items []cart.CartItem) string {
+	for _, it := range items {
+		if img := strings.TrimSpace(it.Image); img != "" {
+			return img
+		}
+	}
+	return ""
+}
+
 func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRequest, accountID string, role string, configurations []CustomerConfiguration, approval resolvedApprovalPolicy) (events.APIGatewayProxyResponse, error) {
 	var req struct {
 		QuoteID           string            `json:"quoteId"`
@@ -930,6 +968,8 @@ func (h *LambdaHandler) handlePlaceOrderRequest(request events.APIGatewayProxyRe
 		MerchantRef:   q.ID.Hex(),
 		Sandbox:       sandbox,
 		CustomerEmail: h.requestUserEmail,
+		Description:   checkoutLineLabel(q.Items),
+		ImageURL:      checkoutLineImage(q.Items),
 	}
 
 	sessionResp, err := gw.CreateSession(ctx, sessionReq)

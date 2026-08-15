@@ -22,6 +22,8 @@ type SessionRequest struct {
 	MerchantRef   string
 	Sandbox       bool
 	CustomerEmail string // optional — pre-fills the email field on hosted checkout pages (currently used by Stripe). Other gateways ignore it.
+	Description   string // optional — what the shopper sees as the line item on hosted checkout pages (currently used by Stripe). Empty falls back to the merchant reference. Other gateways ignore it.
+	ImageURL      string // optional — product thumbnail shown beside the line item (currently used by Stripe). Other gateways ignore it.
 }
 
 type SessionResponse struct {

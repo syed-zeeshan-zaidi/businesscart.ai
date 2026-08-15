@@ -458,8 +458,12 @@ MOBILE_CONTEXT = dict(
 )
 
 
-def _run_checkout(page, guest_email, label):
-    """Drive one full guest checkout at whatever viewport `page` is in."""
+def _drive_to_stripe(page, guest_email, label):
+    """Drive the storefront half of a guest checkout, stopping on Stripe's page.
+
+    Split out of _run_checkout so the zoom probe can reach the hosted checkout
+    without also paying: everything up to the redirect is identical for both.
+    """
     pdp_name = os.path.basename(sorted(glob.glob(f"{STOREFRONT_DIR}/products/*.html"))[0])
     url = f"http://localhost:{HTTP_PORT}/products/{pdp_name}"
 
@@ -511,6 +515,11 @@ def _run_checkout(page, guest_email, label):
     page.wait_for_url("**checkout.stripe.com/**", timeout=40000)
     ok(f"[{label}] redirected to Stripe sandbox hosted checkout")
 
+
+def _run_checkout(page, guest_email, label):
+    """Drive one full guest checkout at whatever viewport `page` is in."""
+    _drive_to_stripe(page, guest_email, label)
+
     _fill_stripe_checkout(page, guest_email)
     ok(f"[{label}] entered Stripe test card {STRIPE_TEST_CARD[:4]}…{STRIPE_TEST_CARD[-4:]} and paid")
 
@@ -543,6 +552,129 @@ def _run_checkout(page, guest_email, label):
     # (4) Guest received the order-confirmation email (Mailpit).
     if short_id:
         _assert_order_email(short_id, guest_email)
+
+
+# iOS Safari's "Request Desktop Website" (Settings → Safari → Request Desktop
+# Website → All Websites). It reports a Mac UA and, critically, IGNORES the page's
+# `width=device-width` and lays out at ~980 CSS px, then shrink-to-fits that onto
+# the physical screen. checkout.stripe.com is a different origin from the
+# storefront, so it takes the *global* setting no matter how the store is browsed.
+#
+# Modelled here as: layout viewport 980, physical screen 390. Chromium does not
+# implement WebKit's shrink-to-fit, so the scale is computed rather than rendered
+# — but the DOM being measured is Stripe's real hosted page at a real 980px
+# layout, which is the part that decides legibility.
+DESKTOP_MODE_CONTEXT = dict(
+    viewport={"width": 980, "height": 2119},
+    screen={"width": 390, "height": 844},
+    device_scale_factor=3,
+    is_mobile=False,
+    has_touch=True,
+    user_agent=("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15"),
+)
+
+# iOS minimum legible body text (smallest Dynamic Type step) and the HIG minimum
+# tap target. Anything below these on a real screen is the "had to zoom" report.
+MIN_LEGIBLE_FONT_PX = 11.0
+MIN_TAP_TARGET_PX = 44.0
+
+
+def _measure_stripe_legibility(page, label):
+    """Measure Stripe's card field as it would land on the physical screen.
+
+    Returns None when the card field never appears (nothing to measure).
+    """
+    page.wait_for_load_state("domcontentloaded")
+    if not page.query_selector("#cardNumber"):
+        # Same accordion dance as the paying pass: card fields only exist once
+        # Card is chosen. Best-effort — a miss just means no measurement.
+        for make in (lambda: page.get_by_test_id("card-accordion-item-button"),
+                     lambda: page.get_by_role("radio", name="Card"),
+                     lambda: page.locator('input[type="radio"]').first):
+            try:
+                make().first.click(timeout=5000, force=True)
+                if _wait_quiet(page, "#cardNumber", 4000):
+                    break
+            except Exception:
+                continue
+    if not page.query_selector("#cardNumber"):
+        return None
+
+    m = page.evaluate("""() => {
+        const el = document.querySelector('#cardNumber');
+        const cs = getComputedStyle(el);
+        const r  = el.getBoundingClientRect();
+        const btn = document.querySelector('[data-testid="hosted-payment-submit-button"]')
+                 || document.querySelector('button[type="submit"]');
+        return {
+            layoutWidth:  document.documentElement.clientWidth,
+            screenWidth:  window.screen.width,
+            contentWidth: document.documentElement.scrollWidth,
+            fontPx:       parseFloat(cs.fontSize) || 0,
+            fieldHeight:  r.height,
+            payHeight:    btn ? btn.getBoundingClientRect().height : 0,
+        };
+    }""")
+
+    # What Safari's shrink-to-fit does to those CSS pixels on the real screen.
+    m["shrink"] = (m["screenWidth"] / m["layoutWidth"]) if m["layoutWidth"] else 1.0
+    m["shrink"] = min(m["shrink"], 1.0)          # a page narrower than the screen is never scaled up
+    m["effFont"] = m["fontPx"] * m["shrink"]
+    m["effField"] = m["fieldHeight"] * m["shrink"]
+    m["effPay"] = m["payHeight"] * m["shrink"]
+
+    print(f"    [{label}] layout={m['layoutWidth']}px screen={m['screenWidth']}px "
+          f"scale={m['shrink']:.2f} → card text {m['effFont']:.1f}px, "
+          f"field {m['effField']:.1f}px, pay button {m['effPay']:.1f}px")
+    page.screenshot(path=f"/tmp/e2e-stripe-{label}.png", full_page=False)
+    return m
+
+
+def _run_zoom_probe(page, guest_email, label):
+    """Reach Stripe's hosted page and measure it, without paying."""
+    _drive_to_stripe(page, guest_email, label)
+    m = _measure_stripe_legibility(page, label)
+    if m is None:
+        fail(f"[{label}] could not reach Stripe's card field to measure it")
+    return m
+
+
+def _report_zoom_findings(normal, desktop_mode):
+    """Compare the two passes and say plainly whether the zoom report reproduces."""
+    step("Zoom repro: is Stripe's card form legible in iOS desktop-request mode?")
+    if not normal or not desktop_mode:
+        fail("zoom probe incomplete — one of the passes produced no measurement")
+        return
+
+    # Control: in ordinary mobile Safari the page must be fine. If this trips, the
+    # problem is not desktop mode and the whole comparison below is meaningless.
+    if normal["effFont"] < MIN_LEGIBLE_FONT_PX or normal["effPay"] < MIN_TAP_TARGET_PX:
+        fail(f"control failed: Stripe is already illegible at a normal phone viewport "
+             f"(text {normal['effFont']:.1f}px, pay button {normal['effPay']:.1f}px)")
+        return
+    ok(f"control: normal phone viewport is legible "
+       f"(card text {normal['effFont']:.1f}px, pay button {normal['effPay']:.1f}px)")
+
+    illegible = desktop_mode["effFont"] < MIN_LEGIBLE_FONT_PX
+    untappable = desktop_mode["effPay"] < MIN_TAP_TARGET_PX
+    ratio = (desktop_mode["effFont"] / normal["effFont"]) if normal["effFont"] else 0
+
+    if illegible or untappable:
+        # Not a failure of OUR code: Stripe's page is correctly built
+        # (width=device-width, no scale lock) and so is ours. This is the browser
+        # setting overriding both, which is exactly what the tester hit. Reported
+        # loudly so it cannot be quietly forgotten again.
+        print(f"  {YELLOW}⚠ REPRODUCED{NC}: in desktop-request mode Stripe's card form renders at "
+              f"{desktop_mode['shrink']:.2f}x — card text {desktop_mode['effFont']:.1f}px "
+              f"(min {MIN_LEGIBLE_FONT_PX}), pay button {desktop_mode['effPay']:.1f}px "
+              f"(min {MIN_TAP_TARGET_PX}). That is {ratio:.2f}x the normal size; the shopper must "
+              f"pinch-zoom to pay.")
+        print(f"  {YELLOW}  compare /tmp/e2e-stripe-zoom-mobile.png vs "
+              f"/tmp/e2e-stripe-zoom-desktop-mode.png{NC}")
+    else:
+        ok(f"not reproduced: desktop-request mode still legible "
+           f"(card text {desktop_mode['effFont']:.1f}px, pay button {desktop_mode['effPay']:.1f}px)")
 
 
 def run_browser():
@@ -580,6 +712,30 @@ def run_browser():
                 fail(f"[{label}] browser flow error: {type(e).__name__}: {str(e)[:200]}")
             finally:
                 ctx.close()
+
+        # Zoom repro: same storefront, same Stripe page, measured at a normal
+        # phone viewport and again with iOS "Request Desktop Website" on. Neither
+        # pass pays, so this adds two guest accounts and no orders.
+        measurements = {}
+        for label, ctx_opts in (("zoom-mobile", MOBILE_CONTEXT),
+                                ("zoom-desktop-mode", DESKTOP_MODE_CONTEXT)):
+            step(f"Browser [{label}]: measure Stripe's card form legibility")
+            ctx = browser.new_context(**ctx_opts)
+            page = ctx.new_page()
+            page.set_default_timeout(25000)
+            try:
+                measurements[label] = _run_zoom_probe(page, guest_email_for(label), label)
+            except Exception as e:
+                try:
+                    print(f"    [debug] URL at failure: {page.url}")
+                    page.screenshot(path=f"/tmp/e2e-storefront-fail-{label}.png")
+                except Exception:
+                    pass
+                fail(f"[{label}] probe error: {type(e).__name__}: {str(e)[:200]}")
+            finally:
+                ctx.close()
+        _report_zoom_findings(measurements.get("zoom-mobile"), measurements.get("zoom-desktop-mode"))
+
         browser.close()
 
 

@@ -17,6 +17,17 @@ func NewStripeGateway() *StripeGateway {
 	return &StripeGateway{}
 }
 
+// truncateRunes caps a string at maxRunes characters. Rune-based rather than
+// byte-based on purpose: product names carry multi-byte characters (932°F, 23"
+// gauntlets), and slicing those mid-rune would hand Stripe invalid UTF-8.
+func truncateRunes(s string, maxRunes int) string {
+	r := []rune(s)
+	if len(r) <= maxRunes {
+		return s
+	}
+	return string(r[:maxRunes])
+}
+
 func (g *StripeGateway) ValidateCredentials(credentials map[string]string) error {
 	if credentials["secretKey"] == "" {
 		return fmt.Errorf("secretKey is required")
@@ -33,7 +44,22 @@ func (g *StripeGateway) CreateSession(ctx context.Context, req SessionRequest) (
 	form.Set("cancel_url", req.CallbackURL+"?sessionId={CHECKOUT_SESSION_ID}&cancelled=true")
 	form.Set("line_items[0][price_data][currency]", strings.ToLower(req.Currency))
 	form.Set("line_items[0][price_data][unit_amount]", fmt.Sprintf("%d", int(math.Round(req.Amount*100))))
-	form.Set("line_items[0][price_data][product_data][name]", "Order "+req.MerchantRef)
+	// What the shopper reads on Stripe's hosted page. A bare quote id here reads as
+	// an unexplained charge at the exact moment they are deciding to type a card
+	// number, so prefer the real product label and fall back to the reference only
+	// when the caller supplies nothing. Traceability is unaffected either way:
+	// client_reference_id below always carries the quote id.
+	lineName := req.Description
+	if lineName == "" {
+		lineName = "Order " + req.MerchantRef
+	}
+	form.Set("line_items[0][price_data][product_data][name]", truncateRunes(lineName, 250))
+	// Only a well-formed absolute https URL is passed through. Stripe rejects the
+	// whole session on a malformed image, and merchant-supplied image fields are
+	// not guaranteed clean, so a bad one must never take checkout down with it.
+	if u, err := url.Parse(req.ImageURL); err == nil && u.Scheme == "https" && u.Host != "" && len(req.ImageURL) <= 2048 {
+		form.Set("line_items[0][price_data][product_data][images][0]", req.ImageURL)
+	}
 	form.Set("line_items[0][quantity]", "1")
 	form.Set("client_reference_id", req.MerchantRef)
 	if req.CustomerEmail != "" {
