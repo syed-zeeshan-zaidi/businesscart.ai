@@ -3644,6 +3644,10 @@ class BackendFlowTest:
                 "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
             })
             assert_status(resp, 200, "A fully-approved order is payable")
+            o = resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
             ok("Approved order carries no window and is payable")
 
         self.run_test("9r. Approval window bounds the request, not payment", test_expiry_bounds_the_request)
@@ -3762,6 +3766,10 @@ class BackendFlowTest:
                 "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
             })
             assert_status(resp, 200, "Buyer can pay after a force-release")
+            o = resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
             ok("Seller force-release releases the order and payment succeeds")
 
         self.run_test("9s. Seller force-release rescues a stuck approval", test_seller_force_release)
