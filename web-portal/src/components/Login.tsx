@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../api';
+import { login, SIGNUP_NOTICE_KEY } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { AxiosError } from 'axios';
@@ -9,6 +9,17 @@ import { Logo } from './logo';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  // Set by Register when the account was created but the follow-up login failed.
+  // Without showing it, that user arrives here with no idea whether they have an
+  // account, and retrying the signup form would 409 on their own email. Read once
+  // on mount and cleared immediately so it cannot reappear on a later visit.
+  const [notice] = useState<string | null>(() => {
+    try {
+      const n = sessionStorage.getItem(SIGNUP_NOTICE_KEY);
+      if (n) sessionStorage.removeItem(SIGNUP_NOTICE_KEY);
+      return n;
+    } catch { return null; }
+  });
   const { decodeJWT } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<string[]>([]);
@@ -72,6 +83,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           <span className="mt-2 text-lg font-bold text-gray-700">BusinessCart</span>
         </Link>
         <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Login</h2>
+        {notice && (
+          <div className="bg-teal-50 border border-teal-200 text-teal-800 p-3 rounded-md mb-6 text-sm text-center">
+            {notice}
+          </div>
+        )}
         {errors.length > 0 && (
           <div className="bg-red-50 text-red-600 p-3 rounded-md mb-6">
             {errors.map((error, idx) => (

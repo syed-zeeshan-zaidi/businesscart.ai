@@ -3,6 +3,11 @@ import { Account, Product, Order, Cart, Quote, CompanyLocation, CustomerAddress,
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// One-shot handoff from Register to Login when the account was created but the
+// follow-up login failed. Lives here because both components already import from
+// this module, so it adds no new import edge between them.
+export const SIGNUP_NOTICE_KEY = 'bc_signup_notice';
+
 const api = axios.create();
 
 api.interceptors.request.use((config) => {
