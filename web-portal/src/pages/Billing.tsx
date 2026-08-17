@@ -396,6 +396,16 @@ const SendStatementModal: React.FC<ModalProps> = ({ row, period, onClose, onSent
             <p className="font-semibold text-gray-700 mb-1">Statement summary</p>
             <p className="text-gray-600">Tier: <strong>{stmt.tier}</strong></p>
             <p className="text-gray-600">Orders: <strong>{stmt.orderCount}</strong></p>
+            <p className="text-gray-600">Gross revenue: <strong>${stmt.totalGrandTotal.toFixed(2)}</strong></p>
+            {/* Only when refunds exist. Without these two lines the transaction fee
+                does not reconcile against gross revenue and there is nothing on the
+                statement explaining the difference. */}
+            {(stmt.totalRefunded ?? 0) > 0 && (
+              <>
+                <p className="text-gray-600">Refunds issued: <strong className="text-red-700">-${(stmt.totalRefunded ?? 0).toFixed(2)}</strong></p>
+                <p className="text-gray-600">Net revenue: <strong>${(stmt.totalGrandTotal - (stmt.totalRefunded ?? 0)).toFixed(2)}</strong></p>
+              </>
+            )}
             <p className="text-gray-600">Monthly fee: <strong>${stmt.monthlyFee.toFixed(2)}</strong></p>
             <p className="text-gray-600">Transaction fees: <strong>${stmt.transactionFees.toFixed(2)}</strong></p>
             <p className="text-gray-900 mt-1">Total due: <strong className="text-teal-700">${stmt.totalDue.toFixed(2)}</strong></p>

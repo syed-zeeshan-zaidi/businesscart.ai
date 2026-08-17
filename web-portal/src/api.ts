@@ -346,6 +346,9 @@ export interface Statement {
   periodEnd: string;
   orderCount: number;
   totalGrandTotal: number;
+  // Refunds issued in the period. Absent when zero (omitempty on the Go side).
+  // totalGrandTotal stays GROSS; transaction fees are charged on gross minus this.
+  totalRefunded?: number;
   tier: 'Starter' | 'Growth' | 'Enterprise';
   monthlyFee: number;
   perOrderRate: number;

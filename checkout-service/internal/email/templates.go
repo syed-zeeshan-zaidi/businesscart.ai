@@ -584,6 +584,7 @@ type MonthlyStatementData struct {
 	Tier                string // "Starter" | "Growth" | "Enterprise"
 	OrderCount          int
 	TotalGrandTotal     float64 // their gross revenue in the period
+	TotalRefunded       float64 // refunds issued in the period; fees are charged on gross minus this
 	MonthlyFee          float64
 	PerOrderRateStr     string // pre-formatted, e.g., "6%, capped at $5/order"
 	TransactionFees     float64
@@ -603,6 +604,12 @@ func MonthlyStatementMessage(to string, data MonthlyStatementData) Message {
 	}
 }
 
+// NetRevenue is gross minus refunds. A method rather than a field so the HTML
+// template cannot drift from the plain-text body, which computes the same thing.
+func (d MonthlyStatementData) NetRevenue() float64 {
+	return d.TotalGrandTotal - d.TotalRefunded
+}
+
 func monthlyStatementText(d MonthlyStatementData) string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "BusinessCart Monthly Statement\n\n")
@@ -610,8 +617,15 @@ func monthlyStatementText(d MonthlyStatementData) string {
 	fmt.Fprintf(&b, "Period:  %s\n\n", d.PeriodLabel)
 	fmt.Fprintf(&b, "Pricing tier:        %s (%s)\n", d.Tier, d.PerOrderRateStr)
 	fmt.Fprintf(&b, "Orders this period:  %d\n", d.OrderCount)
-	fmt.Fprintf(&b, "Your gross revenue:  $%.2f\n\n", d.TotalGrandTotal)
-	fmt.Fprintf(&b, "Charges\n")
+	fmt.Fprintf(&b, "Your gross revenue:  $%.2f\n", d.TotalGrandTotal)
+	// Only shown when refunds exist, so a period without them reads exactly as
+	// before. Without these two lines a seller sees fees that do not match the
+	// gross figure above and has no way to tell why.
+	if d.TotalRefunded > 0 {
+		fmt.Fprintf(&b, "Refunds issued:     -$%.2f\n", d.TotalRefunded)
+		fmt.Fprintf(&b, "Net revenue:         $%.2f\n", d.NetRevenue())
+	}
+	fmt.Fprintf(&b, "\nCharges\n")
 	fmt.Fprintf(&b, "  Monthly fee:       $%.2f\n", d.MonthlyFee)
 	fmt.Fprintf(&b, "  Transaction fees:  $%.2f\n", d.TransactionFees)
 	fmt.Fprintf(&b, "  ─────────────────────────────\n")
@@ -645,6 +659,16 @@ const monthlyStatementHTMLTmpl = `<!DOCTYPE html>
         <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Your gross revenue</td>
         <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .TotalGrandTotal}}</td>
       </tr>
+      {{if gt .TotalRefunded 0.0}}
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Refunds issued</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right;color:#b91c1c">-${{printf "%.2f" .TotalRefunded}}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Net revenue</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right"><strong>${{printf "%.2f" .NetRevenue}}</strong></td>
+      </tr>
+      {{end}}
     </tbody>
   </table>
 

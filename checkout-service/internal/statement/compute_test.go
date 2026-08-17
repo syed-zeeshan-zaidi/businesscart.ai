@@ -194,3 +194,52 @@ func TestCompute(t *testing.T) {
 		})
 	}
 }
+
+// Roadmap #9: transaction fees are charged on NET revenue. Before this, a seller
+// who refunded most of an order still paid the percentage on the pre-refund
+// figure. Uses the real production shape: $209.97 order, $174.98 refunded.
+func TestCompute_FeesChargedOnNetNotGross(t *testing.T) {
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 1, 0)
+	orders := []*order.Order{
+		{GrandTotal: 209.97, Refunds: []order.Refund{{Amount: 174.98}}},
+	}
+
+	got := Compute("seller1", from, to, orders)
+
+	// Starter tier: 6% capped at $5. 6% of net 34.99 = 2.0994; 6% of gross would
+	// be 12.60, which the $5 cap would then mask as 5.00 — so the cap is exactly
+	// why this needs asserting on the uncapped side of the boundary.
+	if math.Abs(got.TransactionFees-2.0994) > 0.001 {
+		t.Errorf("TransactionFees = %v, want ~2.0994 (6%% of net 34.99)", got.TransactionFees)
+	}
+	// Gross is still reported gross: the statement email labels it "gross revenue".
+	if math.Abs(got.TotalGrandTotal-209.97) > 0.001 {
+		t.Errorf("TotalGrandTotal = %v, want 209.97 (gross, not netted)", got.TotalGrandTotal)
+	}
+	if math.Abs(got.TotalRefunded-174.98) > 0.001 {
+		t.Errorf("TotalRefunded = %v, want 174.98", got.TotalRefunded)
+	}
+	// Refunds must not change the tier: the order still happened.
+	if got.OrderCount != 1 {
+		t.Errorf("OrderCount = %v, want 1 (refunds do not remove an order)", got.OrderCount)
+	}
+}
+
+// A fully refunded order contributes no fee but is still a counted order.
+func TestCompute_FullyRefundedOrderCostsNoFee(t *testing.T) {
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 1, 0)
+	orders := []*order.Order{
+		{GrandTotal: 100, Refunds: []order.Refund{{Amount: 100}}},
+	}
+
+	got := Compute("seller1", from, to, orders)
+
+	if got.TransactionFees != 0 {
+		t.Errorf("TransactionFees = %v, want 0 for a fully refunded order", got.TransactionFees)
+	}
+	if got.OrderCount != 1 {
+		t.Errorf("OrderCount = %v, want 1", got.OrderCount)
+	}
+}

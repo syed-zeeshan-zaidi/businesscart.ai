@@ -17,9 +17,10 @@ import (
 // synchronized so admin and company always see the same numbers.
 func Compute(sellerID string, from, to time.Time, orders []*order.Order) Computed {
 	count := len(orders)
-	var grandTotal float64
+	var grandTotal, refunded float64
 	for _, o := range orders {
 		grandTotal += o.GrandTotal
+		refunded += o.TotalRefunded()
 	}
 
 	var tier string
@@ -42,9 +43,13 @@ func Compute(sellerID string, from, to time.Time, orders []*order.Order) Compute
 		perOrderRate = 0.0025
 	}
 
+	// Fees are charged on NetTotal, not GrandTotal: a seller must not pay a
+	// percentage on money they handed back. The cap still applies per order, and
+	// a fully refunded order contributes a fee of 0 rather than being dropped, so
+	// OrderCount (which sets the tier) is untouched by refunds.
 	var fees float64
 	for _, o := range orders {
-		fee := perOrderRate * o.GrandTotal
+		fee := perOrderRate * o.NetTotal()
 		if perOrderCap != nil && fee > *perOrderCap {
 			fee = *perOrderCap
 		}
@@ -52,11 +57,15 @@ func Compute(sellerID string, from, to time.Time, orders []*order.Order) Compute
 	}
 
 	return Computed{
-		SellerID:        sellerID,
-		PeriodStart:     from,
-		PeriodEnd:       to,
-		OrderCount:      count,
+		SellerID:    sellerID,
+		PeriodStart: from,
+		PeriodEnd:   to,
+		OrderCount:  count,
+		// GrandTotal stays GROSS on purpose: the statement email labels this line
+		// "gross revenue", so netting it here would make that label a lie. Refunds
+		// are reported alongside it and the fee above is what actually uses net.
 		TotalGrandTotal: grandTotal,
+		TotalRefunded:   refunded,
 		Tier:            tier,
 		MonthlyFee:      monthlyFee,
 		PerOrderRate:    perOrderRate,

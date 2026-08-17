@@ -159,3 +159,35 @@ func mustNotContain(t *testing.T, body, banned string) {
 		t.Errorf("body unexpectedly contains %q\nfull body:\n%s", banned, body)
 	}
 }
+
+// Roadmap #9: the statement gained refund + net rows. Both bodies are rendered
+// here because an HTML template error is a RUNTIME failure that compiles fine and
+// would ship a broken or blank statement to a paying seller. Also pins that a
+// period with no refunds renders exactly as it did before.
+func TestMonthlyStatementRefundRows(t *testing.T) {
+	base := MonthlyStatementData{
+		CompanyName: "uSetGo", PeriodLabel: "June 2026", Tier: "Starter",
+		OrderCount: 3, TotalGrandTotal: 209.97, MonthlyFee: 0,
+		PerOrderRateStr: "6%, capped at $5/order", TransactionFees: 2.10, TotalDue: 2.10,
+	}
+
+	clean := MonthlyStatementMessage("a@b.com", base)
+	if !strings.Contains(clean.HTMLBody, "209.97") {
+		t.Errorf("HTML did not render gross revenue; template likely errored:\n%s", clean.HTMLBody)
+	}
+	if strings.Contains(clean.HTMLBody, "Refunds issued") || strings.Contains(clean.TextBody, "Refunds issued") {
+		t.Error("a period with no refunds must not show refund rows")
+	}
+
+	withRefund := base
+	withRefund.TotalRefunded = 174.98
+	r := MonthlyStatementMessage("a@b.com", withRefund)
+	for _, want := range []string{"Refunds issued", "174.98", "Net revenue", "34.99"} {
+		if !strings.Contains(r.HTMLBody, want) {
+			t.Errorf("HTML body missing %q:\n%s", want, r.HTMLBody)
+		}
+		if !strings.Contains(r.TextBody, want) {
+			t.Errorf("text body missing %q:\n%s", want, r.TextBody)
+		}
+	}
+}

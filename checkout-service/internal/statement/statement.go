@@ -24,6 +24,7 @@ type Statement struct {
 	PeriodLabel         string             `bson:"periodLabel,omitempty" json:"periodLabel,omitempty"`
 	OrderCount          int                `bson:"orderCount" json:"orderCount"`
 	TotalGrandTotal     float64            `bson:"totalGrandTotal" json:"totalGrandTotal"`
+	TotalRefunded       float64            `bson:"totalRefunded,omitempty" json:"totalRefunded,omitempty"`
 	Tier                string             `bson:"tier" json:"tier"`
 	MonthlyFee          float64            `bson:"monthlyFee" json:"monthlyFee"`
 	PerOrderRate        float64            `bson:"perOrderRate" json:"perOrderRate"`
@@ -47,6 +48,7 @@ type Computed struct {
 	PeriodEnd       time.Time `json:"periodEnd"`
 	OrderCount      int       `json:"orderCount"`
 	TotalGrandTotal float64   `json:"totalGrandTotal"`
+	TotalRefunded   float64   `json:"totalRefunded,omitempty"`
 	Tier            string    `json:"tier"`
 	MonthlyFee      float64   `json:"monthlyFee"`
 	PerOrderRate    float64   `json:"perOrderRate"`

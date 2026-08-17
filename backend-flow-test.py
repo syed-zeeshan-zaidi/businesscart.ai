@@ -2019,6 +2019,26 @@ class BackendFlowTest:
             assert_contains(resp.text, "credit limit", "Credit limit message")
             ok("Blocked: credit limit exceeded")
 
+            # Roadmap #9: refunding frees the credit back up. GetUnpaidOrdersTotal
+            # sums NET (grandTotal minus refunds), so money handed back must stop
+            # counting against the limit. Deliberately only re-quotes and never
+            # places a second order, so the monthly-order-limit test that follows
+            # still sees exactly one order.
+            if order_id:
+                self.use_token("admin")
+                refund = self.api.put(f"/checkout/orders/{order_id}", {
+                    "stripeRefundID": "re_test_credit_release",
+                    "refundAmount": round(quote_data.get("grandTotal", 0), 2),
+                    "refundReason": "credit-limit release check",
+                })
+                assert_status(refund, 200, "Full refund on the credit-test order")
+
+                self._clear_cart("customer", c1_id)
+                self._add_to_cart("customer", c1_id, product_a, 2)
+                resp = self._create_quote("customer", c1_id, "standard")
+                assert_status(resp, 200, "Quote allowed once the refund clears the balance")
+                ok("Refund released the outstanding balance; quoting allowed again")
+
         self.run_test("6e. Credit limit enforcement", test_credit_limit)
 
         # 6f. Monthly order limit — already placed 1 order in credit test

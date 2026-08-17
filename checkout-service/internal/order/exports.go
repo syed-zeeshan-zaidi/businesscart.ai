@@ -11,7 +11,11 @@ import (
 // cancelled — so the export reflects the full ledger.
 func FormatGenericCSV(orders []*Order) string {
 	var b strings.Builder
-	b.WriteString("Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid\n")
+	// Grand Total stays GROSS and Refunded/Net Total are reported next to it: an
+	// accounting export must show what was charged, what was returned, and what
+	// was kept, not silently hand back a netted figure that reconciles against
+	// nothing on the payment processor side.
+	b.WriteString("Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Refunded,Net Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid\n")
 	for _, o := range orders {
 		b.WriteString(csvField(o.ID.Hex()))
 		b.WriteString(",")
@@ -36,6 +40,10 @@ func FormatGenericCSV(orders []*Order) string {
 		b.WriteString(csvField(o.PromoCode))
 		b.WriteString(",")
 		b.WriteString(formatAmount(o.GrandTotal))
+		b.WriteString(",")
+		b.WriteString(formatAmount(o.TotalRefunded()))
+		b.WriteString(",")
+		b.WriteString(formatAmount(o.NetTotal()))
 		b.WriteString(",")
 		b.WriteString(itoa(int64(len(o.Items))))
 		b.WriteString(",")
@@ -88,7 +96,9 @@ func FormatGoogleCSV(orders []*Order, conversionName string) string {
 		b.WriteString(",")
 		b.WriteString(csvField(o.ID.Hex()))
 		b.WriteString(",")
-		b.WriteString(formatAmount(o.GrandTotal))
+		// NET, not gross: a refunded order uploaded at its pre-refund value inflates
+		// reported ROAS and trains bidding on revenue that was handed back.
+		b.WriteString(formatAmount(o.NetTotal()))
 		b.WriteString(",USD\n")
 	}
 	return b.String()
@@ -129,7 +139,8 @@ func FormatBingCSV(orders []*Order, conversionName string) string {
 		b.WriteString(",")
 		b.WriteString(o.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"))
 		b.WriteString(",")
-		b.WriteString(formatAmount(o.GrandTotal))
+		// NET, not gross: same ROAS-inflation reason as the Google export above.
+		b.WriteString(formatAmount(o.NetTotal()))
 		b.WriteString(",")
 		b.WriteString(csvField(msclkid))
 		b.WriteString("\n")
