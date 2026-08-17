@@ -39,8 +39,6 @@ interface NavSection {
   items: NavItem[];
 }
 
-const APP_VERSION = '1.0.0';
-
 const Sidebar = () => {
   const { decodeJWT } = useAuth();
   const token = localStorage.getItem('accessToken');
@@ -140,7 +138,11 @@ const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-4 mt-2">
+      {/* min-h-0 is load-bearing: a flex child defaults to min-height:auto, so without
+          it flex-1 grows past the h-screen container instead of scrolling, and the
+          mt-auto footer below gets pushed outside the sidebar. nav-scroll keeps that
+          scrolling but paints no scrollbar. */}
+      <nav className="nav-scroll flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-4 mt-2">
         {sections.map((section) => (
           <div key={section.label || 'main'}>
             {section.label && (
@@ -180,12 +182,14 @@ const Sidebar = () => {
             </div>
           </div>
         ))}
-      </nav>
-
-      {/* User + Version */}
-      <div className="p-4 border-t border-gray-700/50 mt-auto">
+        {/* The signed-in account, sitting INSIDE the nav as its closing row rather
+            than pinned to the bottom. nav is flex-1, so anything after it gets pushed
+            to the foot of the column with a gap that reads as a separate panel; here
+            it follows the last link on the same px-3 rhythm and belongs to the list.
+            No divider and no bottom padding of its own: the section spacing above it
+            is the only separation it needs. */}
         {user && (
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-teal-700/30 flex items-center justify-center text-teal-400 text-sm font-bold shrink-0">
               {(user.name || user.email || '?')[0].toUpperCase()}
             </div>
@@ -202,8 +206,7 @@ const Sidebar = () => {
             </div>
           </div>
         )}
-        <p className="text-[10px] text-gray-600">App v{APP_VERSION}</p>
-      </div>
+      </nav>
     </div>
   );
 
@@ -232,7 +235,9 @@ const Sidebar = () => {
             leaveFrom="translate-x-0"
             leaveTo="-translate-x-full"
           >
-            <Dialog.Panel className="fixed inset-y-0 left-0 w-64 bg-gray-800 shadow-xl overflow-y-auto">
+            {/* overflow-hidden, not auto: the nav inside is the single scroll area, so
+                the panel must not add a second nested one with its own scrollbar. */}
+            <Dialog.Panel className="fixed inset-y-0 left-0 w-64 bg-gray-800 shadow-xl overflow-hidden">
               <div className="absolute top-4 right-4 z-10">
                 <button onClick={() => setMobileOpen(false)} className="text-gray-400 hover:text-white">
                   <XMarkIcon className="h-6 w-6" />

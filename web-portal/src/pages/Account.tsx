@@ -11,6 +11,8 @@ import ApprovalPolicyForm from '../components/ApprovalPolicyForm';
 import OrgPeopleForm from '../components/OrgPeopleForm';
 import { PageHeader, CARD, BTN_PRIMARY, BTN_SECONDARY } from '../components/ui';
 
+const APP_VERSION = '1.0.0';
+
 const LOCAL_KEY = 'account'; // <-- single key for localStorage
 
 const Account: React.FC = () => {
@@ -203,6 +205,9 @@ const Account: React.FC = () => {
             }}
           />
         )}
+        {/* Build version. Lives here rather than in the sidebar, where it competed
+            for vertical space with the nav and forced the column to scroll. */}
+        <p className="mt-8 text-center text-[11px] text-gray-400">App v{APP_VERSION}</p>
       </main>
       <AssociationModal
         isOpen={isAssociationModalOpen}

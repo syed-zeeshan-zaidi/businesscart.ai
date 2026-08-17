@@ -28,6 +28,22 @@
   }
 }
 
+/* Sidebar nav scroller.
+   The nav list currently fits, so no scrollbar should be visible: on a single flat
+   dark surface it cuts a light groove and reads as OS chrome bolted onto the UI.
+   Scrolling itself stays ENABLED, because that is what stops an overflowing list
+   from pushing the footer outside the sidebar — it is just never painted.
+   When the nav grows enough to need a visible affordance, give the thumb a colour
+   here (rgba(255,255,255,.16) suits the surface) rather than removing this. */
+.nav-scroll {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* legacy Edge */
+}
+.nav-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Blog content typography */
 .blog-content h2 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 2rem 0 0.75rem; }
 .blog-content h3 { font-size: 1.25rem; font-weight: 600; color: #1f2937; margin: 1.5rem 0 0.5rem; }
