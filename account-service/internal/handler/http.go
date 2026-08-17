@@ -2766,6 +2766,12 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 			sinceTime = time.Now().AddDate(0, 0, -7)
 		case "30d":
 			sinceTime = time.Now().AddDate(0, 0, -30)
+		case "mtd":
+			// Calendar month to date. Must stay in step with the identical switch in
+			// storage.GetVisitorStats, or the visitor list and the stat cards above it
+			// would silently cover different periods.
+			n := time.Now()
+			sinceTime = time.Date(n.Year(), n.Month(), 1, 0, 0, 0, 0, n.Location())
 		}
 		if !sinceTime.IsZero() {
 			filter["lastVisit"] = bson.M{"$gte": sinceTime}
@@ -2808,6 +2814,17 @@ func (h *LambdaHandler) getVisitors(request events.APIGatewayProxyRequest, selle
 	if v := q["contactedUs"]; v == "true" {
 		filter["pages"] = "/contact-us"
 		filter["attribution.landingPage"] = bson.M{"$ne": "/contact-us"}
+	}
+	// Filter by milestone event. "any" means "did something at all", which drops the
+	// one-page passers-by and crawlers that make up most of the collection; any other
+	// value matches that single event name. Skipped when addedToCart above already
+	// claimed milestones.event, so the two can never overwrite each other.
+	if v := q["event"]; v != "" && filter["milestones.event"] == nil {
+		if v == "any" {
+			filter["milestones.0"] = bson.M{"$exists": true}
+		} else {
+			filter["milestones.event"] = v
+		}
 	}
 	// Search by visitorId
 	if v := q["visitorId"]; v != "" {

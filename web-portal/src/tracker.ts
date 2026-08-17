@@ -31,6 +31,16 @@ function getVisitorId(): string {
   return id;
 }
 
+// Read-only counterpart to getVisitorId: returns '' instead of minting an id.
+// Used by trackRegister so that recording a conversion can only ever UPDATE a
+// visitor that already exists, never create one. A signup from an untracked
+// session (localStorage cleared, or landed straight on /register) carries no
+// attribution worth storing, and inventing a visitor for it would add a
+// synthetic direct/-landing row to every channel report.
+function peekVisitorId(): string {
+  return safeLocalGet(VISITOR_KEY) || '';
+}
+
 // Read paid-ad click IDs (gclid, msclkid, fbclid, etc.) from URL, cache in
 // localStorage so they survive SPA navigation. Returns cached if no fresh.
 function clickIds(): Record<string, string> {
@@ -192,6 +202,50 @@ export async function trackContactRequest(fields: {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// Records the portal signup conversion. The backend's "register" case writes the
+// milestone and flips the visitor to registered:true with registeredAt and
+// daysToRegister, which is what turns a tracked lead into a tracked conversion.
+// Until this existed nothing in the portal ever called it, so every portal signup
+// stayed filed as an unconverted lead while the D2C storefront tracker (which has
+// always had its own trackRegister) recorded them correctly.
+//
+// The account id travels in metadata, NOT in the top-level customerId field. The
+// handler drops the whole event when a top-level customerId resolves to an
+// admin/company/partner account, and a portal signup is a company account by
+// definition, so sending it there would silently discard the very event being
+// recorded. Metadata is stored verbatim on the milestone, so the visitor -> account
+// join survives either way.
+//
+// Deliberately does NOT reuse trackPageView's guards: /register is not in
+// PUBLIC_PAGES, and isInternalUser() suppresses exactly the signed-in roles a
+// portal signup produces, so both would drop the only event proving the funnel
+// converted. Fire-and-forget with keepalive so a slow network can never delay,
+// block, or fail the redirect into the app.
+export function trackRegister(accountId: string, role: string) {
+  try {
+    if (!API_URL) return;
+    const visitorId = peekVisitorId();
+    if (!visitorId) return;
+
+    fetch(`${API_URL}/visitors/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId,
+        event: 'register',
+        page: '/register',
+        clickIds: clickIds(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        language: navigator.language || '',
+        metadata: { accountId: accountId || '', role: role || '' },
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Never crash the app
   }
 }
 

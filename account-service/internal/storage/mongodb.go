@@ -526,6 +526,12 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 			sinceTime = time.Now().AddDate(0, 0, -7)
 		case "30d":
 			sinceTime = time.Now().AddDate(0, 0, -30)
+		case "mtd":
+			// Calendar month to date: midnight on the 1st, not a rolling window.
+			// This is the range that lines up with a billing period, which is why
+			// it is the Analytics default.
+			n := time.Now()
+			sinceTime = time.Date(n.Year(), n.Month(), 1, 0, 0, 0, 0, n.Location())
 		}
 		if !sinceTime.IsZero() {
 			base["lastVisit"] = bson.M{"$gte": sinceTime}

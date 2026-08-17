@@ -4370,6 +4370,109 @@ class BackendFlowTest:
 
         self.run_test("Contact request honeypot dropped", test_contact_request_honeypot)
 
+        # Test 9: the portal signup conversion. The portal sends the account id in
+        # metadata rather than as a top-level customerId, because a top-level
+        # customerId belonging to a company account trips the internal-user gate and
+        # the whole event is dropped (see tests 2 and 3 above, which assert that gate
+        # still works for page_view). This asserts the conversion actually lands:
+        # milestone stored, and the visitor flipped to registered with daysToRegister.
+        def test_register_conversion():
+            rvid = "v___test__register_" + str(int(time.time()))
+            # A prior page_view so the visitor exists and firstVisit is set; the
+            # conversion is an UPDATE to a known visitor, never a fresh insert.
+            resp = self.api.post("/visitors/event", {
+                "visitorId": rvid,
+                "event": "page_view",
+                "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "register-conversion seed page_view accepted")
+
+            company_id = self.ids.get("company1", "")
+            resp = self.api.post("/visitors/event", {
+                "visitorId": rvid,
+                "event": "register",
+                "page": "/register",
+                "metadata": {"accountId": company_id, "role": "company"},
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "register event accepted")
+            assert resp.json().get("status") != "skipped", "register event was skipped, not recorded"
+
+            self.use_token("admin")
+            visitors = self.api.get(f"/visitors?visitorId={rvid}").json().get("visitors", [])
+            assert len(visitors) == 1, f"expected 1 visitor, got {len(visitors)}"
+            v = visitors[0]
+            regs = [m for m in (v.get("milestones") or []) if m.get("event") == "register"]
+            assert len(regs) == 1, f"expected 1 register milestone, got {len(regs)}"
+            assert regs[0].get("metadata", {}).get("accountId") == company_id, \
+                f"accountId: {regs[0].get('metadata', {}).get('accountId')}"
+            assert v.get("registered") is True, f"registered flag not set: {v.get('registered')}"
+            assert v.get("registeredAt"), "registeredAt not set"
+            assert v.get("daysToRegister") is not None, "daysToRegister not set"
+            ok("Portal signup conversion recorded (milestone + registered flag)")
+
+        self.run_test("Register conversion recorded", test_register_conversion)
+
+        # Test 10: the "mtd" (this-month) range, added alongside the Analytics default.
+        # A visitor touched right now always falls inside the current calendar month,
+        # so it must come back under since=mtd on BOTH endpoints. The two endpoints
+        # parse "since" in separate switches, so both are asserted: if one drifts, the
+        # stat cards and the visitor list below them cover different periods.
+        def test_mtd_range():
+            mvid = "v___test__mtd_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": mvid,
+                "event": "page_view",
+                "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "mtd seed page_view accepted")
+
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={mvid}&since=mtd")
+            assert_status(resp, 200, "visitors list accepts since=mtd")
+            found = resp.json().get("visitors") or []
+            assert len(found) == 1, f"since=mtd should include a visitor seen today, got {len(found)}"
+
+            resp = self.api.get("/visitors/stats?since=mtd")
+            assert_status(resp, 200, "visitor stats accepts since=mtd")
+            assert resp.json().get("totalVisitors") is not None, "stats since=mtd returned no totalVisitors"
+            ok("since=mtd honoured by both visitors list and stats")
+
+        self.run_test("This-month (mtd) range", test_mtd_range)
+
+        # Test 11: the event filter behind the Visitors table "Status" dropdown.
+        # event=any means "has at least one milestone", which is the table default;
+        # event=<name> matches that single milestone. A page_view alone writes no
+        # milestone, so a plain visitor must be excluded by both.
+        def test_event_filter():
+            evid = "v___test__event_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": evid, "event": "page_view", "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "event-filter seed page_view accepted")
+
+            self.use_token("admin")
+            # No milestone yet: excluded from event=any.
+            found = self.api.get(f"/visitors?visitorId={evid}&event=any").json().get("visitors") or []
+            assert len(found) == 0, f"page_view-only visitor must not match event=any, got {len(found)}"
+
+            # Give it a milestone, then it must appear under both any and its own name.
+            resp = self.api.post("/visitors/event", {
+                "visitorId": evid, "event": "add_to_cart", "page": "/p",
+                "metadata": {"productId": "evt-test", "price": 1},
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "add_to_cart accepted")
+
+            self.use_token("admin")
+            found = self.api.get(f"/visitors?visitorId={evid}&event=any").json().get("visitors") or []
+            assert len(found) == 1, f"visitor with a milestone must match event=any, got {len(found)}"
+            found = self.api.get(f"/visitors?visitorId={evid}&event=add_to_cart").json().get("visitors") or []
+            assert len(found) == 1, f"event=add_to_cart should match, got {len(found)}"
+            found = self.api.get(f"/visitors?visitorId={evid}&event=order").json().get("visitors") or []
+            assert len(found) == 0, f"event=order must not match a cart-only visitor, got {len(found)}"
+            ok("event filter honoured (any + single event + non-match)")
+
+        self.run_test("Visitor event filter", test_event_filter)
+
         # Cleanup: delete test visitor
         def test_cleanup_visitor():
             # Direct DB cleanup not possible via API — visitor will be orphaned but harmless

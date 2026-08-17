@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { register } from '../api';
+import { trackRegister } from '../tracker';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
@@ -41,7 +42,12 @@ const Register = () => {
     if (newErrors.length > 0) return;
 
     try {
-      const { accessToken } = await register({
+      // The non-guest /accounts/register response IS the account object; it carries
+      // no accessToken, because the handler only mints one for the guest-b2c path.
+      // api.ts declares otherwise, which is a separate defect recorded as #43-J in
+      // APPLICATION.md. This local cast reads the id that IS present and leaves
+      // the token line behaving exactly as before.
+      const res = await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -49,8 +55,11 @@ const Register = () => {
         code: formData.code,
         customerCodes: formData.customerCodes.split(',').map(c => c.trim()).filter(Boolean),
         phoneNumber: formData.phoneNumber,
-      });
-      localStorage.setItem('accessToken', accessToken);
+      }) as unknown as { _id?: string; accessToken?: string };
+      // Fire-and-forget, before the redirect: this is the portal's only signup
+      // conversion signal. It can never throw, block, or fail the registration.
+      trackRegister(res?._id || '', formData.role);
+      localStorage.setItem('accessToken', res?.accessToken as string);
       setErrors([]);
       navigate('/dashboard');
     } catch (err: any) {
