@@ -67,8 +67,16 @@ export function computeTier(orders: Order[], now: Date = new Date()): TierInfo {
     nextTierName = null;
   }
 
+  // Fees are charged on NET revenue, mirroring Order.NetTotal and the fee loop in
+  // checkout-service/internal/statement/compute.go. Both must stay in step or the
+  // dashboard's estimated bill contradicts the statement the seller is actually
+  // sent: a $209.97 order refunded $174.98 estimates $5.00 here (6% of gross, hit
+  // the cap) against $2.10 billed (6% of net). Clamped at 0 like NetTotal so an
+  // over-refund cannot produce a negative fee.
   const perOrderFees = monthOrders.reduce((s, o) => {
-    const fee = perOrderRate * (o.grandTotal || 0);
+    const refunded = (o.refunds || []).reduce((r, x) => r + (x.amount || 0), 0);
+    const net = Math.max(0, (o.grandTotal || 0) - refunded);
+    const fee = perOrderRate * net;
     return s + (perOrderCap !== null ? Math.min(fee, perOrderCap) : fee);
   }, 0);
 

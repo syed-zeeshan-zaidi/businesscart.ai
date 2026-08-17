@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, SIGNUP_NOTICE_KEY } from '../api';
 import { Toaster, toast } from 'react-hot-toast';
@@ -13,13 +13,21 @@ const Login: React.FC = () => {
   // Without showing it, that user arrives here with no idea whether they have an
   // account, and retrying the signup form would 409 on their own email. Read once
   // on mount and cleared immediately so it cannot reappear on a later visit.
-  const [notice] = useState<string | null>(() => {
+  //
+  // Read in an effect rather than a useState initializer: clearing the key is a
+  // side effect, and StrictMode double-invokes the initializer in dev, so the
+  // first call consumed the notice and the second returned null. The message then
+  // never appeared locally even though production builds showed it.
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
     try {
       const n = sessionStorage.getItem(SIGNUP_NOTICE_KEY);
-      if (n) sessionStorage.removeItem(SIGNUP_NOTICE_KEY);
-      return n;
-    } catch { return null; }
-  });
+      if (n) {
+        setNotice(n);
+        sessionStorage.removeItem(SIGNUP_NOTICE_KEY);
+      }
+    } catch { /* private mode */ }
+  }, []);
   const { decodeJWT } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState<string[]>([]);

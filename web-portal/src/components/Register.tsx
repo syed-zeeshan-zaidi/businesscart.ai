@@ -79,7 +79,11 @@ const Register = () => {
       const { accessToken } = await login({ email: formData.email, password: formData.password });
       localStorage.setItem('accessToken', accessToken);
       setErrors([]);
-      navigate('/dashboard');
+      // Same role split as Login and App.getRedirectPath. A customer sent to
+      // /dashboard hits the role guard there and renders zeroed stats; this only
+      // looked harmless while registration handed out a broken token and bounced
+      // everyone to /login anyway.
+      navigate(formData.role === 'customer' ? '/home' : '/dashboard');
     } catch {
       // Account created, session not. Never surface a registration error here.
       //
