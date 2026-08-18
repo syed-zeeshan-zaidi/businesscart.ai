@@ -193,7 +193,7 @@ const SolutionsMarketplaceEscape: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Algorithm dependency</h3>
                 </div>
                 <p className="text-gray-600">
-                  An Etsy ranking change, an Amazon policy update, a DoorDash featured-restaurant rotation. Any of them can cut your sales in half overnight. You\'re not building a business; you\'re renting one.
+                  An Etsy ranking change, an Amazon policy update, a DoorDash featured-restaurant rotation. Any of them can cut your sales in half overnight. You're not building a business; you're renting one.
                 </p>
               </div>
               <div className="bg-white rounded-lg p-6 shadow-sm">
