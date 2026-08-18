@@ -669,3 +669,62 @@ func TestApprovalRejected_IsBuyerSideOnly(t *testing.T) {
 		t.Fatal("a pre-#21d rejection stopped being recognised")
 	}
 }
+
+// The invariant the re-approval guard in handler.handlePatchQuoteRequest depends
+// on. A rejection leaves approvalStage exactly where it was, so CurrentStep keeps
+// returning a step that has ALREADY been decided. A guard that only asks whether
+// CurrentStep is non-nil therefore reads a settled rejection as "still awaiting a
+// decision" and refuses re-approval forever, with force-release unable to help
+// because that path requires status pending_approval. Callers must test the step's
+// Status, not its existence.
+func TestQuote_RejectedStepStaysCurrentAndIsNotPending(t *testing.T) {
+	q := &Quote{
+		ApprovalRequired: true,
+		ApprovalStage:    0,
+		ApprovalChain: []ApprovalStep{
+			{Name: "Sales manager", Side: ApprovalSideSeller, Status: ApprovalStepPending},
+		},
+	}
+
+	stage, status := q.NextApprovalState(false)
+	if stage != 0 {
+		t.Errorf("rejection moved the stage to %d; it must stay put so the decision is attributable", stage)
+	}
+	if status != "rejected" {
+		t.Errorf("quote status after rejection = %q, want \"rejected\"", status)
+	}
+
+	// Apply the decision the way RecordApprovalDecision does.
+	q.ApprovalChain[stage].Status = ApprovalStepRejected
+	q.ApprovalStage = stage
+
+	step := q.CurrentStep()
+	if step == nil {
+		t.Fatal("CurrentStep is nil after a rejection; the guard's non-nil test would pass and this test would be pointless")
+	}
+	if step.Status == ApprovalStepPending {
+		t.Error("a rejected step must not still read as pending")
+	}
+	if step.Status != ApprovalStepRejected {
+		t.Errorf("CurrentStep status = %q, want %q", step.Status, ApprovalStepRejected)
+	}
+}
+
+// A full approval walks the stage past the end of the chain, so CurrentStep goes
+// nil and the guard cannot fire. Pinned because it is the other half of the same
+// condition: pending blocks, decided does not.
+func TestQuote_FullApprovalLeavesNoCurrentStep(t *testing.T) {
+	q := &Quote{
+		ApprovalRequired: true,
+		ApprovalStage:    0,
+		ApprovalChain:    []ApprovalStep{{Name: "Only", Status: ApprovalStepPending}},
+	}
+	stage, status := q.NextApprovalState(true)
+	if status != "approved" {
+		t.Errorf("status = %q, want approved", status)
+	}
+	q.ApprovalStage = stage
+	if q.CurrentStep() != nil {
+		t.Error("a fully approved chain must expose no current step")
+	}
+}

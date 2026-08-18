@@ -190,7 +190,7 @@ def step_tenant_isolation():
 
     hdrs = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
-    def owned_suffixes(endpoint, label):
+    def owned_suffixes(endpoint, label, required=True):
         try:
             r = requests.get(f"{API_URL}{endpoint}", headers=hdrs, timeout=30)
         except Exception as e:
@@ -205,7 +205,16 @@ def step_tenant_isolation():
         mine = {str(x["_id"])[-6:] for x in rows
                 if x.get("sellerID") == USETGO_COMPANY_ID and x.get("_id")}
         if not mine:
-            fail(f"tenant isolation: admin catalog returned no {label} for this company")
+            # Having none of an OPTIONAL collection is a legitimate state, not a
+            # defect: a company with no blog posts simply has no blog pages to
+            # attribute. The caller already tolerates the None return, but fail()
+            # had still incremented the failure count, so the whole run went red
+            # and the pre-push gate refused the push. Products stay required, since
+            # a storefront generated with no products really is broken.
+            if required:
+                fail(f"tenant isolation: admin catalog returned no {label} for this company")
+            else:
+                ok(f"tenant isolation: no {label} for this company; nothing to attribute")
             return None
         return mine, len(rows)
 
@@ -230,7 +239,7 @@ def step_tenant_isolation():
         return
     mine_products, total_products = res
 
-    res = owned_suffixes("/blog", "blog posts")
+    res = owned_suffixes("/blog", "blog posts", required=False)
     mine_posts, total_posts = res if res else (set(), 0)
 
     n_pdp = check(f"{STOREFRONT_DIR}/products/*.html", mine_products, "product",

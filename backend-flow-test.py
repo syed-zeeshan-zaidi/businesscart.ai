@@ -2296,6 +2296,26 @@ class BackendFlowTest:
                 raise AssertionError(f"an unknown invite code was accepted (got {resp.status_code})")
             ok("Unknown invite code rejected with 400")
 
+            # An invite code must not reach the guest-checkout path. isGuest is
+            # decided before the invite branch rewrites the role, so role "b2c" with
+            # no password plus a real company code used to skip password validation
+            # and get sealed with a random password, then be stored as a COMPANY
+            # colleague nobody could ever log into.
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Passwordless Colleague",
+                "email": f"{PREFIX}pwless-colleague@test.com",
+                "role": "b2c",
+                "orgInviteCode": self._company_invite,
+            })
+            if resp.status_code != 400:
+                self._org_extra_emails.append(f"{PREFIX}pwless-colleague@test.com")
+                raise AssertionError(
+                    f"a passwordless b2c register with a company invite code was accepted "
+                    f"(got {resp.status_code}); that creates an account with a random "
+                    f"password that nobody can log into"
+                )
+            ok("Passwordless register with an invite code rejected with 400")
+
         self.run_test("9b-5. An invite code cannot escalate a role", test_invite_cannot_escalate)
 
         # Removal ends access without erasing the person behind the history.
@@ -2457,6 +2477,54 @@ class BackendFlowTest:
             ok("Owner sees cost, staff sees zero, on both the single read and the list")
 
         self.run_test("9b-11. Staff cannot see product cost or margin", test_staff_cannot_see_product_cost)
+
+        def test_staff_edit_cannot_wipe_cost():
+            """Redaction must not become deletion.
+
+            Staff read cost as 0. If the edit form echoes that back, an ordinary
+            "change the description and save" overwrites the merchant's real cost
+            with 0 — permanent, silent, and it corrupts the owner's margin figures
+            too. The server drops the key so the stored value survives, while every
+            other field the staff member edited still saves.
+            """
+            self.use_token("company1")
+            products = self.api.get("/products").json() or []
+            target, real_cost = None, 0
+            for p in products:
+                if (p.get("cost") or 0) > 0:
+                    target, real_cost = p["_id"], p["cost"]
+                    break
+            if not target:
+                target = products[0]["_id"]
+                real_cost = 7.75
+                assert_status(self.api.put(f"/products/{target}", {"cost": real_cost}),
+                              200, "Owner sets a cost for the wipe test")
+
+            self.re_login("staff")
+            self.use_token("staff")
+            staff_view = self.api.get(f"/products/{target}").json()
+            new_desc = f"{PREFIX} staff edited this description"
+            resp = self.api.put(f"/products/{target}", {
+                "description": new_desc,
+                "cost": staff_view.get("cost", 0),  # exactly what the form round-trips
+            })
+            assert_status(resp, 200, "Staff edit accepted")
+
+            self.use_token("company1")
+            after = self.api.get(f"/products/{target}").json()
+            if abs((after.get("cost") or 0) - real_cost) > 0.001:
+                raise AssertionError(
+                    f"staff edit destroyed the cost: was {real_cost}, now {after.get('cost')!r}. "
+                    f"A caller who cannot read cost must not be able to write it."
+                )
+            if after.get("description") != new_desc:
+                raise AssertionError(
+                    f"the cost guard blocked an unrelated field: description is "
+                    f"{after.get('description')!r}, expected {new_desc!r}"
+                )
+            ok(f"Staff edit saved the description and left cost at {real_cost}")
+
+        self.run_test("9b-12. A staff edit cannot wipe the product cost", test_staff_edit_cannot_wipe_cost)
 
         def test_only_owner_touches_payment_credentials():
             self.re_login("staff")

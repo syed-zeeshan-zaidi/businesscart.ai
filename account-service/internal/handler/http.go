@@ -434,7 +434,15 @@ func (h *LambdaHandler) register(request events.APIGatewayProxyRequest) (events.
 	// validation and seal it with a crypto-random password (never returned) so it
 	// can only be claimed later via the existing password-reset flow. All other
 	// registrations are unchanged.
-	isGuest := req.Role == storage.RoleB2C && strings.TrimSpace(req.Password) == ""
+	// An invite code disqualifies the guest path. isGuest is decided here, but the
+	// org-invite branch further down overwrites acc.Role with the root's role, so a
+	// request carrying role "b2c", no password and a company invite code used to
+	// skip password validation, get sealed with a random password, and then be
+	// stored as a COMPANY colleague nobody could ever log into. Requiring the code
+	// to be absent keeps guest checkout exactly as it was (the storefront never
+	// sends one) while forcing an invited colleague down the normal validation path.
+	isGuest := req.Role == storage.RoleB2C && strings.TrimSpace(req.Password) == "" &&
+		strings.TrimSpace(req.OrgInviteCode) == ""
 	if !isGuest {
 		if err := validatePassword(req.Password); err != nil {
 			return h.errorResponse(http.StatusBadRequest, err.Error()), nil

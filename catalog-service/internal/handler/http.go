@@ -66,6 +66,26 @@ func hidesCost(role, orgRole string) bool {
 	return role == "company" && orgRole == "user"
 }
 
+// stripUnwritableFields drops keys the caller may not write from a product-update
+// body, leaving the stored values untouched.
+//
+// sellerID and partnerId are stamped at create and immutable.
+//
+// cost is removed for anyone hidesCost hides it from, because a caller who cannot
+// READ a field must not be able to WRITE it. Without this the redaction destroyed
+// the very field it protects: getProducts blanks cost to 0 for staff, the edit form
+// loads that 0 as though it were the real figure, and saving any unrelated change
+// writes the 0 back over the merchant's actual cost. Margin figures then go wrong
+// for the owner too, with nothing in the record showing what the cost had been.
+// Staff keep their existing ability to edit every other field.
+func stripUnwritableFields(updates bson.M, role, orgRole string) {
+	delete(updates, "sellerID")
+	delete(updates, "partnerId")
+	if hidesCost(role, orgRole) {
+		delete(updates, "cost")
+	}
+}
+
 func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	h.requestOrigin = request.Headers["origin"]
 	if h.requestOrigin == "" {
@@ -499,9 +519,8 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	// Prevent updating SellerID or PartnerID; they are stamped at create and immutable
-	delete(updates, "sellerID")
-	delete(updates, "partnerId")
+	claimOrgRole, _ := userClaim["org_role"].(string)
+	stripUnwritableFields(updates, claimRole, claimOrgRole)
 
 	// Sanitize text fields that affect URLs and display
 	if name, ok := updates["name"].(string); ok {

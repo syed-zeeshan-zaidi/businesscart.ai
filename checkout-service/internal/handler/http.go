@@ -599,8 +599,18 @@ func (h *LambdaHandler) handlePatchQuoteRequest(request events.APIGatewayProxyRe
 		// Withdrawing or rejecting a held order stays allowed: stock runs out and
 		// prices turn out wrong, and blocking every transition left a seller with
 		// no way to cancel at all, since force-release only ever approves.
-		if statusData.Status == "approved" && !gated &&
-			existing.ApprovalRequired && existing.CurrentStep() != nil {
+		//
+		// The step must still be PENDING. On a rejection NextApprovalState leaves
+		// approvalStage where it is, so CurrentStep keeps returning the step that
+		// was just rejected: testing only for non-nil treated a decided step as an
+		// undecided one and refused forever. A seller who rejected their own
+		// internal sign-off, then re-priced the quote below the threshold so it no
+		// longer gates, could never approve it again, and force-release could not
+		// rescue it either since that path requires status pending_approval. A
+		// rejected step is a DECISION, and re-approving after one is a fresh call
+		// that either re-gates on the new price or does not need a chain at all.
+		if step := existing.CurrentStep(); statusData.Status == "approved" && !gated &&
+			existing.ApprovalRequired && step != nil && step.Status == quote.ApprovalStepPending {
 			return h.errorResponse(http.StatusConflict,
 				"This order still has an approval level awaiting a decision. Use the release action to override it deliberately."), nil
 		}
@@ -1935,6 +1945,18 @@ func (h *LambdaHandler) notifyApprovalOutcome(q *quote.Quote) {
 	if q.Status == quote.StatusPendingApproval {
 		h.notifyCurrentApprovers(q)
 		return
+	}
+	// A rejection on the SELLER's own chain is internal and stops here. The quote
+	// never reached the buyer, so telling them it was "rejected" announces an offer
+	// they were never shown and leaks an internal pricing decision ("margin too
+	// thin") to the customer it was about. On a rejection approvalStage is left
+	// pointing at the step that was just decided, so CurrentStep identifies whose
+	// chain it was. Approvals are unaffected: those advance the quote to the buyer,
+	// which is exactly when the buyer should hear about it.
+	if q.Status == "rejected" {
+		if step := q.CurrentStep(); step != nil && step.SideOf() == quote.ApprovalSideSeller {
+			return
+		}
 	}
 	// Goes to the BUYER waiting on the outcome, not h.requestUserEmail — that is
 	// the approver who just decided, and mailing them about their own click tells

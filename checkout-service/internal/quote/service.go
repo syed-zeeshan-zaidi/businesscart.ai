@@ -494,8 +494,15 @@ func (s *Service) ApproveIntoApproval(quoteID primitive.ObjectID, expectedStatus
 				"approvalValidityHours": current.ApprovalValidityHours,
 				"items":                 current.Items,
 				"subtotal":              current.Subtotal,
-				"taxAmount":             current.TaxAmount,
-				"grandTotal":            current.GrandTotal,
+				// taxRate travels with taxAmount. applyApprovedPricing can zero the
+				// rate for a legacy tax-exempt quote, and omitting it here left the
+				// document self-contradictory (rate 8.25 beside amount 0), which then
+				// flowed into the order snapshot and the buyer's copy. The non-gated
+				// path writes the whole document and always persisted it, so the two
+				// approval routes were leaving the same quote in different states.
+				"taxRate":    current.TaxRate,
+				"taxAmount":  current.TaxAmount,
+				"grandTotal": current.GrandTotal,
 			},
 			// BOTH entries. Collapsing the two writes into one must not collapse
 			// the audit trail with them: the seller genuinely did approve, and

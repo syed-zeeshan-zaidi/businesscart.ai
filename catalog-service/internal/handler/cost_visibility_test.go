@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"business-cart/catalog-service/internal/storage"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Cost is confidential twice over: from buyers (Roadmap #40) and from staff
@@ -94,5 +96,58 @@ func TestProductAccess_InactiveOnlyBlocksCustomers(t *testing.T) {
 	}
 	if !productAccess("customer", "cu1", "cu1", []string{"co1"}, p).asCustomer {
 		t.Fatal("a customer must be flagged so the inactive check applies")
+	}
+}
+
+// A caller who cannot READ cost must not be able to WRITE it. getProducts redacts
+// cost to 0 for staff, so echoing the edit form straight back would overwrite the
+// merchant's real cost with that 0 — silent, permanent data loss triggered by an
+// ordinary "edit the description and save".
+func TestStripUnwritableFields_CostByRole(t *testing.T) {
+	cases := []struct {
+		name        string
+		role        string
+		orgRole     string
+		wantCostKey bool
+	}{
+		{"org owner keeps cost", "company", "owner", true},
+		{"company with no org role keeps cost", "company", "", true},
+		{"admin keeps cost", "admin", "", true},
+		{"partner keeps cost", "partner", "", true},
+		{"staff cannot write cost", "company", "user", false},
+		{"customer cannot write cost", "customer", "", false},
+		{"b2c cannot write cost", "b2c", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			updates := bson.M{"name": "Widget", "cost": 0.0, "price": 25.0}
+			stripUnwritableFields(updates, tc.role, tc.orgRole)
+
+			_, hasCost := updates["cost"]
+			if hasCost != tc.wantCostKey {
+				t.Errorf("cost key present = %v, want %v", hasCost, tc.wantCostKey)
+			}
+			// Everything else must still be writable: the guard protects one field,
+			// it does not make staff read-only.
+			if updates["name"] != "Widget" || updates["price"] != 25.0 {
+				t.Errorf("unrelated fields were altered: %v", updates)
+			}
+		})
+	}
+}
+
+// sellerID and partnerId are stamped at create and must never be reassignable,
+// regardless of who is calling.
+func TestStripUnwritableFields_ImmutableOwnership(t *testing.T) {
+	updates := bson.M{"sellerID": "other-seller", "partnerId": "other-partner", "name": "Widget"}
+	stripUnwritableFields(updates, "admin", "")
+	if _, ok := updates["sellerID"]; ok {
+		t.Error("sellerID must be stripped even for admin")
+	}
+	if _, ok := updates["partnerId"]; ok {
+		t.Error("partnerId must be stripped even for admin")
+	}
+	if updates["name"] != "Widget" {
+		t.Error("name should survive")
 	}
 }

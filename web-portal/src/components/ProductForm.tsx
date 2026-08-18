@@ -9,11 +9,17 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { PageHeader, CARD, TH, Spinner, BTN_PRIMARY } from './ui';
 import { useAuth } from '../hooks/useAuth';
+import { canSeeCost } from '../orgRole';
 
 const CACHE_KEY = 'products_cache';
 
 const ProductForm = () => {
   const { decodeJWT } = useAuth();
+  // Staff (org_role "user") get cost redacted to 0 on read, so the field must not
+  // be editable for them: saving would write that 0 back as the real cost. Kept
+  // visible and disabled rather than removed from the DOM, per the platform rule
+  // that role-gated controls explain themselves instead of vanishing.
+  const showCost = canSeeCost(decodeJWT(localStorage.getItem('accessToken') || ''));
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,15 +195,23 @@ const ProductForm = () => {
         const newUrls = await uploadPendingFiles();
         allImages = [...allImages, ...newUrls];
       }
-      const dataToSave = { ...formData, images: allImages };
+      const dataToSave: Record<string, unknown> = { ...formData, images: allImages };
+      // Staff never receive the real cost (the list response redacts it to 0), so
+      // sending the field back would overwrite the merchant's figure with that 0.
+      // The server drops it too; both halves matter, because the server guard is
+      // what protects the data and this one keeps the request honest about what
+      // the user actually edited.
+      if (!showCost) {
+        delete dataToSave.cost;
+      }
 
       const editedId = editingId;
       const wasEdit = !!editingId;
       if (editingId) {
-        await updateProduct(editingId, dataToSave as Product);
+        await updateProduct(editingId, dataToSave as unknown as Product);
         toast.success('Product updated successfully');
       } else {
-        await createProduct(dataToSave as Omit<Product, '_id'>);
+        await createProduct(dataToSave as unknown as Omit<Product, '_id'>);
         toast.success('Product created successfully');
       }
       // Pending files are now uploaded — clear them in both flows so the
@@ -990,16 +1004,24 @@ const ProductForm = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700">Cost ($) <span className="text-xs text-gray-400">(private, never shown to buyers)</span></label>
-                            <input
-                              name="cost"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formData.cost ?? ''}
-                              onChange={handleChange}
-                              placeholder="e.g., 12.50"
-                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                            />
+                            {/* title sits on the WRAPPER, not the input: browsers suppress
+                                mouse events on a disabled control, so a title there often
+                                never renders a tooltip. Same wrapper pattern the sidebar
+                                uses for its role-gated entries. */}
+                            <div title={showCost ? undefined : 'Cost is visible to owners and admins. Your other edits save normally and the stored cost is left unchanged.'}>
+                              <input
+                                name="cost"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={showCost ? (formData.cost ?? '') : ''}
+                                onChange={handleChange}
+                                disabled={!showCost}
+                                aria-disabled={!showCost}
+                                placeholder={showCost ? 'e.g., 12.50' : 'Hidden'}
+                                className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                              />
+                            </div>
                           </div>
                           {(() => {
                             const c = formData.cost, p = formData.price;
