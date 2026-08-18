@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../hooks/useAuth';
+import { canSeeCost, orgRoleReason } from '../orgRole';
 import { getProducts } from '../api';
-import { Product } from '../types';
+import { DecodedUser, Product } from '../types';
 import { CARD, TH, TD, ROW_HOVER, PageHeader, Tile, Pill, Spinner } from '../components/ui';
 
 type SortKey = 'name' | 'cost' | 'price' | 'marginDollar' | 'marginPct';
@@ -27,6 +28,11 @@ const MarginReport: React.FC = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   const decoded = token ? decodeJWT(token) : null;
   const role: string = decoded?.role || '';
+  // A PRIMITIVE for the effect's dependency list. decodeJWT returns a fresh
+  // object every render, so depending on `decoded` itself re-fires the effect on
+  // every render, and the fetch inside it sets state, which renders again: an
+  // endless request loop.
+  const orgRole = decoded?.org_role;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,11 +49,20 @@ const MarginReport: React.FC = () => {
       navigate('/dashboard');
       return;
     }
+    // Seniority inside the selling organisation, not just platform role
+    // (Roadmap #35g). catalog-service already blanks cost for a staff-level
+    // account, so without this the page would load and show every margin as
+    // 100%, which is worse than refusing it.
+    if (!canSeeCost({ org_role: orgRole } as DecodedUser)) {
+      toast.error(orgRoleReason({ org_role: orgRole } as DecodedUser, 'cost'));
+      navigate('/dashboard');
+      return;
+    }
     getProducts()
       .then(setProducts)
       .catch(() => toast.error('Could not load products'))
       .finally(() => setLoading(false));
-  }, [isAuthenticated, role, navigate]);
+  }, [isAuthenticated, role, orgRole, navigate]);
 
   const rows = useMemo<Row[]>(() => {
     return products

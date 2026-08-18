@@ -176,16 +176,35 @@ const Navbar: React.FC = () => {
                     >
                       <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                         {userRole === 'company' && (
-                          <Menu.Item>
-                            {({ active }) => (
-                              <button
-                                onClick={() => navigate('/dashboard')}
-                                className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                              >
-                                Dashboard
-                              </button>
-                            )}
-                          </Menu.Item>
+                          <>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => navigate('/dashboard')}
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  Dashboard
+                                </button>
+                              )}
+                            </Menu.Item>
+                            {/* A selling company's own account page. The route always
+                                existed but only customers were ever given a way to
+                                reach it, so the company-side controls that now live
+                                there — Staff and invite codes (#21c), and the
+                                organisation's own approval structure (#21d) — were
+                                reachable only by typing the URL. */}
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  to="/account"
+                                  className={`${active ? 'bg-gray-100' : ''} flex items-center w-full px-4 py-2 text-sm text-gray-700`}
+                                >
+                                  <UserCircleIcon className="h-5 w-5 mr-2" />
+                                  My Account
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          </>
                         )}
                         {userRole === 'customer' && (
                           <>

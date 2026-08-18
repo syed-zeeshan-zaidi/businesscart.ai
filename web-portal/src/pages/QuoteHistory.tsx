@@ -12,6 +12,7 @@ import { PageHeader, CARD, Pill, PillTone, Spinner, BTN_PRIMARY, BTN_SECONDARY }
 const QUOTE_TONE: Record<string, PillTone> = {
   approved: 'green', ordered: 'teal', proposed: 'blue',
   open: 'amber', draft: 'gray', rejected: 'red',
+  pending_approval: 'indigo',
 };
 
 const QuoteHistory: React.FC = () => {
@@ -23,6 +24,8 @@ const QuoteHistory: React.FC = () => {
   const [availableCompanies, setAvailableCompanies] = useState<Array<{id: string, name: string, companyCode: string, logoUrl?: string}>>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
 
   const fetchQuotes = useCallback(async (companyId: string | null) => {
     if (!companyId) {
@@ -34,7 +37,10 @@ const QuoteHistory: React.FC = () => {
     try {
       const fetchedQuotes = await getMyQuotes(companyId);
       const sortedQuotes = fetchedQuotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setQuotes(sortedQuotes.filter((q: QuoteType) => q.quoteType === 'negotiable'));
+      // Negotiable quotes, PLUS anything carrying an approval chain. A standard
+      // checkout held for approval (Roadmap #21) is not negotiable, so the old
+      // filter alone would hide it from the buyer and from every approver.
+      setQuotes(sortedQuotes.filter((q: QuoteType) => q.quoteType === 'negotiable' || !!q.approvalRequired));
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to load quotes.');
       setQuotes([]);
@@ -61,6 +67,7 @@ const QuoteHistory: React.FC = () => {
       navigate('/login');
       return;
     }
+    setCurrentUserId(decodedUser.id);
 
     const loadCompaniesAndQuotes = async () => {
       try {
@@ -104,7 +111,13 @@ const QuoteHistory: React.FC = () => {
     }
   }, [selectedCompanyId, fetchQuotes]);
 
-  const quotesToRender = quotes || [];
+  // "Pending my approval" (Roadmap #21). Adobe Commerce is criticised for having
+  // no way to list what is awaiting your sign-off; this is that list.
+  const awaitingMyApproval = (quotes || []).filter(q =>
+    q.status === 'pending_approval' &&
+    (q.approvalChain?.[q.approvalStage ?? 0]?.approvers || []).some(a => a.accountId === currentUserId)
+  );
+  const quotesToRender = showPendingOnly ? awaitingMyApproval : (quotes || []);
 
   const handleRefresh = () => {
     if (selectedCompanyId) {
@@ -172,6 +185,22 @@ const QuoteHistory: React.FC = () => {
               </div>
             )}
         </PageHeader>
+
+        {awaitingMyApproval.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowPendingOnly(!showPendingOnly)}
+              className={showPendingOnly ? BTN_PRIMARY : BTN_SECONDARY}
+            >
+              Pending my approval ({awaitingMyApproval.length})
+            </button>
+            {showPendingOnly && (
+              <button onClick={() => setShowPendingOnly(false)} className="text-sm text-gray-500 hover:text-gray-700 underline">
+                Show all quotes
+              </button>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12 mt-6"><Spinner className="h-8 w-8 border-4" /></div>

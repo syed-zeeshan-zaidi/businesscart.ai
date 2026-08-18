@@ -75,7 +75,11 @@ start_services() {
 
   echo "Preparing to start unified API on port $UNIFIED_API_PORT..."
   mkdir -p logs
-  sam_cmd="sam local start-api --host 0.0.0.0 --warm-containers EAGER -t \"$template_path\" --docker-network businesscart-network --debug -l logs/unified-api.log --port \"$UNIFIED_API_PORT\" --env-vars local.env.json"
+  # --debug removed: it writes verbose output on every Lambda invocation, which
+  # made backend-flow-test.py take ~1038s instead of ~165s (measured, same suite,
+  # same machine). Lambda output still lands in logs/unified-api.log via -l.
+  # Add --debug back temporarily when diagnosing SAM itself.
+  sam_cmd="sam local start-api --host 0.0.0.0 --warm-containers EAGER -t \"$template_path\" --docker-network businesscart-network -l logs/unified-api.log --port \"$UNIFIED_API_PORT\" --env-vars local.env.json"
 
   gnome-terminal --tab --command="bash -c '$sam_cmd; exec bash'" &
   sleep 2 

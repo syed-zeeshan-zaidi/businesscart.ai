@@ -22,7 +22,7 @@ import SolutionsMarketplaceEscape from './pages/SolutionsMarketplaceEscape';
 import About from './pages/About';
 import Careers from './pages/Careers';
 import ContactUs from './pages/ContactUs';
-import FAQ from './pages/FAQ';
+import FAQ, { sections as faqSections } from './pages/FAQ';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ApiStatus from './pages/ApiStatus';
@@ -32,9 +32,17 @@ import path from 'path';
 import TurndownService from 'turndown';
 
 // Turndown converts rendered HTML into clean markdown for AI crawlers.
-// Output preserves headings, lists, code blocks, links, and keeps tables
-// as raw HTML (LLMs parse both fine; turndown's default table handling is
-// lossy without the GFM plugin).
+// Output preserves headings, lists, code blocks, links, and converts tables
+// to GFM pipe tables.
+//
+// Tables used to be kept as raw HTML on the grounds that LLMs parse both and
+// turndown's default table handling is lossy. They do parse both, but the cost
+// was measured on the comparison page: 79% of that file sat inside <table>
+// blocks and 42% of every byte an LLM read was a repeated Tailwind class
+// attribute. Tables are the format these pages most want cited, so handing over
+// styling noise instead of data was the wrong trade. The rule below converts the
+// simple case and falls back to raw HTML for anything a pipe table cannot
+// express, so nothing is ever silently mangled.
 const turndown = new TurndownService({
   headingStyle: 'atx',
   bulletListMarker: '-',
@@ -42,7 +50,41 @@ const turndown = new TurndownService({
   emDelimiter: '*',
   strongDelimiter: '**',
 });
-turndown.keep(['table', 'thead', 'tbody', 'tr', 'th', 'td']);
+// GFM pipe tables. Falls back to the original HTML whenever the table uses
+// anything a pipe table has no way to represent, because a silently mangled
+// table is worse than a verbose one.
+turndown.addRule('gfm-table', {
+  filter: 'table',
+  replacement: (_content, node) => {
+    const el = node as unknown as Element;
+    try {
+      if (el.querySelector('table') || el.querySelector('[colspan], [rowspan]')) {
+        return (el as HTMLElement).outerHTML;
+      }
+      const rows = Array.from(el.querySelectorAll('tr'));
+      if (rows.length < 2) return (el as HTMLElement).outerHTML;
+
+      // Pipes inside a cell would end the cell early, and any newline breaks the
+      // row, so both are neutralised rather than left to corrupt the table.
+      const cellText = (c: Element) =>
+        (c.textContent || '').replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
+      const toRow = (cells: Element[]) => `| ${cells.map(cellText).join(' | ')} |`;
+
+      const head = Array.from(rows[0].querySelectorAll('th, td'));
+      if (!head.length) return (el as HTMLElement).outerHTML;
+      const lines = [toRow(head), `| ${head.map(() => '---').join(' | ')} |`];
+      for (const r of rows.slice(1)) {
+        const cells = Array.from(r.querySelectorAll('th, td'));
+        // A row with a different cell count would shift every column after it.
+        if (cells.length === head.length) lines.push(toRow(cells));
+        else if (cells.length) return (el as HTMLElement).outerHTML;
+      }
+      return `\n\n${lines.join('\n')}\n\n`;
+    } catch {
+      return (el as HTMLElement).outerHTML;
+    }
+  },
+});
 // Drop navbar / footer / nav elements from markdown output so LLMs get
 // just the page content, not the site chrome.
 turndown.remove(['nav', 'footer', 'script', 'style', 'noscript']);
@@ -132,6 +174,25 @@ const blogSchema = (post: typeof blogPosts[0]) => JSON.stringify({
   author: { '@type': 'Organization', name: 'BusinessCart.ai' },
   publisher: { '@type': 'Organization', name: 'BusinessCart.ai', url: baseUrl },
   mainEntityOfPage: `${baseUrl}/blog/${post.slug}`,
+});
+
+// FAQPage structured data, generated from the page's own question list.
+//
+// Every question, flattened across sections: the schema describes the PAGE, and a
+// consumer extracting Q&A pairs has no use for our section headings. Answers are
+// plain strings already, which is what acceptedAnswer wants.
+const faqSchema = () => JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  name: 'Frequently Asked Questions',
+  url: `${baseUrl}/faq`,
+  mainEntity: faqSections.flatMap((section) =>
+    section.questions.map((q) => ({
+      '@type': 'Question',
+      name: q.question,
+      acceptedAnswer: { '@type': 'Answer', text: q.answer },
+    }))
+  ),
 });
 
 const pages: PageEntry[] = [
@@ -252,7 +313,7 @@ const pages: PageEntry[] = [
     output: 'faq/index.html',
     title: 'Frequently Asked Questions — BusinessCart.ai',
     description: 'Answers on BusinessCart.ai pricing, B2B config, payment gateways, AI add-on, storefronts, and migration from Shopify, WooCommerce, marketplaces.',
-    schema: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Frequently Asked Questions', url: `${baseUrl}/faq` }),
+    schema: faqSchema(),
   },
   {
     route: '/privacy-policy',

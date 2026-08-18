@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { GlobeAmericasIcon, BoltIcon, HeartIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
@@ -70,13 +71,13 @@ const Careers: React.FC = () => {
           </p>
           <div className="bg-white shadow-lg rounded-lg p-4 sm:p-8 text-center">
             <p className="text-gray-600 mb-6">Send us your background and what excites you about commerce infrastructure.</p>
-            <a
-              href="mailto:help@businesscart.ai?subject=Career%20Inquiry%20-%20BusinessCart.ai"
+            <Link
+              to="/contact-us"
               className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
             >
               <EnvelopeIcon className="h-5 w-5 mr-2" />
               Get in Touch
-            </a>
+            </Link>
           </div>
         </div>
 

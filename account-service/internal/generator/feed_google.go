@@ -91,6 +91,15 @@ func buildGoogleFeed(data StorefrontData) ([]byte, error) {
 			item.IdentifierExists = "false"
 		}
 
+		// Package specs. Google is the only channel of the five that takes
+		// dimensions, and it needs all three or none (see feedShippingDims).
+		item.ShippingWeight = feedShippingWeight(p)
+		item.ShippingLength, item.ShippingWidth, item.ShippingHeight = feedShippingDims(p)
+
+		labels := feedCustomLabels(p)
+		item.CustomLabel0, item.CustomLabel1 = labels[0], labels[1]
+		item.CustomLabel2, item.CustomLabel3, item.CustomLabel4 = labels[2], labels[3], labels[4]
+
 		items = append(items, item)
 	}
 
@@ -142,6 +151,15 @@ type googleItem struct {
 	Gender                string   `xml:"g:gender,omitempty"`
 	AgeGroup              string   `xml:"g:age_group,omitempty"`
 	IdentifierExists      string   `xml:"g:identifier_exists,omitempty"`
+	ShippingWeight        string   `xml:"g:shipping_weight,omitempty"`
+	ShippingLength        string   `xml:"g:shipping_length,omitempty"`
+	ShippingWidth         string   `xml:"g:shipping_width,omitempty"`
+	ShippingHeight        string   `xml:"g:shipping_height,omitempty"`
+	CustomLabel0          string   `xml:"g:custom_label_0,omitempty"`
+	CustomLabel1          string   `xml:"g:custom_label_1,omitempty"`
+	CustomLabel2          string   `xml:"g:custom_label_2,omitempty"`
+	CustomLabel3          string   `xml:"g:custom_label_3,omitempty"`
+	CustomLabel4          string   `xml:"g:custom_label_4,omitempty"`
 }
 
 // productAttr finds a product attribute by key (case-insensitive). Returns "" if not found.

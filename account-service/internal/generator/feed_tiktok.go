@@ -21,7 +21,7 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 	var b strings.Builder
 
 	// Header — TikTok uses sku_id, not id
-	b.WriteString("sku_id,title,description,availability,condition,price,image_link,brand,google_product_category,product_page_url,sale_price\n")
+	b.WriteString("sku_id,title,description,availability,condition,price,image_link,brand,google_product_category,product_type,product_page_url,sale_price,shipping_weight," + customLabelHeader(",") + "\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
@@ -60,7 +60,9 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 			googleCategory = "Other"
 		}
 
-		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s\n",
+		// TikTok's catalog parameter list has a shipping weight but no
+		// dimension fields.
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			csvEscape(p.ID),
 			csvEscape(p.Name),
 			csvEscape(stripHTML(p.Description)),
@@ -70,8 +72,13 @@ func buildTikTokFeed(data StorefrontData) ([]byte, error) {
 			csvEscape(image),
 			csvEscape(data.Company.Name),
 			csvEscape(googleCategory),
+			// product_type was absent from this feed entirely while the other
+			// four channels carried it, so TikTok had no site taxonomy at all.
+			csvEscape(feedCategory(p.Category)),
 			csvEscape(fmt.Sprintf("https://%s/products/%s.html", domain, p.Filename)),
 			csvEscape(salePrice),
+			csvEscape(feedShippingWeight(p)),
+			customLabelCols(p, ",", csvEscape),
 		))
 	}
 

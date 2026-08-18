@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getQuote, patchQuote } from '../api';
 import { Quote, CartItem } from '../types';
 import QuoteComments from '../components/QuoteComments';
+import ApprovalChainPanel from '../components/ApprovalChainPanel';
 
 const QuoteDetails: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -15,6 +16,7 @@ const QuoteDetails: React.FC = () => {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [proposedPrices, setProposedPrices] = useState<Record<string, number>>({});
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,6 +36,7 @@ const QuoteDetails: React.FC = () => {
       navigate('/home');
       return;
     };
+    setCurrentUserId(decodedUser.id);
 
     const fetchQuote = async () => {
       if (!quoteId) {
@@ -62,7 +65,14 @@ const QuoteDetails: React.FC = () => {
   }, [isAuthenticated, navigate, decodeJWT, quoteId]);
 
   const handleProceedToCheckout = () => {
-    if (quote && quote.status === 'approved') {
+    if (!quote) return;
+    // Approvers can now open a colleague's quote, but only the buyer who owns it
+    // can pay: POST /checkout/orders rejects anyone else with 403.
+    if (quote.accountId !== currentUserId) {
+      toast.error('Only the buyer who created this order can complete checkout.');
+      return;
+    }
+    if (quote.status === 'approved') {
       navigate(`/checkout/${quote.id}`);
     } else {
       toast.error('Quote must be approved to proceed to checkout.');
@@ -136,12 +146,22 @@ const QuoteDetails: React.FC = () => {
 
   const canCustomerPropose = quote.quoteType === 'negotiable' && (quote.status === 'open' || quote.status === 'draft');
 
+  const isQuoteOwner = quote.accountId === currentUserId;
+  const canProceedToCheckout = isQuoteOwner && quote.status === 'approved';
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-right" />
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Quote Details</h1>
+
+        <ApprovalChainPanel
+          quote={quote}
+          currentUserId={currentUserId}
+          userRole="customer"
+          onDecided={setQuote}
+        />
 
         <div className="bg-white shadow-lg rounded-lg overflow-hidden p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -238,11 +258,23 @@ const QuoteDetails: React.FC = () => {
 
           <QuoteComments quote={quote} onCommentAdded={handleCommentAdded} />
 
-          <div className="flex justify-end mt-6">
+          {/* Only the owning buyer can pay. Approvers can now open a colleague's
+              quote, and an enabled button would send them to a guaranteed 403.
+              Kept visible but disabled with a reason, per the platform rule. */}
+          <div
+            className="flex justify-end mt-6"
+            title={
+              !isQuoteOwner
+                ? 'Only the buyer who created this order can complete checkout.'
+                : quote.status !== 'approved'
+                  ? 'This order must be approved before it can be paid.'
+                  : ''
+            }
+          >
             <button
               onClick={handleProceedToCheckout}
-              className={`px-6 py-2 rounded-md transition ${quote.status === 'approved' ? 'bg-teal-700 text-white hover:bg-teal-800' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-              disabled={quote.status !== 'approved'}
+              className={`px-6 py-2 rounded-md transition ${canProceedToCheckout ? 'bg-teal-700 text-white hover:bg-teal-800' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+              disabled={!canProceedToCheckout}
             >
               Proceed to Checkout
             </button>

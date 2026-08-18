@@ -547,6 +547,24 @@
                 const quote = await this.createQuote(sellerId, customerAddresses);
                 if (!quote) throw new Error('Failed to create quote');
 
+                // Buyer-side order approval (Roadmap #21). A D2C shopper (role b2c)
+                // is never gated — the backend refuses to apply an approval policy
+                // to any role but customer. But a B2B customer account CAN sign in
+                // here (this storefront shares /accounts/login), and theirs may
+                // carry a policy. Without this branch such an order would sail into
+                // the payment overlay and then fail silently at POST /orders, which
+                // only accepts an "approved" quote. Tell them instead of dead-ending.
+                if (quote.status === 'pending_approval') {
+                    this._fireCheckoutSignal('checkout_blocked', {
+                        stage: 'quote',
+                        reason: 'pending_approval'
+                    });
+                    this._setCheckoutStage('');
+                    document.getElementById('d2c-checkout-overlay')?.remove();
+                    if (window.D2C_CART) window.D2C_CART.showToast('This order needs approval from your organisation. We have emailed your approver, and you can complete it once it is approved.');
+                    return;
+                }
+
                 blockedReason = 'overlay_render_failed';
                 this._showCheckoutOverlay(quote);
             } catch (err) {

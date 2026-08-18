@@ -42,13 +42,43 @@ type CustomerConfiguration struct {
 	GroupPriceDiscount    *float64                     `json:"groupPriceDiscount,omitempty"`
 }
 
+// OrgApproval is an organisation's own approval policy, carried once per token.
+//
+// Deliberately top-level rather than inside CustomerConfiguration. The policy
+// belongs to the ORGANISATION, not to a supplier relationship, so copying it into
+// every attached-company entry duplicated it N times and inflated a header that
+// travels on every request. It also gives the SELLING side somewhere to live: a
+// company account has no configurations array at all.
+//
+// Emitted for company and customer roles only. A RoleB2C storefront shopper is a
+// person rather than an organisation and must never be gated — withholding this
+// claim is the first of the two guards that guarantee it.
+type OrgApproval struct {
+	Scope             string                       `json:"scope,omitempty"`
+	Threshold         *float64                     `json:"threshold,omitempty"`
+	QuantityThreshold *float64                     `json:"quantityThreshold,omitempty"`
+	ValidityHours     *float64                     `json:"validityHours,omitempty"`
+	Chain             []storage.ApprovalStepConfig `json:"chain,omitempty"`
+}
+
 // UserClaims represents the user-specific data within the JWT.
 type UserClaims struct {
-	ID                  string                  `json:"id"`
+	ID string `json:"id"`
+	// The organisation this account acts within (Roadmap #21c). Equal to ID for
+	// an account that is its own organisation, which is every account until a
+	// parent is assigned — so consumers may compare against it unconditionally.
+	OrgID string `json:"org_id,omitempty"`
+	// Seniority inside that organisation (Roadmap #35g): owner, admin or user.
+	// Consumers must treat an ABSENT claim as unrestricted, not as "user": it is
+	// absent on platform-admin and storefront tokens, where restricting would be
+	// wrong. Every org-capable token carries a value.
+	OrgRole             string                  `json:"org_role,omitempty"`
 	Email               string                  `json:"email"`
 	Role                string                  `json:"role"`
 	AssociateCompanyIDs []string                `json:"associate_company_ids"`
 	Configurations      []CustomerConfiguration `json:"configurations,omitempty"`
+	// The organisation's own approval policy — one copy, not one per supplier.
+	OrgApproval *OrgApproval `json:"orgApproval,omitempty"`
 }
 
 // CustomClaims represents the full JWT payload.
@@ -57,16 +87,19 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(userID, email, role, secret string, associateCompanyIDs []string, configs []CustomerConfiguration) (string, error) {
+func GenerateJWT(userID, orgID, orgRole, email, role, secret string, associateCompanyIDs []string, configs []CustomerConfiguration, orgApproval *OrgApproval) (string, error) {
 	expirationTime := time.Now().Add(72 * time.Hour)
 
 	claims := &CustomClaims{
 		User: UserClaims{
 			ID:                  userID,
+			OrgID:               orgID,
+			OrgRole:             orgRole,
 			Email:               email,
 			Role:                role,
 			AssociateCompanyIDs: associateCompanyIDs,
 			Configurations:      configs,
+			OrgApproval:         orgApproval,
 		},
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
@@ -83,12 +116,13 @@ func ValidateJWT(tokenString, secret string) (*jwt.Token, error) {
 	})
 }
 
-func GenerateRefreshToken(userID, email, role, secret string, associateCompanyIDs []string) (string, error) {
+func GenerateRefreshToken(userID, orgID, email, role, secret string, associateCompanyIDs []string) (string, error) {
 	expirationTime := time.Now().Add(7 * 24 * time.Hour)
 
 	claims := &CustomClaims{
 		User: UserClaims{
 			ID:                  userID,
+			OrgID:               orgID,
 			Email:               email,
 			Role:                role,
 			AssociateCompanyIDs: associateCompanyIDs,

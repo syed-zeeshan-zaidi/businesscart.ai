@@ -22,19 +22,22 @@ import { useAuth } from '../hooks/useAuth';
 import { Logo } from './logo';
 import { computeTier, TierName } from '../tier';
 import { Order } from '../types';
+import { canSeeCost, isOrgOwner } from '../orgRole';
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
+  // Why this entry is not usable by the current account (Roadmap #35g). Empty or
+  // absent means usable. Present means the entry still renders, greyed out, with
+  // this as its tooltip: role-gated controls are never hidden from the DOM.
+  disabledReason?: string;
 }
 
 interface NavSection {
   label: string;
   items: NavItem[];
 }
-
-const APP_VERSION = '1.0.0';
 
 const Sidebar = () => {
   const { decodeJWT } = useAuth();
@@ -50,6 +53,14 @@ const Sidebar = () => {
 
   const isAdmin = user?.role === 'admin';
   const isCompany = user?.role === 'company';
+  // Seniority inside the organisation (Roadmap #35g). Entries the caller is not
+  // senior enough for stay VISIBLE and disabled with a reason, per the platform
+  // rule that role-gated controls are never hidden from the DOM. Someone who
+  // cannot open the Margin Report should be able to see that it exists and learn
+  // who can, rather than wonder why a colleague's portal has a page theirs does
+  // not.
+  const seesCost = canSeeCost(user);
+  const ownsAccount = isOrgOwner(user);
   const isPartner = user?.role === 'partner';
 
   // Pending order count + current pricing tier from dashboard cache (no API calls).
@@ -105,7 +116,7 @@ const Sidebar = () => {
             { name: 'Company', path: '/companies', icon: BuildingOffice2Icon },
             { name: 'Users', path: '/users', icon: UserIcon },
             ...(isAdmin ? [{ name: 'Codes', path: '/codes', icon: KeyIcon }] : []),
-            ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon }] : []),
+            ...((isAdmin || isCompany) ? [{ name: 'Billing', path: isAdmin ? '/admin/billing' : '/billing', icon: BanknotesIcon, disabledReason: isCompany && !ownsAccount ? 'Only the account owner can see billing.' : '' }] : []),
             { name: 'Locations', path: '/locations', icon: MapPinIcon },
           ],
         },
@@ -113,7 +124,7 @@ const Sidebar = () => {
           label: 'Insights',
           items: [
             { name: 'Analytics', path: '/analytics', icon: ChartBarIcon },
-            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon }] : []),
+            ...((isAdmin || isCompany) ? [{ name: 'Margin Report', path: '/margin-report', icon: ScaleIcon, disabledReason: isCompany && !seesCost ? 'Cost and margin figures are visible to owners and admins.' : '' }] : []),
           ],
         },
       ];
@@ -127,14 +138,28 @@ const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-4 mt-2">
+      {/* min-h-0 is load-bearing: a flex child defaults to min-height:auto, so without
+          it flex-1 grows past the h-screen container instead of scrolling, and the
+          mt-auto footer below gets pushed outside the sidebar. nav-scroll keeps that
+          scrolling but paints no scrollbar. */}
+      <nav className="nav-scroll flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-4 mt-2">
         {sections.map((section) => (
           <div key={section.label || 'main'}>
             {section.label && (
               <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-500">{section.label}</p>
             )}
             <div className="space-y-0.5">
-              {section.items.map((link) => (
+              {section.items.map((link) => (link.disabledReason ? (
+                <div
+                  key={link.name}
+                  title={link.disabledReason}
+                  aria-disabled="true"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 cursor-not-allowed"
+                >
+                  <link.icon className="h-5 w-5 shrink-0" />
+                  <span className="flex-1">{link.name}</span>
+                </div>
+              ) : (
                 <NavLink
                   key={link.name}
                   to={link.path}
@@ -153,16 +178,18 @@ const Sidebar = () => {
                     <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{pendingOrders}</span>
                   )}
                 </NavLink>
-              ))}
+              )))}
             </div>
           </div>
         ))}
-      </nav>
-
-      {/* User + Version */}
-      <div className="p-4 border-t border-gray-700/50 mt-auto">
+        {/* The signed-in account, sitting INSIDE the nav as its closing row rather
+            than pinned to the bottom. nav is flex-1, so anything after it gets pushed
+            to the foot of the column with a gap that reads as a separate panel; here
+            it follows the last link on the same px-3 rhythm and belongs to the list.
+            No divider and no bottom padding of its own: the section spacing above it
+            is the only separation it needs. */}
         {user && (
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-teal-700/30 flex items-center justify-center text-teal-400 text-sm font-bold shrink-0">
               {(user.name || user.email || '?')[0].toUpperCase()}
             </div>
@@ -179,8 +206,7 @@ const Sidebar = () => {
             </div>
           </div>
         )}
-        <p className="text-[10px] text-gray-600">App v{APP_VERSION}</p>
-      </div>
+      </nav>
     </div>
   );
 
@@ -209,7 +235,9 @@ const Sidebar = () => {
             leaveFrom="translate-x-0"
             leaveTo="-translate-x-full"
           >
-            <Dialog.Panel className="fixed inset-y-0 left-0 w-64 bg-gray-800 shadow-xl overflow-y-auto">
+            {/* overflow-hidden, not auto: the nav inside is the single scroll area, so
+                the panel must not add a second nested one with its own scrollbar. */}
+            <Dialog.Panel className="fixed inset-y-0 left-0 w-64 bg-gray-800 shadow-xl overflow-hidden">
               <div className="absolute top-4 right-4 z-10">
                 <button onClick={() => setMobileOpen(false)} className="text-gray-400 hover:text-white">
                   <XMarkIcon className="h-6 w-6" />

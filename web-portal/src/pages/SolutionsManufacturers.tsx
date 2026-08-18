@@ -42,6 +42,10 @@ const liveFeatures = [
   { icon: ShieldCheckIcon, title: 'Credit limit enforcement', desc: 'Reject orders that would exceed a distributor\'s credit cap. No more chasing AR after a problem order.' },
   { icon: CurrencyDollarIcon, title: 'Monthly + yearly spend caps', desc: 'Useful for staged rollouts, new distributor trial periods, or risk management on emerging accounts.' },
   { icon: ClipboardDocumentListIcon, title: 'Custom quote workflow', desc: 'Distributor requests custom volume, packaging, or specs. You quote, counter, finalize. Full negotiation history preserved.' },
+  { icon: ShieldCheckIcon, title: 'Buyer-side order approvals', desc: 'Your distributor sets their own approval chain: multiple levels, several approvers per level, triggered by order value or quantity. The order cannot be paid until every level signs off.' },
+  { icon: ShieldCheckIcon, title: 'Seller-side quote approvals', desc: 'Your rep drafts the quote, your manager signs off before the distributor ever sees it. Shopify B2B, Adobe Commerce B2B and BigCommerce B2B Edition have no native equivalent.' },
+  { icon: UserGroupIcon, title: 'Staff accounts with seniority', desc: 'Invite colleagues into one organisation instead of sharing a login. Staff cannot see what products cost you or your margins, and only the owner changes payment settings and billing.' },
+  { icon: ClipboardDocumentListIcon, title: 'Append-only approval record', desc: 'Every approval, rejection and override is stored permanently with who decided, when, their note, and the order total at that moment. A withdrawn and reinstated quote keeps its earlier sign-offs.' },
   { icon: CommandLineIcon, title: 'Quick order & bulk entry', desc: 'Distributors reorder fast: add by SKU with autocomplete, paste a list, upload a CSV, or browse a dense grid, then add the whole order at once.' },
   { icon: ClipboardDocumentListIcon, title: 'Saved carts (requisition lists)', desc: 'Distributors save up to 3 named carts per manufacturer and reload one to place standing orders in a click.' },
   { icon: CubeIcon, title: 'Case packs & order increments', desc: 'Set per-product minimums and pack sizes so distributors order in cases and pallets, matching your production runs.' },
@@ -49,7 +53,7 @@ const liveFeatures = [
   { icon: LockClosedIcon, title: 'Private, code-gated catalog', desc: 'Each distributor gets a code that unlocks your catalog. Channel conflict eliminated. No public price list to undercut your channel.' },
   { icon: BanknotesIcon, title: 'Per-distributor payment terms', desc: 'Distributor A pays via PO. Distributor B uses Stripe. Distributor C pays Net 30 (Q3 2026 native, today via PO + offline).' },
   { icon: UserGroupIcon, title: 'Distributor tiers via customer groups', desc: 'Group distributors (Authorized, Preferred, National, Regional) with auto-applied tier discounts.' },
-  { icon: CubeIcon, title: 'Multi-buyer accounts', desc: 'Distributors with multiple buyers (purchasing teams, branch buyers) all log into the same account, same configuration.' },
+  { icon: CubeIcon, title: 'Multi-buyer accounts', desc: 'A distributor invites their purchasing team and branch buyers into one organisation, each with their own login rather than a shared password, all sharing the same negotiated configuration.' },
   { icon: CommandLineIcon, title: 'Full REST API for ERP sync', desc: 'Every operation has an endpoint. Push orders into your ERP, pull stock from production system, in real time.' },
   { icon: EnvelopeIcon, title: 'Transactional emails built in', desc: 'Order confirmations, quote requests, status updates, all branded and sent automatically via SES.' },
 ];
@@ -82,7 +86,7 @@ const faqs = [
   },
   {
     q: 'Can our sales reps place orders on behalf of distributors?',
-    a: 'Yes. Reps log in as admin and create quotes on behalf of any distributor. The distributor\'s pricing, MOQ, payment methods, and lead times all apply automatically, reps cannot accidentally override them. The distributor sees the quote in their portal.',
+    a: 'Yes. Each rep gets their own staff account inside your organisation, not a shared admin login, and creates quotes on behalf of any distributor. The distributor\'s pricing, MOQ, payment methods, and lead times all apply automatically, and reps cannot override them. Your manager can be required to approve the quote before the distributor sees it.',
   },
   {
     q: 'How long does setup take?',

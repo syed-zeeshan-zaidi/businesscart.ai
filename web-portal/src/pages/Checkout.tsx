@@ -176,6 +176,17 @@ const Checkout: React.FC = () => {
         returnUrl: window.location.origin + '/order-success',
       }) as any;
 
+      // The order can come back HELD rather than placed: a quote drafted by a
+      // sales rep carries no approval policy, so the buyer's own policy is
+      // applied here, at the moment they submit. Without this branch a held
+      // order would report "placed successfully" and the buyer would believe
+      // they had bought something.
+      if (result.pendingApproval) {
+        toast.success(result.message || 'Sent for approval', { id: toastId });
+        navigate(`/quote/${result.quoteId}`);
+        return;
+      }
+
       if (result.redirectUrl) {
         toast.success('Redirecting to payment provider...', { id: toastId });
         window.location.href = result.redirectUrl;

@@ -224,6 +224,39 @@ const formatDate = (d: string) => {
 const formatLocation = (geo: { country?: string; region?: string; city?: string }) =>
   [geo?.city, geo?.region, geo?.country].filter(Boolean).join(', ') || '-';
 
+// Events that are actually PERSISTED as milestones, in funnel order, for the Status
+// filter. Kept as a list rather than derived from data so an event that has never
+// fired yet (checkout_blocked) is still selectable instead of quietly missing.
+//
+// Two tracked events are deliberately absent because they write no milestone and so
+// could only ever return an empty table: "view_content" only bumps the
+// viewContentSent counter (per-view milestones would bloat the array under storefront
+// view volume) and "login" only links customerId. Filter by them and you get nothing,
+// which reads as a broken filter rather than an honest zero.
+const EVENT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'contact_request', label: 'Contact Request' },
+  { value: 'register', label: 'Register' },
+  { value: 'add_to_cart', label: 'Add to Cart' },
+  { value: 'initiate_checkout', label: 'Checkout Started' },
+  { value: 'checkout_modal', label: 'Checkout: Modal' },
+  { value: 'checkout_email', label: 'Checkout: Email' },
+  { value: 'checkout_details', label: 'Checkout: Details' },
+  { value: 'checkout_address', label: 'Checkout: Address' },
+  { value: 'checkout_payment', label: 'Checkout: Payment' },
+  { value: 'payment_redirect', label: 'Payment Redirect' },
+  { value: 'payment_redirect_back', label: 'Payment Returned' },
+  { value: 'checkout_blocked', label: 'Checkout Blocked' },
+  { value: 'checkout_abandon', label: 'Checkout Abandoned' },
+  { value: 'order', label: 'Order' },
+];
+
+const DEFAULT_FILTERS: Record<string, string> = { event: 'any' };
+
+// All Events IS a filter, so the Clear button shows on load: the table opens narrowed
+// and the control that widens it has to be visible. Clear therefore resets to nothing
+// (All Visitors), not back to DEFAULT_FILTERS, or the button would be a no-op.
+const hasActiveFilters = (f: Record<string, string>) => Object.values(f).some(Boolean);
+
 const Analytics: React.FC = () => {
   const { decodeJWT } = useAuth();
   const token = localStorage.getItem('accessToken');
@@ -236,13 +269,17 @@ const Analytics: React.FC = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  // The table defaults to visitors who actually did something. A scope can legitimately
+  // have zero events (a brand-new storefront, or a portal month with no signups), and an
+  // empty table reads as a broken page, so loadVisitors falls back to the unfiltered list
+  // in that case. See DEFAULT_FILTERS use in loadVisitors.
+  const [filters, setFilters] = useState<Record<string, string>>(DEFAULT_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Visitor | null>(null);
   const [scope, setScope] = useState(isAdmin ? 'portal' : '');
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [timeRange, setTimeRange] = useState('30d'); // default to Last 30 Days (was '' = all-time, which aggregates the whole visitors collection on every page load)
+  const [timeRange, setTimeRange] = useState('mtd'); // default to This Month (calendar month to date, lines up with the billing period). Never '' = all-time, which aggregates the whole visitors collection on every page load.
   const perPage = 100;
 
   const loadStats = async (sellerId?: string, since?: string) => {
@@ -255,12 +292,27 @@ const Analytics: React.FC = () => {
   };
 
   const loadVisitors = async (p: number, f: Record<string, string>, sellerId?: string, since?: string) => {
-    try {
+    const fetchWith = async (ff: Record<string, string>) => {
       const params: Record<string, string> = { page: String(p), perPage: String(perPage) };
       if (sellerId) params.sellerId = sellerId;
       if (since) params.since = since;
-      Object.entries(f).forEach(([k, v]) => { if (v) params[k] = v; });
-      const data = await getVisitors(params);
+      Object.entries(ff).forEach(([k, v]) => { if (v) params[k] = v; });
+      return getVisitors(params);
+    };
+
+    try {
+      let data = await fetchWith(f);
+      // The default "All Events" filter is a convenience, not a constraint: if this
+      // scope and period produced no events at all, showing an empty table would look
+      // like a failure. Fall back to the plain unfiltered list, and drop the filter
+      // from state so the dropdown reflects what is actually on screen. Only the
+      // default is retried; an event the user picked deliberately stays as picked.
+      if ((data.total || 0) === 0 && f.event === 'any') {
+        const relaxed = { ...f };
+        delete relaxed.event;
+        data = await fetchWith(relaxed);
+        setFilters(relaxed);
+      }
       setVisitors(data.visitors || []);
       setTotal(data.total || 0);
     } catch (err: any) {
@@ -277,7 +329,7 @@ const Analytics: React.FC = () => {
           setCompanies(accounts.filter((a: Account) => a.role === 'company').map((a: Account) => ({ id: a._id, name: a.company?.name || a.name })));
         } catch { /* ignore */ }
       }
-      await Promise.all([loadStats(scope || undefined, timeRange), loadVisitors(1, {}, scope || undefined, timeRange)]);
+      await Promise.all([loadStats(scope || undefined, timeRange), loadVisitors(1, DEFAULT_FILTERS, scope || undefined, timeRange)]);
       setLoading(false);
     };
     init();
@@ -286,10 +338,10 @@ const Analytics: React.FC = () => {
   const handleScopeChange = async (newScope: string) => {
     setScope(newScope);
     setPage(1);
-    setFilters({});
+    setFilters(DEFAULT_FILTERS);
     setExpandedGroups(new Set());
     setRefreshing(true);
-    await Promise.all([loadStats(newScope || undefined, timeRange), loadVisitors(1, {}, newScope || undefined, timeRange)]);
+    await Promise.all([loadStats(newScope || undefined, timeRange), loadVisitors(1, DEFAULT_FILTERS, newScope || undefined, timeRange)]);
     setRefreshing(false);
   };
 
@@ -374,6 +426,7 @@ const Analytics: React.FC = () => {
                 <option value="">All Time</option>
                 <option value="24h">Last 24 Hours</option>
                 <option value="7d">Last 7 Days</option>
+                <option value="mtd">This Month</option>
                 <option value="30d">Last 30 Days</option>
               </select>
               {refreshing && <ArrowPathIcon className="h-4 w-4 text-teal-700 animate-spin" />}
@@ -434,7 +487,7 @@ const Analytics: React.FC = () => {
                 <span className="text-sm text-gray-500">{total} total</span>
               </div>
               <div className="flex items-center gap-2">
-                {Object.values(filters).some(Boolean) && (
+                {hasActiveFilters(filters) && (
                   <button onClick={clearFilters} disabled={refreshing} className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded disabled:opacity-50 disabled:cursor-not-allowed">
                     <XMarkIcon className="h-4 w-4" /> Clear
                   </button>
@@ -480,25 +533,36 @@ const Analytics: React.FC = () => {
                       : filters.ordered ? 'ordered'
                       : filters.addedToCart ? 'addedToCart'
                       : filters.contactedUs ? 'contactedUs'
+                      : filters.event ? `event:${filters.event}`
                       : ''
                     }
                     onChange={(e) => {
                       const v = e.target.value;
+                      // Status is one choice, so every key is rewritten on each change:
+                      // leaving a stale flag set would AND two filters together and
+                      // return an empty table.
                       setFilters({
                         ...filters,
                         registered: v === 'registered' ? 'true' : '',
                         ordered: v === 'ordered' ? 'true' : '',
                         addedToCart: v === 'addedToCart' ? 'true' : '',
                         contactedUs: v === 'contactedUs' ? 'true' : '',
+                        event: v.startsWith('event:') ? v.slice(6) : '',
                       });
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   >
-                    <option value="">All</option>
+                    <option value="event:any">All Events</option>
+                    <option value="">All Visitors</option>
                     <option value="registered">Registered</option>
                     <option value="ordered">Ordered</option>
                     <option value="addedToCart">Added to Cart</option>
                     {isAdmin && <option value="contactedUs">Contacted Us</option>}
+                    <optgroup label="Single event">
+                      {EVENT_OPTIONS.map((o) => (
+                        <option key={o.value} value={`event:${o.value}`}>{o.label}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
                 <button onClick={applyFilters} disabled={refreshing} className="flex items-center gap-2 px-4 py-1.5 bg-teal-700 text-white text-sm rounded hover:bg-teal-800 disabled:opacity-50 disabled:cursor-not-allowed">

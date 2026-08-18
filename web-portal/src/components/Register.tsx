@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { register } from '../api';
+import { register, login, SIGNUP_NOTICE_KEY } from '../api';
+import { trackRegister } from '../tracker';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
@@ -40,8 +41,18 @@ const Register = () => {
     setErrors(newErrors);
     if (newErrors.length > 0) return;
 
+    // Split into two phases on purpose. Once register returns, the account EXISTS,
+    // so a later failure must never be reported as "Registration failed": the user
+    // would retry the form and hit a duplicate-email 409 on an account that is
+    // already theirs. Phase 2 failing is only a missing session, which logging in
+    // fixes, so it says so and sends them to the login screen.
+    let res: { _id?: string; accessToken?: string };
     try {
-      const { accessToken } = await register({
+      // The non-guest /accounts/register response IS the account object; it carries
+      // no accessToken, because the handler only mints one for the guest-b2c path.
+      // api.ts declares otherwise, which is a separate defect recorded as #43-J in
+      // APPLICATION.md. This local cast reads the id that IS present.
+      res = await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -49,12 +60,40 @@ const Register = () => {
         code: formData.code,
         customerCodes: formData.customerCodes.split(',').map(c => c.trim()).filter(Boolean),
         phoneNumber: formData.phoneNumber,
-      });
-      localStorage.setItem('accessToken', accessToken);
-      setErrors([]);
-      navigate('/dashboard');
+      }) as unknown as { _id?: string; accessToken?: string };
     } catch (err: any) {
       setErrors([err.response?.data?.message || 'Registration failed']);
+      return;
+    }
+
+    // Fire-and-forget: the portal's only signup conversion signal. It can never
+    // throw, block, or fail the registration.
+    trackRegister(res?._id || '', formData.role);
+
+    try {
+      // The account exists now but we hold no token, so trade the credentials we
+      // already have for one. Without this, storing the response's absent token put
+      // the string "undefined" in localStorage, the api interceptor threw on
+      // atob("undefined"), wiped it and redirected to /login: a new merchant
+      // finished signup and landed on the login screen with no explanation.
+      const { accessToken } = await login({ email: formData.email, password: formData.password });
+      localStorage.setItem('accessToken', accessToken);
+      setErrors([]);
+      // Same role split as Login and App.getRedirectPath. A customer sent to
+      // /dashboard hits the role guard there and renders zeroed stats; this only
+      // looked harmless while registration handed out a broken token and bounced
+      // everyone to /login anyway.
+      navigate(formData.role === 'customer' ? '/home' : '/dashboard');
+    } catch {
+      // Account created, session not. Never surface a registration error here.
+      //
+      // The notice goes through sessionStorage rather than router state because a 401
+      // is the likeliest way this login fails, and the api response interceptor answers
+      // 401 with window.location.href = '/login'. That is a full page load: it fires
+      // before this catch and would discard router state, dropping the user on a bare
+      // login screen. sessionStorage survives it either way.
+      try { sessionStorage.setItem(SIGNUP_NOTICE_KEY, 'Your account was created. Please log in.'); } catch { /* private mode */ }
+      navigate('/login');
     }
   };
 

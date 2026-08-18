@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"business-cart/catalog-service/internal/storage"
 
@@ -44,6 +45,44 @@ func NewLambdaHandler(db *storage.DB, jwtSecret string, s3Client *s3.Client, s3B
 		s3Client:  s3Client,
 		s3Bucket:  s3Bucket,
 		cdnDomain: cdnDomain,
+	}
+}
+
+// hidesCost reports whether this caller must never see confidential seller cost.
+//
+// Buyers, for the reason #40 records. And staff INSIDE the selling organisation
+// whose seniority is "user" (Roadmap #35g): a sales rep processes orders and
+// maintains the catalogue, but what the goods cost the business is not theirs to
+// see. Same rule as #40, turned inward.
+//
+// An ABSENT org_role never hides anything. It is absent on platform-admin tokens,
+// and on any token minted before #35g shipped; defaulting those to hidden would
+// blank the margin figures of the very people who own them. Every org-capable
+// token carries an explicit value.
+func hidesCost(role, orgRole string) bool {
+	if role == "customer" || role == "b2c" {
+		return true
+	}
+	return role == "company" && orgRole == "user"
+}
+
+// stripUnwritableFields drops keys the caller may not write from a product-update
+// body, leaving the stored values untouched.
+//
+// sellerID and partnerId are stamped at create and immutable.
+//
+// cost is removed for anyone hidesCost hides it from, because a caller who cannot
+// READ a field must not be able to WRITE it. Without this the redaction destroyed
+// the very field it protects: getProducts blanks cost to 0 for staff, the edit form
+// loads that 0 as though it were the real figure, and saving any unrelated change
+// writes the 0 back over the merchant's actual cost. Margin figures then go wrong
+// for the owner too, with nothing in the record showing what the cost had been.
+// Staff keep their existing ability to edit every other field.
+func stripUnwritableFields(updates bson.M, role, orgRole string) {
+	delete(updates, "sellerID")
+	delete(updates, "partnerId")
+	if hidesCost(role, orgRole) {
+		delete(updates, "cost")
 	}
 }
 
@@ -162,6 +201,22 @@ func (h *LambdaHandler) HandleRequest(request events.APIGatewayProxyRequest) (ev
 	return h.errorResponse(http.StatusNotFound, "Route not found"), nil
 }
 
+// orgIDFromClaim resolves the organisation a caller acts within (Roadmap #21c).
+//
+// Products and blog posts are keyed by the ROOT account's id, so ownership must
+// be judged against the organisation rather than the individual account —
+// otherwise a second account in the same selling organisation cannot touch its
+// own company's catalogue. Tokens minted before this claim existed, and any
+// account without a parent, resolve to the account's own id, so behaviour is
+// unchanged until a parent is actually assigned.
+func orgIDFromClaim(userClaim map[string]interface{}) string {
+	if org, _ := userClaim["org_id"].(string); org != "" {
+		return org
+	}
+	id, _ := userClaim["id"].(string)
+	return id
+}
+
 func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
 	claimID, _ := userClaim["id"].(string)
@@ -178,7 +233,7 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 		return h.errorResponse(http.StatusBadRequest, err.Error()), nil
 	}
 
-	product.SellerID = claimID
+	product.SellerID = orgIDFromClaim(userClaim)
 	// Partner products surface through the partner's linked company. SellerID is
 	// the linked company; PartnerID is the partner's own account id. Linked
 	// company id comes from the JWT (populated at login from partner.companyId).
@@ -212,6 +267,11 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	}
 	product.SKU = strings.TrimSpace(product.SKU)
 	product.Barcode = strings.TrimSpace(product.Barcode)
+	product.CustomLabel0 = strings.TrimSpace(product.CustomLabel0)
+	product.CustomLabel1 = strings.TrimSpace(product.CustomLabel1)
+	product.CustomLabel2 = strings.TrimSpace(product.CustomLabel2)
+	product.CustomLabel3 = strings.TrimSpace(product.CustomLabel3)
+	product.CustomLabel4 = strings.TrimSpace(product.CustomLabel4)
 	for i := range product.Attributes {
 		product.Attributes[i].Key = strings.TrimSpace(product.Attributes[i].Key)
 		product.Attributes[i].Value = strings.TrimSpace(product.Attributes[i].Value)
@@ -237,8 +297,12 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 	case "admin":
 		filter = bson.M{}
 	case "company":
-		filter = bson.M{"sellerID": accountID}
+		// The organisation, not the individual: products are stored under the root's
+		// id, so a colleague filtering by their own would get an empty catalogue.
+		filter = bson.M{"sellerID": orgIDFromClaim(userClaim)}
 	case "partner":
+		// Partners stay scoped by their own id: they are scoped by PartnerID, not
+		// by the selling organisation.
 		filter = bson.M{"partnerId": accountID}
 	case "customer":
 		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
@@ -338,7 +402,8 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 
 	// Confidential seller cost must never reach buyers. Phase 1 protected the
 	// storefront/feeds; this closes the authenticated-API leak (Roadmap #40).
-	if role == "customer" || role == "b2c" {
+	// Extended in #35g to staff inside the seller who are not senior enough.
+	if orgRole, _ := userClaim["org_role"].(string); hidesCost(role, orgRole) {
 		for _, product := range products {
 			product.Cost = 0
 		}
@@ -347,9 +412,48 @@ func (h *LambdaHandler) getProducts(userClaim map[string]interface{}) (events.AP
 	return h.successResponse(products), nil
 }
 
+// productAccessResult says whether a caller may read a product, and on what
+// basis. The basis matters: only a CUSTOMER is barred from inactive products,
+// because the people who own or supply a product need to see it while it is off.
+type productAccessResult struct {
+	allowed    bool
+	asCustomer bool
+}
+
+// productAccess decides who may read a single product.
+//
+// Extracted from the handler so it can be tested without a database, and because
+// it was silently wrong: a PARTNER matched neither branch. Ownership was measured
+// against product.SellerID, which is the company whose catalogue the product
+// appears in and never the partner, so a partner supplying a product could list
+// it (the list endpoint scopes on partnerId) and then get 403 fetching that same
+// product by id. The two endpoints disagreed about who owns a partner's product.
+func productAccess(role, accountID, orgID string, associatedCompanyIDs []string, p *storage.Product) productAccessResult {
+	if p == nil {
+		return productAccessResult{}
+	}
+	if role == "admin" {
+		return productAccessResult{allowed: true}
+	}
+	if p.SellerID == orgID {
+		return productAccessResult{allowed: true}
+	}
+	// A partner owns what they supply, matching how the list endpoint scopes them.
+	if role == "partner" && p.PartnerID != "" && p.PartnerID == accountID {
+		return productAccessResult{allowed: true}
+	}
+	if role == "customer" || role == "b2c" {
+		for _, id := range associatedCompanyIDs {
+			if id == p.SellerID {
+				return productAccessResult{allowed: true, asCustomer: true}
+			}
+		}
+	}
+	return productAccessResult{}
+}
+
 func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
-	claimID, _ := userClaim["id"].(string)
 
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
@@ -363,32 +467,28 @@ func (h *LambdaHandler) getProductByID(userClaim map[string]interface{}, idStr s
 
 	// Authorization check for non-admin roles
 	if claimRole != "admin" {
-		isOwner := product.SellerID == claimID
-
-		isAssociatedCustomer := false
-		if claimRole == "customer" || claimRole == "b2c" {
-			if assocCompanies, ok := userClaim["associate_company_ids"].([]interface{}); ok {
-				for _, companyID := range assocCompanies {
-					if companyID.(string) == product.SellerID {
-						isAssociatedCustomer = true
-						break
-					}
+		claimID, _ := userClaim["id"].(string)
+		var assoc []string
+		if raw, ok := userClaim["associate_company_ids"].([]interface{}); ok {
+			for _, c := range raw {
+				if s, ok := c.(string); ok {
+					assoc = append(assoc, s)
 				}
 			}
 		}
-
-		if !isOwner && !isAssociatedCustomer {
+		access := productAccess(claimRole, claimID, orgIDFromClaim(userClaim), assoc, product)
+		if !access.allowed {
 			return h.errorResponse(http.StatusForbidden, "Unauthorized to access this product"), nil
 		}
-
 		// Customers cannot view inactive products
-		if isAssociatedCustomer && product.Active != nil && !*product.Active {
+		if access.asCustomer && product.Active != nil && !*product.Active {
 			return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 		}
 	}
 
-	// Confidential seller cost must never reach buyers (Roadmap #40).
-	if claimRole == "customer" || claimRole == "b2c" {
+	// Confidential seller cost must never reach buyers (Roadmap #40), nor staff
+	// inside the seller who are not senior enough to see it (Roadmap #35g).
+	if claimOrgRole, _ := userClaim["org_role"].(string); hidesCost(claimRole, claimOrgRole) {
 		product.Cost = 0
 	}
 
@@ -409,7 +509,7 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	isOwner := product.SellerID == claimID || (claimRole == "partner" && product.PartnerID == claimID)
+	isOwner := product.SellerID == orgIDFromClaim(userClaim) || (claimRole == "partner" && product.PartnerID == claimID)
 	if !isOwner && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to update this product"), nil
 	}
@@ -419,9 +519,8 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	// Prevent updating SellerID or PartnerID; they are stamped at create and immutable
-	delete(updates, "sellerID")
-	delete(updates, "partnerId")
+	claimOrgRole, _ := userClaim["org_role"].(string)
+	stripUnwritableFields(updates, claimRole, claimOrgRole)
 
 	// Sanitize text fields that affect URLs and display
 	if name, ok := updates["name"].(string); ok {
@@ -536,6 +635,76 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 		}
 	}
 
+	// Coerce package weight/dimensions to float64; empty → $unset (honors omitempty).
+	// Same guard as price/stock: this handler writes a raw bson.M, so an uncoerced
+	// string stored here would later break the typed decode of the catalog response
+	// in account-service and fail storefront generation for the whole company.
+	for _, f := range []string{"weight", "length", "width", "height"} {
+		raw, ok := updates[f]
+		if !ok {
+			continue
+		}
+		var n float64
+		switch v := raw.(type) {
+		case nil:
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		case string:
+			if strings.TrimSpace(v) == "" {
+				delete(updates, f)
+				unsetFields[f] = ""
+				continue
+			}
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+			if err != nil {
+				return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+			}
+			n = parsed
+		case float64:
+			n = v
+		default:
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+		}
+		if n < 0 {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Product %s cannot be negative", f)), nil
+		}
+		if n == 0 {
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		}
+		updates[f] = n
+	}
+
+	// Trim custom labels and enforce Google's 100-char cap; empty → $unset so a
+	// cleared label leaves no residue on the doc (honors omitempty).
+	for i := 0; i < 5; i++ {
+		f := fmt.Sprintf("customLabel%d", i)
+		raw, ok := updates[f]
+		if !ok {
+			continue
+		}
+		s, isStr := raw.(string)
+		if raw != nil && !isStr {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("Invalid %s value", f)), nil
+		}
+		s = strings.TrimSpace(s)
+		// Runes, not bytes: the create path validates with `max=100`, which
+		// go-playground measures as utf8.RuneCountInString. Using len() here
+		// would reject a 100-character label containing any multibyte character
+		// that create had just accepted.
+		if utf8.RuneCountInString(s) > 100 {
+			return h.errorResponse(http.StatusBadRequest, fmt.Sprintf("%s must be 100 characters or fewer", f)), nil
+		}
+		if s == "" {
+			delete(updates, f)
+			unsetFields[f] = ""
+			continue
+		}
+		updates[f] = s
+	}
+
 	// Coerce deal date strings to time.Time (empty → $unset from MongoDB)
 	if ds, ok := updates["dealStartDate"].(string); ok {
 		if ds == "" {
@@ -621,7 +790,7 @@ func (h *LambdaHandler) deleteProduct(userClaim map[string]interface{}, idStr st
 		return h.errorResponse(http.StatusNotFound, "Product not found"), nil
 	}
 
-	isOwner := product.SellerID == claimID || (claimRole == "partner" && product.PartnerID == claimID)
+	isOwner := product.SellerID == orgIDFromClaim(userClaim) || (claimRole == "partner" && product.PartnerID == claimID)
 	if !isOwner && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this product"), nil
 	}
@@ -685,7 +854,6 @@ func isValidSlug(s string) bool {
 
 func (h *LambdaHandler) createBlogPost(userClaim map[string]interface{}, body string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
-	claimID, _ := userClaim["id"].(string)
 	if claimRole != "company" && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized: Company role required"), nil
 	}
@@ -695,7 +863,7 @@ func (h *LambdaHandler) createBlogPost(userClaim map[string]interface{}, body st
 		return h.errorResponse(http.StatusBadRequest, "Invalid request body"), nil
 	}
 
-	post.SellerID = claimID
+	post.SellerID = orgIDFromClaim(userClaim)
 	post.Title = strings.TrimSpace(post.Title)
 	post.Slug = strings.TrimSpace(post.Slug)
 	post.Excerpt = strings.TrimSpace(post.Excerpt)
@@ -729,14 +897,14 @@ func (h *LambdaHandler) createBlogPost(userClaim map[string]interface{}, body st
 
 func (h *LambdaHandler) getBlogPosts(userClaim map[string]interface{}) (events.APIGatewayProxyResponse, error) {
 	role, _ := userClaim["role"].(string)
-	accountID, _ := userClaim["id"].(string)
 
 	var filter bson.M
 	switch role {
 	case "admin":
 		filter = bson.M{}
 	case "company":
-		filter = bson.M{"sellerID": accountID}
+		// Same reasoning as the product list: blog posts are keyed by the root.
+		filter = bson.M{"sellerID": orgIDFromClaim(userClaim)}
 	case "customer", "b2c":
 		associateCompanyIDs, ok := userClaim["associate_company_ids"].([]interface{})
 		if !ok {
@@ -772,7 +940,6 @@ func (h *LambdaHandler) getBlogPosts(userClaim map[string]interface{}) (events.A
 
 func (h *LambdaHandler) getBlogPostByID(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
-	claimID, _ := userClaim["id"].(string)
 
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
@@ -785,7 +952,7 @@ func (h *LambdaHandler) getBlogPostByID(userClaim map[string]interface{}, idStr 
 	}
 
 	if claimRole != "admin" {
-		isOwner := post.SellerID == claimID
+		isOwner := post.SellerID == orgIDFromClaim(userClaim)
 		isAssociated := false
 		if claimRole == "customer" || claimRole == "b2c" {
 			if assoc, ok := userClaim["associate_company_ids"].([]interface{}); ok {
@@ -810,7 +977,6 @@ func (h *LambdaHandler) getBlogPostByID(userClaim map[string]interface{}, idStr 
 
 func (h *LambdaHandler) updateBlogPost(userClaim map[string]interface{}, idStr string, body string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
-	claimID, _ := userClaim["id"].(string)
 
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
@@ -822,7 +988,7 @@ func (h *LambdaHandler) updateBlogPost(userClaim map[string]interface{}, idStr s
 		return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
 	}
 
-	if post.SellerID != claimID && claimRole != "admin" {
+	if post.SellerID != orgIDFromClaim(userClaim) && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to update this blog post"), nil
 	}
 
@@ -882,7 +1048,6 @@ func (h *LambdaHandler) updateBlogPost(userClaim map[string]interface{}, idStr s
 
 func (h *LambdaHandler) deleteBlogPost(userClaim map[string]interface{}, idStr string) (events.APIGatewayProxyResponse, error) {
 	claimRole, _ := userClaim["role"].(string)
-	claimID, _ := userClaim["id"].(string)
 
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
@@ -894,7 +1059,7 @@ func (h *LambdaHandler) deleteBlogPost(userClaim map[string]interface{}, idStr s
 		return h.errorResponse(http.StatusNotFound, "Blog post not found"), nil
 	}
 
-	if post.SellerID != claimID && claimRole != "admin" {
+	if post.SellerID != orgIDFromClaim(userClaim) && claimRole != "admin" {
 		return h.errorResponse(http.StatusForbidden, "Unauthorized to delete this blog post"), nil
 	}
 

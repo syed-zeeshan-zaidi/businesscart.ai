@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	texttemplate "text/template"
 	"time"
@@ -44,9 +45,16 @@ type StorefrontData struct {
 	HasBlog          bool           // true if any active blog posts (drives footer link)
 	Year             int
 	Timestamp        string
-	BasePath         string
-	ApiBase          string // Public-facing API URL for browser JS calls
-	Domain           string // Pre-computed: CustomDomain if set, else PreviewDomain
+	// The most recent real content change, used for sitemap <lastmod> on pages
+	// that aggregate many items (home, listing, category, blog index). Distinct
+	// from Timestamp, which is when generation ran: stamping generation time as
+	// lastmod told crawlers every page changed on every regen, which is both
+	// untrue and the thing that trains them to ignore the signal.
+	CatalogLastMod string
+	BlogLastMod    string
+	BasePath       string
+	ApiBase        string // Public-facing API URL for browser JS calls
+	Domain         string // Pre-computed: CustomDomain if set, else PreviewDomain
 }
 
 // BlogPostData mirrors catalog-service storage.BlogPost for rendering.
@@ -73,6 +81,20 @@ type BlogPostData struct {
 	Filename    string `json:"-"` // {slug}-{last6charsOfID}
 	ReadMinutes int    `json:"-"` // word count / 200
 	WordCount   int    `json:"-"`
+}
+
+// LastModTime is when this post's content last changed: its edit date, or its
+// publish date when it has never been edited.
+//
+// A method rather than template logic because BlogLastMod computes the same rule
+// for the blog index and category pages, and the two disagreeing is exactly the
+// bug this fixes: a published-but-never-edited post had no UpdatedAt, so its own
+// page lost its <lastmod> while the index that aggregates it kept one.
+func (b BlogPostData) LastModTime() time.Time {
+	if b.UpdatedAt.After(b.PublishedAt) {
+		return b.UpdatedAt
+	}
+	return b.PublishedAt
 }
 
 type Attribute struct {
@@ -111,11 +133,13 @@ type PriceTier struct {
 
 type ProductData struct {
 	ID                    string      `json:"_id,omitempty"`
+	SellerID              string      `json:"sellerID,omitempty"` // owning company; checked before publishing (never rendered)
 	PartnerID             string      `json:"partnerId,omitempty"`
 	Name                  string      `json:"name"`
 	Description           string      `json:"description"`
 	Price                 float64     `json:"price"`
 	DealPrice             float64     `json:"dealPrice,omitempty"`
+	UpdatedAt             time.Time   `json:"updatedAt,omitempty"`
 	DealStartDate         *time.Time  `json:"dealStartDate,omitempty"`
 	DealEndDate           *time.Time  `json:"dealEndDate,omitempty"`
 	DiscountedPrice       float64     `json:"discountedPrice,omitempty"`
@@ -128,11 +152,26 @@ type ProductData struct {
 	SKU                   string      `json:"sku,omitempty"`
 	Barcode               string      `json:"barcode,omitempty"`
 	Stock                 int         `json:"stock"`
-	Active                *bool       `json:"active,omitempty"`
-	Featured              bool        `json:"featured,omitempty"`
-	Attributes            []Attribute `json:"attributes"`
-	Rating                *Rating     `json:"rating,omitempty"`
-	Filename              string      `json:"-"` // Pre-computed: slug-suffix (no extension)
+	// Package weight (lb) and dimensions (in), as shipped. Decoded straight from
+	// the catalog response; no mapping step. Rendered on the PDP and the .md
+	// companions so a shopper (or an LLM) can answer "how big is it".
+	Weight float64 `json:"weight,omitempty"`
+	Length float64 `json:"length,omitempty"`
+	Width  float64 `json:"width,omitempty"`
+	Height float64 `json:"height,omitempty"`
+	// Merchant-set ad segmentation labels (Roadmap #45). FEED-ONLY: never
+	// rendered on the storefront, since they are internal campaign metadata and
+	// are explicitly invisible to shoppers.
+	CustomLabel0 string      `json:"customLabel0,omitempty"`
+	CustomLabel1 string      `json:"customLabel1,omitempty"`
+	CustomLabel2 string      `json:"customLabel2,omitempty"`
+	CustomLabel3 string      `json:"customLabel3,omitempty"`
+	CustomLabel4 string      `json:"customLabel4,omitempty"`
+	Active       *bool       `json:"active,omitempty"`
+	Featured     bool        `json:"featured,omitempty"`
+	Attributes   []Attribute `json:"attributes"`
+	Rating       *Rating     `json:"rating,omitempty"`
+	Filename     string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
 type Generator struct {
@@ -191,6 +230,28 @@ func (g *Generator) Generate(data StorefrontData) error {
 
 	data.Year = time.Now().Year()
 	data.Timestamp = time.Now().Format(time.RFC3339)
+
+	// Real content-change dates, computed from the items themselves. Empty when
+	// nothing carries a date, in which case the sitemap omits <lastmod> for those
+	// pages rather than inventing one: an absent lastmod is valid, a wrong one is
+	// a lie crawlers eventually learn to discount.
+	var newestProduct, newestPost time.Time
+	for _, p := range data.Products {
+		if p.UpdatedAt.After(newestProduct) {
+			newestProduct = p.UpdatedAt
+		}
+	}
+	for _, b := range data.BlogPosts {
+		if lm := b.LastModTime(); lm.After(newestPost) {
+			newestPost = lm
+		}
+	}
+	if !newestProduct.IsZero() {
+		data.CatalogLastMod = newestProduct.UTC().Format(time.RFC3339)
+	}
+	if !newestPost.IsZero() {
+		data.BlogLastMod = newestPost.UTC().Format(time.RFC3339)
+	}
 
 	// Pre-compute domain for templates
 	if data.Config.CustomDomain != "" {
@@ -270,6 +331,14 @@ func (g *Generator) Generate(data StorefrontData) error {
 	for cat := range categoryCounts {
 		data.Categories = append(data.Categories, cat)
 	}
+	// Sorted because Go randomises map iteration order, and this slice is the
+	// category nav rendered on every PDP, listing and category page. Unsorted, an
+	// unchanged catalogue produced a different byte output on every regen: 34 of
+	// 107 PDPs "differed" on a byte-diff with zero real content change, which made
+	// it impossible to cheaply prove a storefront change was inert, churned S3
+	// objects and invalidated CloudFront for nothing, and could shuffle the nav
+	// under a returning visitor. Matches sort.Strings(data.BlogCategories) above.
+	sort.Strings(data.Categories)
 
 	// Top primary categories by product count (for footer — max 6)
 	primaryCounts := map[string]int{}
@@ -281,8 +350,15 @@ func (g *Generator) Generate(data StorefrontData) error {
 	for p := range primaryCounts {
 		primaries = append(primaries, p)
 	}
+	// Count descending, then name, because sort.Slice is NOT stable: two
+	// categories with the same product count would otherwise keep the random map
+	// order they were appended in, and the footer would reshuffle between regens
+	// even with the list above sorted.
 	sort.Slice(primaries, func(i, j int) bool {
-		return primaryCounts[primaries[i]] > primaryCounts[primaries[j]]
+		if primaryCounts[primaries[i]] != primaryCounts[primaries[j]] {
+			return primaryCounts[primaries[i]] > primaryCounts[primaries[j]]
+		}
+		return primaries[i] < primaries[j]
 	})
 	if len(primaries) > 6 {
 		data.TopCategories = primaries[:6]
@@ -799,6 +875,9 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			return int(((original - discounted) / original) * 100)
 		},
 		"subtractFloat": func(a, b float64) float64 { return a - b },
+		"lastmod":       lastmodString,
+		"dims":          dimsString,
+		"num":           numString,
 		"primaryOf": func(cat string) string {
 			p, _ := parseCategoryParts(cat)
 			return p
@@ -986,6 +1065,12 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 			"subtract": func(a, b int) int { return a - b },
 			"printf":   fmt.Sprintf,
 			"slugify":  slugify,
+			// Same helpers as the HTML map. The .md companions carry a real
+			// last-updated date and the package specs too, so they have to be
+			// registered on both maps or they silently render nothing.
+			"lastmod": lastmodString,
+			"dims":    dimsString,
+			"num":     numString,
 		}).Parse(sanitizedContent)
 		if err != nil {
 			log.Printf("ERROR: Failed to parse Text template %s: %v", tmplName, err)
@@ -997,6 +1082,40 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 	}
 
 	return os.WriteFile(outputPath, buf.Bytes(), 0644)
+}
+
+// lastmodString formats a content-change date for sitemap <lastmod> and for the
+// .md companions, or "" when the item carries none so the caller can omit the
+// field entirely. An absent lastmod is valid; a fabricated one is a lie crawlers
+// learn to discount.
+func lastmodString(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
+// numString renders a measurement without trailing zeros, so 2.5 stays "2.5"
+// but 12.0 reads "12" rather than "12.00". Returns "" for a zero/absent value
+// so a template can omit the row entirely.
+func numString(v float64) string {
+	if v <= 0 {
+		return ""
+	}
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// dimsString renders package dimensions as "L x W x H", skipping any axis the
+// merchant left blank, and "" when none are set. A merchant who fills only two
+// of three gets "12 x 8" rather than a broken "12 x  x 4".
+func dimsString(l, w, h float64) string {
+	parts := make([]string, 0, 3)
+	for _, v := range []float64{l, w, h} {
+		if s := numString(v); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	return strings.Join(parts, " x ")
 }
 
 // slugify converts a string to a URL-safe lowercase slug.

@@ -20,4 +20,4 @@
 [[end]]
 ## Metadata
 - **Company**: [[.Company.Name]]
-- **Generated**: [[.Timestamp]]
+[[if .CatalogLastMod]]- **Last updated**: [[.CatalogLastMod]][[end]]

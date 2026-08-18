@@ -392,6 +392,82 @@ const quoteStatusHTMLTmpl = `<!DOCTYPE html>
 </body>
 </html>`
 
+// ─────────────────────── Order Approval Request ───────────────────────
+
+type ApprovalRequestData struct {
+	QuoteID       string
+	StepName      string
+	RequesterName string
+	GrandTotal    float64
+	ExpiresAt     string
+	BrandName     string
+	BrandEmail    string
+	// True when this is the SELLING organisation's own sign-off (Roadmap #21d),
+	// which is a different thing to approve: their rep is asking to SEND a quote,
+	// not to commit to buying one. The buyer-worded copy told a sales manager an
+	// order had been "placed" and asked them to approve it, on a quote the
+	// customer had not even been shown yet.
+	SellerSide bool
+}
+
+// ApprovalRequestMessage builds the email sent to an approver when an order is
+// waiting on their sign-off. Sent to every approver on the current step: any one
+// of them can clear it, which is what stops an order stalling when someone is
+// away.
+func ApprovalRequestMessage(to string, data ApprovalRequestData) Message {
+	return Message{
+		To:       to,
+		Subject:  fmt.Sprintf("Approval needed: order #%s ($%.2f)", lastSix(data.QuoteID), data.GrandTotal),
+		HTMLBody: renderHTML(approvalRequestHTMLTmpl, data),
+		TextBody: approvalRequestText(data),
+	}
+}
+
+func approvalRequestText(d ApprovalRequestData) string {
+	var b bytes.Buffer
+	if d.SellerSide {
+		b.WriteString("A quote is waiting for your approval before it goes to the customer.\n\n")
+	} else {
+		b.WriteString("An order is waiting for your approval.\n\n")
+	}
+	b.WriteString(fmt.Sprintf("Quote ID: %s\n", d.QuoteID))
+	if d.RequesterName != "" {
+		if d.SellerSide {
+			b.WriteString(fmt.Sprintf("Customer: %s\n", d.RequesterName))
+		} else {
+			b.WriteString(fmt.Sprintf("Requested by: %s\n", d.RequesterName))
+		}
+	}
+	b.WriteString(fmt.Sprintf("Quote total: $%.2f\n", d.GrandTotal))
+	if d.StepName != "" {
+		b.WriteString(fmt.Sprintf("Approval step: %s\n", d.StepName))
+	}
+	if d.ExpiresAt != "" {
+		b.WriteString(fmt.Sprintf("\nPlease respond by %s. After that this request can no longer be decided, because the total is a price snapshot taken when the quote was priced.\n", d.ExpiresAt))
+	}
+	b.WriteString("\nLog in to BusinessCart to approve or reject.\n\n")
+	b.WriteString(brandFooterText(d.BrandName, d.BrandEmail))
+	b.WriteString("\n")
+	return b.String()
+}
+
+const approvalRequestHTMLTmpl = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Approval needed</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1e293b">
+  <h1 style="color:#0d9488;margin-bottom:8px">Approval needed</h1>
+  <p style="font-size:16px;line-height:1.5">{{if .SellerSide}}A quote is waiting for your approval before it goes to the customer.{{else}}An order is waiting for your approval.{{end}}</p>
+  <p style="font-size:14px;color:#64748b">Quote ID: <strong>{{.QuoteID}}</strong></p>
+  {{if .RequesterName}}<p style="font-size:16px;line-height:1.5">{{if .SellerSide}}Customer{{else}}Requested by{{end}}: <strong>{{.RequesterName}}</strong></p>{{end}}
+  <p style="font-size:20px;line-height:1.5">Quote total: <strong style="color:#0d9488">${{printf "%.2f" .GrandTotal}}</strong></p>
+  {{if .StepName}}<p style="font-size:14px;color:#64748b">Approval step: {{.StepName}}</p>{{end}}
+  {{if .ExpiresAt}}<p style="font-size:14px;color:#b45309">Please respond by {{.ExpiresAt}}. After that this request can no longer be decided, because the total is a price snapshot taken when the quote was priced.</p>{{end}}
+  <p style="font-size:16px;line-height:1.5">Log in to <a href="https://businesscart.ai" style="color:#0d9488;text-decoration:none">BusinessCart</a> to approve or reject this order.</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:32px 0">
+  <p style="color:#64748b;font-size:12px">— {{.BrandName}}{{if .BrandEmail}} · <a href="mailto:{{.BrandEmail}}" style="color:#64748b;text-decoration:none">{{.BrandEmail}}</a>{{end}}</p>
+</body>
+</html>`
+
 // lastSix returns the last 6 characters of an ID for compact display.
 func lastSix(s string) string {
 	if len(s) <= 6 {
@@ -508,6 +584,7 @@ type MonthlyStatementData struct {
 	Tier                string // "Starter" | "Growth" | "Enterprise"
 	OrderCount          int
 	TotalGrandTotal     float64 // their gross revenue in the period
+	TotalRefunded       float64 // refunds issued in the period; fees are charged on gross minus this
 	MonthlyFee          float64
 	PerOrderRateStr     string // pre-formatted, e.g., "6%, capped at $5/order"
 	TransactionFees     float64
@@ -527,6 +604,12 @@ func MonthlyStatementMessage(to string, data MonthlyStatementData) Message {
 	}
 }
 
+// NetRevenue is gross minus refunds. A method rather than a field so the HTML
+// template cannot drift from the plain-text body, which computes the same thing.
+func (d MonthlyStatementData) NetRevenue() float64 {
+	return d.TotalGrandTotal - d.TotalRefunded
+}
+
 func monthlyStatementText(d MonthlyStatementData) string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "BusinessCart Monthly Statement\n\n")
@@ -534,8 +617,15 @@ func monthlyStatementText(d MonthlyStatementData) string {
 	fmt.Fprintf(&b, "Period:  %s\n\n", d.PeriodLabel)
 	fmt.Fprintf(&b, "Pricing tier:        %s (%s)\n", d.Tier, d.PerOrderRateStr)
 	fmt.Fprintf(&b, "Orders this period:  %d\n", d.OrderCount)
-	fmt.Fprintf(&b, "Your gross revenue:  $%.2f\n\n", d.TotalGrandTotal)
-	fmt.Fprintf(&b, "Charges\n")
+	fmt.Fprintf(&b, "Your gross revenue:  $%.2f\n", d.TotalGrandTotal)
+	// Only shown when refunds exist, so a period without them reads exactly as
+	// before. Without these two lines a seller sees fees that do not match the
+	// gross figure above and has no way to tell why.
+	if d.TotalRefunded > 0 {
+		fmt.Fprintf(&b, "Refunds issued:     -$%.2f\n", d.TotalRefunded)
+		fmt.Fprintf(&b, "Net revenue:         $%.2f\n", d.NetRevenue())
+	}
+	fmt.Fprintf(&b, "\nCharges\n")
 	fmt.Fprintf(&b, "  Monthly fee:       $%.2f\n", d.MonthlyFee)
 	fmt.Fprintf(&b, "  Transaction fees:  $%.2f\n", d.TransactionFees)
 	fmt.Fprintf(&b, "  ─────────────────────────────\n")
@@ -569,6 +659,16 @@ const monthlyStatementHTMLTmpl = `<!DOCTYPE html>
         <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Your gross revenue</td>
         <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right">${{printf "%.2f" .TotalGrandTotal}}</td>
       </tr>
+      {{if gt .TotalRefunded 0.0}}
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Refunds issued</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right;color:#b91c1c">-${{printf "%.2f" .TotalRefunded}}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">Net revenue</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:right"><strong>${{printf "%.2f" .NetRevenue}}</strong></td>
+      </tr>
+      {{end}}
     </tbody>
   </table>
 

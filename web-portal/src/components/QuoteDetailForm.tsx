@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getQuote, patchQuote } from '../api';
 import { Quote, CartItem } from '../types';
 import QuoteComments from './QuoteComments';
+import ApprovalChainPanel from './ApprovalChainPanel';
 
 const QuoteDetailForm: React.FC = () => {
   const { isAuthenticated, decodeJWT } = useAuth();
@@ -18,6 +19,11 @@ const QuoteDetailForm: React.FC = () => {
   const [discountPercentage, setDiscountPercentage] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState<string | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(false);
+  // Needed to tell whether THIS person is a named approver on the level in front.
+  // Individual account, not the organisation: a company's staff all share an
+  // OrgID, so matching on that would let any colleague clear any level.
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -37,6 +43,8 @@ const QuoteDetailForm: React.FC = () => {
       navigate('/dashboard');
       return;
     }
+    setCurrentUserId(decodedUser.id);
+    setUserRole(decodedUser.role);
 
     const fetchQuote = async () => {
       if (!quoteId) {
@@ -166,6 +174,16 @@ const QuoteDetailForm: React.FC = () => {
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Quote Details</h1>
+
+        {/* The seller sees the whole chain, both sides of it. Their own levels
+            (Roadmap #21d) are decidable here; the buyer's are shown read-only so
+            a rep can tell a customer exactly who the order is sitting with. */}
+        <ApprovalChainPanel
+          quote={quote}
+          currentUserId={currentUserId}
+          userRole={userRole}
+          onDecided={setQuote}
+        />
 
         <div className="bg-white shadow-lg rounded-lg overflow-hidden p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

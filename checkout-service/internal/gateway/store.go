@@ -260,11 +260,33 @@ func (s *Store) DeleteConfig(ctx context.Context, sellerID, gatewayName string) 
 	return err
 }
 
+// PendingSessionLifetime is how long a payment session stays claimable.
+//
+// INVARIANT: this must never be SHORTER than the payment provider's own hosted
+// session lifetime. Our expiry is checked in handlePaymentReturnRequest before
+// the provider is asked whether the customer actually paid, so a shorter window
+// silently overrules the provider: the shopper is shown "expired" and no order is
+// created while the money sits with the gateway.
+//
+// It used to be 30 minutes against a Stripe Checkout Session that lives 24 HOURS.
+// A shopper who paid and whose mobile browser was backgrounded for half an hour
+// came back to "expired" and no order, which is well inside normal phone
+// behaviour. Seven days clears every hosted-checkout lifetime we integrate with
+// and leaves a window in which a lost session can still be reconciled.
+const PendingSessionLifetime = 7 * 24 * time.Hour
+
+// TerminalSessionRetention is how long a settled session is kept for audit.
+//
+// The TTL index reaps on expiresAt, so without pushing this out a decline or a
+// completed payment vanished 30 minutes later and "was this customer charged?"
+// could only be answered by hand in the provider's dashboard.
+const TerminalSessionRetention = 90 * 24 * time.Hour
+
 // CreateSession saves a new payment session.
 func (s *Store) CreateSession(ctx context.Context, session *PaymentSession) error {
 	session.ID = primitive.NewObjectID()
 	session.CreatedAt = time.Now()
-	session.ExpiresAt = time.Now().Add(30 * time.Minute)
+	session.ExpiresAt = time.Now().Add(PendingSessionLifetime)
 	session.Status = "pending"
 	_, err := s.sessions.InsertOne(ctx, session)
 	return err
@@ -301,7 +323,18 @@ func (s *Store) ClaimSession(ctx context.Context, providerSessionID string) (*Pa
 }
 
 // UpdateSessionStatus updates the status of a payment session.
+//
+// A settled session also has its retention extended, so the record of what
+// happened outlives the short claim window. Only terminal states are extended:
+// a session moving to "processing" is still mid-flight and keeps its original
+// expiry, so a crash between claim and order creation still lets the TTL reap it
+// rather than leaving a stuck row forever.
 func (s *Store) UpdateSessionStatus(ctx context.Context, id primitive.ObjectID, status string) error {
-	_, err := s.sessions.UpdateByID(ctx, id, bson.M{"$set": bson.M{"status": status}})
+	set := bson.M{"status": status}
+	switch status {
+	case "completed", "cancelled", "failed", "expired":
+		set["expiresAt"] = time.Now().Add(TerminalSessionRetention)
+	}
+	_, err := s.sessions.UpdateByID(ctx, id, bson.M{"$set": set})
 	return err
 }

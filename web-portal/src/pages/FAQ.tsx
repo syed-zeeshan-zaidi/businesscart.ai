@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
@@ -15,7 +16,11 @@ interface Section {
   questions: Question[];
 }
 
-const sections: Section[] = [
+// Exported so the prerenderer can build this page's FAQPage structured data from
+// the same array the page renders. A hand-maintained second copy would drift the
+// first time a question is edited, and structured data that disagrees with the
+// visible page is worse than none.
+export const sections: Section[] = [
   {
     id: 'general',
     title: 'General',
@@ -101,6 +106,21 @@ const sections: Section[] = [
         question: 'What B2B ordering tools do my wholesale customers get?',
         answer: 'Several, all built in. Buyers get a Quick Order page (add by SKU with autocomplete, paste a list, upload a CSV, or use a browse grid) and can save up to 3 named carts per supplier to reorder in a click. You can set per-product case packs and order increments, so customers order in cases of 24 or pallets of 40. And you can generate a branded, printable or PDF line sheet of your catalog, curated by category or product. No app or plugin required.',
       },
+      {
+        id: 'staff-roles-costs',
+        question: 'Can I let staff use the portal without showing them my costs and margins?',
+        answer: 'Yes. Everyone you invite is an owner, an admin or staff. Staff run the day to day: orders, quotes, customers, and the product catalog. What they cannot see is what your goods cost you, so the Margin Report and every cost figure are blank for them, enforced by the API and not just hidden in the screen. Admins see costs and margins. Only you, the owner, can change payment gateway settings or see your billing statements, because whoever can rewrite a gateway secret can redirect the money your store takes.',
+      },
+      {
+        id: 'seller-side-approvals',
+        question: 'Can I require internal sign-off before a quote goes out to a customer?',
+        answer: 'Yes, and this is rare: most B2B platforms only let the buying side approve. Set a threshold on order value or total quantity, then name who signs off inside your own company. When a rep approves a quote at or above it, the quote goes to your approver first and the customer sees nothing until your side has cleared it. You can have several levels, and several people on each level, so a quote does not stall because one person is away. Your customer never sees who your approvers are or what they wrote on a decision.',
+      },
+      {
+        id: 'approval-audit-record',
+        question: 'Is there a record of who approved what?',
+        answer: 'Yes, and it cannot be edited or removed. Every decision records who made it, when, any note they left, and the order total at that moment. If a quote is withdrawn and reinstated, the earlier sign-offs stay on the record rather than being wiped. Overrides are recorded too: if you release an order without waiting for an approver, that is logged with your name and every approval level it skipped.',
+      },
     ],
   },
   {
@@ -131,6 +151,16 @@ const sections: Section[] = [
         id: 'quick-order-reorder',
         question: 'Is there a faster way to place large or repeat orders?',
         answer: 'Yes. The Quick Order page lets you add items by SKU with autocomplete, paste a "SKU, quantity" list, upload a CSV, or browse a compact grid, then add everything to your cart at once. You can also save up to 3 named carts per supplier (requisition lists) and reload one to reorder in a click, and one-click reorder any past order from your history.',
+      },
+      {
+        id: 'buyer-org-roles',
+        question: 'Can colleagues in my company have different levels of access?',
+        answer: 'Yes, and you set it up yourself rather than asking your supplier to. Colleagues who join with your invite code are owner, admin or staff. Everyone can order, subject to whatever approval rules you have set. Only you, as the owner, can change those approval rules, invite or remove colleagues, or change anyone\'s level. Your supplier cannot see or change any of it.',
+      },
+      {
+        id: 'buyer-side-approvals',
+        question: 'Can my company require approval before an order is placed?',
+        answer: 'Yes, and you set it up yourself rather than asking your supplier to. Name who signs off inside your organisation and the threshold that triggers it, on order value or total quantity, and choose whether it applies to normal checkout, negotiated quotes, or both. Orders at or above the threshold are held until your approvers clear them, and any one person on a level can clear it so nothing waits on someone who is on leave. Your supplier cannot see or change your rules, and cannot see your approvers or the notes they write. Every decision is recorded permanently: who, when, the note, and the order total at the time.',
       },
     ],
   },
@@ -262,12 +292,12 @@ const FAQ: React.FC = () => {
           {/* Still have questions */}
           <div className="mt-12 text-center">
             <p className="text-gray-600 mb-4">Still have questions?</p>
-            <a
-              href="mailto:help@businesscart.ai?subject=Question%20-%20BusinessCart.ai"
+            <Link
+              to="/contact-us"
               className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-teal-700 hover:bg-teal-800"
             >
               Contact Us
-            </a>
+            </Link>
           </div>
         </div>
 

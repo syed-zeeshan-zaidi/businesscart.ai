@@ -131,7 +131,7 @@ func TestFormatGenericCSV(t *testing.T) {
 	out := FormatGenericCSV(orders)
 
 	// Header anchors column positions for spreadsheet imports
-	wantHeader := "Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid"
+	wantHeader := "Order ID,Created (UTC),Status,Customer Email,Payment Method,Delivery Method,Subtotal,Shipping,Tax,Discount,Promo Code,Grand Total,Refunded,Net Total,Items,Tracking Number,Tracking Carrier,Visitor ID,gclid,msclkid"
 	if !strings.HasPrefix(out, wantHeader) {
 		t.Errorf("CSV header mismatch.\n got: %q\nwant prefix: %q", strings.SplitN(out, "\n", 2)[0], wantHeader)
 	}
@@ -223,5 +223,63 @@ func TestFormatBingCSV(t *testing.T) {
 	// ISO 8601 with Z (Microsoft requires UTC, not the +0000 offset Google uses)
 	if !strings.Contains(out, "2026-05-04T14:30:00Z") {
 		t.Errorf("missing ISO 8601 Conversion Time")
+	}
+}
+
+// Roadmap #9: refunds must reach the export layer. Before this, all three exports
+// wrote GrandTotal, so an 83%-refunded order shipped its full pre-refund value as
+// the conversion value to Google and Microsoft, inflating reported ROAS and
+// training bidding on revenue that had been handed back.
+func TestExportsUseNetTotalAfterRefunds(t *testing.T) {
+	orders := []*Order{
+		{
+			CreatedAt:  time.Date(2026, 6, 8, 14, 30, 0, 0, time.UTC),
+			GrandTotal: 209.97,
+			Refunds:    []Refund{{Amount: 174.98}},
+			ClickIDs:   map[string]string{"gclid": "Cj0xyz", "msclkid": "ms_456"},
+		},
+	}
+
+	// Accounting export keeps gross AND reports the refund next to it, so the file
+	// still reconciles against the payment processor.
+	generic := FormatGenericCSV(orders)
+	for _, want := range []string{"209.97", "174.98", "34.99"} {
+		if !strings.Contains(generic, want) {
+			t.Errorf("generic CSV missing %q\ngot: %s", want, generic)
+		}
+	}
+
+	// Ad platforms get NET only. Asserting the gross value is absent is the part
+	// that actually fails if someone reverts to GrandTotal.
+	for name, out := range map[string]string{
+		"google": FormatGoogleCSV(orders, "Purchase"),
+		"bing":   FormatBingCSV(orders, "Purchase"),
+	} {
+		if !strings.Contains(out, "34.99") {
+			t.Errorf("%s CSV should carry net 34.99\ngot: %s", name, out)
+		}
+		if strings.Contains(out, "209.97") {
+			t.Errorf("%s CSV leaked gross 209.97 instead of net\ngot: %s", name, out)
+		}
+	}
+}
+
+// A refund larger than the order must never produce a negative conversion value.
+func TestExportsClampOverRefundToZero(t *testing.T) {
+	orders := []*Order{{
+		CreatedAt:  time.Date(2026, 6, 8, 14, 30, 0, 0, time.UTC),
+		GrandTotal: 50,
+		Refunds:    []Refund{{Amount: 80}},
+		ClickIDs:   map[string]string{"gclid": "Cj0xyz"},
+	}}
+	out := FormatGoogleCSV(orders, "Purchase")
+	// Check the value column itself, not the whole file: the timestamp legitimately
+	// contains hyphens. A negative amount would render as ",-30.00" (or "'-30.00"
+	// once the CSV-injection guard prefixes it).
+	if strings.Contains(out, ",-") || strings.Contains(out, ",'-") {
+		t.Errorf("over-refund produced a negative conversion value\ngot: %s", out)
+	}
+	if !strings.Contains(out, ",0.00,USD") {
+		t.Errorf("over-refund should clamp the conversion value to 0.00\ngot: %s", out)
 	}
 }

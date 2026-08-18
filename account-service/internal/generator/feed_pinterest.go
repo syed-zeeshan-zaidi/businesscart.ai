@@ -20,7 +20,7 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 	var b strings.Builder
 
 	// Header
-	b.WriteString("id,title,description,link,image_link,price,availability,condition,brand,product_type,google_product_category,sale_price\n")
+	b.WriteString("id,title,description,link,image_link,price,availability,condition,brand,product_type,google_product_category,sale_price,shipping_weight,shipping_width,shipping_height," + customLabelHeader(",") + "\n")
 
 	for _, p := range data.Products {
 		if p.Price <= 0 {
@@ -50,7 +50,12 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 			image = p.Images[0]
 		}
 
-		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s\n",
+		// Pinterest takes a weight plus WIDTH and HEIGHT only — its spec has no
+		// length field. The all-three gate still applies before either is sent,
+		// so a half-measured package is never published to any channel.
+		_, pinWidth, pinHeight := feedShippingDims(p)
+
+		b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%.2f USD,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
 			csvEscape(p.ID),
 			csvEscape(p.Name),
 			csvEscape(stripHTML(p.Description)),
@@ -63,6 +68,10 @@ func buildPinterestFeed(data StorefrontData) ([]byte, error) {
 			csvEscape(feedCategory(p.Category)),
 			csvEscape(p.GoogleProductCategory),
 			csvEscape(salePrice),
+			csvEscape(feedShippingWeight(p)),
+			csvEscape(pinWidth),
+			csvEscape(pinHeight),
+			customLabelCols(p, ",", csvEscape),
 		))
 	}
 

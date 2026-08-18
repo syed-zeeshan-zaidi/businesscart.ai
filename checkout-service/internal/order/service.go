@@ -33,11 +33,27 @@ func (s *Service) CreateOrder(order *Order) (*Order, error) {
 	return order, nil
 }
 
-// GetUnpaidOrdersTotal returns the sum of grandTotal for all non-cancelled orders for a customer+seller pair.
+// GetUnpaidOrdersTotal returns the outstanding balance for a customer+seller pair:
+// the sum of NET totals (grandTotal minus refunds) across all non-cancelled orders.
+//
+// Netting happens in the pipeline rather than by excluding status "refunded".
+// A FULL refund does auto-transition status to "refunded" (see the refund branch in
+// handler.updateOrder), so a status filter would have caught that case — but a
+// PARTIAL refund deliberately leaves status alone, which is the common case and the
+// one in production today: an order refunded $174.98 of $209.97 is still "shipped".
+// Filtering on status would have counted its full pre-refund value against the
+// customer's limit. Computing net covers both, and a fully refunded order falls out
+// on its own by contributing 0.
 func (s *Service) GetUnpaidOrdersTotal(accountID, sellerID string) (float64, error) {
+	// $max against 0 mirrors Order.NetTotal, so an over-refund can never credit the
+	// customer extra headroom against their limit.
+	netTotal := bson.M{"$max": bson.A{0, bson.M{"$subtract": bson.A{
+		bson.M{"$ifNull": bson.A{"$grandTotal", 0}},
+		bson.M{"$sum": "$refunds.amount"},
+	}}}}
 	pipeline := []bson.M{
 		{"$match": bson.M{"accountId": accountID, "sellerId": sellerID, "status": bson.M{"$ne": "cancelled"}}},
-		{"$group": bson.M{"_id": nil, "total": bson.M{"$sum": "$grandTotal"}}},
+		{"$group": bson.M{"_id": nil, "total": bson.M{"$sum": netTotal}}},
 	}
 	cursor, err := s.collection.Aggregate(context.Background(), pipeline)
 	if err != nil {

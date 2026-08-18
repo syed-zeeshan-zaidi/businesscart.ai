@@ -30,6 +30,9 @@ USERS = {
     "company2":  {"email": f"{PREFIX}company2@test.com",  "name": f"{PREFIX} Beta Corp",       "role": "company"},
     "customer":  {"email": f"{PREFIX}customer@test.com",  "name": f"{PREFIX} Customer One",    "role": "customer"},
     "customer2": {"email": f"{PREFIX}customer2@test.com", "name": f"{PREFIX} Customer Two",    "role": "customer"},
+    # Third B2B buyer, used as a second eligible approver on one approval level so
+    # the "any one of several can clear a step" rule is tested for real.
+    "customer3": {"email": f"{PREFIX}customer3@test.com", "name": f"{PREFIX} Customer Three",  "role": "customer"},
     "b2c":       {"email": f"{PREFIX}b2c@test.com",       "name": f"{PREFIX} B2C Shopper",     "role": "b2c"},
 }
 
@@ -44,6 +47,7 @@ USER_CODES = {
     "company2":  CODES["set2"]["companyCode"],
     "customer":  CODES["set1"]["customerCode"],
     "customer2": f'{CODES["set1"]["customerCode"]},{CODES["set2"]["customerCode"]}',
+    "customer3": CODES["set1"]["customerCode"],
     "b2c":       CODES["set1"]["companyCode"],
 }
 
@@ -272,10 +276,15 @@ class BackendFlowTest:
         """Switch API client to use a specific user's token."""
         self.api.set_token(self.jwts[role_key])
 
+    # Accounts created mid-run by joining an organisation, rather than registered
+    # up front. Kept out of USERS so the startup loop does not try to register
+    # them with a role and code they do not have.
+    JOINED_EMAILS = {}
+
     def re_login(self, role_key):
         """Re-login to get fresh JWT with updated config."""
-        user = USERS[role_key]
-        token = self._login(user["email"])
+        email = self.JOINED_EMAILS.get(role_key) or USERS[role_key]["email"]
+        token = self._login(email)
         if not token:
             raise AssertionError(f"Re-login failed for {role_key}")
         self.jwts[role_key] = token
@@ -321,6 +330,7 @@ class BackendFlowTest:
         # Register customers
         self.login_or_register("customer")
         self.login_or_register("customer2")
+        self.login_or_register("customer3")
 
         # Register B2C
         self.login_or_register("b2c")
@@ -1833,6 +1843,89 @@ class BackendFlowTest:
             self.api.put(f"/products/{pid}", {"cost": 0})  # reset
         self.run_test("Product cost round-trip + not leaked to buyer", test_cost_field)
 
+        def test_package_dimensions():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            resp = self.api.put(f"/products/{pid}",
+                                {"weight": 2.5, "length": 12, "width": 8, "height": 4})
+            assert_status(resp, 200, "Set package weight + dimensions")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "weight", 2.5, "weight round-trip")
+            assert_field(got, "length", 12, "length round-trip")
+            assert_field(got, "width", 8, "width round-trip")
+            assert_field(got, "height", 4, "height round-trip")
+            ok("Package weight + dimensions persist")
+
+            # A numeric STRING must be coerced to a number, never stored as text.
+            # account-service decodes the catalog response into a typed float64,
+            # so a single string here fails storefront generation for the WHOLE
+            # company, not just this product.
+            resp = self.api.put(f"/products/{pid}", {"weight": "3.25"})
+            assert_status(resp, 200, "Numeric-string weight accepted")
+            got = self.api.get(f"/products/{pid}").json()
+            assert isinstance(got.get("weight"), (int, float)), \
+                f"weight stored as {type(got.get('weight')).__name__}, must be numeric"
+            assert_field(got, "weight", 3.25, "weight coerced from string")
+            ok("Numeric-string weight coerced to a number")
+
+            # Garbage and negatives are refused rather than persisted.
+            assert_status(self.api.put(f"/products/{pid}", {"weight": "abc"}),
+                          400, "Non-numeric weight rejected")
+            assert_status(self.api.put(f"/products/{pid}", {"height": -3}),
+                          400, "Negative dimension rejected")
+            ok("Non-numeric and negative package values rejected")
+
+            # 0 clears the field (omitempty) instead of storing a meaningless zero,
+            # which is how the portal removes a value the merchant blanked out.
+            resp = self.api.put(f"/products/{pid}",
+                                {"weight": 0, "length": 0, "width": 0, "height": 0})
+            assert_status(resp, 200, "Clear package fields")
+            got = self.api.get(f"/products/{pid}").json()
+            for f in ("weight", "length", "width", "height"):
+                assert not got.get(f), f"{f} still present after clearing: {got.get(f)}"
+            ok("Zero clears package fields instead of storing 0")
+        self.run_test("Package weight + dimensions round-trip, coercion, clearing",
+                      test_package_dimensions)
+
+        def test_custom_labels():
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+            labels = {f"customLabel{i}": v for i, v in enumerate(
+                ["high-margin", "q4-push", "commodity", "restock-slow", "clearance"])}
+            resp = self.api.put(f"/products/{pid}", labels)
+            assert_status(resp, 200, "Set all five custom labels")
+            got = self.api.get(f"/products/{pid}").json()
+            for k, v in labels.items():
+                assert_field(got, k, v, f"{k} round-trip")
+            ok("All five custom labels persist")
+
+            # Whitespace is trimmed, so a stray space never becomes a second
+            # distinct ad-group value in Merchant Center.
+            resp = self.api.put(f"/products/{pid}", {"customLabel0": "  padded  "})
+            assert_status(resp, 200, "Whitespace-padded label accepted")
+            got = self.api.get(f"/products/{pid}").json()
+            assert_field(got, "customLabel0", "padded", "custom label trimmed")
+            ok("Custom label whitespace trimmed")
+
+            # Google caps a label at 100 characters and is the strictest of the
+            # five channels, so the platform enforces its limit for everyone.
+            assert_status(self.api.put(f"/products/{pid}", {"customLabel1": "x" * 101}),
+                          400, "Over-long custom label rejected")
+            resp = self.api.put(f"/products/{pid}", {"customLabel1": "y" * 100})
+            assert_status(resp, 200, "Exactly 100 characters accepted")
+            ok("Custom label 100-char cap enforced at the boundary")
+
+            # Empty string clears the label rather than storing "".
+            resp = self.api.put(f"/products/{pid}", {f"customLabel{i}": "" for i in range(5)})
+            assert_status(resp, 200, "Clear custom labels")
+            got = self.api.get(f"/products/{pid}").json()
+            for i in range(5):
+                assert not got.get(f"customLabel{i}"), \
+                    f"customLabel{i} still present after clearing: {got.get(f'customLabel{i}')}"
+            ok("Empty string clears custom labels")
+        self.run_test("Custom labels round-trip, trim, 100-char cap, clearing",
+                      test_custom_labels)
+
         def test_resale_cert():
             cust_id = self.ids["customer"]
             self.use_token("company1")
@@ -1925,6 +2018,26 @@ class BackendFlowTest:
             assert_status(resp, 403, "Credit limit enforcement")
             assert_contains(resp.text, "credit limit", "Credit limit message")
             ok("Blocked: credit limit exceeded")
+
+            # Roadmap #9: refunding frees the credit back up. GetUnpaidOrdersTotal
+            # sums NET (grandTotal minus refunds), so money handed back must stop
+            # counting against the limit. Deliberately only re-quotes and never
+            # places a second order, so the monthly-order-limit test that follows
+            # still sees exactly one order.
+            if order_id:
+                self.use_token("admin")
+                refund = self.api.put(f"/checkout/orders/{order_id}", {
+                    "stripeRefundID": "re_test_credit_release",
+                    "refundAmount": round(quote_data.get("grandTotal", 0), 2),
+                    "refundReason": "credit-limit release check",
+                })
+                assert_status(refund, 200, "Full refund on the credit-test order")
+
+                self._clear_cart("customer", c1_id)
+                self._add_to_cart("customer", c1_id, product_a, 2)
+                resp = self._create_quote("customer", c1_id, "standard")
+                assert_status(resp, 200, "Quote allowed once the refund clears the balance")
+                ok("Refund released the outstanding balance; quoting allowed again")
 
         self.run_test("6e. Credit limit enforcement", test_credit_limit)
 
@@ -2039,6 +2152,1861 @@ class BackendFlowTest:
             ok(f"D2C quote OK: grandTotal=${data.get('grandTotal', 0):.2f}, tax=${data.get('taxAmount', 0):.2f}")
 
         self.run_test("D2C storefront: minimal payload, tax charged", test_storefront_minimal)
+
+
+    # ── Phase 9b: Organisation accounts (Roadmap #21c Phase 2) ────
+
+    def phase9b_org_accounts(self):
+        phase("PHASE 9b: Organisation Accounts")
+
+        c1_id = self.ids["company1"]
+        cust_id = self.ids["customer"]
+        staff_email = f"{PREFIX}staff@test.com"
+        colleague_email = f"{PREFIX}colleague@test.com"
+        self._org_extra_emails = [staff_email, colleague_email]
+
+        # A root hands out the code; nobody else can.
+        def test_only_root_issues_invites():
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {"org": {"regenerateInviteCode": True}})
+            assert_status(resp, 200, "Company generates an invite code")
+            code = resp.json().get("orgInviteCode")
+            if not code or not code.startswith("ORG-"):
+                raise AssertionError(f"expected an ORG- invite code, got {code!r}")
+            self._company_invite = code
+            ok(f"Company invite code issued ({code[:12]}...)")
+
+            # A seller must not be able to mint a code for their buyer: that would
+            # let them plant an account inside the customer's organisation.
+            resp = self.api.patch(f"/accounts/{cust_id}", {"org": {"regenerateInviteCode": True}})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"a seller issued an invite code for its buyer (got {resp.status_code})"
+                )
+            ok("Seller refused when issuing an invite for a buyer's organisation (403)")
+
+            # b2c has no organisation at all.
+            self.re_login("b2c")
+            self.use_token("b2c")
+            resp = self.api.patch(f"/accounts/{self.ids['b2c']}", {"org": {"regenerateInviteCode": True}})
+            if resp.status_code != 403:
+                raise AssertionError(f"a b2c account was given an organisation (got {resp.status_code})")
+            ok("b2c refused an organisation (403)")
+
+        self.run_test("9b-1. Only an organisation root issues invites", test_only_root_issues_invites)
+
+        # Joining inherits the organisation's platform role and its data.
+        def test_staff_joins_company():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Staff One", "email": staff_email,
+                "password": PASSWORD, "orgInviteCode": self._company_invite,
+            })
+            assert_status(resp, 201, "Staff joins the company organisation")
+
+            resp = self.api.post("/accounts/login", {"email": staff_email, "password": PASSWORD})
+            assert_status(resp, 200, "Staff logs in")
+            token = resp.json()["accessToken"]
+            claims = self.api.decode_jwt(token)["user"]
+            if claims.get("role") != "company":
+                raise AssertionError(f"staff should inherit the company role, got {claims.get('role')!r}")
+            if claims.get("org_id") != c1_id:
+                raise AssertionError(
+                    f"staff org_id should be the company ({c1_id}), got {claims.get('org_id')!r} — "
+                    f"without it every seller-scoped query returns nothing"
+                )
+            self.jwts["staff"] = token
+            self.ids["staff"] = self.api.decode_jwt(token)["user"]["id"]
+            self.JOINED_EMAILS["staff"] = staff_email
+            ok("Staff inherited role=company and the company's org_id")
+
+        self.run_test("9b-2. Staff joins and inherits the organisation", test_staff_joins_company)
+
+        # The payoff for Phase 1: org identity, not account identity, scopes data.
+        def test_staff_sees_company_data():
+            self.use_token("staff")
+            resp = self.api.get("/products")
+            assert_status(resp, 200, "Staff lists products")
+            resp = self.api.get("/checkout/orders", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Staff lists the company's orders")
+            orders = resp.json() or []
+            resp = self.api.get("/accounts")
+            assert_status(resp, 200, "Staff lists the company's accounts")
+            ok(f"Staff sees the company's catalogue, {len(orders)} order(s) and its customer list")
+
+        self.run_test("9b-3. Staff sees the organisation's data, not an empty portal", test_staff_sees_company_data)
+
+        # A buying organisation works the same way, which is what makes approvers
+        # real colleagues rather than strangers who share a supplier.
+        def test_buyer_org():
+            self.re_login("customer")
+            self.use_token("customer")
+            resp = self.api.patch(f"/accounts/{cust_id}", {"org": {"regenerateInviteCode": True}})
+            assert_status(resp, 200, "Buyer generates an invite code")
+            code = resp.json().get("orgInviteCode")
+
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Colleague", "email": colleague_email,
+                "password": PASSWORD, "orgInviteCode": code,
+            })
+            assert_status(resp, 201, "Colleague joins the buying organisation")
+
+            resp = self.api.post("/accounts/login", {"email": colleague_email, "password": PASSWORD})
+            assert_status(resp, 200, "Colleague logs in")
+            claims = self.api.decode_jwt(resp.json()["accessToken"])["user"]
+            if claims.get("role") != "customer":
+                raise AssertionError(f"colleague should inherit role=customer, got {claims.get('role')!r}")
+            if claims.get("org_id") != cust_id:
+                raise AssertionError(f"colleague org_id should be the buyer, got {claims.get('org_id')!r}")
+            # Inheriting the supplier attachments matters: otherwise they join the
+            # organisation but can buy from nobody.
+            if not (claims.get("associate_company_ids") or []):
+                raise AssertionError("colleague inherited no supplier attachments, so they could not order")
+            self.jwts["colleague"] = resp.json()["accessToken"]
+            self.ids["colleague"] = claims["id"]
+            self.JOINED_EMAILS["colleague"] = colleague_email
+            ok("Colleague inherited role=customer, the buyer's org_id and its suppliers")
+
+        self.run_test("9b-4. A buying organisation gains colleagues", test_buyer_org)
+
+        # An invite code is a join credential, not an escalation: it must not be
+        # combinable with a company code to claim something extra.
+        def test_invite_cannot_escalate():
+            self.api.clear_token()
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Sneaky", "email": f"{PREFIX}sneaky@test.com",
+                "password": PASSWORD, "role": "admin",
+                "orgInviteCode": self._company_invite,
+            })
+            assert_status(resp, 201, "Register with an invite code and a claimed role")
+            resp = self.api.post("/accounts/login", {"email": f"{PREFIX}sneaky@test.com", "password": PASSWORD})
+            claims = self.api.decode_jwt(resp.json()["accessToken"])["user"]
+            if claims.get("role") == "admin":
+                raise AssertionError("an invite code let someone claim the admin role")
+            self._org_extra_emails.append(f"{PREFIX}sneaky@test.com")
+            self.ids["sneaky"] = claims["id"]
+            ok("A requested role is ignored when joining; the organisation's role wins")
+
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Bad", "email": f"{PREFIX}bad@test.com",
+                "password": PASSWORD, "orgInviteCode": "ORG-DOESNOTEXIST",
+            })
+            if resp.status_code != 400:
+                raise AssertionError(f"an unknown invite code was accepted (got {resp.status_code})")
+            ok("Unknown invite code rejected with 400")
+
+            # An invite code must not reach the guest-checkout path. isGuest is
+            # decided before the invite branch rewrites the role, so role "b2c" with
+            # no password plus a real company code used to skip password validation
+            # and get sealed with a random password, then be stored as a COMPANY
+            # colleague nobody could ever log into.
+            resp = self.api.post("/accounts/register", {
+                "name": f"{PREFIX} Passwordless Colleague",
+                "email": f"{PREFIX}pwless-colleague@test.com",
+                "role": "b2c",
+                "orgInviteCode": self._company_invite,
+            })
+            if resp.status_code != 400:
+                self._org_extra_emails.append(f"{PREFIX}pwless-colleague@test.com")
+                raise AssertionError(
+                    f"a passwordless b2c register with a company invite code was accepted "
+                    f"(got {resp.status_code}); that creates an account with a random "
+                    f"password that nobody can log into"
+                )
+            ok("Passwordless register with an invite code rejected with 400")
+
+        self.run_test("9b-5. An invite code cannot escalate a role", test_invite_cannot_escalate)
+
+        # Removal ends access without erasing the person behind the history.
+        def test_remove_keeps_history():
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {"org": {"removeAccountId": self.ids["sneaky"]}})
+            assert_status(resp, 200, "Company removes someone from its organisation")
+
+            resp = self.api.post("/accounts/login", {"email": f"{PREFIX}sneaky@test.com", "password": PASSWORD})
+            assert_status(resp, 200, "The removed account still exists and can log in")
+            claims = self.api.decode_jwt(resp.json()["accessToken"])["user"]
+            if claims.get("org_id") != claims.get("id"):
+                raise AssertionError(
+                    f"a removed account should be its own organisation again, got org_id={claims.get('org_id')!r}"
+                )
+            ok("Removed account survives, and is its own organisation again")
+
+        self.run_test("9b-6. Removal unlinks rather than deletes", test_remove_keeps_history)
+
+        # 9b-7. THE BYPASS GUARD. The approval policy belongs to the organisation
+        # and is stored on its root, but a colleague's own governance is empty. If
+        # login read the individual's rather than the organisation's, a buying
+        # organisation could configure approvals, invite colleagues, and have none
+        # of THEIR orders gated — the control missing exactly the people it exists
+        # for, silently.
+        def test_colleague_inherits_the_policy():
+            product_a = self.product_ids["company1"][0]
+
+            # The root sets the organisation's policy, naming its colleague.
+            self.re_login("customer")
+            self.use_token("customer")
+            # The ROOT is the approver and the COLLEAGUE orders. Naming the
+            # colleague here instead would strip them from their own chain (a
+            # buyer may never approve their own order, see 9q) and nothing would
+            # gate — which would look like this test passing for the wrong reason.
+            resp = self.api.patch(f"/accounts/{cust_id}", {"governance": {"approval": {
+                "scope": "both", "threshold": 1,
+                "chain": [{"approvers": [{"email": USERS["customer"]["email"]}]}],
+            }}})
+            assert_status(resp, 200, "Buyer sets an org policy naming themselves as approver")
+
+            # The COLLEAGUE orders. Their own governance is empty, so this only
+            # gates if login resolved the organisation's.
+            self.re_login("colleague")
+            self._clear_cart("colleague", c1_id)
+            self._add_to_cart("colleague", c1_id, product_a, 3)
+            resp = self._create_quote("colleague", c1_id, "standard")
+            assert_status(resp, 200, "Colleague creates a quote")
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError(
+                    f"a colleague's order was NOT gated (status {resp.json().get('status')!r}) — "
+                    f"the organisation's approval policy does not reach its own people"
+                )
+            ok("Colleague's order gated by the organisation's policy")
+
+        self.run_test("9b-7. A colleague inherits the organisation's approval policy", test_colleague_inherits_the_policy)
+
+        # Approvers must be colleagues, not merely customers of the same supplier.
+        def test_approver_must_be_in_org():
+            self.re_login("customer")
+            self.use_token("customer")
+            # A storefront shopper of the same supplier: never in any organisation,
+            # so exactly the case the old "shares a supplier" proxy would have let
+            # through. customer2/3 are colleagues by now and would legitimately pass.
+            resp = self.api.patch(f"/accounts/{cust_id}", {"governance": {"approval": {
+                "scope": "both", "threshold": 1,
+                "chain": [{"approvers": [{"email": USERS["b2c"]["email"]}]}],
+            }}})
+            if resp.status_code != 400:
+                raise AssertionError(
+                    f"an outsider who merely shares a supplier was accepted as an approver "
+                    f"(got {resp.status_code})"
+                )
+            ok("Approver outside the organisation refused (400)")
+
+        self.run_test("9b-8. Approvers must be colleagues", test_approver_must_be_in_org)
+
+        # A colleague writing governance on their own account would store a policy
+        # nothing ever reads.
+        def test_only_root_sets_policy():
+            self.re_login("colleague")
+            self.use_token("colleague")
+            resp = self.api.patch(f"/accounts/{self.ids['colleague']}", {"governance": {"approval": {
+                "scope": "both", "threshold": 1,
+                "chain": [{"approvers": [{"email": USERS["customer"]["email"]}]}],
+            }}})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"a colleague stored their own approval policy (got {resp.status_code}); "
+                    f"it would never be read"
+                )
+            ok("Colleague refused when setting an approval policy (403)")
+
+            # Leave nothing behind for later phases.
+            self.re_login("customer")
+            self.use_token("customer")
+            resp = self.api.patch(f"/accounts/{cust_id}", {"governance": {"approval": {
+                "scope": "none", "threshold": 0, "chain": [],
+            }}})
+            assert_status(resp, 200, "Clear the organisation policy")
+            ok("Organisation policy cleared")
+
+        self.run_test("9b-9. Only the organisation owner sets the policy", test_only_root_sets_policy)
+
+        # ── Roadmap #35g: seniority inside the organisation ──────────────
+        # #21c gave organisations people. Until #35g their OrgRole was written on
+        # join and never read, so everyone an owner invited got the owner's whole
+        # portal: product costs, margins, payment credentials, billing.
+
+        def test_org_role_is_derived_not_migrated():
+            """Every account that already existed keeps exactly what it had."""
+            self.re_login("company1")
+            claims = self.api.decode_jwt(self.jwts["company1"])["user"]
+            if claims.get("org_role") != "owner":
+                raise AssertionError(
+                    f"a root account resolved to {claims.get('org_role')!r}, not owner. "
+                    f"Roots are owners by definition, which is what makes this safe "
+                    f"to ship with no migration"
+                )
+            self.re_login("staff")
+            staff_claims = self.api.decode_jwt(self.jwts["staff"])["user"]
+            if staff_claims.get("org_role") != "user":
+                raise AssertionError(f"a joiner resolved to {staff_claims.get('org_role')!r}, not user")
+            ok("Root resolves to owner, joiner to user, with nothing migrated")
+
+        self.run_test("9b-10. Org seniority is derived, not migrated", test_org_role_is_derived_not_migrated)
+
+        def test_staff_cannot_see_product_cost():
+            """The exposure #35g closes: confidential cost, but inside the seller."""
+            self.use_token("company1")
+            products = self.api.get("/products").json() or []
+            with_cost = [p for p in products if (p.get("cost") or 0) > 0]
+            if not with_cost:
+                # Give the owner's catalogue a cost so the assertion means something.
+                pid = products[0]["_id"]
+                r = self.api.put(f"/products/{pid}", {"cost": 4.25})
+                assert_status(r, 200, "Owner sets a product cost")
+                target = pid
+            else:
+                target = with_cost[0]["_id"]
+
+            self.use_token("company1")
+            owner_view = self.api.get(f"/products/{target}").json()
+            if not (owner_view.get("cost") or 0) > 0:
+                raise AssertionError("setup failed: the owner cannot see the cost either")
+
+            self.re_login("staff")
+            self.use_token("staff")
+            staff_view = self.api.get(f"/products/{target}").json()
+            if (staff_view.get("cost") or 0) != 0:
+                raise AssertionError(
+                    f"staff read the product cost ({staff_view.get('cost')!r}). Cost is "
+                    f"confidential from buyers (#40) and from staff inside the seller (#35g)"
+                )
+            listed = self.api.get("/products").json() or []
+            leaked = [p["_id"] for p in listed if (p.get("cost") or 0) > 0]
+            if leaked:
+                raise AssertionError(f"the product LIST leaked cost to staff for {len(leaked)} product(s)")
+            ok("Owner sees cost, staff sees zero, on both the single read and the list")
+
+        self.run_test("9b-11. Staff cannot see product cost or margin", test_staff_cannot_see_product_cost)
+
+        def test_staff_edit_cannot_wipe_cost():
+            """Redaction must not become deletion.
+
+            Staff read cost as 0. If the edit form echoes that back, an ordinary
+            "change the description and save" overwrites the merchant's real cost
+            with 0 — permanent, silent, and it corrupts the owner's margin figures
+            too. The server drops the key so the stored value survives, while every
+            other field the staff member edited still saves.
+            """
+            self.use_token("company1")
+            products = self.api.get("/products").json() or []
+            target, real_cost = None, 0
+            for p in products:
+                if (p.get("cost") or 0) > 0:
+                    target, real_cost = p["_id"], p["cost"]
+                    break
+            if not target:
+                target = products[0]["_id"]
+                real_cost = 7.75
+                assert_status(self.api.put(f"/products/{target}", {"cost": real_cost}),
+                              200, "Owner sets a cost for the wipe test")
+
+            # This runs against real catalogue rows, and description is customer
+            # facing: it renders on the storefront at the next regeneration. Capture
+            # both fields and put them back in the finally below, whatever happens.
+            # Without that, a FAILING run leaves the cost wiped and the description
+            # rewritten, which is exactly how this test broke 9b-13 ("an admin still
+            # could not see cost after promotion") on its first real execution: the
+            # assertion it exists to make had already destroyed the data downstream
+            # tests depend on.
+            original = self.api.get(f"/products/{target}").json()
+            original_desc = original.get("description", "")
+            new_desc = f"{PREFIX} staff edited this description"
+            try:
+                self.re_login("staff")
+                self.use_token("staff")
+                staff_view = self.api.get(f"/products/{target}").json()
+                resp = self.api.put(f"/products/{target}", {
+                    "description": new_desc,
+                    "cost": staff_view.get("cost", 0),  # exactly what the form round-trips
+                })
+                assert_status(resp, 200, "Staff edit accepted")
+
+                self.use_token("company1")
+                after = self.api.get(f"/products/{target}").json()
+                if abs((after.get("cost") or 0) - real_cost) > 0.001:
+                    raise AssertionError(
+                        f"staff edit destroyed the cost: was {real_cost}, now {after.get('cost')!r}. "
+                        f"A caller who cannot read cost must not be able to write it."
+                    )
+                if after.get("description") != new_desc:
+                    raise AssertionError(
+                        f"the cost guard blocked an unrelated field: description is "
+                        f"{after.get('description')!r}, expected {new_desc!r}"
+                    )
+                ok(f"Staff edit saved the description and left cost at {real_cost}")
+            finally:
+                self.use_token("company1")
+                self.api.put(f"/products/{target}", {
+                    "description": original_desc,
+                    "cost": real_cost,
+                })
+
+        self.run_test("9b-15. A staff edit cannot wipe the product cost", test_staff_edit_cannot_wipe_cost)
+
+        def test_only_owner_touches_payment_credentials():
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.post("/checkout/gateways", {
+                "gatewayName": "stripe_pay", "sandbox": True,
+                "sandboxCredentials": {"secretKey": "sk_test_should_never_be_written"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff wrote payment gateway credentials (got {resp.status_code}). "
+                    f"Whoever can rewrite the gateway secret can redirect every payment "
+                    f"the store takes"
+                )
+            ok("Staff refused on payment gateway settings (403)")
+
+        self.run_test("9b-12. Only the owner manages payment credentials",
+                      test_only_owner_touches_payment_credentials)
+
+        def test_only_owner_sees_billing_statements():
+            """Hiding the nav entry was never enough: the UI is not a boundary."""
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff read the company's billing statements (got {resp.status_code}). "
+                    f"A statement carries the tier, monthly fee, per-order rate and "
+                    f"transaction fees this business pays"
+                )
+            resp = self.api.get("/checkout/orders/statement", params={"sellerId": c1_id})
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"staff computed a live billing statement (got {resp.status_code})"
+                )
+            self.use_token("company1")
+            resp = self.api.get("/checkout/statements", params={"sellerId": c1_id})
+            assert_status(resp, 200, "Owner still reads their own statements")
+            ok("Statements refused for staff (403), unchanged for the owner")
+
+        self.run_test("9b-14. Only the owner sees billing statements",
+                      test_only_owner_sees_billing_statements)
+
+        def test_owner_can_promote_and_demote():
+            self.re_login("company1")
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "admin"}})
+            assert_status(resp, 200, "Owner promotes staff to admin")
+
+            self.re_login("staff")
+            if self.api.decode_jwt(self.jwts["staff"])["user"].get("org_role") != "admin":
+                raise AssertionError("promotion did not reach the claim")
+            self.use_token("staff")
+            promoted = self.api.get("/products").json() or []
+            if not any((p.get("cost") or 0) > 0 for p in promoted):
+                raise AssertionError("an admin still could not see cost after promotion")
+            ok("Promoted to admin, cost now visible")
+
+            # A colleague cannot promote themselves.
+            resp = self.api.patch(f"/accounts/{self.ids['staff']}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "admin"}})
+            if resp.status_code == 200:
+                raise AssertionError("a colleague promoted themselves")
+            ok("A colleague cannot set their own seniority")
+
+            self.re_login("company1")
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "org": {"setRoleAccountId": self.ids["staff"], "setRole": "user"}})
+            assert_status(resp, 200, "Owner demotes back to staff")
+            self.re_login("staff")
+            ok("Demoted back to staff")
+
+        self.run_test("9b-13. Only the owner sets a colleague's seniority",
+                      test_owner_can_promote_and_demote)
+
+
+    # ── Phase 9c: Seller-side quote approval (Roadmap #21d) ───────
+
+    def phase9c_seller_approval(self):
+        """The SELLING organisation's own sign-off, and its interaction with the
+        buyer's.
+
+        Runs after 9b because it needs `staff`: a real second person inside the
+        selling organisation. Before organisation membership existed there was
+        nobody at a seller to name as approver, which is why this half of the
+        feature could not be built.
+        """
+        phase("PHASE 9c: Seller-Side Quote Approval")
+
+        c1_id = self.ids["company1"]
+        cust_id = self.ids["customer"]
+        product_a = self.product_ids["company1"][0]
+        staff_email = self.JOINED_EMAILS["staff"]
+        buyer_approver_email = USERS["customer2"]["email"]
+
+        def set_policy(role_key, account_id, **policy):
+            """Write an organisation's own policy, then prove it actually took.
+
+            Both halves are verified deliberately. A 200 here only says the request
+            was accepted; the gate depends on the policy reaching the DATABASE and
+            then reaching the CLAIM, and a failure in either shows up much later as
+            "the quote was approved" with nothing to say why. Asserting both turns a
+            silent no-gate into a failure that names its own cause.
+            """
+            self.re_login(role_key)
+            self.use_token(role_key)
+            resp = self.api.patch(f"/accounts/{account_id}", {"governance": {"approval": policy}})
+            assert_status(resp, 200, f"Set {role_key} approval policy")
+
+            stored = ((resp.json().get("governance") or {}).get("approval") or {})
+            want_chain = policy.get("chain") or []
+            if len(stored.get("chain") or []) != len(want_chain):
+                raise AssertionError(
+                    f"{role_key} policy did not persist: sent {len(want_chain)} level(s), "
+                    f"account came back with {stored.get('chain')!r}"
+                )
+
+            self.re_login(role_key)   # refresh the claim so the new policy is live
+            claim = self.api.decode_jwt(self.jwts[role_key])["user"].get("orgApproval") or {}
+            if len(claim.get("chain") or []) != len(want_chain):
+                raise AssertionError(
+                    f"{role_key} policy persisted but never reached the token: "
+                    f"orgApproval claim is {claim!r} — checkout reads the policy from "
+                    f"this claim, so no gate can ever fire"
+                )
+            return resp
+
+        def buyer_quote():
+            """The buyer raises a negotiable quote, so THEIR chain is on it.
+
+            The two-sided path needs this. A rep-drafted quote carries no buyer
+            policy by design — only a signed customer claim can gate, and the rep's
+            token is the seller's — so the buyer's levels can only be denormalised
+            onto a quote the buyer created. Theirs apply at payment instead, which
+            is what 9c-4 covers.
+            """
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 4)
+            resp = self._create_quote("customer", c1_id, "negotiable")
+            assert_status(resp, 200, "Buyer raises a negotiable quote")
+            return resp.json()["id"]
+
+        def clear_policy(role_key, account_id):
+            # Goes through set_policy so the same "did it actually take" checks
+            # apply: a clear that silently did not clear leaves a gate armed for
+            # every later phase, which is worse than one that never applied.
+            set_policy(role_key, account_id, scope="none", threshold=0, chain=[])
+
+        def rep_quote():
+            """A rep drafts a negotiable quote on the buyer's behalf.
+
+            The cart is filled through the seller's own token with ?accountId, the
+            same path QuoteCreateForm uses. That is what makes this quote carry no
+            buyer policy: the buyer's JWT is never present.
+            """
+            self._clear_cart("customer", c1_id)
+            self.use_token("company1")
+            # The PRICE has to be sent. checkout-service never calls catalog (no
+            # cross-service dependencies), so an entity posted without one becomes a
+            # zero-price line: the quote totals $0, falls under every threshold, and
+            # nothing gates — which looks exactly like a broken gate.
+            product = self._get_product("company1", product_a)
+            resp = self.api.post("/checkout/cart", {
+                "entity": {
+                    "productId": product_a, "sellerId": c1_id, "quantity": 4,
+                    "name": (product or {}).get("name", ""),
+                    "price": (product or {}).get("price", 0),
+                },
+            }, params={"accountId": cust_id})
+            assert_status(resp, 200, "Rep adds to the buyer's cart")
+            resp = self._create_quote("company1", c1_id, "negotiable", account_id=cust_id)
+            assert_status(resp, 200, "Rep drafts a negotiable quote")
+            if (resp.json().get("grandTotal") or 0) <= 1:
+                raise AssertionError(
+                    f"rep-drafted quote totals {resp.json().get('grandTotal')!r}, which is under "
+                    f"every threshold in this phase — the gate would appear broken when the "
+                    f"setup is what is wrong"
+                )
+            return resp.json()["id"]
+
+        def approve_as_seller(qid, expect=200):
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            assert_status(resp, expect, "Seller approves the quote")
+            return resp
+
+        # 9c-1. The selling organisation can now hold its own quotes, and its
+        # levels run BEFORE the buyer ever sees the offer.
+        def test_seller_chain_runs_first():
+            set_policy("company1", c1_id, threshold=1, scope="negotiable",
+                       chain=[{"name": "Sales manager", "approvers": [{"email": staff_email}]}])
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            if q.get("status") != "pending_approval":
+                raise AssertionError(f"quote status is {q.get('status')!r}, expected pending_approval")
+            chain = q.get("approvalChain") or []
+            if len(chain) != 2:
+                raise AssertionError(f"expected a 2-level chain (seller then buyer), got {chain}")
+            if chain[0].get("side") != "seller":
+                raise AssertionError(
+                    f"level 1 side is {chain[0].get('side')!r}; the seller's own sign-off must clear "
+                    f"before the offer is put to the buyer at all"
+                )
+            if (chain[1].get("side") or "buyer") != "buyer":
+                raise AssertionError(f"level 2 side is {chain[1].get('side')!r}, expected buyer")
+            # omitempty drops approvalStage when it is 0, so an absent field IS
+            # stage 0 on the wire. Same allowance the buyer-side tests make.
+            if q.get("approvalStage") not in (0, None):
+                raise AssertionError(f"expected to start at stage 0, got {q.get('approvalStage')!r}")
+            self._seller_qid = qid
+            ok("Seller level queued first, buyer level behind it")
+
+        self.run_test("9c-1. Seller's own levels run before the buyer's", test_seller_chain_runs_first)
+
+        # 9c-2. Each side decides only its own levels. Without this the control is
+        # enforceable by the party it exists to constrain.
+        def test_sides_cannot_decide_each_other():
+            qid = self._seller_qid
+
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"a buyer's approver decided the SELLER's level (got {resp.status_code})"
+                )
+            ok("Buyer refused on a seller level (403)")
+
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve", "note": "margin ok"},
+            })
+            assert_status(resp, 200, "Seller's approver clears their level")
+            q = resp.json()
+            if q.get("status") != "pending_approval":
+                raise AssertionError(
+                    f"quote went to {q.get('status')!r} after the seller level; the buyer's level "
+                    f"must still run"
+                )
+            if q.get("approvalStage") != 1:
+                raise AssertionError(f"expected stage 1, got {q.get('approvalStage')!r}")
+            if (q["approvalChain"][0].get("decidedBy") or {}).get("email", "").lower() != staff_email.lower():
+                raise AssertionError("the seller's decision was not recorded against the person who made it")
+            ok("Seller level cleared, buyer level now in front")
+
+            # And the seller cannot then clear the buyer's level.
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"a seller decided the BUYER's level (got {resp.status_code})"
+                )
+            ok("Seller refused on a buyer level (403)")
+
+        self.run_test("9c-2. Neither side can decide the other's levels", test_sides_cannot_decide_each_other)
+
+        # 9c-3. Both chains clear, in order, and the order becomes payable.
+        def test_full_sequence_completes():
+            qid = self._seller_qid
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Buyer's approver clears the final level")
+            q = resp.json()
+            if q.get("status") != "approved":
+                raise AssertionError(f"expected approved after the last level, got {q.get('status')!r}")
+            sides = [(s.get("side") or "buyer") for s in q["approvalChain"]]
+            statuses = [s.get("status") for s in q["approvalChain"]]
+            if sides != ["seller", "buyer"] or statuses != ["approved", "approved"]:
+                raise AssertionError(f"audit trail wrong: sides={sides}, statuses={statuses}")
+            ok("Both organisations' sign-offs recorded, order approved")
+
+        self.run_test("9c-3. Seller then buyer, then payable", test_full_sequence_completes)
+
+        # 9c-4. THE BYPASS. A rep-drafted quote that clears the SELLER's levels is
+        # marked approval-required, and treating that as "already approved" let the
+        # buyer's own policy be skipped entirely by asking a rep to draft the
+        # order. The place-order backstop must key on a BUYER-side level.
+        def test_seller_gate_does_not_swallow_the_buyer_backstop():
+            set_policy("company1", c1_id, threshold=1, scope="negotiable",
+                       chain=[{"name": "Sales manager", "approvers": [{"email": staff_email}]}])
+            # Buyer's policy is deliberately NOT set yet: a rep-drafted quote
+            # carries no buyer policy, so theirs can only apply at payment.
+            clear_policy("customer", cust_id)
+
+            qid = rep_quote()
+            approve_as_seller(qid)
+
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Seller's approver clears their level")
+            if resp.json().get("status") != "approved":
+                raise AssertionError("seller-only chain should have completed to approved")
+
+            # Now the buyer arms their own policy and tries to pay.
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 202:
+                raise AssertionError(
+                    f"a rep-drafted order that cleared the SELLER's levels was paid without the "
+                    f"BUYER's own approval (got {resp.status_code}) — asking a rep to draft the "
+                    f"order would bypass the buyer's policy entirely"
+                )
+            ok("Buyer's own chain still applied at payment (202)")
+
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            if q.get("status") != "pending_approval":
+                raise AssertionError(f"expected pending_approval, got {q.get('status')!r}")
+            sides = [(s.get("side") or "buyer") for s in q["approvalChain"]]
+            if sides[0] != "seller":
+                raise AssertionError(
+                    f"the seller's completed level was erased when the buyer's chain was added "
+                    f"(sides={sides}); the record of who authorised what must survive"
+                )
+            if q["approvalChain"][0].get("status") != "approved":
+                raise AssertionError("the seller's recorded decision was reset to pending")
+            if q.get("approvalStage") != 1:
+                raise AssertionError(
+                    f"expected the stage to start after the completed seller level, got "
+                    f"{q.get('approvalStage')!r}"
+                )
+            ok("Seller's completed level preserved ahead of the buyer's")
+
+        self.run_test("9c-4. A seller gate does not swallow the buyer's backstop",
+                      test_seller_gate_does_not_swallow_the_buyer_backstop)
+
+        # 9c-5. Under the seller's own threshold, nothing changes: the buyer's
+        # policy alone decides, exactly as before #21d.
+        def test_seller_under_threshold_unchanged():
+            set_policy("company1", c1_id, threshold=999999, scope="negotiable",
+                       chain=[{"approvers": [{"email": staff_email}]}])
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            if q.get("status") != "pending_approval":
+                raise AssertionError(f"expected the buyer's chain to hold it, got {q.get('status')!r}")
+            sides = [(s.get("side") or "buyer") for s in q["approvalChain"]]
+            if "seller" in sides:
+                raise AssertionError(
+                    f"an under-threshold seller policy still added its levels (sides={sides})"
+                )
+            ok("Under the seller's threshold, only the buyer's chain runs")
+
+        self.run_test("9c-5. Seller policy under threshold adds nothing",
+                      test_seller_under_threshold_unchanged)
+
+        # 9c-6. No seller policy at all: the pre-#21d path, untouched.
+        def test_no_seller_policy_is_unchanged():
+            clear_policy("company1", c1_id)
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            sides = [(s.get("side") or "buyer") for s in (q.get("approvalChain") or [])]
+            if q.get("status") != "pending_approval" or sides != ["buyer"]:
+                raise AssertionError(
+                    f"a seller with no policy changed the buyer-only flow: "
+                    f"status={q.get('status')!r}, sides={sides}"
+                )
+            ok("A seller with no policy leaves the buyer-only flow exactly as it was")
+
+        self.run_test("9c-6. No seller policy leaves the buyer flow untouched",
+                      test_no_seller_policy_is_unchanged)
+
+        # 9c-7. THE TWO-CALL LAUNDER. The guard on the generic status path used to
+        # key on the PRIOR status, so it only refused the direct
+        # pending_approval -> approved hop. A seller could set a held STANDARD
+        # order to "open" (the guard did not fire, and standard quotes are gated at
+        # creation so they are never re-gated here), then to "approved", and the
+        # order became payable with every level still reading "pending" and nothing
+        # recorded anywhere. forceReleaseApproval exists for exactly this and logs
+        # it; the generic path must not be a silent second route.
+        def test_status_path_cannot_launder_a_held_order():
+            clear_policy("company1", c1_id)
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            qid = resp.json()["id"]
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError("setup failed: the order was not held")
+
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "open"},
+            })
+            assert_status(resp, 200, "Seller reopens the held order")
+
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"a seller approved past a live approval chain in two calls (got "
+                    f"{resp.status_code}) — the order would be payable with every level "
+                    f"still pending and nothing logged"
+                )
+            ok("Two-call launder refused (409)")
+
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code == 200:
+                raise AssertionError("the laundered order was payable")
+            ok("The order is still not payable")
+
+        self.run_test("9c-7. The status path cannot launder a held order",
+                      test_status_path_cannot_launder_a_held_order)
+
+        # 9c-8. Re-approval after a withdrawal must rebuild the BUYER's half from
+        # the buyer's half. Rebuilding it from the whole stored chain re-tagged the
+        # seller's own levels as buyer-side, so their company-role approvers could
+        # never clear them (a buyer level demands a customer) and the quote stuck in
+        # pending_approval with only force-release as a way out — and the seller's
+        # levels were appended a second time on top.
+        def test_reapproval_does_not_duplicate_or_retag():
+            set_policy("company1", c1_id, threshold=1, scope="negotiable",
+                       chain=[{"name": "Sales manager", "approvers": [{"email": staff_email}]}])
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+
+            # Withdraw, then reinstate. CanEnterApproval includes "rejected" so a
+            # seller can pull a quote and put it back.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "rejected"},
+            })
+            assert_status(resp, 200, "Seller withdraws the quote")
+            approve_as_seller(qid)
+
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            sides = [(s.get("side") or "buyer") for s in (q.get("approvalChain") or [])]
+            if sides != ["seller", "buyer"]:
+                raise AssertionError(
+                    f"re-approval rebuilt the chain wrong: sides={sides}, expected "
+                    f"['seller', 'buyer'] — duplicated or re-tagged levels leave approvers "
+                    f"on levels their role can never clear"
+                )
+            ok("Re-approval rebuilt exactly one seller level and one buyer level")
+
+            # And it is still actually decidable by the right people.
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Seller's approver can still clear their level")
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Buyer's approver clears the final level")
+            if resp.json().get("status") != "approved":
+                raise AssertionError("the reinstated quote never completed its chain")
+            ok("The reinstated chain completes normally")
+
+            clear_policy("company1", c1_id)
+            clear_policy("customer", cust_id)
+
+        self.run_test("9c-8. Re-approval rebuilds each side from its own half",
+                      test_reapproval_does_not_duplicate_or_retag)
+
+        # 9c-12. Teardown, as its own test rather than a trailing line inside the
+        # last one. An approval policy is GLOBAL to the account: leave one armed and
+        # every standard quote in every later phase is held, so phase 12 fails with
+        # "Quote is not approved for order placement" and the real cause is six
+        # phases back. That is exactly what happened when a mid-phase assertion
+        # raised before its own cleanup line. run_test never propagates, so a
+        # cleanup step written this way always runs.
+        def test_policies_cleared():
+            clear_policy("company1", c1_id)
+            clear_policy("customer", cust_id)
+            ok("Both organisations' policies cleared for the phases that follow")
+
+        # 9c-10. THE ERASURE (Roadmap #21f). The chain is live state and is rebuilt
+        # whenever the gate re-fires, so a seller who withdrew a part-approved quote
+        # and reinstated it wiped who had approved which level, and their note with
+        # it. The record now lives outside the chain and nothing removes an entry.
+        def test_decision_record_survives_withdraw_and_reinstate():
+            set_policy("company1", c1_id, threshold=1, scope="negotiable",
+                       chain=[{"name": "Sales manager", "approvers": [{"email": staff_email}]}])
+            set_policy("customer", cust_id, threshold=1, scope="both",
+                       chain=[{"name": "Finance", "approvers": [{"email": buyer_approver_email}]}])
+
+            qid = buyer_quote()
+            approve_as_seller(qid)
+
+            # The seller's own level signs off, and that is the record at risk.
+            self.re_login("staff")
+            self.use_token("staff")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision",
+                "value": {"decision": "approve", "note": "margin checked"},
+            })
+            assert_status(resp, 200, "Seller's approver signs off")
+
+            # Withdraw, then reinstate. This is what used to erase it.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "rejected"},
+            })
+            assert_status(resp, 200, "Seller withdraws the quote")
+            approve_as_seller(qid)
+
+            self.use_token("company1")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+
+            # The chain is legitimately rebuilt and shows the level pending again.
+            if (q.get("approvalChain") or [])[0].get("status") not in (None, "pending"):
+                raise AssertionError("setup wrong: the chain was expected to be rebuilt fresh")
+
+            # The record is not.
+            decisions = q.get("approvalDecisions") or []
+            mine = [d for d in decisions if (d.get("side") or "buyer") == "seller"]
+            if not mine:
+                raise AssertionError(
+                    f"the seller's approval was erased by withdraw-and-reinstate; "
+                    f"decision record is {decisions!r}"
+                )
+            d = mine[0]
+            if (d.get("by") or {}).get("email", "").lower() != staff_email.lower():
+                raise AssertionError(f"the record lost who approved: {d!r}")
+            if d.get("note") != "margin checked":
+                raise AssertionError(f"the record lost the approver's note: {d!r}")
+            if not d.get("grandTotal"):
+                raise AssertionError(
+                    f"the record lost the total it was decided at, so it no longer says "
+                    f"what was approved: {d!r}"
+                )
+            ok("Decision record survived the rebuild, with who, note and total intact")
+            self._record_qid = qid
+
+        self.run_test("9c-10. A withdraw-and-reinstate cannot erase the record",
+                      test_decision_record_survives_withdraw_and_reinstate)
+
+        # 9c-11. The record must not leak across the trade either. Redacting the
+        # chain but not the log would have reopened the whole disclosure through a
+        # second field.
+        def test_decision_record_is_redacted_per_side():
+            qid = self._record_qid
+            self.re_login("customer")
+            self.use_token("customer")
+            q = self.api.get(f"/checkout/quotes/{qid}").json()
+            for d in (q.get("approvalDecisions") or []):
+                if (d.get("side") or "buyer") == "seller":
+                    if d.get("by") or d.get("note") or d.get("stepName"):
+                        raise AssertionError(
+                            f"the buyer can read inside the seller's decision: {d!r}"
+                        )
+                    if not d.get("decision"):
+                        raise AssertionError("the buyer lost the fact that a seller level was decided")
+            ok("Buyer sees that the seller decided, but not who or what they wrote")
+
+        self.run_test("9c-11. The decision record is redacted per side",
+                      test_decision_record_is_redacted_per_side)
+
+        self.run_test("9c-12. Teardown: approval policies cleared", test_policies_cleared)
+
+
+    # ── Phase 9: B2B multi-buyer order approval (Roadmap #21) ─────
+
+    def phase9_order_approval(self):
+        phase("PHASE 9: B2B Order Approval Workflows")
+
+        c1_id = self.ids["company1"]
+        product_a = self.product_ids["company1"][0]
+        cust_id = self.ids["customer"]
+        approver_id = self.ids["customer2"]    # attached to company1 via CUST-1
+        # Second eligible approver on the same level. Must be a `customer` role:
+        # a b2c account is deliberately refused by the decision handler.
+        approver2_id = self.ids["customer3"]
+
+        def set_buyer_policy(role_key, account_id, **policy):
+            """Set the BUYER'S OWN approval policy, as the buyer.
+
+            Approval governance belongs to the organisation it governs, so it is
+            written by that account on itself via PATCH /accounts/{id}. A seller
+            cannot reach it — which is the point of the redesign.
+            """
+            self.re_login(role_key)
+            self.use_token(role_key)
+            resp = self.api.patch(f"/accounts/{account_id}", {"governance": {"approval": policy}})
+            assert_status(resp, 200, f"Set {role_key} own approval policy")
+            self.re_login(role_key)   # refresh the claim so the new policy is live
+            return resp
+
+        # Start phase 9 from a known seller-side configuration. Earlier enforcement
+        # tests leave quotesAllowed=false on this customer, and phase 9 used to
+        # clear it only by accident: its approval writes went through
+        # /customers/{id}/configuration, which REPLACES the whole configuration
+        # object. Approval config now lives on the buyer's own account, so that
+        # side-effect is gone and the reset has to be deliberate.
+        self._set_customer_config({"quotesAllowed": True})
+
+        # Approvers must belong to the buyer's organisation (Roadmap #21c Phase 3
+        # made that exact, replacing a "shares a supplier" proxy). customer2 and
+        # customer3 already exist, so they join with an invite code rather than at
+        # registration — which is why joining an existing account is supported.
+        def _join_buyer_org():
+            self.re_login("customer")
+            self.use_token("customer")
+            resp = self.api.patch(f"/accounts/{self.ids['customer']}", {"org": {"regenerateInviteCode": True}})
+            assert_status(resp, 200, "Buyer issues an invite code")
+            code = resp.json()["orgInviteCode"]
+            for key in ("customer2", "customer3"):
+                self.re_login(key)
+                self.use_token(key)
+                r = self.api.patch(f"/accounts/{self.ids[key]}", {"org": {"joinWithInviteCode": code}})
+                assert_status(r, 200, f"{key} joins the buyer's organisation")
+            self.re_login("customer")
+            ok("Approvers are now colleagues in the buyer's organisation")
+
+        _join_buyer_org()
+
+        # Approvers are named by EMAIL and resolved server-side; a client-supplied
+        # accountId is deliberately ignored. So the helper must use the address the
+        # account actually registered with, not one derived from its id.
+        email_of = {self.ids[k]: USERS[k]["email"] for k in ("customer", "customer2", "customer3", "b2c")}
+
+        def step_cfg(*account_ids):
+            return {"approvers": [{"email": email_of[a]} for a in account_ids]}
+
+
+        # 9a. OWNERSHIP. Approval governance belongs to the organisation it
+        # governs. A seller must not be able to write their buyer's policy, and a
+        # storefront shopper has no organisation to govern at all.
+        def test_only_the_account_owns_its_policy():
+            # The buyer sets their own; that is the supported path.
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both",
+                             chain=[step_cfg(approver_id)])
+            ok("Buyer set their own approval policy")
+
+            # The seller cannot reach it: PATCH /accounts/{id} is self-or-admin.
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{cust_id}", {
+                "governance": {"approval": {"threshold": 1, "scope": "both",
+                                            "chain": [step_cfg(approver_id)]}}
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"a seller wrote their buyer's approval policy (got {resp.status_code}) — "
+                    f"the buyer's internal governance is not the seller's to set"
+                )
+            ok("Seller refused when writing a buyer's approval policy (403)")
+
+            # A selling company MAY hold its own quotes (Roadmap #21d), but only on
+            # quotes: self-serve checkout is created and paid by the buyer with no
+            # seller step in between, so a checkout scope there would be a control
+            # that could never fire. Refused rather than stored inert.
+            self.use_token("company1")
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "governance": {"approval": {"threshold": 1, "scope": "both",
+                                            "chain": [step_cfg(approver_id)]}}
+            })
+            if resp.status_code != 400:
+                raise AssertionError(
+                    f"a company saved a checkout-scoped approval structure (got {resp.status_code}); "
+                    f"it would never be read, leaving a control that looks armed and never fires"
+                )
+            ok("Company refused a checkout-scoped approval structure (400)")
+
+            # And it cannot name the BUYER'S people as its own approvers: sign-off
+            # happens inside the organisation being governed.
+            resp = self.api.patch(f"/accounts/{c1_id}", {
+                "governance": {"approval": {"threshold": 1, "scope": "negotiable",
+                                            "chain": [step_cfg(approver_id)]}}
+            })
+            if resp.status_code != 400:
+                raise AssertionError(
+                    f"a company named its customer as its own internal approver (got {resp.status_code})"
+                )
+            ok("Company refused an approver from outside its organisation (400)")
+
+            # A storefront shopper has no organisation to govern.
+            self.re_login("b2c")
+            self.use_token("b2c")
+            resp = self.api.patch(f"/accounts/{self.ids['b2c']}", {
+                "governance": {"approval": {"threshold": 1, "scope": "both",
+                                            "chain": [step_cfg(approver_id)]}}
+            })
+            if resp.status_code != 403:
+                raise AssertionError(f"a b2c account was allowed an approval structure (got {resp.status_code})")
+            ok("b2c refused an approval structure (403)")
+
+        self.run_test("9a. Only the account owns its approval policy", test_only_the_account_owns_its_policy)
+
+        # 9b. THE B2C REGRESSION GUARD. A storefront shopper must sail straight
+        # through while a B2B buyer at the same seller is gated. If this ever
+        # fails, D2C checkout is dead-ended behind an approver they do not have.
+        def test_b2c_never_gated():
+            self.re_login("b2c")
+            self._clear_cart("b2c", c1_id)
+            self._add_to_cart("b2c", c1_id, product_a, 3)
+            self.use_token("b2c")
+            resp = self.api.post("/checkout/quotes", {
+                "sellerId": c1_id,
+                "paymentMethods": ["credit_card"],
+                "deliveryMethods": ["shipping_out"],
+                "shippingOutOptions": ["standard"],
+                "quotesAllowed": False,
+                "companyLocations": [],
+                "customerAddresses": [],
+                "quoteType": "standard",
+            })
+            assert_status(resp, 200, "B2C quote with company approval policy active")
+            data = resp.json()
+            status = data.get("status")
+            if status != "approved":
+                raise AssertionError(
+                    f"B2C storefront quote was gated (status={status!r}). A D2C shopper has no "
+                    f"organisation to approve for; this dead-ends real revenue."
+                )
+            if data.get("approvalChain"):
+                raise AssertionError("B2C quote carried an approval chain; it must carry none")
+            ok("B2C quote approved immediately, no chain attached")
+
+        self.run_test("9b. B2C storefront is NEVER gated (regression guard)", test_b2c_never_gated)
+
+        # 9c. The same guard at the token layer: account-service must not even emit
+        # the claim for a b2c account, independent of what checkout does with it.
+        def test_b2c_jwt_has_no_approval_claim():
+            self.re_login("b2c")
+            claims = self.api.decode_jwt(self.jwts["b2c"])["user"]
+
+            # The CURRENT home of the policy: one top-level claim (#21d moved it
+            # out of the per-supplier configurations). checkout-service reads the
+            # gate from here and nowhere else, so this is the assertion that
+            # actually keeps a storefront shopper ungated.
+            if claims.get("orgApproval"):
+                raise AssertionError(
+                    f"b2c JWT carries an approval policy: {claims.get('orgApproval')!r} — "
+                    f"a storefront shopper has no organisation to approve for, and gating "
+                    f"one dead-ends real D2C revenue"
+                )
+
+            # The OLD home, kept deliberately. This is where the policy lived
+            # before #21d, and checking only one location is how a refactor quietly
+            # empties a guard: this test passed throughout the move purely because
+            # it was looking at a field nothing writes any more.
+            for cfg in (claims.get("configurations") or []):
+                leaked = [k for k in cfg if k.startswith("approval")]
+                if leaked:
+                    raise AssertionError(f"b2c JWT leaked approval claims: {leaked}")
+            ok("b2c JWT carries no approval policy, in either its old or current location")
+
+        self.run_test("9c. b2c JWT carries no approval config", test_b2c_jwt_has_no_approval_claim)
+
+        # 9d. A real B2B buyer, same company, same policy: this one IS held.
+        quote_holder = {}
+
+        def test_customer_is_gated():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Customer standard quote under approval policy")
+            data = resp.json()
+            if data.get("status") != "pending_approval":
+                raise AssertionError(
+                    f"expected pending_approval, got {data.get('status')!r} — the gate did not fire"
+                )
+            if len(data.get("approvalChain") or []) != 1:
+                raise AssertionError(f"expected a 1-step chain, got {data.get('approvalChain')}")
+            if data.get("approvalStage") not in (0, None):
+                raise AssertionError(f"a fresh chain must start at stage 0, got {data.get('approvalStage')}")
+            quote_holder["id"] = data["id"]
+            ok(f"Customer quote held for approval (id {data['id'][-6:]})")
+
+        self.run_test("9d. B2B customer over threshold is held", test_customer_is_gated)
+
+        # 9e. The money path. handlePlaceOrderRequest already refuses anything that
+        # is not "approved", so this is the assertion that the gate actually blocks
+        # payment rather than merely labelling the quote.
+        def test_place_order_blocked():
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": quote_holder["id"],
+                "paymentMethod": "purchase_order",
+                "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"expected 403 placing an unapproved order, got {resp.status_code} — "
+                    f"an order bypassed its approval gate"
+                )
+            ok("Order placement blocked with 403 while pending approval")
+
+        self.run_test("9e. Cannot pay while pending approval", test_place_order_blocked)
+
+        # 9f. Only a named approver may decide.
+        def test_non_approver_rejected():
+            self.re_login("customer")   # the buyer is not their own approver
+            self.use_token("customer")
+            resp = self.api.patch(f"/checkout/quotes/{quote_holder['id']}", {
+                "operation": "approvalDecision",
+                "value": {"decision": "approve"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"expected 403 for a non-approver, got {resp.status_code} — a buyer approved their own order"
+                )
+            ok("Non-approver refused with 403")
+
+        self.run_test("9f. Non-approver cannot decide", test_non_approver_rejected)
+
+        # 9g. The approver can SEE it. Adobe Commerce is criticised for having no
+        # way to list what is awaiting your sign-off; the widened query is that fix.
+        def test_approver_can_see_quote():
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.get(f"/checkout/quotes/{quote_holder['id']}")
+            assert_status(resp, 200, "Approver reads a quote they do not own")
+            listing = self.api.get("/checkout/quotes", params={"sellerId": c1_id})
+            assert_status(listing, 200, "Approver lists quotes")
+            ids = [q.get("id") for q in (listing.json() or [])]
+            if quote_holder["id"] not in ids:
+                raise AssertionError("the pending quote did not appear in the approver's list")
+            ok("Approver can read and list a quote they did not create")
+
+        self.run_test("9g. Approver sees quotes awaiting them", test_approver_can_see_quote)
+
+        # 9h. Approve → the money path opens.
+        def test_approve_unblocks_order():
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{quote_holder['id']}", {
+                "operation": "approvalDecision",
+                "value": {"decision": "approve", "note": "ok from finance"},
+            })
+            assert_status(resp, 200, "Approver approves")
+            data = resp.json()
+            if data.get("status") != "approved":
+                raise AssertionError(f"a single-step chain should complete, got {data.get('status')!r}")
+            chain = data.get("approvalChain") or []
+            if not chain or not chain[0].get("decidedBy"):
+                raise AssertionError("the decision was not recorded on the step (no audit trail)")
+            if chain[0].get("note") != "ok from finance":
+                raise AssertionError(f"the note was not recorded: {chain[0].get('note')!r}")
+            ok("Approved; who/when/note recorded on the step")
+
+        self.run_test("9h. Approval completes and is audited", test_approve_unblocks_order)
+
+        # 9i. Multi-tier, and any-one-of-several clears a step. Two levels: level 1
+        # has two eligible approvers (the on-leave case), level 2 has one.
+        def test_multi_tier():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", chain=[step_cfg(approver_id, approver2_id), step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Multi-tier quote")
+            data = resp.json()
+            qid = data["id"]
+            if len(data.get("approvalChain") or []) != 2:
+                raise AssertionError(f"expected 2 levels, got {len(data.get('approvalChain') or [])}")
+
+            # Level 1 cleared by the SECOND listed approver: proves any eligible
+            # approver can clear a step, which is what stops an order stalling.
+            self.re_login("customer3")
+            self.use_token("customer3")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Second-listed approver clears level 1")
+            data = resp.json()
+            if data.get("status") != "pending_approval":
+                raise AssertionError(f"still one level to go, expected pending_approval, got {data.get('status')!r}")
+            if data.get("approvalStage") != 1:
+                raise AssertionError(f"expected stage 1 after level 1, got {data.get('approvalStage')}")
+            ok("Level 1 cleared by an alternate approver; quote advanced to level 2")
+
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Level 2 approves")
+            if resp.json().get("status") != "approved":
+                raise AssertionError("the final level should complete the chain")
+            ok("Level 2 cleared; quote fully approved")
+
+        self.run_test("9i. Multi-tier chain, any-one-of-several per level", test_multi_tier)
+
+        # 9j. Reject freezes the chain.
+        def test_reject():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Quote to reject")
+            qid = resp.json()["id"]
+
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision",
+                "value": {"decision": "reject", "note": "over budget"},
+            })
+            assert_status(resp, 200, "Reject")
+            if resp.json().get("status") != "rejected":
+                raise AssertionError(f"expected rejected, got {resp.json().get('status')!r}")
+
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 403:
+                raise AssertionError(f"a rejected order must not be payable, got {resp.status_code}")
+            # The seller must NOT be able to launder a buyer's rejection into an
+            # approval through the generic status path. Force-release deliberately
+            # does not cover this either: it exists for an approver who never
+            # responded, not one who declined.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"seller flipped a buyer-rejected order to approved (got {resp.status_code}) — "
+                    f"the buyer's refusal can be overridden"
+                )
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "forceReleaseApproval", "value": {},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(f"force-release must not override an explicit rejection, got {resp.status_code}")
+
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 403:
+                raise AssertionError(f"a rejected order must stay unpayable, got {resp.status_code}")
+            ok("Seller cannot overturn a buyer rejection by any route")
+
+        self.run_test("9j. Reject freezes the chain and blocks payment", test_reject)
+
+        # 9k. Defect-1 guard. CreateQuote upserts the standard quote in place, so a
+        # buyer editing the cart overwrites their own pending-approval quote. Every
+        # approval field is in the $set map precisely so a part-approved chain can
+        # never survive into the new submission.
+        def test_resubmit_resets_chain():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            qid = resp.json()["id"]
+
+            self.re_login("customer3")
+            self.use_token("customer3")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Clear level 1 before resubmitting")
+            if resp.json().get("approvalStage") != 1:
+                raise AssertionError("setup failed: level 1 was not cleared")
+
+            # Buyer edits the cart and checks out again.
+            self.re_login("customer")
+            self._add_to_cart("customer", c1_id, product_a, 2)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Resubmit after cart edit")
+            data = resp.json()
+            if data.get("approvalStage") not in (0, None):
+                raise AssertionError(
+                    f"resubmitted quote inherited stage {data.get('approvalStage')} — a stale "
+                    f"approval would let an unapproved order through"
+                )
+            for i, s in enumerate(data.get("approvalChain") or []):
+                if s.get("decidedBy") or s.get("status") == "approved":
+                    raise AssertionError(f"step {i} carried a previous decision into the new submission")
+            if data.get("status") != "pending_approval":
+                raise AssertionError(f"the resubmitted quote should be held again, got {data.get('status')!r}")
+            ok("Cart edit reset the chain to stage 0 and re-held the order")
+
+        self.run_test("9k. Cart edit resets a part-approved chain", test_resubmit_resets_chain)
+
+        # 9n. THE NEGOTIABLE PATH. Not covered by the tests above, which is exactly
+        # how the expiry bug survived: the window used to be stamped at quote
+        # creation, but a negotiable chain does not start until the seller
+        # approves. Any negotiation longer than the window produced an order that
+        # nobody could ever approve.
+        def test_negotiable_path():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="negotiable", validityHours=48, chain=[step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "negotiable")
+            assert_status(resp, 200, "Negotiable quote created")
+            data = resp.json()
+            qid = data["id"]
+            # Scope is negotiable-only, so creation must NOT hold it; the seller
+            # negotiates first.
+            if data.get("status") == "pending_approval":
+                raise AssertionError("a negotiable quote must not be held at creation; the seller negotiates first")
+            # And the window must not have started ticking during the negotiation.
+            if data.get("approvalExpiresAt"):
+                raise AssertionError(
+                    f"approval window was stamped at creation ({data.get('approvalExpiresAt')}); "
+                    f"a long negotiation would then expire before the approvers ever saw it"
+                )
+            ok("Negotiable quote created unheld, with no approval clock running")
+
+            # Seller approves → NOW the buyer's chain starts.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            assert_status(resp, 200, "Seller approves the negotiable quote")
+            data = resp.json()
+            if data.get("status") != "pending_approval":
+                raise AssertionError(
+                    f"seller approval should hand a gated quote to the buyer's approvers, got {data.get('status')!r}"
+                )
+            if not data.get("approvalExpiresAt"):
+                raise AssertionError("the approval window must be stamped when the chain actually starts")
+            ok("Seller approval handed the quote to the buyer's chain with a fresh window")
+
+            # Still not payable.
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 403:
+                raise AssertionError(f"a seller-approved but buyer-unapproved order must not be payable, got {resp.status_code}")
+
+            # Buyer's approver signs off → now it completes.
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Buyer's approver approves the negotiated quote")
+            if resp.json().get("status") != "approved":
+                raise AssertionError("the negotiable chain should complete to approved")
+            ok("Negotiable quote fully approved end to end")
+
+        self.run_test("9n. Negotiable path: gate fires at seller-approve", test_negotiable_path)
+
+        # 9o. Scope must be honoured: a negotiable-only policy leaves standard
+        # checkout alone. This is the configurability the scope field promises.
+        def test_scope_is_respected():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Standard quote under a negotiable-only policy")
+            if resp.json().get("status") != "approved":
+                raise AssertionError(
+                    f"scope=negotiable must not gate standard checkout, got {resp.json().get('status')!r}"
+                )
+            ok("scope=negotiable left standard checkout ungated")
+
+        self.run_test("9o. Scope confines the gate to the chosen flow", test_scope_is_respected)
+
+        # 9p. A malformed policy is refused at the API boundary rather than stored
+        # and then failing to decode later, which is what 500s every admin
+        # GET /accounts.
+        def test_malformed_chain_rejected():
+            self.re_login("customer")
+            self.use_token("customer")
+            for bad, why in [
+                ({"scope": "sometimes", "threshold": 1, "chain": [step_cfg(approver_id)]}, "an unknown scope"),
+                ({"scope": "both", "threshold": -5, "chain": [step_cfg(approver_id)]}, "a negative threshold"),
+                ({"scope": "both", "threshold": 1, "chain": [{"name": "no approvers", "approvers": []}]}, "a level with no approvers"),
+                ({"scope": "both", "threshold": 1, "chain": [{"approvers": [{"email": ""}]}]}, "an approver with no email"),
+                ({"scope": "both", "threshold": 1, "chain": [{"approvers": [{"email": "nobody@nowhere.test"}]}]}, "an approver who is not a registered account"),
+            ]:
+                resp = self.api.patch(f"/accounts/{cust_id}", {"governance": {"approval": bad}})
+                if resp.status_code != 400:
+                    raise AssertionError(f"expected 400 for {why}, got {resp.status_code}")
+            ok("Malformed approval policies rejected with 400")
+
+        self.run_test("9p. Malformed approval policy rejected at the boundary", test_malformed_chain_rejected)
+
+        # 9q. Self-approval must be impossible. A company-wide chain is copied into
+        # EVERY customer's JWT at that company, so the named approver is also a
+        # buyer; leaving them on their own chain would let them sign off on their
+        # own spending and void the control.
+        def test_no_self_approval():
+            self.use_token("company1")
+            # The buyer is the ONLY configured approver.
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", chain=[step_cfg(cust_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Quote with a buyer-only chain")
+            data = resp.json()
+            for step in (data.get("approvalChain") or []):
+                for a in step.get("approvers", []):
+                    if a.get("accountId") == cust_id:
+                        raise AssertionError("the buyer was left on their own approval chain and could self-approve")
+            ok("Buyer excluded from their own approval chain")
+
+            # Now a chain where the buyer is one of two approvers: the OTHER one
+            # must remain so the level is still enforceable.
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", chain=[step_cfg(cust_id, approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            data = resp.json()
+            if data.get("status") != "pending_approval":
+                raise AssertionError("a chain with a valid other approver must still gate")
+            approvers = [a["accountId"] for s in data["approvalChain"] for a in s["approvers"]]
+            if cust_id in approvers:
+                raise AssertionError("the buyer survived on a mixed chain")
+            if approver_id not in approvers:
+                raise AssertionError("the legitimate approver was dropped")
+            ok("Mixed chain kept the real approver and dropped the buyer")
+
+        self.run_test("9q. A buyer can never approve their own order", test_no_self_approval)
+
+        # 9r. The window bounds the approval REQUEST, not payment. An unanswered
+        # request cannot be decided once it lapses; a request that WAS answered in
+        # time leaves a normally payable order. Bounding payment instead made a
+        # settled negotiable quote permanently unpayable, with no way back.
+        def test_expiry_bounds_the_request():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", validityHours=0.0003, chain=[step_cfg(approver_id)])
+
+            # (i) lapsed and undecided -> the approver can no longer decide it.
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            stale = self._create_quote("customer", c1_id, "standard").json()["id"]
+            time.sleep(2)
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{stale}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            if resp.status_code == 200:
+                raise AssertionError("a lapsed approval request must not be decidable")
+            ok("Lapsed approval request refused at decision time")
+
+            # (ii) decided in time -> payable, and no window left behind.
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", validityHours=24, chain=[step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            qid = self._create_quote("customer", c1_id, "standard").json()["id"]
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Approve within the window")
+            if resp.json().get("approvalExpiresAt"):
+                raise AssertionError(
+                    "the window must be cleared once the chain clears, or a settled "
+                    "order becomes permanently unpayable when it lapses"
+                )
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            assert_status(resp, 200, "A fully-approved order is payable")
+            o = resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
+            ok("Approved order carries no window and is payable")
+
+        self.run_test("9r. Approval window bounds the request, not payment", test_expiry_bounds_the_request)
+
+        # 9u. Reject-then-approve must not bypass the chain. Letting the seller
+        # withdraw a pending order (9v) opens this door: if a seller-rejected quote
+        # could not re-enter approval, re-approving it would skip the buyer entirely.
+        def test_seller_reject_then_approve_regates():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", validityHours=24, chain=[step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            qid = self._create_quote("customer", c1_id, "negotiable").json()["id"]
+
+            # Seller withdraws, then reinstates.
+            self.use_token("company1")
+            assert_status(self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "rejected"},
+            }), 200, "Seller withdraws the quote")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            assert_status(resp, 200, "Seller reinstates the quote")
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError(
+                    f"reinstating a withdrawn quote skipped the buyer's chain "
+                    f"(status {resp.json().get('status')!r}) — a one-step approval bypass"
+                )
+            ok("Reinstated quote re-entered the buyer's approval chain")
+
+        self.run_test("9u. Reject-then-approve re-gates", test_seller_reject_then_approve_regates)
+
+        # 9v. A seller must still be able to withdraw an order awaiting approval.
+        # Blocking every transition on pending_approval left them no way to cancel,
+        # since force-release only ever approves.
+        def test_seller_can_withdraw_pending():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            qid = self._create_quote("customer", c1_id, "standard").json()["id"]
+
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "rejected"},
+            })
+            assert_status(resp, 200, "Seller withdraws an order awaiting approval")
+            if resp.json().get("status") != "rejected":
+                raise AssertionError("the withdrawal did not take effect")
+
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            if resp.status_code != 403:
+                raise AssertionError(f"a withdrawn order must not be payable, got {resp.status_code}")
+            ok("Seller withdrew a pending-approval order; it is not payable")
+
+        self.run_test("9v. Seller can withdraw an order awaiting approval", test_seller_can_withdraw_pending)
+
+        # 9s. Seller force-release. This is the no-scheduler answer to "the approver
+        # is unreachable", so it has to actually release: re-running the gate would
+        # bounce the quote straight back to pending_approval, and leaving the
+        # (usually lapsed) window in place would block payment anyway.
+        def test_seller_force_release():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both", validityHours=0.0003, chain=[step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            qid = resp.json()["id"]
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError("setup failed: the quote was not held")
+
+            time.sleep(2)  # approver never responds and the window lapses
+
+            # The generic status path must REFUSE to resolve a quote that is
+            # awaiting approval — inferring an override from prior state let a
+            # double-clicked Approve release orders past their chain.
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"updateStatus on a pending-approval quote must 409, got {resp.status_code} — "
+                    f"a repeated approve could silently release the order"
+                )
+            ok("updateStatus refused to resolve a pending approval (409)")
+
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "forceReleaseApproval", "value": {},
+            })
+            assert_status(resp, 200, "Seller force-releases the stuck quote")
+            data = resp.json()
+            if data.get("status") != "approved":
+                raise AssertionError(
+                    f"force-release bounced back to {data.get('status')!r}; the escape hatch does not release"
+                )
+            if data.get("approvalExpiresAt"):
+                raise AssertionError("force-release left the lapsed window in place; payment would still be refused")
+
+            # Idempotency: a second release must not act on a quote that is no
+            # longer awaiting approval.
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "forceReleaseApproval", "value": {},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(f"a repeated force-release must 409, got {resp.status_code}")
+
+            self.use_token("customer")
+            resp = self.api.post("/checkout/orders", {
+                "quoteId": qid, "paymentMethod": "purchase_order", "deliveryMethod": "pickup",
+            })
+            assert_status(resp, 200, "Buyer can pay after a force-release")
+            o = resp.json()
+            order_id = o.get("id") or o.get("_id")
+            assert order_id, "order_id missing"
+            self.tracker.track_order(order_id)
+            ok("Seller force-release releases the order and payment succeeds")
+
+        self.run_test("9s. Seller force-release rescues a stuck approval", test_seller_force_release)
+
+        # 9t. Cross-tenant authorization. Every quote PATCH used to check only the
+        # caller's ROLE, never whether the quote was theirs, so any company token
+        # could mutate another company's quotes.
+        def test_cross_tenant_patch_refused():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            qid = resp.json()["id"]
+
+            self.use_token("company2")   # a different seller entirely
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "updateStatus", "value": {"status": "approved"},
+            })
+            if resp.status_code != 403:
+                raise AssertionError(
+                    f"company2 changed a quote belonging to company1 (got {resp.status_code}) — cross-tenant write"
+                )
+            ok("A seller cannot patch another seller's quote (403)")
+
+        self.run_test("9t. Cross-tenant quote patch refused", test_cross_tenant_patch_refused)
+
+        # 9w. A buyer must not be able to walk their own held order out of
+        # approval. customerPropose used to move a standard quote to "proposed"
+        # with the chain left intact, after which the seller's approve took the
+        # ungated path and the order was paid with a level still pending.
+        def test_propose_cannot_escape_approval():
+            set_buyer_policy("customer", cust_id, threshold=1, scope="both",
+                             chain=[step_cfg(approver_id)])
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            qid = resp.json()["id"]
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError("setup failed: the order was not held")
+
+            self.use_token("customer")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "customerPropose",
+                "value": {"changes": [{"itemId": resp.json()["items"][0]["id"], "proposedPrice": 1}]},
+            })
+            if resp.status_code == 200:
+                raise AssertionError(
+                    "a buyer moved their own held order out of pending_approval via customerPropose"
+                )
+            resp = self.api.get(f"/checkout/quotes/{qid}")
+            if resp.json().get("status") != "pending_approval":
+                raise AssertionError(f"the held order changed status to {resp.json().get('status')!r}")
+            ok("customerPropose refused on a held standard order")
+
+        self.run_test("9w. A buyer cannot propose their way out of approval", test_propose_cannot_escape_approval)
+
+        # 9x. The money must not move while a chain is running: re-pricing under a
+        # granted approval produced an order payable at a total no approver saw.
+        def test_money_locked_during_approval():
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            qid = self._create_quote("customer", c1_id, "standard").json()["id"]
+
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "applyDiscount", "value": {"discountPercentage": 50},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"a seller re-priced an order awaiting approval (got {resp.status_code})"
+                )
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "sellerUpdate", "value": {"newShippingCost": 999, "notes": "x"},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"a seller changed shipping on an order awaiting approval (got {resp.status_code})"
+                )
+            ok("Prices and shipping locked while the order awaits approval")
+
+            # And still locked once the buyer has approved it.
+            self.re_login("customer2")
+            self.use_token("customer2")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "approvalDecision", "value": {"decision": "approve"},
+            })
+            assert_status(resp, 200, "Approver approves")
+            self.use_token("company1")
+            resp = self.api.patch(f"/checkout/quotes/{qid}", {
+                "operation": "applyDiscount", "value": {"discountPercentage": 50},
+            })
+            if resp.status_code != 409:
+                raise AssertionError(
+                    f"a seller re-priced an order the buyer had already approved (got {resp.status_code})"
+                )
+            ok("Prices stay locked after the buyer approved")
+
+        self.run_test("9x. Money is locked during and after approval", test_money_locked_during_approval)
+
+
+        # 9l. Under threshold: no gate, no regression for ordinary B2B orders.
+        def test_under_threshold_not_gated():
+            self.use_token("company1")
+            set_buyer_policy("customer", cust_id, threshold=999999, scope="both", chain=[step_cfg(approver_id)])
+
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            assert_status(resp, 200, "Under-threshold quote")
+            if resp.json().get("status") != "approved":
+                raise AssertionError(
+                    f"an under-threshold order must not be held, got {resp.json().get('status')!r}"
+                )
+            ok("Under-threshold order approved immediately")
+
+        self.run_test("9l. Under threshold is not gated", test_under_threshold_not_gated)
+
+        # Restore: leave no approval policy behind for later phases.
+        def test_cleanup_policy():
+            set_buyer_policy("customer", cust_id, threshold=0, scope="none", chain=[])
+            self.re_login("customer")
+            self._clear_cart("customer", c1_id)
+            self._add_to_cart("customer", c1_id, product_a, 3)
+            resp = self._create_quote("customer", c1_id, "standard")
+            if resp.json().get("status") != "approved":
+                raise AssertionError("policy did not clear; later phases would inherit a gate")
+            ok("Approval policy cleared for downstream phases")
+
+        self.run_test("9m. Approval policy cleared", test_cleanup_policy)
 
     # ── Phase 8b: Time-based deals & CSV export ──────────────────
 
@@ -2506,6 +4474,109 @@ class BackendFlowTest:
             ok("Honeypot contact_request dropped (no lead milestone)")
 
         self.run_test("Contact request honeypot dropped", test_contact_request_honeypot)
+
+        # Test 9: the portal signup conversion. The portal sends the account id in
+        # metadata rather than as a top-level customerId, because a top-level
+        # customerId belonging to a company account trips the internal-user gate and
+        # the whole event is dropped (see tests 2 and 3 above, which assert that gate
+        # still works for page_view). This asserts the conversion actually lands:
+        # milestone stored, and the visitor flipped to registered with daysToRegister.
+        def test_register_conversion():
+            rvid = "v___test__register_" + str(int(time.time()))
+            # A prior page_view so the visitor exists and firstVisit is set; the
+            # conversion is an UPDATE to a known visitor, never a fresh insert.
+            resp = self.api.post("/visitors/event", {
+                "visitorId": rvid,
+                "event": "page_view",
+                "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "register-conversion seed page_view accepted")
+
+            company_id = self.ids.get("company1", "")
+            resp = self.api.post("/visitors/event", {
+                "visitorId": rvid,
+                "event": "register",
+                "page": "/register",
+                "metadata": {"accountId": company_id, "role": "company"},
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "register event accepted")
+            assert resp.json().get("status") != "skipped", "register event was skipped, not recorded"
+
+            self.use_token("admin")
+            visitors = self.api.get(f"/visitors?visitorId={rvid}").json().get("visitors", [])
+            assert len(visitors) == 1, f"expected 1 visitor, got {len(visitors)}"
+            v = visitors[0]
+            regs = [m for m in (v.get("milestones") or []) if m.get("event") == "register"]
+            assert len(regs) == 1, f"expected 1 register milestone, got {len(regs)}"
+            assert regs[0].get("metadata", {}).get("accountId") == company_id, \
+                f"accountId: {regs[0].get('metadata', {}).get('accountId')}"
+            assert v.get("registered") is True, f"registered flag not set: {v.get('registered')}"
+            assert v.get("registeredAt"), "registeredAt not set"
+            assert v.get("daysToRegister") is not None, "daysToRegister not set"
+            ok("Portal signup conversion recorded (milestone + registered flag)")
+
+        self.run_test("Register conversion recorded", test_register_conversion)
+
+        # Test 10: the "mtd" (this-month) range, added alongside the Analytics default.
+        # A visitor touched right now always falls inside the current calendar month,
+        # so it must come back under since=mtd on BOTH endpoints. The two endpoints
+        # parse "since" in separate switches, so both are asserted: if one drifts, the
+        # stat cards and the visitor list below them cover different periods.
+        def test_mtd_range():
+            mvid = "v___test__mtd_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": mvid,
+                "event": "page_view",
+                "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "mtd seed page_view accepted")
+
+            self.use_token("admin")
+            resp = self.api.get(f"/visitors?visitorId={mvid}&since=mtd")
+            assert_status(resp, 200, "visitors list accepts since=mtd")
+            found = resp.json().get("visitors") or []
+            assert len(found) == 1, f"since=mtd should include a visitor seen today, got {len(found)}"
+
+            resp = self.api.get("/visitors/stats?since=mtd")
+            assert_status(resp, 200, "visitor stats accepts since=mtd")
+            assert resp.json().get("totalVisitors") is not None, "stats since=mtd returned no totalVisitors"
+            ok("since=mtd honoured by both visitors list and stats")
+
+        self.run_test("This-month (mtd) range", test_mtd_range)
+
+        # Test 11: the event filter behind the Visitors table "Status" dropdown.
+        # event=any means "has at least one milestone", which is the table default;
+        # event=<name> matches that single milestone. A page_view alone writes no
+        # milestone, so a plain visitor must be excluded by both.
+        def test_event_filter():
+            evid = "v___test__event_" + str(int(time.time()))
+            resp = self.api.post("/visitors/event", {
+                "visitorId": evid, "event": "page_view", "page": "/",
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "event-filter seed page_view accepted")
+
+            self.use_token("admin")
+            # No milestone yet: excluded from event=any.
+            found = self.api.get(f"/visitors?visitorId={evid}&event=any").json().get("visitors") or []
+            assert len(found) == 0, f"page_view-only visitor must not match event=any, got {len(found)}"
+
+            # Give it a milestone, then it must appear under both any and its own name.
+            resp = self.api.post("/visitors/event", {
+                "visitorId": evid, "event": "add_to_cart", "page": "/p",
+                "metadata": {"productId": "evt-test", "price": 1},
+            }, headers={"User-Agent": real_ua})
+            assert_status(resp, 200, "add_to_cart accepted")
+
+            self.use_token("admin")
+            found = self.api.get(f"/visitors?visitorId={evid}&event=any").json().get("visitors") or []
+            assert len(found) == 1, f"visitor with a milestone must match event=any, got {len(found)}"
+            found = self.api.get(f"/visitors?visitorId={evid}&event=add_to_cart").json().get("visitors") or []
+            assert len(found) == 1, f"event=add_to_cart should match, got {len(found)}"
+            found = self.api.get(f"/visitors?visitorId={evid}&event=order").json().get("visitors") or []
+            assert len(found) == 0, f"event=order must not match a cart-only visitor, got {len(found)}"
+            ok("event filter honoured (any + single event + non-match)")
+
+        self.run_test("Visitor event filter", test_event_filter)
 
         # Cleanup: delete test visitor
         def test_cleanup_visitor():
@@ -3360,7 +5431,10 @@ class BackendFlowTest:
         if "admin" in self.jwts:
             self.use_token("admin")
             # Partners reference company1 via partner.companyId; delete partners first.
-            delete_order = ["b2c", "customer2", "customer", "partner2", "partner1", "company2", "company1"]
+            # Organisation people first: they reference their root via
+            # parentAccountId, so removing the root first would orphan them.
+            delete_order = ["staff", "colleague", "sneaky",
+                            "b2c", "customer3", "customer2", "customer", "partner2", "partner1", "company2", "company1"]
             for role_key in delete_order:
                 if role_key in self.ids:
                     try:
@@ -3619,6 +5693,9 @@ class BackendFlowTest:
             self.phase6_enforcement()
             self.phase7_company_side()
             self.phase8_storefront()
+            self.phase9_order_approval()
+            self.phase9b_org_accounts()
+            self.phase9c_seller_approval()
             self.phase8b_deals_and_export()
             self.phase8c_password_reset()
             self.phase8d_visitor_tracking()

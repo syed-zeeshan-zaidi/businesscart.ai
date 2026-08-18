@@ -168,6 +168,15 @@ func (db *DB) DeleteAccount(id primitive.ObjectID) error {
 	return err
 }
 
+// GetAccountByOrgInviteCode finds the organisation root that owns an invite code.
+// Codes are multi-use by design (one organisation, many colleagues), so this is a
+// plain lookup with no claim semantics.
+func (db *DB) GetAccountByOrgInviteCode(code string) (*Account, error) {
+	var acc Account
+	err := db.accounts.FindOne(context.Background(), bson.M{"orgInviteCode": code}).Decode(&acc)
+	return &acc, err
+}
+
 func (db *DB) GetAccounts(filter bson.M) ([]*Account, error) {
 	cursor, err := db.accounts.Find(context.Background(), filter)
 	if err != nil {
@@ -407,11 +416,27 @@ func (db *DB) UpsertVisitor(visitor *Visitor) error {
 	return err
 }
 
+// MaxVisitorMilestones bounds the per-visitor journey. The array was previously
+// an uncapped $push, which only stayed small because few events existed. The
+// checkout exit events changed that: checkout_abandon fires once per session for
+// anyone who opens checkout, and milestone writes are NOT bot-gated (only the
+// CAPI dispatch is), so a crawler that drives checkout on every visit would grow
+// one document forever toward MongoDB's 16 MB ceiling.
+//
+// 200 keeps a long journey readable in the portal while making growth bounded.
+// Truncation drops the OLDEST entries only, and loses no durable fact: ordered,
+// totalOrders, totalRevenue and registered are top-level fields, not derived
+// from this array.
+const MaxVisitorMilestones = 200
+
 func (db *DB) AddVisitorMilestone(visitorID string, milestone VisitorMilestone) error {
 	filter := bson.M{"visitorId": visitorID}
 	update := bson.M{
-		"$push": bson.M{"milestones": milestone},
-		"$set":  bson.M{"updatedAt": time.Now()},
+		"$push": bson.M{"milestones": bson.M{
+			"$each":  []VisitorMilestone{milestone},
+			"$slice": -MaxVisitorMilestones,
+		}},
+		"$set": bson.M{"updatedAt": time.Now()},
 	}
 	_, err := db.visitors.UpdateOne(context.Background(), filter, update)
 	return err
@@ -501,6 +526,12 @@ func (db *DB) GetVisitorStats(sellerID, since string) (map[string]interface{}, e
 			sinceTime = time.Now().AddDate(0, 0, -7)
 		case "30d":
 			sinceTime = time.Now().AddDate(0, 0, -30)
+		case "mtd":
+			// Calendar month to date: midnight on the 1st, not a rolling window.
+			// This is the range that lines up with a billing period, which is why
+			// it is the Analytics default.
+			n := time.Now()
+			sinceTime = time.Date(n.Year(), n.Month(), 1, 0, 0, 0, 0, n.Location())
 		}
 		if !sinceTime.IsZero() {
 			base["lastVisit"] = bson.M{"$gte": sinceTime}
