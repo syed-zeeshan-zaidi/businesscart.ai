@@ -2500,31 +2500,48 @@ class BackendFlowTest:
                 assert_status(self.api.put(f"/products/{target}", {"cost": real_cost}),
                               200, "Owner sets a cost for the wipe test")
 
-            self.re_login("staff")
-            self.use_token("staff")
-            staff_view = self.api.get(f"/products/{target}").json()
+            # This runs against real catalogue rows, and description is customer
+            # facing: it renders on the storefront at the next regeneration. Capture
+            # both fields and put them back in the finally below, whatever happens.
+            # Without that, a FAILING run leaves the cost wiped and the description
+            # rewritten, which is exactly how this test broke 9b-13 ("an admin still
+            # could not see cost after promotion") on its first real execution: the
+            # assertion it exists to make had already destroyed the data downstream
+            # tests depend on.
+            original = self.api.get(f"/products/{target}").json()
+            original_desc = original.get("description", "")
             new_desc = f"{PREFIX} staff edited this description"
-            resp = self.api.put(f"/products/{target}", {
-                "description": new_desc,
-                "cost": staff_view.get("cost", 0),  # exactly what the form round-trips
-            })
-            assert_status(resp, 200, "Staff edit accepted")
+            try:
+                self.re_login("staff")
+                self.use_token("staff")
+                staff_view = self.api.get(f"/products/{target}").json()
+                resp = self.api.put(f"/products/{target}", {
+                    "description": new_desc,
+                    "cost": staff_view.get("cost", 0),  # exactly what the form round-trips
+                })
+                assert_status(resp, 200, "Staff edit accepted")
 
-            self.use_token("company1")
-            after = self.api.get(f"/products/{target}").json()
-            if abs((after.get("cost") or 0) - real_cost) > 0.001:
-                raise AssertionError(
-                    f"staff edit destroyed the cost: was {real_cost}, now {after.get('cost')!r}. "
-                    f"A caller who cannot read cost must not be able to write it."
-                )
-            if after.get("description") != new_desc:
-                raise AssertionError(
-                    f"the cost guard blocked an unrelated field: description is "
-                    f"{after.get('description')!r}, expected {new_desc!r}"
-                )
-            ok(f"Staff edit saved the description and left cost at {real_cost}")
+                self.use_token("company1")
+                after = self.api.get(f"/products/{target}").json()
+                if abs((after.get("cost") or 0) - real_cost) > 0.001:
+                    raise AssertionError(
+                        f"staff edit destroyed the cost: was {real_cost}, now {after.get('cost')!r}. "
+                        f"A caller who cannot read cost must not be able to write it."
+                    )
+                if after.get("description") != new_desc:
+                    raise AssertionError(
+                        f"the cost guard blocked an unrelated field: description is "
+                        f"{after.get('description')!r}, expected {new_desc!r}"
+                    )
+                ok(f"Staff edit saved the description and left cost at {real_cost}")
+            finally:
+                self.use_token("company1")
+                self.api.put(f"/products/{target}", {
+                    "description": original_desc,
+                    "cost": real_cost,
+                })
 
-        self.run_test("9b-12. A staff edit cannot wipe the product cost", test_staff_edit_cannot_wipe_cost)
+        self.run_test("9b-15. A staff edit cannot wipe the product cost", test_staff_edit_cannot_wipe_cost)
 
         def test_only_owner_touches_payment_credentials():
             self.re_login("staff")
