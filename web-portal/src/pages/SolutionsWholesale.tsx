@@ -110,13 +110,13 @@ const SolutionsWholesale: React.FC = () => {
         <section className="relative bg-gray-800 overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
             <div className="max-w-3xl">
-              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Solutions · Wholesale &amp; B2B</p>
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Solutions · B2B Wholesale Platform</p>
               <h1 className="mt-4 text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
                 Stop Running B2B in{' '}
                 <span className="text-teal-400">Spreadsheets.</span>
               </h1>
               <p className="mt-6 text-lg text-gray-200 sm:text-xl">
-                Per-customer pricing, credit limits, spend caps, and quote negotiation, all enforced automatically at every order. Your customers self-serve through their own private portal. You stop being the bottleneck.
+                BusinessCart is a B2B wholesale platform with per-customer pricing, credit limits, spend caps, and quote negotiation, all enforced automatically at every order. Your customers self-serve through their own private portal. You stop being the bottleneck.
               </p>
               <p className="mt-4 text-sm text-gray-300">
                 $0/month · Live in hours, not months · Real B2B enforcement, not just "tags"
@@ -161,7 +161,7 @@ const SolutionsWholesale: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Sales reps are the bottleneck</h3>
                 </div>
                 <p className="text-gray-600">
-                  Customers have to call or email a rep to place an order. After 5pm? Weekend? Holiday? Tough luck. You can\'t scale beyond what your reps can handle on the phone.
+                  Customers have to call or email a rep to place an order. After 5pm? Weekend? Holiday? Tough luck. You can't scale beyond what your reps can handle on the phone.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">

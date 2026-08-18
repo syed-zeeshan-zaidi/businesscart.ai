@@ -159,7 +159,7 @@ const SolutionsManufacturers: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Pricing in spreadsheets per distributor</h3>
                 </div>
                 <p className="text-gray-600">
-                  Tier pricing, volume breaks, promotional rates, all tracked across files, sales rep notes, and sometimes just memory. Distributors call to "verify" prices because they don\'t trust the price list.
+                  Tier pricing, volume breaks, promotional rates, all tracked across files, sales rep notes, and sometimes just memory. Distributors call to "verify" prices because they don't trust the price list.
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-6">
@@ -251,7 +251,7 @@ const SolutionsManufacturers: React.FC = () => {
               One AI Add-on. Replaces Months of ERP Integration Work.
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect SAP, NetSuite, Oracle, JD Edwards, or any production system without writing code or hiring consultants. The AI add-on runs heavy data syncs decoupled from your distributor portal. Orders flow in real time, ERP catches up asynchronously. Note: scope of integration depends on your ERP\'s API surface; we cover the data plumbing, you own business logic.
+              Connect SAP, NetSuite, Oracle, JD Edwards, or any production system without writing code or hiring consultants. The AI add-on runs heavy data syncs decoupled from your distributor portal. Orders flow in real time, ERP catches up asynchronously. Note: scope of integration depends on your ERP's API surface; we cover the data plumbing, you own business logic.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
