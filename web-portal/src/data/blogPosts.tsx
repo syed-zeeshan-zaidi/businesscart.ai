@@ -496,7 +496,7 @@ const blogPosts: BlogPostData[] = [
 
         <h2>The Bottom Line</h2>
         <p>If you are starting an online store in 2026, paying $39+/month before your first sale does not make sense. The alternatives have caught up, and in some areas, passed Shopify entirely.</p>
-        <p>BusinessCart.ai's Starter plan starts at $0/month, gives you the fastest storefront on the web, and includes every feature, including SEO, multi-location, full B2B, and the optional AI add-on, that Shopify charges thousands for. Your tier auto-applies based on monthly order volume (Starter ≤100 orders, Growth $499/mo at 101-1,000, Enterprise $1,999/mo at 1,001+). Every feature is in every tier, no feature locks. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
+        <p>BusinessCart.ai's Starter plan starts at $0/month, gives you the fastest storefront on the web, and includes every feature, including SEO, multi-location, full B2B, and the operations layer that connects your other systems, all of which Shopify charges thousands for. Your tier auto-applies based on monthly order volume (Starter ≤100 orders, Growth $499/mo at 101-1,000, Enterprise $1,999/mo at 1,001+). Every feature is in every tier, no feature locks. The trade-off is a smaller app ecosystem, but for most businesses, what is built in is all you need.</p>
         <p>Stop paying for a store before you have customers. <strong><a href="/contact-us">Start for free on BusinessCart.ai</a></strong> and pay only when you sell.</p>
         <p>Related: <a href="/solutions/d2c-brands">D2C Brands solution page</a>, full feature breakdown, comparison tables, and pricing for direct-to-consumer sellers.</p>
       </>
@@ -3176,7 +3176,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
           <li><strong>Growth</strong> ($499/mo + 1% per order), 101-1,000 orders/month. Most SMB wholesalers ($1M-$10M revenue) live here.</li>
           <li><strong>Enterprise</strong> ($1,999/mo + 0.25% per order), 1,001+ orders/month. Includes dedicated success manager and SLA.</li>
         </ul>
-        <p>Optional AI integration add-on: $99/mo on any tier.</p>
+        <p>Connecting the other systems you run is included on every tier at no extra cost.</p>
 
         <h3>What works</h3>
         <ul>
@@ -3190,7 +3190,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
 
         <h3>What doesn&rsquo;t</h3>
         <ul>
-          <li>No native ERP, if you need GL, AR, AP, payroll integrated, you still need accounting software (QuickBooks integrates via REST API; deeper ERP needs the AI add-on)</li>
+          <li>No native ERP, if you need GL, AR, AP, payroll integrated, you still need accounting software (QuickBooks integrates via REST API; deeper ERP is connected for you at no extra cost)</li>
           <li>Smaller brand recognition than Shopify or NetSuite</li>
           <li>Smaller app ecosystem (offset by features being built in)</li>
           <li>Bulk CSV import in beta (Q2 2026 GA), manual product upload is the current path</li>
@@ -3578,7 +3578,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
           <li><strong>Growth</strong> ($499/mo + 1% per order), 101-1,000 orders/month. Most mid-market manufacturers ($10M-$50M revenue) live here.</li>
           <li><strong>Enterprise</strong> ($1,999/mo + 0.25% per order), 1,001+ orders/month. Includes dedicated success manager and SLA.</li>
         </ul>
-        <p>Optional AI integration add-on: $99/mo on any tier (handles ERP/accounting integration without code).</p>
+        <p>Connecting the other systems you run is included on every tier at no extra cost, and handles ERP and accounting integration without code.</p>
 
         <h3>What works</h3>
         <ul>
@@ -3593,10 +3593,10 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
 
         <h3>What doesn&rsquo;t</h3>
         <ul>
-          <li>No native ERP, you keep QuickBooks, NetSuite Lite, or your existing ERP and integrate via REST API or AI add-on</li>
+          <li>No native ERP, you keep QuickBooks, NetSuite Lite, or your existing ERP and integrate via REST API, or tell us the system and we connect it</li>
           <li>Newer brand, less recognition than Adobe or SAP among enterprise procurement teams</li>
           <li>Bulk CSV import in beta (Q2 2026 GA), manual product upload current path</li>
-          <li>Native EDI not built in, integrate via 3rd party (TrueCommerce, SPS Commerce) or AI add-on</li>
+          <li>Native EDI not built in, integrate via 3rd party (TrueCommerce, SPS Commerce), or tell us the system and we connect it</li>
         </ul>
 
         <h3>Best for</h3>
@@ -4206,7 +4206,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
           <li><strong>Payment sync:</strong> when QuickBooks records a payment, the portal updates the order status and refreshes the customer&rsquo;s available credit.</li>
         </ul>
 
-        <p>BusinessCart.ai provides REST API endpoints for all of this. Integration via Zapier ($30-$100/month) or n8n (self-hosted, free) handles 80% of the use case without custom code. For more complex needs, the AI add-on ($99/month) handles ERP/accounting integration without writing code.</p>
+        <p>BusinessCart.ai provides REST API endpoints for all of this. Integration via Zapier ($30-$100/month) or n8n (self-hosted, free) handles 80% of the use case without custom code. For more complex needs, tell us the system you run and we connect it for you, handling ERP and accounting integration without writing code, at no extra cost.</p>
 
         <h2>What You Don&rsquo;t Have to Change</h2>
 
@@ -4483,7 +4483,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
           <li>Does the platform handle EDI ASNs and invoices as well as POs?</li>
         </ul>
 
-        <p>BusinessCart.ai exposes REST APIs natively for portal-or-API-driven orders. EDI is supported via 3rd-party integration (TrueCommerce, SPS Commerce) or via the AI add-on for custom EDI document handling. The platform doesn&rsquo;t replace your EDI vendor; it gives you the portal-and-API layer that your SMB customers need while EDI handles the chain-retail layer.</p>
+        <p>BusinessCart.ai exposes REST APIs natively for portal-or-API-driven orders. EDI is supported via 3rd-party integration (TrueCommerce, SPS Commerce) or we connect it for you for custom EDI document handling. The platform doesn&rsquo;t replace your EDI vendor; it gives you the portal-and-API layer that your SMB customers need while EDI handles the chain-retail layer.</p>
 
         <h2>Bottom Line</h2>
 
@@ -4646,7 +4646,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
         <h2>What are the three SMB B2B platforms in 2026?</h2>
         <p>BusinessCart, Sana Commerce, and Logicblock all target SMB wholesalers and distributors with feature sets focused on B2B requirements: per-customer pricing, quote negotiation, code-gated catalogs, and customer-specific payment and shipping configuration. They differ in pricing model, ERP integration depth, and target revenue range.</p>
         <ul>
-          <li><strong>BusinessCart</strong>: B2B + D2C platform for SMB wholesalers, distributors, manufacturers, and D2C brands. Auto-scaling pricing with no monthly fee at the entry tier. Includes per-customer pricing, credit limits, quote negotiation, multi-company customer accounts, and shopping channel feeds built in. ERP integration via REST API or the optional AI add-on, with native QuickBooks, Xero, and NetSuite connectors on the Q3 2026 roadmap.</li>
+          <li><strong>BusinessCart</strong>: B2B + D2C platform for SMB wholesalers, distributors, manufacturers, and D2C brands. Auto-scaling pricing with no monthly fee at the entry tier. Includes per-customer pricing, credit limits, quote negotiation, multi-company customer accounts, and shopping channel feeds built in. ERP integration via REST API, or tell us the system you run and we connect it at no extra cost, with native QuickBooks, Xero, and NetSuite connectors on the Q3 2026 roadmap.</li>
           <li><strong>Sana Commerce</strong>: founded in 2007, targets mid-market B2B with deep native ERP integration as the primary differentiator. Real-time integration with Microsoft Dynamics 365, SAP S/4HANA, SAP Business One, and additional ERPs. Custom-quoted pricing.</li>
           <li><strong>Logicblock</strong>: hosted B2B and B2C commerce platform with a flat-rate pricing model and QuickBooks Online integration. Single CORE plan at $999.95/month per Logicblock published 2026 pricing page.</li>
         </ul>
@@ -4684,7 +4684,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
         <p>The BusinessCart differentiator is the integration of quote negotiation with credit limit and spending cap enforcement at quote time. A quote that would exceed a customer credit limit is rejected at the negotiation stage, not at order placement. Sana relies on the ERP for limit enforcement; Logicblock supports basic terms.</p>
 
         <h2>Which platform integrates with QuickBooks, NetSuite, or your ERP?</h2>
-        <p>Logicblock includes QuickBooks Online integration as a standard feature on the CORE plan. Sana Commerce primary differentiator is native real-time ERP integration with Microsoft Dynamics 365, SAP S/4HANA, SAP Business One, and additional ERPs depending on tier. BusinessCart integrates via REST API for any ERP today, with native QuickBooks, Xero, and NetSuite connectors on the Q3 2026 roadmap. The optional BusinessCart AI add-on connects to any ERP without code by handling the data plumbing.</p>
+        <p>Logicblock includes QuickBooks Online integration as a standard feature on the CORE plan. Sana Commerce primary differentiator is native real-time ERP integration with Microsoft Dynamics 365, SAP S/4HANA, SAP Business One, and additional ERPs depending on tier. BusinessCart integrates via REST API for any ERP today, with native QuickBooks, Xero, and NetSuite connectors on the Q3 2026 roadmap. BusinessCart also connects to your ERP without code by handling the data plumbing, included at no extra cost.</p>
         <p>If your business already runs Microsoft Dynamics or SAP and needs real-time bidirectional sync, Sana Commerce is the strongest fit. If you run QuickBooks Online and want a flat-rate platform, Logicblock fits cleanly. If you run any other ERP, want to start at $0/month, or prefer building the integration via REST API, BusinessCart fits.</p>
 
         <h2>When should you choose each platform?</h2>
@@ -4711,7 +4711,7 @@ We deliver within a 10-mile radius of Portland and offer pickup at our two locat
         <p>At SMB volumes (under 100 orders per month), yes. BusinessCart Starter is $0/month with a $5 max per order; Sana Commerce starts at approximately $10,000/year; Logicblock CORE is $999.95/month. At high volumes (1,000+ orders/month), BusinessCart Enterprise is $1,999/month + 0.25%, which can run higher than Logicblock CORE flat depending on order count and AOV. The cost-versus-feature tradeoff favors BusinessCart for low-to-mid volumes and Logicblock for stable-high volumes with simple ERP needs.</p>
 
         <h3>Can BusinessCart replace Sana Commerce for a Microsoft Dynamics 365 shop?</h3>
-        <p>Not today. Sana real-time native Dynamics integration is its primary differentiator; BusinessCart connects to Dynamics through REST API or the AI add-on (asynchronous, not native real-time). For businesses where ERP sync latency matters, Sana wins in 2026. BusinessCart native ERP connectors land in Q3 2026 per the published roadmap.</p>
+        <p>Not today. Sana real-time native Dynamics integration is its primary differentiator; BusinessCart connects to Dynamics through REST API, or we connect it for you (asynchronous, not native real-time). For businesses where ERP sync latency matters, Sana wins in 2026. BusinessCart native ERP connectors land in Q3 2026 per the published roadmap.</p>
 
         <h3>Does BusinessCart support quote-to-order conversion like Sana Pro?</h3>
         <p>Yes. BusinessCart includes quote negotiation in every tier, including Starter ($0/month). Sana Commerce includes quote-to-order conversion in the Pro plan (not Essential).</p>

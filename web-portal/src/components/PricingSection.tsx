@@ -173,7 +173,7 @@ const PricingSection: React.FC<PricingSectionProps> = ({
  
     {/* Footer note */}
     <p className="mt-4 text-center text-sm text-gray-600 max-w-3xl mx-auto">
-      Optional AI integration add-on: starts at $99/mo, available on any tier.
+      Connecting the other systems you run is included on every tier at no extra cost.
       · 30-day money-back on Growth and Enterprise · No setup costs · No
       long-term contracts ·{" "}
       <strong className="text-gray-800">

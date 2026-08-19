@@ -40,8 +40,8 @@ const pillars = [
   },
   {
     icon: SparklesIcon,
-    title: 'One AI Add-on (Premium)',
-    desc: 'Replaces the 10-app integration, observability, and automation stack. Connects ERP, accounting, CRM. Runs heavy operations decoupled from your storefront.',
+    title: 'One Operations Layer (Included)',
+    desc: 'Replaces the 10-app integration, observability, and automation stack. You add credentials for the systems you run, BusinessCart handles the mapping and the sync, and alerts you if one breaks. Runs decoupled from your storefront, and costs nothing extra.',
   },
 ];
 
@@ -63,7 +63,7 @@ const faqs = [
   },
   {
     q: 'What does this actually cost me?',
-    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo · max $5 per order, invoiced monthly, never deducted from your sales) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. Optional AI add-on starts at $99/mo on any tier. 30-day money-back on Growth and Enterprise.',
+    a: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume; no manual upgrades, no feature locks. Starter ($0/mo · max $5 per order, invoiced monthly, never deducted from your sales) for up to 100 orders/month. Growth ($499/mo + 1% per order) for 101-1,000 orders. Enterprise ($1,999/mo + 0.25% per order) at 1,001+. The operations layer that connects your other systems is included on every tier at no extra cost. 30-day money-back on Growth and Enterprise.',
   },
   {
     q: 'How is this different from Shopify?',

@@ -233,44 +233,44 @@ const SolutionsMarketplaceEscape: React.FC = () => {
           </div>
         </section>
 
-        {/* AI Add-on Spotlight */}
+        {/* Operations Layer */}
         <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 mb-4">
               <SparklesIcon className="h-6 w-6 text-teal-400" />
-              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Premium Add-on</p>
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Operations Layer</p>
               <Badge kind="live" />
             </div>
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              One AI Add-on. Replaces the App Stack You'd Build on Shopify.
+              No App Stack to Replace the Marketplace Tax
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Don't escape one tax just to pay another. The AI add-on replaces what would be 5-10 separate Shopify apps (Klaviyo, ReCharge, Judge.me, Loox, Gorgias), running heavy operations decoupled from your storefront.
+              Don't escape one tax just to pay another. BusinessCart replaces what would be 5-10 separate Shopify apps (Klaviyo, ReCharge, Judge.me, Loox, Gorgias), connecting the systems you already run and keeping them in step, decoupled from your storefront.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
+                <h3 className="text-lg font-semibold text-white">Integrations, connected for you</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Connect your existing email, accounting, fulfillment systems. No custom code.
+                  You provide the credentials in your portal and BusinessCart handles the field mapping and the sync, whether that is email, accounting or fulfilment. Tell us the system you run and we connect it.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Observability</h3>
+                <h3 className="text-lg font-semibold text-white">Alerts, not dashboards</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Track which marketplace customers are converting to direct. Surface repeat-buyer patterns.
+                  BusinessCart watches its own integrations and order flow. If a sync fails or something looks wrong, you get an alert. Nothing for you to build, nothing for you to monitor.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
+                <h3 className="text-lg font-semibold text-white">Systems stay in step</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Post-purchase emails that bring marketplace buyers to your direct store. Loyalty automation.
+                  When an order is placed, BusinessCart updates your connected systems automatically. No export, no re-keying, no nightly file to remember to send.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
+              Every BusinessCart feature is included in every tier, and this costs nothing extra. If a system you connect charges for its own API access, you pay that vendor directly and add your credentials in the portal.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
-                Talk to us about pricing →
+                Tell us what you run →
               </Link>
             </p>
           </div>

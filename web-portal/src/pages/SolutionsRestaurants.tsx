@@ -90,7 +90,7 @@ const faqs = [
   },
   {
     q: 'What about POS integration (Toast, Square, Clover)?',
-    a: 'Native POS connectors are on the Q3 2026 roadmap. Today, our AI Add-on can connect to any POS without code as a premium add-on. The REST API is also available for direct integration.',
+    a: 'Native POS connectors are on the Q3 2026 roadmap. Today, tell us which POS you run and we connect it for you at no extra cost. The REST API is also available for direct integration.',
   },
 ];
 
@@ -236,44 +236,44 @@ const SolutionsRestaurants: React.FC = () => {
           </div>
         </section>
 
-        {/* AI Add-on Spotlight */}
+        {/* Operations Layer */}
         <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 mb-4">
               <SparklesIcon className="h-6 w-6 text-teal-400" />
-              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Premium Add-on</p>
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Operations Layer</p>
               <Badge kind="live" />
             </div>
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              One AI Add-on. Replaces 10,000 Apps.
+              Your POS and Accounting, Connected
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect your POS, accounting, or kitchen-display system without writing code. The AI add-on runs heavy operations decoupled from your menu pages. Your storefront stays fast while the AI handles the back-office.
+              Tell BusinessCart which POS, accounting or kitchen-display system you run and we connect it. You add the credentials once in your portal, and the heavy work runs decoupled from your menu pages, so your storefront stays fast while the back office keeps itself in step.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
+                <h3 className="text-lg font-semibold text-white">Integrations, connected for you</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  POS, accounting, inventory, any system. No custom code. The AI handles the data plumbing.
+                  You provide the credentials in your portal and BusinessCart handles the field mapping and the sync, whether that is your POS, inventory or accounting. Tell us the system you run and we connect it.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Observability</h3>
+                <h3 className="text-lg font-semibold text-white">Alerts, not dashboards</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  AI surfaces popular items, slow movers, peak hours, and customer trends automatically.
+                  BusinessCart watches its own integrations and order flow. If a sync fails or something looks wrong, you get an alert. Nothing for you to build, nothing for you to monitor.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
+                <h3 className="text-lg font-semibold text-white">Systems stay in step</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, status updates, catering follow-ups, all handled by AI so your team focuses on cooking.
+                  When an order is placed, BusinessCart updates your connected systems automatically. No export, no re-keying, no nightly file to remember to send.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
+              Every BusinessCart feature is included in every tier, and this costs nothing extra. If a system you connect charges for its own API access, you pay that vendor directly and add your credentials in the portal.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
-                Talk to us about pricing →
+                Tell us what you run →
               </Link>
             </p>
           </div>

@@ -66,7 +66,7 @@ const betaFeatures = [
 const roadmap = [
   { quarter: 'q3' as const, feature: 'Native net-30 / net-60 / net-90 terms', why: 'Standard B2B credit terms with auto-aging and reminders' },
   { quarter: 'q3' as const, feature: 'Recurring distributor orders', why: 'Standing orders for predictable repeat volume' },
-  { quarter: 'q3' as const, feature: 'Native ERP connectors (NetSuite, SAP, QB)', why: 'No-code direct sync if you prefer over the AI add-on' },
+  { quarter: 'q3' as const, feature: 'Native ERP connectors (NetSuite, SAP, QB)', why: 'Prebuilt connectors rather than a per-system setup' },
   { quarter: 'q4' as const, feature: 'Distributor territory management', why: 'Assign territories with overlap rules and lead routing' },
   { quarter: 'q4' as const, feature: 'Multi-language portals', why: 'Sell to international distributor networks in their language' },
 ];
@@ -74,7 +74,7 @@ const roadmap = [
 const faqs = [
   {
     q: 'How does this fit alongside our ERP and production system?',
-    a: 'Two paths. (1) Use the REST API directly: every operation is exposed for direct ERP sync. (2) Use our AI Add-on: connect any system without writing code, decoupled from order entry so heavy syncs never slow your portal. Native NetSuite/SAP/QuickBooks connectors ship Q3 2026.',
+    a: 'Two paths. (1) Use the REST API directly: every operation is exposed for direct ERP sync. (2) Tell us the system you run and we connect it for you. You add the credentials in your portal and BusinessCart handles the mapping and the sync, decoupled from order entry so heavy syncs never slow your portal, at no extra cost. Native NetSuite/SAP/QuickBooks connectors ship Q3 2026.',
   },
   {
     q: 'Can each distributor see their own pricing, MOQ, and lead times?',
@@ -199,7 +199,7 @@ const SolutionsManufacturers: React.FC = () => {
                     ['Credit limit enforcement', 'None', 'Yes (custom rules)', 'Yes (custom dev)', 'Built-in at quote time'],
                     ['Quote negotiation workflow', 'Email PDFs', 'Yes', 'Yes', 'Built-in with history'],
                     ['Channel conflict prevention (private)', 'N/A', 'Custom config', 'Custom config', 'Code-gated by default'],
-                    ['ERP integration', 'Manual entry', 'Native (consultant)', 'Native (consultant)', 'API + AI add-on (no code)'],
+                    ['ERP integration', 'Manual entry', 'Native (consultant)', 'Native (consultant)', 'API + we connect it for you'],
                   ].map((row) => (
                     <tr key={row[0]}>
                       <td className="px-4 py-4 text-sm font-medium text-gray-900">{row[0]}</td>
@@ -239,44 +239,44 @@ const SolutionsManufacturers: React.FC = () => {
           </div>
         </section>
 
-        {/* AI Add-on Spotlight */}
+        {/* Operations Layer */}
         <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 mb-4">
               <SparklesIcon className="h-6 w-6 text-teal-400" />
-              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Premium Add-on</p>
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Operations Layer</p>
               <Badge kind="live" />
             </div>
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              One AI Add-on. Replaces Months of ERP Integration Work.
+              ERP Integration Without the Consultants
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              Connect SAP, NetSuite, Oracle, JD Edwards, or any production system without writing code or hiring consultants. The AI add-on runs heavy data syncs decoupled from your distributor portal. Orders flow in real time, ERP catches up asynchronously. Note: scope of integration depends on your ERP's API surface; we cover the data plumbing, you own business logic.
+              Tell BusinessCart which production system you run, SAP, NetSuite, Oracle, JD Edwards or another, and we connect it. You add the credentials once in your portal. Heavy syncs run off your distributor portal, so orders flow in real time while the ERP catches up asynchronously. Scope depends on your ERP's API surface: BusinessCart covers the data plumbing, you own the business logic.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
+                <h3 className="text-lg font-semibold text-white">Integrations, connected for you</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  ERP, MES, WMS, accounting, any system. No custom code. The AI handles the data plumbing.
+                  You provide the credentials in your portal and BusinessCart handles the field mapping and the sync, whether that is ERP, MES, WMS or accounting. Tell us the system you run and we connect it.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Observability</h3>
+                <h3 className="text-lg font-semibold text-white">Alerts, not dashboards</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  AI surfaces production bottlenecks, distributor patterns, demand signals automatically.
+                  BusinessCart watches its own integrations and order flow. If a sync fails or something looks wrong, you get an alert. Nothing for you to build, nothing for you to monitor.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
+                <h3 className="text-lg font-semibold text-white">Systems stay in step</h3>
                 <p className="mt-2 text-gray-300 text-sm">
                   Order confirmations, lead-time updates, allocation notifications, all handled by AI so reps focus on relationships.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
+              Every BusinessCart feature is included in every tier, and this costs nothing extra. If a system you connect charges for its own API access, you pay that vendor directly and add your credentials in the portal.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
-                Talk to us about pricing →
+                Tell us what you run →
               </Link>
             </p>
           </div>

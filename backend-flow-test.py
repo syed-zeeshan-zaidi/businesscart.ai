@@ -670,6 +670,39 @@ class BackendFlowTest:
             ok("JWT leadTime = 3 (company default resolved)")
 
         self.run_test("JWT enforcement values after re-login", test_jwt_enforcement_values)
+
+        def test_last_login_stamped():
+            # Login stamps lastLogin and must NOT disturb updatedAt: updatedAt
+            # answers "was this account ever configured", lastLogin answers "did
+            # they ever come back". Collapsing the two loses both signals, which
+            # is exactly the question that could not be answered for the first
+            # real signup (2026-08-14, dormant at pending_setup).
+            self.use_token("admin")
+            c1_id = self.ids["company1"]
+            before = self.api.get(f"/accounts/{c1_id}").json()
+            before_updated = before.get("updatedAt")
+            before_login = before.get("lastLogin")
+
+            self.re_login("company1")
+
+            self.use_token("admin")
+            after = self.api.get(f"/accounts/{c1_id}").json()
+            after_login = after.get("lastLogin")
+
+            if not after_login:
+                raise AssertionError("lastLogin not set after successful login")
+            if before_login and after_login <= before_login:
+                raise AssertionError(f"lastLogin did not advance: {before_login} -> {after_login}")
+            ok(f"lastLogin stamped: {after_login}")
+
+            if after.get("updatedAt") != before_updated:
+                raise AssertionError(
+                    f"login changed updatedAt ({before_updated} -> {after.get('updatedAt')}); "
+                    "it must only reflect configuration changes"
+                )
+            ok("updatedAt untouched by login")
+
+        self.run_test("Login stamps lastLogin without touching updatedAt", test_last_login_stamped)
         self.re_login("customer2")
 
     # ── Phase 5: Portal checkout happy path ──────────────────────
@@ -4418,6 +4451,7 @@ class BackendFlowTest:
 
         def test_contact_request_lead():
             cvid = "v___test__contact_" + str(int(time.time()))
+            self.tracker.track_visitor(cvid)
             resp = self.api.post("/visitors/event", {
                 "visitorId": cvid,
                 "event": "contact_request",
@@ -4452,6 +4486,7 @@ class BackendFlowTest:
         # no contact_request milestone stored.
         def test_contact_request_honeypot():
             hvid = "v___test__contact_hp_" + str(int(time.time()))
+            self.tracker.track_visitor(hvid)
             resp = self.api.post("/visitors/event", {
                 "visitorId": hvid,
                 "event": "contact_request",
@@ -4483,6 +4518,7 @@ class BackendFlowTest:
         # milestone stored, and the visitor flipped to registered with daysToRegister.
         def test_register_conversion():
             rvid = "v___test__register_" + str(int(time.time()))
+            self.tracker.track_visitor(rvid)
             # A prior page_view so the visitor exists and firstVisit is set; the
             # conversion is an UPDATE to a known visitor, never a fresh insert.
             resp = self.api.post("/visitors/event", {
@@ -4524,6 +4560,7 @@ class BackendFlowTest:
         # stat cards and the visitor list below them cover different periods.
         def test_mtd_range():
             mvid = "v___test__mtd_" + str(int(time.time()))
+            self.tracker.track_visitor(mvid)
             resp = self.api.post("/visitors/event", {
                 "visitorId": mvid,
                 "event": "page_view",
@@ -4550,6 +4587,7 @@ class BackendFlowTest:
         # milestone, so a plain visitor must be excluded by both.
         def test_event_filter():
             evid = "v___test__event_" + str(int(time.time()))
+            self.tracker.track_visitor(evid)
             resp = self.api.post("/visitors/event", {
                 "visitorId": evid, "event": "page_view", "page": "/",
             }, headers={"User-Agent": real_ua})
@@ -5550,7 +5588,27 @@ class BackendFlowTest:
         except Exception:
             pass
 
-        # Visitors: v___test__ prefix
+        # Visitors: v___test__ prefix. SINGLE PAGE ON PURPOSE, do not paginate.
+        #
+        # Every test visitor is now tracked at creation (track_visitor), and
+        # cleanup() runs in a finally around all phases, so the run that creates
+        # a visitor deletes it even when a phase raises. Tracking is the primary
+        # mechanism and it costs zero extra API calls.
+        #
+        # This sweep is only a backstop for a HARD kill (SIGKILL / power loss)
+        # where finally never ran. That residue is by definition recent, and
+        # GET /visitors sorts lastVisit DESC, so the default first page of 50
+        # is exactly where it will be. Paginating would add ~10 calls per run,
+        # growing forever with the collection, to look for old residue that
+        # tracking now prevents from existing.
+        #
+        # History: 18 rows accumulated Jul 15 to Aug 18 2026 and this sweep
+        # never caught any of them. Root cause was NOT the page size, it was
+        # that those visitors were never tracked (fixed). Old residue is buried
+        # under real traffic anyway (the Jul 15 rows sat under 1,992 newer
+        # visitors), so scanning for it here was always the wrong instrument.
+        # Anything that still slips through is handled by the on-demand cleanup
+        # in exclude/MAINTENANCE.md, not by making every run pay for a scan.
         try:
             resp = self.api.get("/visitors")
             if resp.status_code == 200:

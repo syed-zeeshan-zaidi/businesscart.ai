@@ -320,6 +320,11 @@ type Account struct {
 	AccountStatus AccountStatus      `bson:"accountStatus" json:"accountStatus"`
 	CreatedAt     time.Time          `bson:"createdAt" json:"createdAt"`
 	UpdatedAt     time.Time          `bson:"updatedAt" json:"updatedAt"`
+	// Set on successful login and nothing else. Deliberately does NOT touch
+	// UpdatedAt: UpdatedAt answers "was this account ever configured" and
+	// LastLogin answers "did they ever come back", so collapsing them would
+	// destroy both signals. Absent means no login since this field shipped.
+	LastLogin *time.Time `bson:"lastLogin,omitempty" json:"lastLogin,omitempty"`
 	// The code colleagues use to join this organisation. Only ever set on a root
 	// account, generated on request and rotatable, so a leaked code can be
 	// invalidated without disturbing the people who already joined.
