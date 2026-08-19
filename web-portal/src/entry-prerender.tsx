@@ -312,7 +312,7 @@ const pages: PageEntry[] = [
     component: <FAQ />,
     output: 'faq/index.html',
     title: 'Frequently Asked Questions — BusinessCart.ai',
-    description: 'Answers on BusinessCart.ai pricing, B2B config, payment gateways, AI add-on, storefronts, and migration from Shopify, WooCommerce, marketplaces.',
+    description: 'Answers on BusinessCart.ai pricing, B2B config, payment gateways, integrations, storefronts, and migration from Shopify, WooCommerce, marketplaces.',
     schema: faqSchema(),
   },
   {
@@ -722,9 +722,9 @@ Each feed uses unguessable URLs unique to the company. No apps, plugins, or extr
 
 Planned premium features for the Enterprise tier.
 
-- **AI-Driven Integration** — Connect ERP, CRM, and business systems without writing code.
-- **AI-Driven Observability** — Deep insights into sales, customers, and operations without building dashboards.
-- **AI-Driven Inter-Communication** — Automated order updates, quote follow-ups, and status notifications.
+- **Integrations, connected for you** - You add the credentials for the systems you run and BusinessCart handles the field mapping and the sync.
+- **Alerts, not dashboards** - BusinessCart watches its own integrations and order flow and alerts you if a sync fails. Nothing for you to build or monitor.
+- **Systems stay in step** - When an order is placed, BusinessCart updates your connected systems automatically. No export, no re-keying.
 
 ---
 
@@ -747,7 +747,7 @@ Three tiers — **every feature included in every tier**. Tier auto-applies base
 
 All tiers include: branded storefront on custom domain, private B2B portal, per-customer pricing/credit/spend caps, quote negotiation, customer groups, custom catalogs, all payment options (Stripe, Amazon Pay, Authorize.net, PO, offline), shopping-channel feeds, AI discovery (schema.org, llms.txt, markdown), multiple pickup/warehouse locations, time-based deals, email notifications, built-in analytics and visitor tracking (no Google Analytics or third-party tags), full REST API, and end-to-end support (technical, migration, integration, onboarding).
 
-Optional AI integration add-on: starts at **$99/month**, available on any tier. High-AOV B2B customers stay on Starter longer — the $5/order cap protects wholesale customers with few but large orders.
+Connecting the other systems you run is included on every tier at no extra cost. High-AOV B2B customers stay on Starter longer: the $5/order cap protects wholesale customers with few but large orders.
 
 Math examples (Starter cap protects from runaway fees on large orders): $30 order = $1.80 to BusinessCart; $1,000 wholesale order = $5 to BusinessCart (cap), not $60.
 

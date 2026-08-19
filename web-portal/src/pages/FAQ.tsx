@@ -43,7 +43,7 @@ export const sections: Section[] = [
       {
         id: 'pricing',
         question: 'How much does it cost?',
-        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Starter: $0/month with a $5 max per order (no matter the size) for up to 100 orders/month. A $10,000 wholesale order costs $5 in fees. Growth: $499/month + 1% per order for 101-1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Optional AI integration add-on starts at $99/month and is available on any tier. 30-day money-back on Growth and Enterprise.',
+        answer: 'Three tiers, every feature included in every tier. Tier auto-applies based on your monthly order volume. No manual upgrades, no feature locks, no surprise bills. Starter: $0/month with a $5 max per order (no matter the size) for up to 100 orders/month. A $10,000 wholesale order costs $5 in fees. Growth: $499/month + 1% per order for 101-1,000 orders. Enterprise: $1,999/month + 0.25% per order at 1,001+, with dedicated success manager and SLA. Connecting the other systems you run is included on every tier at no extra cost; if one of those systems charges for its own API access, you pay that vendor directly. 30-day money-back on Growth and Enterprise.',
       },
     ],
   },

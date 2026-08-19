@@ -115,7 +115,7 @@ const UserGuide: React.FC = () => {
               <section id="company-profile">
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">2.3 Company Profile & Settings</h3>
                 <p className="text-gray-600 mb-2">
-                  Update your company information, logo, and contact details. Manage admin user accounts. ERP and CRM integration is available through the REST API or the optional AI add-on.
+                  Update your company information, logo, and contact details. Manage admin user accounts. ERP and CRM integration is available through the REST API, or tell us the system you run and we connect it for you at no extra cost.
                 </p>
               </section>
 

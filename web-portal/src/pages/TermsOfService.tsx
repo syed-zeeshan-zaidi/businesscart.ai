@@ -111,7 +111,7 @@ const TermsOfService: React.FC = () => {
                   <li><b>Enterprise:</b> $1,999/month + 0.25% per order. Applies automatically when monthly paid-order volume is 1,001 or more. Includes dedicated success manager and SLA.</li>
                 </ul>
                 <p className="text-gray-600 mt-4">
-                  Tier assignment is based on paid orders in the most recent billing period (rolling 30 days or calendar month, as disclosed on your invoice). Tier changes take effect at the next billing period. The optional AI integration add-on starts at $99/month and is available on any tier. Pricing is subject to change. We will notify existing customers before any changes take effect. All fees are in US Dollars. The 30-day money-back guarantee applies to monthly subscription fees on Growth and Enterprise tiers and does not apply to per-order transaction fees.
+                  Tier assignment is based on paid orders in the most recent billing period (rolling 30 days or calendar month, as disclosed on your invoice). Tier changes take effect at the next billing period. Connecting third-party systems you run is included on every tier at no additional platform fee. Any fees charged by those third-party providers for their own API access are your responsibility. Pricing is subject to change. We will notify existing customers before any changes take effect. All fees are in US Dollars. The 30-day money-back guarantee applies to monthly subscription fees on Growth and Enterprise tiers and does not apply to per-order transaction fees.
                 </p>
               </section>
 

@@ -66,7 +66,7 @@ const betaFeatures = [
 const roadmap = [
   { quarter: 'q3' as const, feature: 'Drop-shipping coordination', why: 'Route orders from distributor portal directly to manufacturer fulfillment' },
   { quarter: 'q3' as const, feature: 'Recurring customer orders', why: 'Standing orders for retailers with predictable replenishment cycles' },
-  { quarter: 'q3' as const, feature: 'Native ERP/WMS connectors', why: 'NetSuite, SAP, QuickBooks: direct sync without the AI add-on' },
+  { quarter: 'q3' as const, feature: 'Native ERP/WMS connectors', why: 'NetSuite, SAP, QuickBooks: prebuilt connectors rather than a per-system setup' },
   { quarter: 'q3' as const, feature: 'Net-30 / net-60 / net-90 terms', why: 'Standard B2B credit terms with auto-aging' },
   { quarter: 'q4' as const, feature: 'Multi-currency checkout', why: 'Distribute internationally without currency friction' },
 ];
@@ -94,7 +94,7 @@ const faqs = [
   },
   {
     q: 'Can I integrate with my warehouse management system?',
-    a: 'Yes, two paths. (1) REST API: every operation has an endpoint, full read/write. (2) AI Add-on: connect any WMS without code. Native NetSuite/SAP/QuickBooks/major-WMS connectors ship Q3 2026.',
+    a: 'Yes, two paths. (1) REST API: every operation has an endpoint, full read/write. (2) Tell us which WMS you run and we connect it for you, with no code and no extra cost. Native NetSuite/SAP/QuickBooks/major-WMS connectors ship Q3 2026.',
   },
 ];
 
@@ -241,44 +241,44 @@ const SolutionsDistributors: React.FC = () => {
           </div>
         </section>
 
-        {/* AI Add-on Spotlight */}
+        {/* Operations Layer */}
         <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 mb-4">
               <SparklesIcon className="h-6 w-6 text-teal-400" />
-              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Premium Add-on</p>
+              <p className="text-sm font-semibold tracking-wider uppercase text-teal-400">Operations Layer</p>
               <Badge kind="live" />
             </div>
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              One AI Add-on. Connects Every System You Run.
+              Every System You Run, Connected
             </h2>
             <p className="mt-6 text-lg text-gray-200">
-              ERP, WMS, accounting, supplier portals, connect them all without writing code or hiring consultants. The AI add-on runs heavy syncs decoupled from your customer-facing portal, so distributor browsing stays fast while back-office data flows continuously.
+              ERP, WMS, accounting, supplier portals: tell BusinessCart which ones you run and we connect them, with no code to write and no consultants to hire. Heavy syncs run decoupled from your customer-facing portal, so distributor browsing stays fast while back-office data flows continuously.
             </p>
             <div className="mt-8 grid gap-6 md:grid-cols-3">
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Integration</h3>
+                <h3 className="text-lg font-semibold text-white">Integrations, connected for you</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  ERP, WMS, accounting, supplier portals, any system. No custom code. The AI handles the data plumbing.
+                  You provide the credentials in your portal and BusinessCart handles the field mapping and the sync, whether that is ERP, WMS, accounting or a supplier portal. Tell us the system you run and we connect it.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Observability</h3>
+                <h3 className="text-lg font-semibold text-white">Alerts, not dashboards</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  AI surfaces fast-movers, slow-movers, supplier delays, and customer reorder patterns automatically.
+                  BusinessCart watches its own integrations and order flow. If a sync fails or something looks wrong, you get an alert. Nothing for you to build, nothing for you to monitor.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">AI-Driven Communication</h3>
+                <h3 className="text-lg font-semibold text-white">Systems stay in step</h3>
                 <p className="mt-2 text-gray-300 text-sm">
-                  Order confirmations, backorder notifications, supplier follow-ups, all handled by AI so your team focuses on margin.
+                  When an order is placed, BusinessCart updates your connected systems automatically. No export, no re-keying, no nightly file to remember to send.
                 </p>
               </div>
             </div>
             <p className="mt-8 text-sm text-gray-400">
-              Available as an optional add-on on any tier. Starts at $99/mo.{' '}
+              Every BusinessCart feature is included in every tier, and this costs nothing extra. If a system you connect charges for its own API access, you pay that vendor directly and add your credentials in the portal.{' '}
               <Link to="/contact-us" className="text-teal-400 hover:text-teal-300 font-semibold">
-                Talk to us about pricing →
+                Tell us what you run →
               </Link>
             </p>
           </div>
