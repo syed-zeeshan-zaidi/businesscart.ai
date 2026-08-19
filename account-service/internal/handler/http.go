@@ -645,6 +645,13 @@ func (h *LambdaHandler) login(request events.APIGatewayProxyRequest) (events.API
 		return h.errorResponse(http.StatusUnauthorized, "Invalid credentials"), nil
 	}
 
+	// Stamp the login. Best-effort: a write failure must never cost the user
+	// their session, so the error is logged and dropped. Only lastLogin is sent,
+	// so updatedAt stays untouched (see the field comment on Account).
+	if uerr := h.db.UpdateAccount(user.ID, map[string]interface{}{"lastLogin": time.Now()}); uerr != nil {
+		log.Printf("ERROR: lastLogin update for %s: %v", user.ID.Hex(), uerr)
+	}
+
 	accessToken, refreshToken, err := h.issueCustomerToken(user)
 	if err != nil {
 		return h.errorResponse(http.StatusInternalServerError, "Token generation failed"), nil
