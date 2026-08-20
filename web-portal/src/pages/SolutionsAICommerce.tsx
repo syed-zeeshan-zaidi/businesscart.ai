@@ -18,6 +18,7 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowTopRightOnSquareIcon,
   MagnifyingGlassIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const Badge: React.FC<{ kind: 'live' | 'beta' | 'q2' | 'q3' | 'q4' | 'y2027' }> = ({ kind }) => {
@@ -49,6 +50,7 @@ const liveFeatures = [
   { icon: GlobeAltIcon, title: 'Custom domain', desc: 'Your brand owns the AI-citation surface, not a marketplace, not a subdomain.' },
   { icon: CommandLineIcon, title: 'Full REST API', desc: 'Sync to additional discovery channels as they emerge. Every operation has an endpoint.' },
   { icon: ChatBubbleLeftRightIcon, title: 'Verified product reviews', desc: 'BusinessCart emails a review request only after delivery and publishes the buyer\'s reply on the product page, so AI engines read real ratings. No public form, so no fabricated reviews.' },
+  { icon: QuestionMarkCircleIcon, title: 'Product questions answered on the page', desc: 'Answer what buyers actually ask, on the product itself. Answers render as plain HTML with no JavaScript, land in that product\'s .md companion, and carry FAQPage schema, so an AI engine quotes your answer instead of inventing one.' },
   { icon: MagnifyingGlassIcon, title: 'Built for the AI shopping era', desc: 'The first storefront architecture designed from the ground up for AI-native discovery.' },
 ];
 

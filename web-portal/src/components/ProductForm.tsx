@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createProduct, getProducts, updateProduct, deleteProduct, getAccount, getUploadUrl, uploadFileToS3 } from '../api';
-import { Product, Account, Attribute, PriceTier, Review } from '../types';
+import { Product, Account, Attribute, PriceTier, Review, FAQItem } from '../types';
 import Navbar from './Navbar';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -8,6 +8,13 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, PhotoIcon, XMarkI
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import toast, { Toaster } from 'react-hot-toast';
 import { PageHeader, CARD, TH, Spinner, BTN_PRIMARY } from './ui';
+
+// Mirrors the caps enforced in catalog-service handler (maxFAQItems /
+// maxFAQQuestion / maxFAQAnswer). Kept in step by hand: the server truncates
+// silently, so a mismatch here shows the merchant text that will not be saved.
+const MAX_FAQ_ITEMS = 10;
+const MAX_FAQ_QUESTION = 200;
+const MAX_FAQ_ANSWER = 2000;
 import { useAuth } from '../hooks/useAuth';
 import { canSeeCost } from '../orgRole';
 
@@ -308,6 +315,33 @@ const ProductForm = () => {
     setFormData({ ...formData, attributes: newAttributes });
   };
 
+  // Product Q&A. The server caps items at MAX_FAQ_ITEMS, trims, drops any pair
+  // missing a half, and recomputes `count`, so this form only has to keep the
+  // shape valid and stop the merchant typing past a limit that would be silently
+  // enforced anyway.
+  const faqItems = formData.faq?.items || [];
+
+  const setFaqItems = (items: FAQItem[]) => {
+    setFormData({ ...formData, faq: { ...(formData.faq || {}), items } });
+  };
+
+  const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => {
+    const next = [...faqItems];
+    next[index] = { ...next[index], [field]: value };
+    setFaqItems(next);
+  };
+
+  const addFaqItem = () => {
+    if (faqItems.length >= MAX_FAQ_ITEMS) return;
+    setFaqItems([...faqItems, { question: '', answer: '' }]);
+  };
+
+  const removeFaqItem = (index: number) => {
+    const next = [...faqItems];
+    next.splice(index, 1);
+    setFaqItems(next);
+  };
+
   const addReview = () => {
     const newReview: Review = {
       name: '',
@@ -375,6 +409,10 @@ const ProductForm = () => {
       category: product.category,
       googleProductCategory: product.googleProductCategory || '',
       rating: product.rating,
+      // Must be carried across. handleEdit is a field-by-field whitelist, not a
+      // spread, so omitting faq loaded the editor with an empty Q&A list and the
+      // first question added then REPLACED every existing one on save.
+      faq: product.faq,
       slug: product.slug || '',
       sku: product.sku || '',
       barcode: product.barcode || '',
@@ -1398,6 +1436,69 @@ const ProductForm = () => {
                           >
                             + Add Attribute
                           </button>
+                        </div>
+
+                        {/* Product Q&A. Merchant-authored, unlike reviews. */}
+                        <div className="sm:col-span-2 border-t border-gray-200 pt-4 mt-2">
+                          <div className="flex items-baseline justify-between mb-1">
+                            <label className="block text-sm font-medium text-gray-700">Questions &amp; Answers</label>
+                            <span className="text-xs text-gray-500">{faqItems.length} of {MAX_FAQ_ITEMS}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mb-3">
+                            Answer what buyers ask before they buy. These show on the product page and are
+                            what AI assistants quote when someone asks about this product.
+                          </p>
+
+                          {faqItems.length === 0 && (
+                            <p className="text-sm text-gray-500 italic mb-2">
+                              No questions yet. Add the one buyers ask most.
+                            </p>
+                          )}
+
+                          {faqItems.map((item, index) => (
+                            <div key={index} className="grid grid-cols-[1fr_auto] gap-2 mt-2 items-start">
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  placeholder="Question, for example: What temperature are these rated to?"
+                                  value={item.question}
+                                  maxLength={MAX_FAQ_QUESTION}
+                                  onChange={(e) => handleFaqChange(index, 'question', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                />
+                                <textarea
+                                  placeholder="Answer in a sentence or two. Plain language, no marketing."
+                                  value={item.answer}
+                                  maxLength={MAX_FAQ_ANSWER}
+                                  rows={2}
+                                  onChange={(e) => handleFaqChange(index, 'answer', e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeFaqItem(index)}
+                                className="text-red-600 hover:bg-red-50 rounded p-2"
+                                aria-label={`Remove question ${index + 1}`}
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={addFaqItem}
+                            disabled={faqItems.length >= MAX_FAQ_ITEMS}
+                            className="mt-2 text-sm text-teal-700 hover:text-teal-900 font-medium disabled:text-gray-400 disabled:hover:text-gray-400"
+                          >
+                            + Add Question
+                          </button>
+                          {faqItems.length >= MAX_FAQ_ITEMS && (
+                            <span className="ml-2 text-xs text-gray-500">
+                              Limit reached. Remove one to add another.
+                            </span>
+                          )}
                         </div>
 
                         {/* Customer Reviews */}

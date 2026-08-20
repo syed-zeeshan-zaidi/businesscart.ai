@@ -19,6 +19,12 @@
 [[if .Product.Attributes]]## Attributes
 [[range .Product.Attributes]]- **[[.Key]]**: [[.Value]]
 [[end]][[end]]
+[[if and .Product.FAQ .Product.FAQ.Items]]## Questions & Answers
+[[range .Product.FAQ.Items]]### [[.Question]]
+
+[[.Answer]]
+
+[[end]][[end]]
 [[if and .Product.Rating (gt .Product.Rating.Count 0)]]## Customer Reviews
 **Average Rating**: [[printf "%.1f" .Product.Rating.Average]] / 5 (based on [[.Product.Rating.Count]] review[[if ne .Product.Rating.Count 1]]s[[end]])
 

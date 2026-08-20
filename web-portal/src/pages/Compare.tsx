@@ -77,6 +77,13 @@ const Compare: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-gray-500">No (walled garden)</td>
                 </tr>
                 <tr>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">Product Q&amp;A on the Page</td>
+                  <td className="px-6 py-4 text-sm font-bold text-teal-700">Built in. You write the answers; they render without JavaScript and land in the markdown file AI engines read</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">App required</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Plugin required</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">Amazon Q&amp;A is answered by shoppers and stays on Amazon</td>
+                </tr>
+                <tr>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">B2B + D2C on One Platform</td>
                   <td className="px-6 py-4 text-sm font-bold text-teal-700">Yes, wholesale and direct-to-consumer from one account</td>
                   <td className="px-6 py-4 text-sm text-gray-500">Separate Shopify Plus required for B2B ($2,300+/mo)</td>
