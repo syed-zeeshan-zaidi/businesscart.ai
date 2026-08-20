@@ -155,6 +155,81 @@
             gap: 1.5rem;
         }
 
+        /* FAQ. Native <details> so answers sit in the DOM open or shut and the page
+           needs no JS to reveal its own content. Marker styling is the only reason
+           this lives in CSS rather than inline: ::marker and [open] cannot be
+           expressed as a style attribute. */
+        .faq-q {
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .faq-q summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            /* 1rem vertical on a 1.6 line-height body clears the 44px tap target. */
+            padding: 1rem 0;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text);
+            list-style: none;
+        }
+
+        .faq-q summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .faq-q summary:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 3px;
+        }
+
+        /* The one flourish: a hairline cross that becomes a minus on open, drawn in
+           the merchant's own primary colour so each storefront keeps its identity
+           rather than inheriting one from us. */
+        .faq-mark {
+            position: relative;
+            flex: 0 0 auto;
+            width: 14px;
+            height: 14px;
+        }
+
+        .faq-mark::before,
+        .faq-mark::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 14px;
+            height: 1.5px;
+            background: var(--primary);
+            transition: transform 0.18s ease;
+        }
+
+        .faq-mark::after {
+            transform: rotate(90deg);
+        }
+
+        .faq-q[open] .faq-mark::after {
+            transform: rotate(0deg);
+        }
+
+        .faq-a {
+            margin: 0 0 1.5rem;
+            padding-right: 2.5rem;
+            color: #475569;
+            line-height: 1.8;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .faq-mark::before,
+            .faq-mark::after {
+                transition: none;
+            }
+        }
+
         .spec-item {
             background: #fff;
             padding: 1.5rem;
@@ -337,6 +412,15 @@
       ]
     }
     </script>
+    [[if and .Product.FAQ .Product.FAQ.Items]]
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [[faqJSONLD .Product.FAQ.Items]]
+    }
+    </script>
+    [[end]]
     <script>
         window.D2C_CONFIG = {
             sellerId: "[[.AccountID]]",
@@ -529,6 +613,29 @@
             <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.95rem;font-weight:700;color:var(--text)">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></svg>
                 <span>Ships in [[printf "%.0f" .Company.LeadTime]] business day[[if gt .Company.LeadTime 1.0]]s[[end]]</span>
+            </div>
+            [[end]]
+
+            [[/* Placement is deliberate on two axes.
+                 FOR AI: inside the product-info column and BEFORE Customer Reviews and
+                 You May Also Like, so the document reads in descending authority: product
+                 facts, the merchant's own answers, third-party opinion, other products.
+                 Placed after Related Products it would sit beside a list of OTHER product
+                 names, which is how an answer gets attributed to the wrong item.
+                 FOR CONVERSION: below Add to Cart, never above it. Ten collapsed rows plus
+                 a 3rem divider is real distance on a phone, and nothing should push the
+                 buy button further down the page. */]]
+            [[if and .Product.FAQ .Product.FAQ.Items]]
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 3rem; margin-top: 1rem">
+                <h2
+                    style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 900; margin-bottom: 1rem; color: var(--text); opacity: 0.7">
+                    Questions &amp; Answers</h2>
+                [[range .Product.FAQ.Items]]
+                <details class="faq-q">
+                    <summary>[[.Question]]<span class="faq-mark" aria-hidden="true"></span></summary>
+                    <p class="faq-a">[[.Answer]]</p>
+                </details>
+                [[end]]
             </div>
             [[end]]
 

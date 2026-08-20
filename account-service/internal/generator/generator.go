@@ -126,6 +126,18 @@ type Rating struct {
 	Reviews      []Review            `json:"reviews,omitempty"`
 }
 
+// FAQItem / ProductFAQ mirror catalog-service's storage models, decoded from the
+// product fetch. Merchant-authored, so no Verified or Email counterpart to Review.
+type FAQItem struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
+type ProductFAQ struct {
+	Count int       `json:"count,omitempty"`
+	Items []FAQItem `json:"items,omitempty"`
+}
+
 type PriceTier struct {
 	MinQty int     `json:"minQty"`
 	Price  float64 `json:"price"`
@@ -171,6 +183,7 @@ type ProductData struct {
 	Featured     bool        `json:"featured,omitempty"`
 	Attributes   []Attribute `json:"attributes"`
 	Rating       *Rating     `json:"rating,omitempty"`
+	FAQ          *ProductFAQ `json:"faq,omitempty"`
 	Filename     string      `json:"-"` // Pre-computed: slug-suffix (no extension)
 }
 
@@ -1023,6 +1036,39 @@ func (g *Generator) renderTemplate(tmplName, outputPath string, data interface{}
 					},
 					Name:       r.Title,
 					ReviewBody: r.Body,
+				})
+			}
+			b, _ := json.Marshal(out)
+			return template.JS(b)
+		},
+		// faqJSONLD marshals the FAQ items into the mainEntity array of a
+		// schema.org FAQPage. Same contract as reviewsJSONLD: returns template.JS
+		// so html/template does not JSON-quote it inside the ld+json block.
+		//
+		// Emitted for AI citation ONLY. Google's FAQ rich result is DEAD, not
+		// merely restricted: narrowed to government and health sites 2023-09-14,
+		// stopped appearing in Search 2026-05-07, documentation removed
+		// 2026-06-15. This block will never produce anything in Google. It stays
+		// because it is still valid schema.org that non-Google parsers and LLM
+		// crawlers read, and it costs a few KB. The load-bearing part for AI is
+		// the visible <details> content and the product.md companion, NOT this.
+		// Marketing copy must never present it as a search feature.
+		"faqJSONLD": func(items []FAQItem) template.JS {
+			type acceptedAnswer struct {
+				Type string `json:"@type"`
+				Text string `json:"text"`
+			}
+			type schemaQuestion struct {
+				Type           string         `json:"@type"`
+				Name           string         `json:"name"`
+				AcceptedAnswer acceptedAnswer `json:"acceptedAnswer"`
+			}
+			out := make([]schemaQuestion, 0, len(items))
+			for _, f := range items {
+				out = append(out, schemaQuestion{
+					Type:           "Question",
+					Name:           f.Question,
+					AcceptedAnswer: acceptedAnswer{Type: "Answer", Text: f.Answer},
 				})
 			}
 			b, _ := json.Marshal(out)

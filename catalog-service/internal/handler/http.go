@@ -258,6 +258,10 @@ func (h *LambdaHandler) createProduct(userClaim map[string]interface{}, body str
 	}
 	product.Category = strings.TrimSpace(product.Category)
 	product.GoogleProductCategory = strings.TrimSpace(product.GoogleProductCategory)
+	// FAQ: same caps and the same system-owned count as the update path enforces.
+	if product.FAQ != nil {
+		normalizeFAQStruct(product.FAQ)
+	}
 	product.Slug = strings.TrimSpace(product.Slug)
 	if product.Slug == "" {
 		return h.errorResponse(http.StatusBadRequest, "Slug is required"), nil
@@ -544,6 +548,11 @@ func (h *LambdaHandler) updateProduct(userClaim map[string]interface{}, idStr st
 	// array. Never trust client-sent aggregates (security + drift prevention).
 	if rating, ok := updates["rating"].(map[string]interface{}); ok {
 		updates["rating"] = recomputeRating(rating)
+	}
+	// FAQ: same contract as reviews above. Count is recomputed server-side and the
+	// item cap and length limits are enforced here, never trusted from the client.
+	if faq, ok := updates["faq"].(map[string]interface{}); ok {
+		updates["faq"] = normalizeFAQ(faq)
 	}
 	if slug, ok := updates["slug"].(string); ok {
 		slug = strings.TrimSpace(slug)
@@ -1280,6 +1289,127 @@ func recomputeRating(rating map[string]interface{}) map[string]interface{} {
 	rating["average"] = avg
 	rating["distribution"] = dist
 	return rating
+}
+
+// FAQ guardrails. Ten items keeps the embedded document bounded and discourages
+// stuffing the PDP with keyword bait; the length caps mirror the validate tags on
+// storage.FAQItem so the handler and the model cannot drift apart.
+const (
+	maxFAQItems    = 10
+	maxFAQQuestion = 200
+	maxFAQAnswer   = 2000
+)
+
+// coerceTime turns whatever the client sent into a real time.Time, falling back
+// to fallback when the value is missing, the wrong type, or an unparseable
+// string. Accepts the same two layouts recomputeRating does. Never returns the
+// caller's raw value, because storing a string where the model declares
+// time.Time poisons every later read of that document.
+func coerceTime(raw interface{}, fallback time.Time) time.Time {
+	switch v := raw.(type) {
+	case time.Time:
+		return v
+	case string:
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			return t
+		}
+	}
+	return fallback
+}
+
+// truncateRunes caps a string by RUNE count, not byte count. Slicing bytes would
+// split a multi-byte character and emit invalid UTF-8 straight into the PDP's
+// ld+json block, so any cap applied to merchant text goes through here.
+func truncateRunes(s string, max int) string {
+	if utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	return string([]rune(s)[:max])
+}
+
+// normalizeFAQStruct applies the same rules to the struct form used by the create
+// path, which unmarshals into storage.Product rather than a map. Shares the caps
+// above so the two paths cannot drift.
+//
+// This and normalizeFAQ are the ONLY enforcement. storage.FAQItem deliberately
+// carries no validate tags, because validator skips slice elements without a
+// `dive` and tags there would never run.
+func normalizeFAQStruct(faq *storage.ProductFAQ) {
+	now := time.Now()
+	cleaned := make([]storage.FAQItem, 0, len(faq.Items))
+	for _, it := range faq.Items {
+		it.Question = truncateRunes(strings.TrimSpace(it.Question), maxFAQQuestion)
+		it.Answer = truncateRunes(strings.TrimSpace(it.Answer), maxFAQAnswer)
+		if it.Question == "" || it.Answer == "" {
+			continue
+		}
+		if it.CreatedAt.IsZero() {
+			it.CreatedAt = now
+		}
+		cleaned = append(cleaned, it)
+		if len(cleaned) >= maxFAQItems {
+			break
+		}
+	}
+	faq.Items = cleaned
+	faq.Count = len(cleaned)
+}
+
+// normalizeFAQ cleans the faq sub-document the same way recomputeRating cleans
+// rating: drops items missing a question or an answer, trims whitespace, enforces
+// the caps above, stamps createdAt once, and recomputes count server-side.
+//
+// Count is never taken from the client. It is display-only today, but a client
+// that can inflate it can misreport how well documented a product is, and the
+// rating precedent already established that aggregates are computed, not accepted.
+func normalizeFAQ(faq map[string]interface{}) map[string]interface{} {
+	rawItems, _ := faq["items"].([]interface{})
+	now := time.Now()
+	cleaned := make([]interface{}, 0, len(rawItems))
+
+	for _, r := range rawItems {
+		item, ok := r.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		q, _ := item["question"].(string)
+		a, _ := item["answer"].(string)
+		q = strings.TrimSpace(q)
+		a = strings.TrimSpace(a)
+		// An item is only meaningful with both halves. A question with no answer
+		// would render an empty disclosure and emit a Question with no
+		// acceptedAnswer, which is invalid schema.org.
+		if q == "" || a == "" {
+			continue
+		}
+		// Rebuild from the three known keys rather than mutating and keeping the
+		// client's map. Two reasons, both load-bearing:
+		//
+		// 1. createdAt must never be stored as a raw client string. The mongo
+		//    driver cannot decode "2026-08-20" back into time.Time, so a single
+		//    such write makes cursor.All fail on EVERY product-list read for that
+		//    seller, and updateProduct cannot repair it because it calls
+		//    GetProductByID first and that read fails too. recomputeRating already
+		//    guards its date field for exactly this reason.
+		// 2. Appending the client's map persists any extra keys it carried, so the
+		//    ten-item cap would bound the count while the document grew without
+		//    limit.
+		cleaned = append(cleaned, map[string]interface{}{
+			"question":  truncateRunes(q, maxFAQQuestion),
+			"answer":    truncateRunes(a, maxFAQAnswer),
+			"createdAt": coerceTime(item["createdAt"], now),
+		})
+		if len(cleaned) >= maxFAQItems {
+			break
+		}
+	}
+
+	faq["items"] = cleaned
+	faq["count"] = len(cleaned)
+	return faq
 }
 
 func validatePriceTiers(tiers []storage.PriceTier) error {

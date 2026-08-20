@@ -634,6 +634,60 @@ class BackendFlowTest:
             self.api.put(f"/products/{pid}", {"minOrderQty": 0, "orderIncrement": 0, "maxOrderQty": 0})
         self.run_test("Product quantity rules (min/increment/max) round-trip", test_quantity_rules)
 
+        def test_product_faq():
+            """Merchant-authored PDP Q&A (Roadmap #52).
+
+            Covers the server contract the Go unit tests cannot: a real HTTP
+            round-trip through Mongo. `count` is recomputed server-side, half-empty
+            pairs are dropped, and the item cap holds, so a client cannot inflate
+            how well documented a product looks or grow the embedded doc unbounded.
+            """
+            pid = self.product_ids["company1"][0]
+            self.use_token("company1")
+
+            resp = self.api.put(f"/products/{pid}", {"faq": {
+                # A lie. The server must recompute this from the surviving items.
+                "count": 99,
+                "items": [
+                    {"question": "  Rated to what temperature?  ", "answer": "  932F on the palm.  "},
+                    {"question": "What size for large hands?", "answer": "Order XL."},
+                    {"question": "Orphan question", "answer": "   "},
+                    {"question": "", "answer": "Orphan answer"},
+                ],
+            }})
+            assert_status(resp, 200, "Set product FAQ")
+
+            got = self.api.get(f"/products/{pid}").json()
+            faq = got.get("faq") or {}
+            items = faq.get("items") or []
+            assert len(items) == 2, f"expected 2 surviving FAQ items, got {len(items)}"
+            assert faq.get("count") == 2, f"count must be recomputed to 2, got {faq.get('count')}"
+            assert items[0]["question"] == "Rated to what temperature?", \
+                f"question not trimmed: {items[0]['question']!r}"
+            assert items[0]["answer"] == "932F on the palm.", \
+                f"answer not trimmed: {items[0]['answer']!r}"
+            assert items[0].get("createdAt"), "createdAt must be stamped server-side"
+            ok("FAQ round-trips; count recomputed, half-empty pairs dropped, text trimmed")
+
+            # Cap: 25 valid items in, at most 10 stored.
+            resp = self.api.put(f"/products/{pid}", {"faq": {"items": [
+                {"question": f"Q{i}", "answer": f"A{i}"} for i in range(25)
+            ]}})
+            assert_status(resp, 200, "Set oversized product FAQ")
+            faq = (self.api.get(f"/products/{pid}").json().get("faq") or {})
+            assert len(faq.get("items") or []) == 10, \
+                f"expected the 10-item cap, got {len(faq.get('items') or [])}"
+            assert faq.get("count") == 10, f"count must match the cap, got {faq.get('count')}"
+            ok("FAQ item cap enforced server-side at 10")
+
+            # Clearing works, and leaves nothing behind for later tests.
+            resp = self.api.put(f"/products/{pid}", {"faq": {"items": []}})
+            assert_status(resp, 200, "Clear product FAQ")
+            faq = (self.api.get(f"/products/{pid}").json().get("faq") or {})
+            assert not (faq.get("items") or []), "FAQ should be empty after clearing"
+            ok("FAQ clears cleanly")
+        self.run_test("Product FAQ round-trip, server-recomputed count and item cap", test_product_faq)
+
     # ── Phase 4: Re-login & JWT verification ─────────────────────
 
     def phase4_jwt_verification(self):

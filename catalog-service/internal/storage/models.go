@@ -48,6 +48,37 @@ type Rating struct {
 	Reviews      []Review            `bson:"reviews,omitempty" json:"reviews,omitempty"`
 }
 
+// FAQItem is one merchant-authored question and answer on a product.
+// Merchant-owned, not customer-submitted: unlike Review there is no public
+// submission path and no moderation queue, so no Verified or Email field.
+type FAQItem struct {
+	// No validate tags on purpose. go-playground/validator does not descend into
+	// slice elements without a `dive` tag, so tags here would never execute and
+	// would falsely imply a model-level backstop. The handler is the single
+	// enforcement point for both the create and the update path.
+	Question  string    `bson:"question" json:"question"`
+	Answer    string    `bson:"answer" json:"answer"`
+	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
+}
+
+// ProductFAQ is the embedded FAQ structure on Product, mirroring Rating.
+// Count is backend-computed on every update; never trust a client value.
+//
+// Answers the product-level questions that block a purchase and that LLM
+// shopping queries are made of ("heat resistant to what temperature", "what
+// size for large hands"). Rendered on the PDP as native <details>/<summary>
+// and emitted as FAQPage JSON-LD.
+//
+// NOTE for whoever renders this: the storefront markdown companion is built
+// from its OWN product.md template, NOT converted from the rendered HTML. A
+// block added to product.html alone ships answers that the .md companion, and
+// therefore every AI crawler, never sees. That exact defect shipped on the
+// portal /faq page and was fixed in 9b03072. Both templates or neither.
+type ProductFAQ struct {
+	Count int       `bson:"count,omitempty" json:"count,omitempty"`
+	Items []FAQItem `bson:"items,omitempty" json:"items,omitempty"`
+}
+
 // BlogPost is an editorial article published on a company's D2C storefront.
 // Positioned as informational content (not commercial) — no FAQ schema, no
 // ItemList/Product schema. Article + Author + Publisher + BreadcrumbList only.
@@ -121,6 +152,7 @@ type Product struct {
 	GroupIDs     []string    `bson:"groupIDs,omitempty" json:"groupIDs,omitempty"`
 	Attributes   []Attribute `bson:"attributes,omitempty" json:"attributes,omitempty"`
 	Rating       *Rating     `bson:"rating,omitempty" json:"rating,omitempty"`
+	FAQ          *ProductFAQ `bson:"faq,omitempty" json:"faq,omitempty"`
 	CreatedAt    time.Time   `bson:"createdAt" json:"createdAt"`
 	UpdatedAt    time.Time   `bson:"updatedAt" json:"updatedAt"`
 }

@@ -108,6 +108,19 @@ export interface Rating {
   reviews?: Review[];
 }
 
+export interface FAQItem {
+  question: string;
+  answer: string;
+  createdAt?: string;
+}
+
+// Merchant-authored product Q&A. `count` is recomputed server-side on every
+// save, so anything sent from here is ignored.
+export interface ProductFAQ {
+  count?: number;
+  items?: FAQItem[];
+}
+
 export interface CustomerGroup {
   id: string;
   name: string;
@@ -153,6 +166,7 @@ export interface Product {
   category?: string;
   googleProductCategory?: string;
   rating?: Rating;
+  faq?: ProductFAQ;
   slug?: string;
   sku?: string;
   barcode?: string;

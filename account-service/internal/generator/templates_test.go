@@ -22,7 +22,7 @@ func TestAllTemplatesParse(t *testing.T) {
 		"isOnlinePayment", "savingsPercent", "subtractFloat", "primaryOf", "subOf",
 		"uniquePrimaries", "subsOf", "primaryCount", "catSlug", "rawHTML", "safeHTML",
 		"catCount", "stars", "distPct", "reviewsJSONLD", "distCount", "lastmod",
-		"dims", "num",
+		"dims", "num", "faqJSONLD",
 	}
 	htmlFuncs := htmltemplate.FuncMap{}
 	for _, n := range htmlFuncNames {

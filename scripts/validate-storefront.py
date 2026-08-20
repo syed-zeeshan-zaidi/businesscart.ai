@@ -305,8 +305,56 @@ def step_schema():
                     fail(f"{os.path.basename(pdp)}: review[] present but no aggregateRating")
                     rating_mismatch_failures += 1
 
+            # FAQPage (Roadmap #52). Shape verified against schema.org/Question:
+            # mainEntity[] of Question, each with a name and an acceptedAnswer whose
+            # @type is Answer and which carries text. A Question with no answer is
+            # invalid schema and renders an empty disclosure, so the handler drops
+            # those; this asserts none survived to the page.
+            elif t == "FAQPage":
+                entities = d.get("mainEntity")
+                if not isinstance(entities, list) or not entities:
+                    fail(f"{os.path.basename(pdp)}: FAQPage present but mainEntity[] is empty")
+                    missing_field_failures += 1
+                    continue
+                for q in entities:
+                    if q.get("@type") != "Question" or not q.get("name"):
+                        fail(f"{os.path.basename(pdp)}: FAQPage mainEntity entry is not a named Question")
+                        missing_field_failures += 1
+                        continue
+                    ans = q.get("acceptedAnswer") or {}
+                    if ans.get("@type") != "Answer" or not ans.get("text"):
+                        fail(f"{os.path.basename(pdp)}: FAQ question {q.get('name')!r} has no usable acceptedAnswer")
+                        missing_field_failures += 1
+
+        # The companion is the half that actually feeds AI crawlers, and it is
+        # generated from its own product.md template rather than converted from this
+        # HTML. A PDP carrying FAQ schema whose .md has no Q&A section means the two
+        # templates have drifted, which is the /faq defect (9b03072) repeating here.
+        # Checked in BOTH directions. The obvious drift is "HTML has it, .md does
+        # not", but the reverse matters more: if the HTML block is deleted or its
+        # [[if]] guard breaks while product.md still emits the section, the PDP a
+        # human actually looks at loses its answers and only the AI-facing file
+        # keeps them. A one-directional check would pass that silently.
+        companion = os.path.splitext(pdp)[0] + ".md"
+        html_has_faq = "FAQPage" in html
+        md_has_faq = False
+        if os.path.exists(companion):
+            with open(companion, encoding="utf-8") as fp:
+                md_has_faq = "## Questions & Answers" in fp.read()
+        elif html_has_faq:
+            fail(f"{os.path.basename(pdp)}: has FAQ schema but no .md companion")
+            missing_field_failures += 1
+            continue
+
+        if html_has_faq and not md_has_faq:
+            fail(f"{os.path.basename(companion)}: PDP has FAQ schema but the companion omits the Q&A section")
+            missing_field_failures += 1
+        elif md_has_faq and not html_has_faq:
+            fail(f"{os.path.basename(pdp)}: companion has a Q&A section but the PDP emits no FAQ schema")
+            missing_field_failures += 1
+
     if parse_failures == 0 and missing_field_failures == 0 and rating_mismatch_failures == 0:
-        ok(f"all {len(pdps)} PDPs: JSON-LD parses + schema fields present + rating/review consistency")
+        ok(f"all {len(pdps)} PDPs: JSON-LD parses + schema fields present + rating/review consistency + FAQ schema/companion parity")
 
     # --- Blog posts: optional editorial content ---
     # Glob only top-level /blog/*.html, excluding category/ subdir.
