@@ -277,11 +277,15 @@ const FAQ: React.FC = () => {
                           <ChevronDownIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                         )}
                       </button>
-                      {openQuestion === q.id && (
-                        <div className="px-6 pb-4">
-                          <p className="text-gray-600 leading-relaxed">{q.answer}</p>
-                        </div>
-                      )}
+                      {/* Toggle the CLASS, never the mount. Conditional mounting kept
+                          answers out of the prerendered DOM entirely (openQuestion is
+                          null at build time), so the static HTML shipped questions with
+                          no answers and faq.md gave AI crawlers a list of questions it
+                          could not answer. The answers were reachable only inside the
+                          FAQPage JSON-LD, which turndown skips because it is a script. */}
+                      <div className={openQuestion === q.id ? 'px-6 pb-4' : 'hidden'}>
+                        <p className="text-gray-600 leading-relaxed">{q.answer}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
