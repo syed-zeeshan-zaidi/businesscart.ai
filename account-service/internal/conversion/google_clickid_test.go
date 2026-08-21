@@ -116,3 +116,41 @@ func TestGoogleSendSkipsWithNoClickIdentifierAtAll(t *testing.T) {
 		t.Error("no click identifier of any kind must return Skipped=true")
 	}
 }
+
+// userData may accompany a gclid but NEVER a gbraid or wbraid. Google treats a
+// braid event carrying userData as enhanced conversions for LEADS and rejects the
+// whole request with DESTINATION_ACCOUNT_NOT_ENABLED_ENHANCED_CONVERSIONS_FOR_LEADS,
+// losing the conversion. Verified 2026-08-21 against the live API with
+// validateOnly: the same payload succeeded on gclid and 400'd on gbraid.
+func TestGoogleSendOmitsUserDataForBraidIdentifiers(t *testing.T) {
+	cases := []struct {
+		name         string
+		ev           Event
+		wantUserData bool
+		wantMatch    int
+	}{
+		{"gclid keeps hashed email", Event{Gclid: "GCL_9", Email: "buyer@example.com"}, true, 2},
+		{"gbraid drops it", Event{Gbraid: "GB_9", Email: "buyer@example.com"}, false, 1},
+		{"wbraid drops it", Event{Wbraid: "WB_9", Email: "buyer@example.com"}, false, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d, body := newCapturingGoogle(t)
+			ev := tc.ev
+			ev.EventName = "Purchase"
+			ev.EventTime = time.Now()
+			res, err := d.Send(context.Background(), ev, googleTestCreds())
+			if err != nil {
+				t.Fatalf("Send: %v", err)
+			}
+			events := (*body)["events"].([]interface{})
+			_, present := events[0].(map[string]interface{})["userData"]
+			if present != tc.wantUserData {
+				t.Errorf("userData present = %v, want %v", present, tc.wantUserData)
+			}
+			if res.MatchFields != tc.wantMatch {
+				t.Errorf("MatchFields = %d, want %d", res.MatchFields, tc.wantMatch)
+			}
+		})
+	}
+}

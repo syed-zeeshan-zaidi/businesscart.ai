@@ -173,12 +173,22 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 		event["currency"] = strings.ToUpper(defaultCurrency(ev.Currency))
 	}
 	// Enhanced conversions: hashed identifiers (SHA-256 hex; declared by encoding:HEX).
+	//
+	// ONLY alongside a gclid. Attaching userData to a gbraid or wbraid event makes
+	// Google treat it as enhanced conversions for LEADS and reject the whole
+	// request with DESTINATION_ACCOUNT_NOT_ENABLED_ENHANCED_CONVERSIONS_FOR_LEADS,
+	// so the conversion is lost. Verified 2026-08-21 against the live Data Manager
+	// API with validateOnly: identical payloads succeeded with a gclid and 400'd
+	// with a gbraid. A braid event therefore sends the click identifier alone,
+	// which is exactly what Google's own docs say the braids support.
 	var ids []map[string]interface{}
-	if h := hashNormalized(ev.Email); h != "" {
-		ids = append(ids, map[string]interface{}{"emailAddress": h})
-	}
-	if h := hashPhone(ev.Phone); h != "" {
-		ids = append(ids, map[string]interface{}{"phoneNumber": h})
+	if idKey == "gclid" {
+		if h := hashNormalized(ev.Email); h != "" {
+			ids = append(ids, map[string]interface{}{"emailAddress": h})
+		}
+		if h := hashPhone(ev.Phone); h != "" {
+			ids = append(ids, map[string]interface{}{"phoneNumber": h})
+		}
 	}
 	if len(ids) > 0 {
 		event["userData"] = map[string]interface{}{"userIdentifiers": ids}
