@@ -99,10 +99,15 @@ func TestGoogleSendIngestPayload(t *testing.T) {
 	}
 }
 
-// TestGoogleSendSkipsWithoutGclid: only Google-attributable clicks upload. A
-// missing gclid is a deliberate no-op (Skipped), NOT a failure — otherwise
-// ordinary organic traffic would inflate the "conversions failed" analytics.
-func TestGoogleSendSkipsWithoutGclid(t *testing.T) {
+// TestGoogleSendSkipsWithoutAnyClickID: only Google-attributable clicks upload,
+// and a click with NO identifier at all is a deliberate no-op (Skipped), NOT a
+// failure, otherwise ordinary organic traffic would inflate the "conversions
+// failed" analytics.
+//
+// Renamed from TestGoogleSendSkipsWithoutGclid. The old name encoded the bug:
+// gclid is not the only Google click identifier, gbraid and wbraid are too. This
+// case passes an Event with none of the three, which is still correct.
+func TestGoogleSendSkipsWithoutAnyClickID(t *testing.T) {
 	d := NewGoogleDispatcher()
 	res, err := d.Send(context.Background(), Event{EventName: "Purchase"}, map[string]string{
 		"client_id": "c", "client_secret": "s", "refresh_token": "r", "customer_id": "1", "conversion_action_id": "2",

@@ -61,7 +61,14 @@ type Event struct {
 	ClientIP   string
 	ClientUA   string
 	Fbclid     string
-	Gclid      string
+	// Google click identifiers. gclid covers ordinary web clicks; gbraid and
+	// wbraid are what Google sets instead on iOS journeys where Apple's rules
+	// prevent a gclid. All three are Google-attributable: treating gclid as the
+	// only real one silently dropped 10 of 45 attributable events between
+	// 2026-07-29 and 2026-08-20, two of them purchases.
+	Gclid  string
+	Gbraid string
+	Wbraid string
 
 	Contents []Content
 }
@@ -70,7 +77,7 @@ type Event struct {
 type SendResult struct {
 	ProviderRef string
 	MatchFields int  // number of user_data match keys sent (EMQ proxy for analytics)
-	Skipped     bool // deliberate no-op (event not applicable, e.g. no gclid); not a failure
+	Skipped     bool // deliberate no-op (event not applicable, e.g. no Google click id at all); not a failure
 }
 
 // Result is the neutral outcome of one provider dispatch, surfaced to analytics.

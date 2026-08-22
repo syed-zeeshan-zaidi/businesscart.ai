@@ -2556,6 +2556,8 @@ func (h *LambdaHandler) trackVisitorEvent(request events.APIGatewayProxyRequest)
 					ClientUA:   userAgent,
 					Fbclid:     req.ClickIDs["fbclid"],
 					Gclid:      req.ClickIDs["gclid"],
+					Gbraid:     req.ClickIDs["gbraid"],
+					Wbraid:     req.ClickIDs["wbraid"],
 				}
 				switch req.Event {
 				case "order":

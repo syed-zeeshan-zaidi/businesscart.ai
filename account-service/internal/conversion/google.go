@@ -108,8 +108,32 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 	if clientID == "" || clientSecret == "" || refreshTok == "" || customerID == "" {
 		return SendResult{}, fmt.Errorf("google: missing client_id/client_secret/refresh_token/customer_id")
 	}
-	if ev.Gclid == "" {
-		return SendResult{Skipped: true}, nil // not a Google-attributable click: skip, not a failure
+	// Pick exactly one click identifier, strongest signal first.
+	//
+	// gclid is an ordinary web click. gbraid and wbraid are what Google sets
+	// instead on iOS journeys, where Apple's rules prevent a gclid: they are
+	// every bit as Google-attributable. This code previously required a gclid and
+	// skipped otherwise, with a comment asserting the others were "not a
+	// Google-attributable click". That was wrong, and because Skipped is a silent
+	// no-op with no log and no capi entry, it failed invisibly for two months
+	// while Meta kept reporting normally. Measured cost on uSetGo alone:
+	// 10 of 45 attributable events dropped, including 2 purchases worth $56.24.
+	//
+	// ONE identifier, not several. Google's API has allowed gclid+gbraid together
+	// only since late 2025, and sending an unexpected combination risks rejecting
+	// the whole event. Preferring gclid also means every event that succeeds today
+	// takes the identical path after this change; only the previously-skipped ones
+	// behave differently.
+	var idKey, idVal string
+	switch {
+	case ev.Gclid != "":
+		idKey, idVal = "gclid", ev.Gclid
+	case ev.Gbraid != "":
+		idKey, idVal = "gbraid", ev.Gbraid
+	case ev.Wbraid != "":
+		idKey, idVal = "wbraid", ev.Wbraid
+	default:
+		return SendResult{Skipped: true}, nil // genuinely not a Google click: skip, not a failure
 	}
 	// Route to the per-event conversion action (so the seller can set Purchase as a
 	// PRIMARY/bidding action and ViewContent/AddToCart as SECONDARY/observation, per
@@ -139,7 +163,7 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 	event := map[string]interface{}{
 		"eventTimestamp": ev.EventTime.Format(time.RFC3339),
 		"eventSource":    "WEB",
-		"adIdentifiers":  map[string]interface{}{"gclid": ev.Gclid},
+		"adIdentifiers":  map[string]interface{}{idKey: idVal},
 	}
 	if ev.EventID != "" {
 		event["transactionId"] = ev.EventID // dedup
@@ -149,12 +173,22 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 		event["currency"] = strings.ToUpper(defaultCurrency(ev.Currency))
 	}
 	// Enhanced conversions: hashed identifiers (SHA-256 hex; declared by encoding:HEX).
+	//
+	// ONLY alongside a gclid. Attaching userData to a gbraid or wbraid event makes
+	// Google treat it as enhanced conversions for LEADS and reject the whole
+	// request with DESTINATION_ACCOUNT_NOT_ENABLED_ENHANCED_CONVERSIONS_FOR_LEADS,
+	// so the conversion is lost. Verified 2026-08-21 against the live Data Manager
+	// API with validateOnly: identical payloads succeeded with a gclid and 400'd
+	// with a gbraid. A braid event therefore sends the click identifier alone,
+	// which is exactly what Google's own docs say the braids support.
 	var ids []map[string]interface{}
-	if h := hashNormalized(ev.Email); h != "" {
-		ids = append(ids, map[string]interface{}{"emailAddress": h})
-	}
-	if h := hashPhone(ev.Phone); h != "" {
-		ids = append(ids, map[string]interface{}{"phoneNumber": h})
+	if idKey == "gclid" {
+		if h := hashNormalized(ev.Email); h != "" {
+			ids = append(ids, map[string]interface{}{"emailAddress": h})
+		}
+		if h := hashPhone(ev.Phone); h != "" {
+			ids = append(ids, map[string]interface{}{"phoneNumber": h})
+		}
 	}
 	if len(ids) > 0 {
 		event["userData"] = map[string]interface{}{"userIdentifiers": ids}
@@ -191,7 +225,7 @@ func (g *GoogleDispatcher) Send(ctx context.Context, ev Event, creds map[string]
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return SendResult{}, fmt.Errorf("google data manager %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
-	return SendResult{ProviderRef: ev.Gclid, MatchFields: 1 + len(ids)}, nil
+	return SendResult{ProviderRef: idVal, MatchFields: 1 + len(ids)}, nil
 }
 
 // googleActionID resolves the Data Manager conversion action (productDestinationId)
