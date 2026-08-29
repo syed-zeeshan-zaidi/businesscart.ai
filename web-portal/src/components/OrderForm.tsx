@@ -6,6 +6,7 @@ import Navbar from './Navbar';
 import { TrashIcon, MagnifyingGlassIcon, PencilIcon, PrinterIcon, ArrowPathIcon, ArrowDownTrayIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { PageHeader, CARD, TH, ROW_HOVER, Pill, STATUS_TONE, Spinner } from './ui';
+import Pagination from './Pagination';
 
 /* ------------------------------------------------------------------ */
 /*  Status badge styling                                              */
@@ -531,39 +532,7 @@ const OrderForm = () => {
             Showing {((currentPage - 1) * ORDERS_PER_PAGE) + 1}-{Math.min(currentPage * ORDERS_PER_PAGE, filteredOrders.length)} of {filteredOrders.length} orders
           </div>
         )}
-        {totalPages > 1 && (
-          <nav className="mt-2 flex justify-end space-x-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1
-                    ? 'bg-teal-700 text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </nav>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-2" />
       </main>
 
       {/* Edit Order Modal — full order detail + update controls */}

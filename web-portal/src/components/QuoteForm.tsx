@@ -6,6 +6,7 @@ import Navbar from './Navbar';
 import { MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import Pagination from './Pagination';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                         */
@@ -315,39 +316,7 @@ const QuoteForm = () => {
         </section>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <nav className="mt-6 flex justify-end space-x-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${
-                  currentPage === i + 1
-                    ? 'bg-teal-700 text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </nav>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="mt-6" />
       </main>
     </div>
   );

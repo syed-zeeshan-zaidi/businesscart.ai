@@ -9,6 +9,7 @@ import { PencilIcon, TrashIcon, PlusIcon, Cog6ToothIcon, ArrowDownTrayIcon } fro
 import toast, { Toaster } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { PageHeader, CARD, TH, TD, ROW_HOVER, Pill, PillTone, Spinner, BTN_PRIMARY, BTN_SECONDARY } from './ui';
+import Pagination from './Pagination';
 
 const ROLE_TONE: Record<string, PillTone> = { admin: 'purple', company: 'teal', customer: 'blue', partner: 'indigo', b2c: 'gray' };
 const ACCT_STATUS_TONE: Record<string, PillTone> = { active: 'green', pending: 'amber', suspended: 'red', inactive: 'gray' };
@@ -346,13 +347,7 @@ const UserForm = () => {
             Showing {indexOfFirst + 1}-{Math.min(indexOfLast, filteredAccounts.length)} of {filteredAccounts.length} accounts
           </div>
         )}
-        {totalPages > 1 && (
-          <div className="mt-2 flex justify-center flex-wrap gap-2">
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i} onClick={() => setCurrentPage(i + 1)} className={`px-3 py-1 border rounded-md text-sm font-medium tabular-nums ${currentPage === i + 1 ? 'bg-teal-700 text-white border-teal-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{i + 1}</button>
-            ))}
-          </div>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} align="center" />
 
         {/* Modal for Add/Edit */}
         <Transition appear show={isModalOpen} as={Fragment}>

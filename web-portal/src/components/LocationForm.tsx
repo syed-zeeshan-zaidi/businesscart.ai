@@ -12,6 +12,7 @@ import { PageHeader, CARD, TH, ROW_HOVER, Pill, Spinner, BTN_PRIMARY } from './u
 import { Dialog, Transition } from '@headlessui/react';
 import Navbar from './Navbar';
 import { Account, CompanyLocation } from '../types';
+import Pagination from './Pagination';
 
 const LocationForm: React.FC = () => {
   const { decodeJWT } = useAuth();
@@ -264,33 +265,7 @@ const LocationForm: React.FC = () => {
                 Showing {idxFirst + 1}-{Math.min(idxLast, filteredLocations.length)} of {filteredLocations.length} locations
               </div>
             )}
-            {totalPages > 1 && (
-              <div className="mt-2 flex justify-end space-x-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded text-sm ${currentPage === i + 1 ? 'bg-teal-700 text-white' : 'hover:bg-gray-50'}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
           </>
         )}
       </div>
