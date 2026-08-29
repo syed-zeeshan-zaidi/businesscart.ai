@@ -17,6 +17,7 @@ const MAX_FAQ_QUESTION = 200;
 const MAX_FAQ_ANSWER = 2000;
 import { useAuth } from '../hooks/useAuth';
 import { canSeeCost } from '../orgRole';
+import Pagination from './Pagination';
 
 const CACHE_KEY = 'products_cache';
 
@@ -758,34 +759,7 @@ const ProductForm = () => {
             Showing {((currentPage - 1) * productsPerPage) + 1}-{Math.min(currentPage * productsPerPage, filteredProducts.length)} of {filteredProducts.length} products
           </div>
         )}
-        {totalPages > 1 && (
-          <div className="mt-2 flex justify-end space-x-2">
-            <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => paginate(i + 1)}
-                className={`px-3 py-1 border border-gray-300 rounded-md text-sm font-medium ${currentPage === i + 1 ? 'bg-teal-700 text-white' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={paginate} />
 
         {/* Product Form Modal */}
         <Transition appear show={isModalOpen} as={Fragment}>
