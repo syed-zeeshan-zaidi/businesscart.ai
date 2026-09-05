@@ -207,11 +207,13 @@ func TestCompute_FeesChargedOnNetNotGross(t *testing.T) {
 
 	got := Compute("seller1", from, to, orders)
 
-	// Starter tier: 6% capped at $5. 6% of net 34.99 = 2.0994; 6% of gross would
-	// be 12.60, which the $5 cap would then mask as 5.00 — so the cap is exactly
-	// why this needs asserting on the uncapped side of the boundary.
-	if math.Abs(got.TransactionFees-2.0994) > 0.001 {
-		t.Errorf("TransactionFees = %v, want ~2.0994 (6%% of net 34.99)", got.TransactionFees)
+	// Starter tier: 6% capped at $5. 6% of net 34.99 = 2.0994, billed as 2.10;
+	// 6% of gross would be 12.60, which the $5 cap would then mask as 5.00 — so
+	// the cap is exactly why this needs asserting on the uncapped side of the
+	// boundary. Asserted exactly, not within a cent, because a cent of slack here
+	// is the whole subject of the rounding test below.
+	if got.TransactionFees != 2.10 {
+		t.Errorf("TransactionFees = %v, want exactly 2.10 (6%% of net 34.99, rounded)", got.TransactionFees)
 	}
 	// Gross is still reported gross: the statement email labels it "gross revenue".
 	if math.Abs(got.TotalGrandTotal-209.97) > 0.001 {
@@ -241,5 +243,56 @@ func TestCompute_FullyRefundedOrderCostsNoFee(t *testing.T) {
 	}
 	if got.OrderCount != 1 {
 		t.Errorf("OrderCount = %v, want 1", got.OrderCount)
+	}
+}
+
+// Money is rounded to whole cents at the point it is produced.
+//
+// This is the real production shape that exposed it: uSetGo's May 2026
+// statement, one $0.90 order on Starter, where 6% is 0.054. That value was
+// stored on the snapshot and emailed as "$0.05", so the billing record and the
+// invoice disagreed, and a portal column of such rows summed to a total that did
+// not match the rows above it.
+//
+// Guard when touching Compute: revert round2 and this test fails with
+// 0.054000000000000006, which is also why it asserts equality rather than a
+// tolerance. Run with -count=1; Go caches passes.
+func TestCompute_MoneyRoundedToCents(t *testing.T) {
+	from := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 1, 0)
+	orders := []*order.Order{{GrandTotal: 0.90}}
+
+	got := Compute("seller1", from, to, orders)
+
+	if got.TransactionFees != 0.05 {
+		t.Errorf("TransactionFees = %v, want exactly 0.05 (6%% of 0.90 = 0.054)", got.TransactionFees)
+	}
+	if got.TotalDue != 0.05 {
+		t.Errorf("TotalDue = %v, want exactly 0.05", got.TotalDue)
+	}
+
+	// Rounding goes up as well as down: 6% of 1.30 is 0.078.
+	up := Compute("seller1", from, to, []*order.Order{{GrandTotal: 1.30}})
+	if up.TransactionFees != 0.08 {
+		t.Errorf("TransactionFees = %v, want exactly 0.08 (6%% of 1.30 = 0.078)", up.TransactionFees)
+	}
+
+	// KNOWN LIMIT, asserted so it cannot change unnoticed. A decimal half-cent is
+	// NOT resolved by a decimal rounding rule, because the binary product is
+	// already off the decimal value: 6% of 2.75 is 0.16499999999999998, not
+	// 0.165, so it rounds DOWN to 0.16 where "round half up" on the decimal
+	// would give 0.17. A half cent, on a boundary case, in the platform's
+	// favour. Rounding is a strict improvement on storing 0.054, but the real
+	// fix is integer cents end to end, which is a money-model change touching
+	// every read path and belongs on the roadmap, not in this test.
+	half := Compute("seller1", from, to, []*order.Order{{GrandTotal: 2.75}})
+	if half.TransactionFees != 0.16 {
+		t.Errorf("TransactionFees = %v, want 0.16 (binary 6%% of 2.75 is just under the half cent)", half.TransactionFees)
+	}
+
+	// The total must equal the parts a reader can see, never a re-derivation
+	// from unrounded internals.
+	if half.TotalDue != half.MonthlyFee+half.TransactionFees {
+		t.Errorf("TotalDue %v != MonthlyFee %v + TransactionFees %v", half.TotalDue, half.MonthlyFee, half.TransactionFees)
 	}
 }

@@ -24,14 +24,23 @@ export interface TierInfo {
   estimatedBill: number;
 }
 
+// The billing month is the UTC calendar month, everywhere.
+//
+// This used to read the LOCAL month, which meant the dashboard estimate and the
+// statement could disagree about which month an order fell in: the seller saw an
+// order in month N and was billed for it in month N-1. The boundary is now the
+// same instant here, on the Billing page and in the snapshot, so the estimate a
+// seller reads always covers the period they are invoiced for. The cost is that
+// near midnight UTC the dashboard rolls over before local midnight; agreeing
+// with the invoice is worth more than agreeing with the wall clock.
 export function computeTier(orders: Order[], now: Date = new Date()): TierInfo {
-  const y = now.getFullYear();
-  const m = now.getMonth();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
 
   const monthOrders = orders.filter((o) => {
     if (o.status === 'cancelled') return false;
     const d = new Date(o.createdAt);
-    return d.getFullYear() === y && d.getMonth() === m;
+    return d.getUTCFullYear() === y && d.getUTCMonth() === m;
   });
 
   const count = monthOrders.length;
@@ -73,6 +82,9 @@ export function computeTier(orders: Order[], now: Date = new Date()): TierInfo {
   // sent: a $209.97 order refunded $174.98 estimates $5.00 here (6% of gross, hit
   // the cap) against $2.10 billed (6% of net). Clamped at 0 like NetTotal so an
   // over-refund cannot produce a negative fee.
+  // Rounded to cents to mirror statement.Compute's round2. Without it the
+  // dashboard estimate shows a fraction of a cent the invoice never charges.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const perOrderFees = monthOrders.reduce((s, o) => {
     const refunded = (o.refunds || []).reduce((r, x) => r + (x.amount || 0), 0);
     const net = Math.max(0, (o.grandTotal || 0) - refunded);
@@ -93,6 +105,6 @@ export function computeTier(orders: Order[], now: Date = new Date()): TierInfo {
     monthlyFee,
     perOrderRate,
     perOrderCap,
-    estimatedBill: monthlyFee + perOrderFees,
+    estimatedBill: round2(monthlyFee + round2(perOrderFees)),
   };
 }

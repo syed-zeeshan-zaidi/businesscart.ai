@@ -1,10 +1,28 @@
 package statement
 
 import (
+	"math"
 	"time"
 
 	"github.com/syed/businesscart/checkout-service/internal/order"
 )
+
+// round2 snaps a money figure to whole cents.
+//
+// Every value this package produces is a dollar amount held in float64, and the
+// fee is a raw product (rate * net) that lands on fractions of a cent: 6% of a
+// $0.90 order is 0.054. That value was being stored on the snapshot and emailed
+// as "$0.05", so the billing record and the invoice disagreed, and a column of
+// such rows in the portal summed to a total that did not match the rows above
+// it. Rounding once, here, where the figures are produced, keeps the snapshot,
+// the email, the portal and any export agreeing to the cent.
+//
+// The SUM of the per-order fees is rounded, not each order, because the
+// statement bills one aggregate "transaction fees" line rather than per-order
+// lines. Rounding per order would drift from that line by a cent per order.
+func round2(f float64) float64 {
+	return math.Round(f*100) / 100
+}
 
 // Compute derives the billing tier and fees from a period's orders.
 // Brackets:
@@ -56,6 +74,8 @@ func Compute(sellerID string, from, to time.Time, orders []*order.Order) Compute
 		fees += fee
 	}
 
+	roundedFees := round2(fees)
+
 	return Computed{
 		SellerID:    sellerID,
 		PeriodStart: from,
@@ -64,13 +84,13 @@ func Compute(sellerID string, from, to time.Time, orders []*order.Order) Compute
 		// GrandTotal stays GROSS on purpose: the statement email labels this line
 		// "gross revenue", so netting it here would make that label a lie. Refunds
 		// are reported alongside it and the fee above is what actually uses net.
-		TotalGrandTotal: grandTotal,
-		TotalRefunded:   refunded,
+		TotalGrandTotal: round2(grandTotal),
+		TotalRefunded:   round2(refunded),
 		Tier:            tier,
 		MonthlyFee:      monthlyFee,
 		PerOrderRate:    perOrderRate,
 		PerOrderCap:     perOrderCap,
-		TransactionFees: fees,
-		TotalDue:        monthlyFee + fees,
+		TransactionFees: roundedFees,
+		TotalDue:        round2(monthlyFee + roundedFees),
 	}
 }
